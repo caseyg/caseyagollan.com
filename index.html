@@ -13,6 +13,19 @@
   <link href="https://unpkg.com/telescopic-text/lib/index.css" rel="stylesheet" />
   <link rel="stylesheet" href="https://use.typekit.net/rfh8wvj.css">
   <style>
+    .skip-link {
+      background: blue;
+      color: white;
+      font-weight: 700;
+      left: 50%;
+      position: absolute;
+        top: 0;
+        left: 0;
+      transform: translateY(-100%);
+    }
+    .skip-link:focus {
+      transform: translateY(0%);
+    }
     :root {
       --telescope-text-color: white;
       --telescope-highlight: blue;
@@ -32,8 +45,11 @@
   </style>
 </head>
 <body>
-  <div id="text-container"></div>
-  <img src="/sisu.gif" alt="Monument to Finnish Sisu">
+  <header>
+    <a class="skip-link" href="/index-accessible.html">Visit Accessible Alternative</a>
+  </header> 
+  <main id="text-container"></main>
+  <img src="/sisu.gif" alt="Monument to Finnish Sisu. Rocks are arranged into a large mound at the edge of a grassy plateau, overlooking fields, forests, and lakes, under a bright cloudy sky.">
   <script src="https://unpkg.com/telescopic-text/lib/index.js"></script>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-YX0XVKSRCH"></script>
   <script>

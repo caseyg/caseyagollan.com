@@ -1,0 +1,82 @@
+- 👋 Hi, I'm Casey Alexander Gollan!
+  - I am a collaborative leader with a decade of experience building organizations, transforming operations, and growing communities at the intersection of technology, art and design, and education.
+  - 💼 I currently work in Research Operations as Project Manager for Insights + Data & Technology at IBM.
+  - Some previous highlights of my career have included: 
+      - Figma, 
+        - contributing to a pilot of continuous research at Figma,
+      - NYU,
+        - leading operations at New York University's AI Now Institute,
+      - SFPC,
+        - helping establish the School for Poetic Computation,
+      - Atavist,
+        - doing digital production and QA for multi-platform experimental publisher Atavist,
+      - OpenNews Source,
+        - copy editing a blog on data journalism in newsrooms for OpenNews Source,
+      - 20x200,
+        - working as a product designer and front-end developer for e-commerce innovator 20x200,
+      - and independent consulting.
+        - and running an independent design and technology consultancy whose work has been exhibited at the Vienna Biennale, V&A Museum, and ArkDes.
+    - 👨‍🎨 In my work as an artist and educator, I've 
+      - taught, 
+        -  taught at The Cooper Union, 
+      - exhibited, 
+        - exhibited at the Whitney Museum, 
+      - been awarded a fellowship, 
+        - been awarded a fellowship at The New School's Center for Art and Politics, 
+      - and lectured.
+        - and lectured at Yale University and Between Bridges Galerie in Berlin.
+    - 💻 As a designer and technologist, 
+      - I publish
+        - was selected to participate in Triple Canopy’s inaugural Networked Publishing Intensive,
+      - and write.
+        - my writing has been published by Rhizome at The New Museum.
+    - 📚 I've studied 
+      - art and design,
+        - art and design at The Cooper Union (where I received my Bachelor of Fine Arts),
+      - and... 
+      - cooperatives,
+        -  Platform Cooperatives Now with Mondragon University and The New School,
+      - design ops,
+        -  DesignOps: Scaling UX Design and User Research with Nielsen Norman Group,
+      - history of capitalism,
+        -  Economic Methods for Historians Workshop (a.k.a. History of Capitalism Summer Camp) at Cornell University ILR School,
+      - feminist business,
+        - PathMinding: Get Aligned + Accountable in Your Feminist Business with C.V. Harquail,
+      - sociocracy,
+        - The Theory and Practice of Sociocracy in Cooperatives with Sociocracy For All,
+      - anti-racism,
+        - Real Talk: Communication Strategies for a White Anti-Racist Welcome Wagon with AORTA (Anti-Oppression Resource and Training Alliance),
+      - remote work,
+        - How to Manage a Remote Team by Gitlab,
+      - values,
+        - A Humble Laboratory - Running a Lab Based on Your Values by CLEAR Lab (Civic Laboratory for Environmental Action Research),
+      - democratic management,
+        - Democratic Management Skills with The Democracy at Work Institute,
+      - non-violent communication,
+        - Introduction to Nonviolent Communication with NYCNVC,
+      - decentralized organizing,
+        - Patterns for Decentralized Organizing with The Hum,
+      - decision-making,
+        -  Cooperative Decision-Making with Loomio Cooperative and Round Sky Solutions,
+      - agile and scrum,
+        -  Intro to Agile and Scrum with General Assembly,
+      - participatory governance,
+        -  vTaiwan Open Consultation & Participation Officers Training with g0v,
+      - publishing,
+        -  New School Publishing Institute,
+      - people management,
+        - People Management Intensive with Anne Libby,
+      - and I am still always looking to learn something new.
+  - Here's how to reach me by
+    - [email](mailto:hello@caseyagollan.com)
+    - [linkedin](https://linkedin.com/in/casey-gollan)
+    - [twitter](https://twitter.com/caseyg)
+  - and where (else) to find me:
+    - [my wiki](https://cag.wiki)
+    - [medium](https://medium.com/@caseyg)
+  - 🪨 * p.s. About the rocks. These are the "Monument to Finnish Sisu". 🇫🇮
+    - As an anonymous internet user once asked, on a now defunct blogspot: "What is so compelling about this pile of rocks that would inspire me to look at this picture so many times on any given day?"
+    - Sisu is a word from the Finnish language that is "ekphrastically untranslatable". (This means that there isn’t a word quite like it in the English language.)
+      - It stands for a combination of resilience, determination, making a plan and sticking to it, and continuing on against the odds. It has often been described as similar to "grit" or "equanimity" but — I love this part — with a “grimmer quality of stress management.”
+
+![Monument to Finnish Sisu. Rocks are arranged into a large mound at the edge of a grassy plateau, overlooking fields, forests, and lakes, under a bright cloudy sky.](/sisu.gif)
