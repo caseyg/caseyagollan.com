@@ -7,7 +7,7 @@
       "isbn": "0306808935",
       "pages": 504,
       "group": "book",
-      "img": "./library/img/0306808935.jpg",
+      "img": "img/0306808935.jpg",
       "w": 180,
       "h": 269
     },
@@ -34,7 +34,7 @@
       "isbn": "0226009254",
       "pages": 104,
       "group": "book",
-      "img": "./library/img/0226009254.jpg",
+      "img": "img/0226009254.jpg",
       "w": 180,
       "h": 292
     },
@@ -45,7 +45,7 @@
       "isbn": "1572730536",
       "pages": 103,
       "group": "book",
-      "img": "./library/img/1572730536.jpg",
+      "img": "img/1572730536.jpg",
       "w": 180,
       "h": 278
     },
@@ -56,7 +56,7 @@
       "isbn": "1842300113",
       "pages": 128,
       "group": "book",
-      "img": "./library/img/1842300113.jpg",
+      "img": "img/1842300113.jpg",
       "w": 180,
       "h": 291
     },
@@ -67,7 +67,7 @@
       "isbn": "0195019199",
       "pages": 1171,
       "group": "book",
-      "img": "./library/img/0195019199.jpg",
+      "img": "img/0195019199.jpg",
       "w": 180,
       "h": 275
     },
@@ -78,7 +78,7 @@
       "isbn": "0878301178",
       "pages": 208,
       "group": "book",
-      "img": "./library/img/0878301178.jpg",
+      "img": "img/0878301178.jpg",
       "w": 180,
       "h": 292
     },
@@ -89,7 +89,7 @@
       "isbn": "0878301054",
       "pages": 388,
       "group": "book",
-      "img": "./library/img/0878301054.jpg",
+      "img": "img/0878301054.jpg",
       "w": 180,
       "h": 304
     },
@@ -100,7 +100,7 @@
       "isbn": "1560007044",
       "pages": 198,
       "group": "book",
-      "img": "./library/img/1560007044.jpg",
+      "img": "img/1560007044.jpg",
       "w": 128,
       "h": 194
     },
@@ -119,7 +119,7 @@
       "isbn": "0312862113",
       "pages": 370,
       "group": "book",
-      "img": "./library/img/0312862113.jpg",
+      "img": "img/0312862113.jpg",
       "w": 180,
       "h": 285
     },
@@ -130,7 +130,7 @@
       "isbn": "0415281296",
       "pages": 216,
       "group": "book",
-      "img": "./library/img/0415281296.jpg",
+      "img": "img/0415281296.jpg",
       "w": 180,
       "h": 270
     },
@@ -141,7 +141,7 @@
       "isbn": "0321918622",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0321918622.jpg",
+      "img": "img/0321918622.jpg",
       "w": 180,
       "h": 234
     },
@@ -152,7 +152,7 @@
       "isbn": "088784636X",
       "pages": 210,
       "group": "book",
-      "img": "./library/img/088784636X.jpg",
+      "img": "img/088784636X.jpg",
       "w": 180,
       "h": 299
     },
@@ -163,7 +163,7 @@
       "isbn": "0822359383",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/0822359383.jpg",
+      "img": "img/0822359383.jpg",
       "w": 180,
       "h": 270
     },
@@ -174,7 +174,7 @@
       "isbn": "080416892X",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/080416892X.jpg",
+      "img": "img/080416892X.jpg",
       "w": 180,
       "h": 277
     },
@@ -185,7 +185,7 @@
       "isbn": "026253472X",
       "pages": 264,
       "group": "book",
-      "img": "./library/img/026253472X.jpg",
+      "img": "img/026253472X.jpg",
       "w": 180,
       "h": 270
     },
@@ -196,7 +196,7 @@
       "isbn": "9781593764265",
       "pages": 152,
       "group": "book",
-      "img": "./library/img/9781593764265.jpg",
+      "img": "img/9781593764265.jpg",
       "w": 180,
       "h": 270
     },
@@ -207,7 +207,7 @@
       "isbn": "0812978501",
       "pages": 384,
       "group": "book",
-      "img": "./library/img/0812978501.jpg",
+      "img": "img/0812978501.jpg",
       "w": 180,
       "h": 270
     },
@@ -218,7 +218,7 @@
       "isbn": "0262522950",
       "pages": 389,
       "group": "book",
-      "img": "./library/img/0262522950.jpg",
+      "img": "img/0262522950.jpg",
       "w": 180,
       "h": 252
     },
@@ -237,7 +237,7 @@
       "isbn": "0143127748",
       "pages": 464,
       "group": "book",
-      "img": "./library/img/0143127748.jpg",
+      "img": "img/0143127748.jpg",
       "w": 180,
       "h": 276
     },
@@ -248,7 +248,7 @@
       "isbn": "0300151195",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0300151195.jpg",
+      "img": "img/0300151195.jpg",
       "w": 180,
       "h": 271
     },
@@ -259,7 +259,7 @@
       "isbn": "067974195X",
       "pages": 480,
       "group": "book",
-      "img": "./library/img/067974195X.jpg",
+      "img": "img/067974195X.jpg",
       "w": 180,
       "h": 280
     },
@@ -270,7 +270,7 @@
       "isbn": "082233013X",
       "pages": 472,
       "group": "book",
-      "img": "./library/img/082233013X.jpg",
+      "img": "img/082233013X.jpg",
       "w": 180,
       "h": 269
     },
@@ -281,7 +281,7 @@
       "isbn": "0822362244",
       "pages": 312,
       "group": "book",
-      "img": "./library/img/0822362244.jpg",
+      "img": "img/0822362244.jpg",
       "w": 180,
       "h": 271
     },
@@ -292,7 +292,7 @@
       "isbn": "1935408534",
       "pages": 296,
       "group": "book",
-      "img": "./library/img/1935408534.jpg",
+      "img": "img/1935408534.jpg",
       "w": 180,
       "h": 247
     },
@@ -303,7 +303,7 @@
       "isbn": "0942299329",
       "pages": 333,
       "group": "book",
-      "img": "./library/img/0942299329.jpg",
+      "img": "img/0942299329.jpg",
       "w": 180,
       "h": 263
     },
@@ -314,7 +314,7 @@
       "isbn": "0822361213",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0822361213.jpg",
+      "img": "img/0822361213.jpg",
       "w": 180,
       "h": 271
     },
@@ -325,7 +325,7 @@
       "isbn": "1570272670",
       "pages": 166,
       "group": "book",
-      "img": "./library/img/1570272670.jpg",
+      "img": "img/1570272670.jpg",
       "w": 180,
       "h": 279
     },
@@ -336,7 +336,7 @@
       "isbn": "0742516857",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/0742516857.jpg",
+      "img": "img/0742516857.jpg",
       "w": 180,
       "h": 280
     },
@@ -347,7 +347,7 @@
       "isbn": "0143127136",
       "pages": 368,
       "group": "book",
-      "img": "./library/img/0143127136.jpg",
+      "img": "img/0143127136.jpg",
       "w": 180,
       "h": 276
     },
@@ -374,7 +374,7 @@
       "isbn": "0805088601",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0805088601.jpg",
+      "img": "img/0805088601.jpg",
       "w": 180,
       "h": 282
     },
@@ -385,7 +385,7 @@
       "isbn": "1608462684",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/1608462684.jpg",
+      "img": "img/1608462684.jpg",
       "w": 180,
       "h": 273
     },
@@ -412,7 +412,7 @@
       "isbn": "1616890533",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/1616890533.jpg",
+      "img": "img/1616890533.jpg",
       "w": 180,
       "h": 218
     },
@@ -423,7 +423,7 @@
       "isbn": "0262681218",
       "pages": 480,
       "group": "book",
-      "img": "./library/img/0262681218.jpg",
+      "img": "img/0262681218.jpg",
       "w": 180,
       "h": 269
     },
@@ -442,7 +442,7 @@
       "isbn": "0745633153",
       "pages": 144,
       "group": "book",
-      "img": "./library/img/0745633153.jpg",
+      "img": "img/0745633153.jpg",
       "w": 180,
       "h": 263
     },
@@ -453,7 +453,7 @@
       "isbn": "1784786225",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/1784786225.jpg",
+      "img": "img/1784786225.jpg",
       "w": 180,
       "h": 286
     },
@@ -471,7 +471,7 @@
       "isbn": "1784783641",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/1784783641.jpg",
+      "img": "img/1784783641.jpg",
       "w": 180,
       "h": 276
     },
@@ -482,7 +482,7 @@
       "isbn": "1935429000",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/1935429000.jpg",
+      "img": "img/1935429000.jpg",
       "w": 180,
       "h": 259
     },
@@ -501,7 +501,7 @@
       "isbn": "0415304431",
       "pages": 128,
       "group": "book",
-      "img": "./library/img/0415304431.jpg",
+      "img": "img/0415304431.jpg",
       "w": 180,
       "h": 276
     },
@@ -512,7 +512,7 @@
       "isbn": "0060953500",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/0060953500.jpg",
+      "img": "img/0060953500.jpg",
       "w": 180,
       "h": 279
     },
@@ -523,7 +523,7 @@
       "isbn": "0312141378",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/0312141378.jpg",
+      "img": "img/0312141378.jpg",
       "w": 180,
       "h": 263
     },
@@ -534,7 +534,7 @@
       "isbn": "1858946018",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/1858946018.jpg",
+      "img": "img/1858946018.jpg",
       "w": 180,
       "h": 254
     },
@@ -553,7 +553,7 @@
       "isbn": "039332043X",
       "pages": 184,
       "group": "book",
-      "img": "./library/img/039332043X.jpg",
+      "img": "img/039332043X.jpg",
       "w": 180,
       "h": 267
     },
@@ -564,7 +564,7 @@
       "isbn": "1451668260",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/1451668260.jpg",
+      "img": "img/1451668260.jpg",
       "w": 180,
       "h": 287
     },
@@ -575,7 +575,7 @@
       "isbn": "0312658850",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/0312658850.jpg",
+      "img": "img/0312658850.jpg",
       "w": 180,
       "h": 273
     },
@@ -586,7 +586,7 @@
       "isbn": "9785906264305",
       "pages": 30,
       "group": "book",
-      "img": "./library/img/9785906264305.jpg",
+      "img": "img/9785906264305.jpg",
       "w": 180,
       "h": 279
     },
@@ -597,7 +597,7 @@
       "isbn": "1595586431",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/1595586431.jpg",
+      "img": "img/1595586431.jpg",
       "w": 180,
       "h": 275
     },
@@ -608,7 +608,7 @@
       "isbn": "0743235274",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/0743235274.jpg",
+      "img": "img/0743235274.jpg",
       "w": 180,
       "h": 231
     },
@@ -619,7 +619,7 @@
       "isbn": "0029345707",
       "pages": 413,
       "group": "book",
-      "img": "./library/img/0029345707.jpg",
+      "img": "img/0029345707.jpg",
       "w": 180,
       "h": 293
     },
@@ -630,7 +630,7 @@
       "isbn": "9780887307287",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/9780887307287.jpg",
+      "img": "img/9780887307287.jpg",
       "w": 180,
       "h": 270
     },
@@ -641,7 +641,7 @@
       "isbn": "0415908086",
       "pages": 216,
       "group": "book",
-      "img": "./library/img/0415908086.jpg",
+      "img": "img/0415908086.jpg",
       "w": 128,
       "h": 193
     },
@@ -652,7 +652,7 @@
       "isbn": "0970910177",
       "pages": 376,
       "group": "book",
-      "img": "./library/img/0970910177.jpg",
+      "img": "img/0970910177.jpg",
       "w": 180,
       "h": 281
     },
@@ -663,7 +663,7 @@
       "isbn": "0826412769",
       "pages": 183,
       "group": "book",
-      "img": "./library/img/0826412769.jpg",
+      "img": "img/0826412769.jpg",
       "w": 180,
       "h": 273
     },
@@ -674,7 +674,7 @@
       "isbn": "9780143118442",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/9780143118442.jpg",
+      "img": "img/9780143118442.jpg",
       "w": 180,
       "h": 180
     },
@@ -693,7 +693,7 @@
       "isbn": "1451639619",
       "pages": 432,
       "group": "book",
-      "img": "./library/img/1451639619.jpg",
+      "img": "img/1451639619.jpg",
       "w": 180,
       "h": 272
     },
@@ -704,7 +704,7 @@
       "isbn": "162779428X",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/162779428X.jpg",
+      "img": "img/162779428X.jpg",
       "w": 180,
       "h": 275
     },
@@ -715,7 +715,7 @@
       "isbn": "1612194192",
       "pages": 560,
       "group": "book",
-      "img": "./library/img/1612194192.jpg",
+      "img": "img/1612194192.jpg",
       "w": 180,
       "h": 267
     },
@@ -726,7 +726,7 @@
       "isbn": "9780880103725",
       "pages": 259,
       "group": "book",
-      "img": "./library/img/9780880103725.jpg",
+      "img": "img/9780880103725.jpg",
       "w": 180,
       "h": 278
     },
@@ -737,7 +737,7 @@
       "isbn": "0321988191",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0321988191.jpg",
+      "img": "img/0321988191.jpg",
       "w": 180,
       "h": 231
     },
@@ -756,7 +756,7 @@
       "isbn": "0300169175",
       "pages": 464,
       "group": "book",
-      "img": "./library/img/0300169175.jpg",
+      "img": "img/0300169175.jpg",
       "w": 180,
       "h": 273
     },
@@ -774,7 +774,7 @@
       "isbn": "0061242365",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/0061242365.jpg",
+      "img": "img/0061242365.jpg",
       "w": 180,
       "h": 292
     },
@@ -793,7 +793,7 @@
       "isbn": "0143118757",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/0143118757.jpg",
+      "img": "img/0143118757.jpg",
       "w": 180,
       "h": 286
     },
@@ -804,7 +804,7 @@
       "isbn": "0812984250",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0812984250.jpg",
+      "img": "img/0812984250.jpg",
       "w": 180,
       "h": 285
     },
@@ -815,7 +815,7 @@
       "isbn": "1565847032",
       "pages": 416,
       "group": "book",
-      "img": "./library/img/1565847032.jpg",
+      "img": "img/1565847032.jpg",
       "w": 180,
       "h": 274
     },
@@ -826,7 +826,7 @@
       "isbn": "0316182389",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0316182389.jpg",
+      "img": "img/0316182389.jpg",
       "w": 180,
       "h": 273
     },
@@ -837,7 +837,7 @@
       "isbn": "0231149913",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0231149913.jpg",
+      "img": "img/0231149913.jpg",
       "w": 180,
       "h": 259
     },
@@ -848,7 +848,7 @@
       "isbn": "1594485755",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/1594485755.jpg",
+      "img": "img/1594485755.jpg",
       "w": 180,
       "h": 269
     },
@@ -859,7 +859,7 @@
       "isbn": "0865718547",
       "pages": 144,
       "group": "book",
-      "img": "./library/img/0865718547.jpg",
+      "img": "img/0865718547.jpg",
       "w": 180,
       "h": 269
     },
@@ -870,7 +870,7 @@
       "isbn": "0316066524",
       "pages": 1079,
       "group": "book",
-      "img": "./library/img/0316066524.jpg",
+      "img": "img/0316066524.jpg",
       "w": 180,
       "h": 278
     },
@@ -889,7 +889,7 @@
       "isbn": "0465093655",
       "pages": 400,
       "group": "book",
-      "img": "./library/img/0465093655.jpg",
+      "img": "img/0465093655.jpg",
       "w": 180,
       "h": 269
     },
@@ -900,7 +900,7 @@
       "isbn": "014303653X",
       "pages": 208,
       "group": "book",
-      "img": "./library/img/014303653X.jpg",
+      "img": "img/014303653X.jpg",
       "w": 160,
       "h": 160
     },
@@ -918,7 +918,7 @@
       "isbn": "0307277259",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0307277259.jpg",
+      "img": "img/0307277259.jpg",
       "w": 180,
       "h": 277
     },
@@ -929,7 +929,7 @@
       "isbn": "0985472200",
       "pages": 131,
       "group": "book",
-      "img": "./library/img/0985472200.jpg",
+      "img": "img/0985472200.jpg",
       "w": 180,
       "h": 278
     },
@@ -940,7 +940,7 @@
       "isbn": "0262518511",
       "pages": 254,
       "group": "book",
-      "img": "./library/img/0262518511.jpg",
+      "img": "img/0262518511.jpg",
       "w": 180,
       "h": 228
     },
@@ -951,7 +951,7 @@
       "isbn": "038549081X",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/038549081X.jpg",
+      "img": "img/038549081X.jpg",
       "w": 180,
       "h": 289
     },
@@ -962,7 +962,7 @@
       "isbn": "0226321487",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0226321487.jpg",
+      "img": "img/0226321487.jpg",
       "w": 180,
       "h": 270
     },
@@ -973,7 +973,7 @@
       "isbn": "1595580506",
       "pages": 353,
       "group": "book",
-      "img": "./library/img/1595580506.jpg",
+      "img": "img/1595580506.jpg",
       "w": 180,
       "h": 270
     },
@@ -984,7 +984,7 @@
       "isbn": "0893470554",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0893470554.jpg",
+      "img": "img/0893470554.jpg",
       "w": 180,
       "h": 193
     },
@@ -995,7 +995,7 @@
       "isbn": "0425190447",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/0425190447.jpg",
+      "img": "img/0425190447.jpg",
       "w": 180,
       "h": 285
     },
@@ -1006,7 +1006,7 @@
       "isbn": "0747404135",
       "pages": 368,
       "group": "book",
-      "img": "./library/img/0747404135.jpg",
+      "img": "img/0747404135.jpg",
       "w": 180,
       "h": 281
     },
@@ -1017,7 +1017,7 @@
       "isbn": "0262014874",
       "pages": 248,
       "group": "book",
-      "img": "./library/img/0262014874.jpg",
+      "img": "img/0262014874.jpg",
       "w": 180,
       "h": 294
     },
@@ -1028,7 +1028,7 @@
       "isbn": "0262014866",
       "pages": 312,
       "group": "book",
-      "img": "./library/img/0262014866.jpg",
+      "img": "img/0262014866.jpg",
       "w": 180,
       "h": 267
     },
@@ -1039,7 +1039,7 @@
       "isbn": "0307389979",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/0307389979.jpg",
+      "img": "img/0307389979.jpg",
       "w": 180,
       "h": 270
     },
@@ -1050,7 +1050,7 @@
       "isbn": "0520256093",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0520256093.jpg",
+      "img": "img/0520256093.jpg",
       "w": 180,
       "h": 242
     },
@@ -1061,7 +1061,7 @@
       "isbn": "0801475090",
       "pages": 296,
       "group": "book",
-      "img": "./library/img/0801475090.jpg",
+      "img": "img/0801475090.jpg",
       "w": 180,
       "h": 269
     },
@@ -1080,7 +1080,7 @@
       "isbn": "0679720227",
       "pages": 147,
       "group": "book",
-      "img": "./library/img/0679720227.jpg",
+      "img": "img/0679720227.jpg",
       "w": 180,
       "h": 280
     },
@@ -1091,7 +1091,7 @@
       "isbn": "0547085907",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/0547085907.jpg",
+      "img": "img/0547085907.jpg",
       "w": 180,
       "h": 284
     },
@@ -1102,7 +1102,7 @@
       "isbn": "3721201450",
       "pages": 176,
       "group": "book",
-      "img": "./library/img/3721201450.jpg",
+      "img": "img/3721201450.jpg",
       "w": 128,
       "h": 169
     },
@@ -1113,7 +1113,7 @@
       "isbn": "3037781696",
       "pages": 608,
       "group": "book",
-      "img": "./library/img/3037781696.jpg",
+      "img": "img/3037781696.jpg",
       "w": 180,
       "h": 244
     },
@@ -1124,7 +1124,7 @@
       "isbn": "0500203768",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/0500203768.jpg",
+      "img": "img/0500203768.jpg",
       "w": 180,
       "h": 252
     },
@@ -1135,7 +1135,7 @@
       "isbn": "0226662772",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/0226662772.jpg",
+      "img": "img/0226662772.jpg",
       "w": 180,
       "h": 265
     },
@@ -1146,7 +1146,7 @@
       "isbn": "0307279502",
       "pages": 464,
       "group": "book",
-      "img": "./library/img/0307279502.jpg",
+      "img": "img/0307279502.jpg",
       "w": 180,
       "h": 282
     },
@@ -1157,7 +1157,7 @@
       "isbn": "1400096235",
       "pages": 544,
       "group": "book",
-      "img": "./library/img/1400096235.jpg",
+      "img": "img/1400096235.jpg",
       "w": 180,
       "h": 278
     },
@@ -1168,7 +1168,7 @@
       "isbn": "0316017930",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0316017930.jpg",
+      "img": "img/0316017930.jpg",
       "w": 180,
       "h": 273
     },
@@ -1179,7 +1179,7 @@
       "isbn": "0802144454",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0802144454.jpg",
+      "img": "img/0802144454.jpg",
       "w": 180,
       "h": 269
     },
@@ -1190,7 +1190,7 @@
       "isbn": "0520240790",
       "pages": 297,
       "group": "book",
-      "img": "./library/img/0520240790.jpg",
+      "img": "img/0520240790.jpg",
       "w": 180,
       "h": 271
     },
@@ -1201,7 +1201,7 @@
       "isbn": "0671657135",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0671657135.jpg",
+      "img": "img/0671657135.jpg",
       "w": 180,
       "h": 229
     },
@@ -1212,7 +1212,7 @@
       "isbn": "1580932967",
       "pages": 208,
       "group": "book",
-      "img": "./library/img/1580932967.jpg",
+      "img": "img/1580932967.jpg",
       "w": 180,
       "h": 295
     },
@@ -1231,7 +1231,7 @@
       "isbn": "0714840114",
       "pages": 1,
       "group": "book",
-      "img": "./library/img/0714840114.jpg",
+      "img": "img/0714840114.jpg",
       "w": 180,
       "h": 126
     },
@@ -1242,7 +1242,7 @@
       "isbn": "1595340416",
       "pages": 246,
       "group": "book",
-      "img": "./library/img/1595340416.jpg",
+      "img": "img/1595340416.jpg",
       "w": 180,
       "h": 271
     },
@@ -1253,7 +1253,7 @@
       "isbn": "0979612101",
       "pages": 112,
       "group": "book",
-      "img": "./library/img/0979612101.jpg",
+      "img": "img/0979612101.jpg",
       "w": 180,
       "h": 285
     },
@@ -1264,7 +1264,7 @@
       "isbn": "0805202412",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0805202412.jpg",
+      "img": "img/0805202412.jpg",
       "w": 180,
       "h": 283
     },
@@ -1275,7 +1275,7 @@
       "isbn": "006097625X",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/006097625X.jpg",
+      "img": "img/006097625X.jpg",
       "w": 180,
       "h": 271
     },
@@ -1286,7 +1286,7 @@
       "isbn": "0870707620",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/0870707620.jpg",
+      "img": "img/0870707620.jpg",
       "w": 180,
       "h": 231
     },
@@ -1297,7 +1297,7 @@
       "isbn": "0262182629",
       "pages": 712,
       "group": "book",
-      "img": "./library/img/0262182629.jpg",
+      "img": "img/0262182629.jpg",
       "w": 180,
       "h": 231
     },
@@ -1308,7 +1308,7 @@
       "isbn": "038533348X",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/038533348X.jpg",
+      "img": "img/038533348X.jpg",
       "w": 180,
       "h": 274
     },
@@ -1319,7 +1319,7 @@
       "isbn": "1568987889",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/1568987889.jpg",
+      "img": "img/1568987889.jpg",
       "w": 180,
       "h": 267
     },
@@ -1330,7 +1330,7 @@
       "isbn": "0553351397",
       "pages": 134,
       "group": "book",
-      "img": "./library/img/0553351397.jpg",
+      "img": "img/0553351397.jpg",
       "w": 180,
       "h": 283
     },
@@ -1348,7 +1348,7 @@
       "isbn": "0307387895",
       "pages": 287,
       "group": "book",
-      "img": "./library/img/0307387895.jpg",
+      "img": "img/0307387895.jpg",
       "w": 180,
       "h": 277
     },
@@ -1359,7 +1359,7 @@
       "isbn": "080214442X",
       "pages": 128,
       "group": "book",
-      "img": "./library/img/080214442X.jpg",
+      "img": "img/080214442X.jpg",
       "w": 180,
       "h": 271
     },
@@ -1370,7 +1370,7 @@
       "isbn": "0679720200",
       "pages": 123,
       "group": "book",
-      "img": "./library/img/0679720200.jpg",
+      "img": "img/0679720200.jpg",
       "w": 180,
       "h": 288
     },
@@ -1389,7 +1389,7 @@
       "isbn": "0252064682",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0252064682.jpg",
+      "img": "img/0252064682.jpg",
       "w": 180,
       "h": 289
     },
@@ -1400,7 +1400,7 @@
       "isbn": "0716305984",
       "pages": 73,
       "group": "book",
-      "img": "./library/img/0716305984.jpg",
+      "img": "img/0716305984.jpg",
       "w": 128,
       "h": 185
     },
@@ -1411,7 +1411,7 @@
       "isbn": "1559364580",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/1559364580.jpg",
+      "img": "img/1559364580.jpg",
       "w": 180,
       "h": 288
     },
@@ -1422,7 +1422,7 @@
       "isbn": "1884511481",
       "pages": 280,
       "group": "book",
-      "img": "./library/img/1884511481.jpg",
+      "img": "img/1884511481.jpg",
       "w": 180,
       "h": 294
     },
@@ -1433,7 +1433,7 @@
       "isbn": "082221704X",
       "pages": 72,
       "group": "book",
-      "img": "./library/img/082221704X.jpg",
+      "img": "img/082221704X.jpg",
       "w": 180,
       "h": 263
     },
@@ -1444,7 +1444,7 @@
       "isbn": "0596001088",
       "pages": 241,
       "group": "book",
-      "img": "./library/img/0596001088.jpg",
+      "img": "img/0596001088.jpg",
       "w": 180,
       "h": 276
     },
@@ -1455,7 +1455,7 @@
       "isbn": "0300078153",
       "pages": 460,
       "group": "book",
-      "img": "./library/img/0300078153.jpg",
+      "img": "img/0300078153.jpg",
       "w": 180,
       "h": 282
     },
@@ -1466,7 +1466,7 @@
       "isbn": "3865608094",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/3865608094.jpg",
+      "img": "img/3865608094.jpg",
       "w": 180,
       "h": 249
     },
@@ -1477,7 +1477,7 @@
       "isbn": "3952397148",
       "pages": 390,
       "group": "book",
-      "img": "./library/img/3952397148.jpg",
+      "img": "img/3952397148.jpg",
       "w": 180,
       "h": 244
     },
@@ -1488,7 +1488,7 @@
       "isbn": "1936440393",
       "pages": 110,
       "group": "book",
-      "img": "./library/img/1936440393.jpg",
+      "img": "img/1936440393.jpg",
       "w": 180,
       "h": 279
     },
@@ -1499,7 +1499,7 @@
       "isbn": "1451691912",
       "pages": 448,
       "group": "book",
-      "img": "./library/img/1451691912.jpg",
+      "img": "img/1451691912.jpg",
       "w": 180,
       "h": 268
     },
@@ -1518,7 +1518,7 @@
       "isbn": "0811222926",
       "pages": 51,
       "group": "book",
-      "img": "./library/img/0811222926.jpg",
+      "img": "img/0811222926.jpg",
       "w": 180,
       "h": 300
     },
@@ -1536,7 +1536,7 @@
       "isbn": "0811220419",
       "pages": 48,
       "group": "book",
-      "img": "./library/img/0811220419.jpg",
+      "img": "img/0811220419.jpg",
       "w": 180,
       "h": 270
     },
@@ -1547,7 +1547,7 @@
       "isbn": "0815602065",
       "pages": 146,
       "group": "book",
-      "img": "./library/img/0815602065.jpg",
+      "img": "img/0815602065.jpg",
       "w": 128,
       "h": 195
     },
@@ -1558,7 +1558,7 @@
       "isbn": "0394752848",
       "pages": 576,
       "group": "book",
-      "img": "./library/img/0394752848.jpg",
+      "img": "img/0394752848.jpg",
       "w": 180,
       "h": 286
     },
@@ -1569,7 +1569,7 @@
       "isbn": "0226468011",
       "pages": 242,
       "group": "book",
-      "img": "./library/img/0226468011.jpg",
+      "img": "img/0226468011.jpg",
       "w": 180,
       "h": 285
     },
@@ -1580,7 +1580,7 @@
       "isbn": "3944669037",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/3944669037.jpg",
+      "img": "img/3944669037.jpg",
       "w": 180,
       "h": 271
     },
@@ -1607,7 +1607,7 @@
       "isbn": "0671454463",
       "pages": 558,
       "group": "book",
-      "img": "./library/img/0671454463.jpg",
+      "img": "img/0671454463.jpg",
       "w": 128,
       "h": 198
     },
@@ -1618,7 +1618,7 @@
       "isbn": "1844676900",
       "pages": 390,
       "group": "book",
-      "img": "./library/img/1844676900.jpg",
+      "img": "img/1844676900.jpg",
       "w": 180,
       "h": 282
     },
@@ -1636,7 +1636,7 @@
       "isbn": "0804752370",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/0804752370.jpg",
+      "img": "img/0804752370.jpg",
       "w": 180,
       "h": 269
     },
@@ -1655,7 +1655,7 @@
       "isbn": "0023582804",
       "pages": 324,
       "group": "book",
-      "img": "./library/img/0023582804.jpg",
+      "img": "img/0023582804.jpg",
       "w": 180,
       "h": 276
     },
@@ -1666,7 +1666,7 @@
       "isbn": "1934435104",
       "pages": 64,
       "group": "book",
-      "img": "./library/img/1934435104.jpg",
+      "img": "img/1934435104.jpg",
       "w": 180,
       "h": 144
     },
@@ -1677,7 +1677,7 @@
       "isbn": "0893812331",
       "pages": 175,
       "group": "book",
-      "img": "./library/img/0893812331.jpg",
+      "img": "img/0893812331.jpg",
       "w": 180,
       "h": 216
     },
@@ -1696,7 +1696,7 @@
       "isbn": "0870709739",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0870709739.jpg",
+      "img": "img/0870709739.jpg",
       "w": 180,
       "h": 227
     },
@@ -1707,7 +1707,7 @@
       "isbn": "0394421426",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0394421426.jpg",
+      "img": "img/0394421426.jpg",
       "w": 180,
       "h": 234
     },
@@ -1718,7 +1718,7 @@
       "isbn": "0500093407",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0500093407.jpg",
+      "img": "img/0500093407.jpg",
       "w": 180,
       "h": 209
     },
@@ -1729,7 +1729,7 @@
       "isbn": "081122175X",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/081122175X.jpg",
+      "img": "img/081122175X.jpg",
       "w": 180,
       "h": 230
     },
@@ -1740,7 +1740,7 @@
       "isbn": "0262529289",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0262529289.jpg",
+      "img": "img/0262529289.jpg",
       "w": 180,
       "h": 236
     },
@@ -1751,7 +1751,7 @@
       "isbn": "0394704592",
       "pages": 448,
       "group": "book",
-      "img": "./library/img/0394704592.jpg",
+      "img": "img/0394704592.jpg",
       "w": 180,
       "h": 240
     },
@@ -1770,7 +1770,7 @@
       "isbn": "025207887X",
       "pages": 184,
       "group": "book",
-      "img": "./library/img/025207887X.jpg",
+      "img": "img/025207887X.jpg",
       "w": 180,
       "h": 255
     },
@@ -1781,7 +1781,7 @@
       "isbn": "054412989X",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/054412989X.jpg",
+      "img": "img/054412989X.jpg",
       "w": 180,
       "h": 229
     },
@@ -1792,7 +1792,7 @@
       "isbn": "0714834491",
       "pages": 1064,
       "group": "book",
-      "img": "./library/img/0714834491.jpg",
+      "img": "img/0714834491.jpg",
       "w": 180,
       "h": 211
     },
@@ -1811,7 +1811,7 @@
       "isbn": "141970964X",
       "pages": 296,
       "group": "book",
-      "img": "./library/img/141970964X.jpg",
+      "img": "img/141970964X.jpg",
       "w": 180,
       "h": 250
     },
@@ -1822,7 +1822,7 @@
       "isbn": "0810905973",
       "pages": 292,
       "group": "book",
-      "img": "./library/img/0810905973.jpg",
+      "img": "img/0810905973.jpg",
       "w": 180,
       "h": 276
     },
@@ -1833,7 +1833,7 @@
       "isbn": "1568983328",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/1568983328.jpg",
+      "img": "img/1568983328.jpg",
       "w": 180,
       "h": 131
     },
@@ -1844,7 +1844,7 @@
       "isbn": "0847827852",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/0847827852.jpg",
+      "img": "img/0847827852.jpg",
       "w": 180,
       "h": 136
     },
@@ -1855,7 +1855,7 @@
       "isbn": "1932416579",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/1932416579.jpg",
+      "img": "img/1932416579.jpg",
       "w": 180,
       "h": 231
     },
@@ -1874,7 +1874,7 @@
       "isbn": "0143122037",
       "pages": 480,
       "group": "book",
-      "img": "./library/img/0143122037.jpg",
+      "img": "img/0143122037.jpg",
       "w": 180,
       "h": 278
     },
@@ -1885,7 +1885,7 @@
       "isbn": "0316068225",
       "pages": 137,
       "group": "book",
-      "img": "./library/img/0316068225.jpg",
+      "img": "img/0316068225.jpg",
       "w": 180,
       "h": 268
     },
@@ -1896,7 +1896,7 @@
       "isbn": "0807012394",
       "pages": 140,
       "group": "book",
-      "img": "./library/img/0807012394.jpg",
+      "img": "img/0807012394.jpg",
       "w": 180,
       "h": 271
     },
@@ -1907,7 +1907,7 @@
       "isbn": "0553404245",
       "pages": 739,
       "group": "book",
-      "img": "./library/img/0553404245.jpg",
+      "img": "img/0553404245.jpg",
       "w": 180,
       "h": 310
     },
@@ -1918,7 +1918,7 @@
       "isbn": "1491973897",
       "pages": 244,
       "group": "book",
-      "img": "./library/img/1491973897.jpg",
+      "img": "img/1491973897.jpg",
       "w": 180,
       "h": 269
     },
@@ -1929,7 +1929,7 @@
       "isbn": "156205810X",
       "pages": 432,
       "group": "book",
-      "img": "./library/img/156205810X.jpg",
+      "img": "img/156205810X.jpg",
       "w": 180,
       "h": 254
     },
@@ -1940,7 +1940,7 @@
       "isbn": "0140446044",
       "pages": 1344,
       "group": "book",
-      "img": "./library/img/0140446044.jpg",
+      "img": "img/0140446044.jpg",
       "w": 180,
       "h": 232
     },
@@ -1951,7 +1951,7 @@
       "isbn": "0060850523",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0060850523.jpg",
+      "img": "img/0060850523.jpg",
       "w": 180,
       "h": 275
     },
@@ -1962,7 +1962,7 @@
       "isbn": "0553213695",
       "pages": 201,
       "group": "book",
-      "img": "./library/img/0553213695.jpg",
+      "img": "img/0553213695.jpg",
       "w": 180,
       "h": 269
     },
@@ -1973,7 +1973,7 @@
       "isbn": "0553208845",
       "pages": 160,
       "group": "book",
-      "img": "./library/img/0553208845.jpg",
+      "img": "img/0553208845.jpg",
       "w": 180,
       "h": 296
     },
@@ -1984,7 +1984,7 @@
       "isbn": "0451524934",
       "pages": 328,
       "group": "book",
-      "img": "./library/img/0451524934.jpg",
+      "img": "img/0451524934.jpg",
       "w": 180,
       "h": 304
     },
@@ -1995,7 +1995,7 @@
       "isbn": "0060539828",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/0060539828.jpg",
+      "img": "img/0060539828.jpg",
       "w": 180,
       "h": 271
     },
@@ -2021,7 +2021,7 @@
       "isbn": "0140286802",
       "pages": 576,
       "group": "book",
-      "img": "./library/img/0140286802.jpg",
+      "img": "img/0140286802.jpg",
       "w": 180,
       "h": 298
     },
@@ -2032,7 +2032,7 @@
       "isbn": "0822204509",
       "pages": 72,
       "group": "book",
-      "img": "./library/img/0822204509.jpg",
+      "img": "img/0822204509.jpg",
       "w": 180,
       "h": 291
     },
@@ -2043,7 +2043,7 @@
       "isbn": "0374529264",
       "pages": 416,
       "group": "book",
-      "img": "./library/img/0374529264.jpg",
+      "img": "img/0374529264.jpg",
       "w": 180,
       "h": 267
     },
@@ -2054,7 +2054,7 @@
       "isbn": "0553375407",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0553375407.jpg",
+      "img": "img/0553375407.jpg",
       "w": 180,
       "h": 278
     },
@@ -2065,7 +2065,7 @@
       "isbn": "0679785892",
       "pages": 204,
       "group": "book",
-      "img": "./library/img/0679785892.jpg",
+      "img": "img/0679785892.jpg",
       "w": 180,
       "h": 284
     },
@@ -2076,7 +2076,7 @@
       "isbn": "0345453743",
       "pages": 832,
       "group": "book",
-      "img": "./library/img/0345453743.jpg",
+      "img": "img/0345453743.jpg",
       "w": 180,
       "h": 272
     },
@@ -2094,7 +2094,7 @@
       "isbn": "3874225658",
       "pages": 154,
       "group": "book",
-      "img": "./library/img/3874225658.jpg",
+      "img": "img/3874225658.jpg",
       "w": 180,
       "h": 210
     },
@@ -2105,7 +2105,7 @@
       "isbn": "0961392126",
       "pages": 156,
       "group": "book",
-      "img": "./library/img/0961392126.jpg",
+      "img": "img/0961392126.jpg",
       "w": 180,
       "h": 228
     },
@@ -2116,7 +2116,7 @@
       "isbn": "0486203026",
       "pages": 576,
       "group": "book",
-      "img": "./library/img/0486203026.jpg",
+      "img": "img/0486203026.jpg",
       "w": 180,
       "h": 268
     },
@@ -2127,7 +2127,7 @@
       "isbn": "1568988281",
       "pages": 255,
       "group": "book",
-      "img": "./library/img/1568988281.jpg",
+      "img": "img/1568988281.jpg",
       "w": 180,
       "h": 285
     },
@@ -2138,7 +2138,7 @@
       "isbn": "1568984863",
       "pages": 144,
       "group": "book",
-      "img": "./library/img/1568984863.jpg",
+      "img": "img/1568984863.jpg",
       "w": 180,
       "h": 280
     },
@@ -2149,7 +2149,7 @@
       "isbn": "0907259235",
       "pages": 144,
       "group": "book",
-      "img": "./library/img/0907259235.jpg",
+      "img": "img/0907259235.jpg",
       "w": 180,
       "h": 268
     },
@@ -2160,7 +2160,7 @@
       "isbn": "0881792128",
       "pages": 398,
       "group": "book",
-      "img": "./library/img/0881792128.jpg",
+      "img": "img/0881792128.jpg",
       "w": 180,
       "h": 307
     },
@@ -2171,7 +2171,7 @@
       "isbn": "0465051367",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0465051367.jpg",
+      "img": "img/0465051367.jpg",
       "w": 180,
       "h": 276
     },
@@ -2182,7 +2182,7 @@
       "isbn": "0989532143",
       "pages": 736,
       "group": "book",
-      "img": "./library/img/0989532143.jpg",
+      "img": "img/0989532143.jpg",
       "w": 180,
       "h": 273
     },
@@ -2201,7 +2201,7 @@
       "isbn": "3822815667",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/3822815667.jpg",
+      "img": "img/3822815667.jpg",
       "w": 180,
       "h": 256
     },
@@ -2212,7 +2212,7 @@
       "isbn": "0262134748",
       "pages": 766,
       "group": "book",
-      "img": "./library/img/0262134748.jpg",
+      "img": "img/0262134748.jpg",
       "w": 180,
       "h": 216
     },
@@ -2223,7 +2223,7 @@
       "isbn": "0262527413",
       "pages": 1008,
       "group": "book",
-      "img": "./library/img/0262527413.jpg",
+      "img": "img/0262527413.jpg",
       "w": 180,
       "h": 203
     },
@@ -2234,7 +2234,7 @@
       "isbn": "1888375884",
       "pages": 110,
       "group": "book",
-      "img": "./library/img/1888375884.jpg",
+      "img": "img/1888375884.jpg",
       "w": 180,
       "h": 259
     },
@@ -2245,7 +2245,7 @@
       "isbn": "0300192487",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/0300192487.jpg",
+      "img": "img/0300192487.jpg",
       "w": 180,
       "h": 280
     },
@@ -2256,7 +2256,7 @@
       "isbn": "0679601279",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0679601279.jpg",
+      "img": "img/0679601279.jpg",
       "w": 180,
       "h": 272
     },
@@ -2267,7 +2267,7 @@
       "isbn": "0226458121",
       "pages": 264,
       "group": "book",
-      "img": "./library/img/0226458121.jpg",
+      "img": "img/0226458121.jpg",
       "w": 180,
       "h": 280
     },
@@ -2278,7 +2278,7 @@
       "isbn": "0691178321",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/0691178321.jpg",
+      "img": "img/0691178321.jpg",
       "w": 180,
       "h": 271
     },
@@ -2289,7 +2289,7 @@
       "isbn": "0451136950",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0451136950.jpg",
+      "img": "img/0451136950.jpg",
       "w": 180,
       "h": 300
     },
@@ -2307,7 +2307,7 @@
       "isbn": "1603580557",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/1603580557.jpg",
+      "img": "img/1603580557.jpg",
       "w": 180,
       "h": 281
     },
@@ -2318,7 +2318,7 @@
       "isbn": "0961825170",
       "pages": 316,
       "group": "book",
-      "img": "./library/img/0961825170.jpg",
+      "img": "img/0961825170.jpg",
       "w": 180,
       "h": 271
     },
@@ -2329,7 +2329,7 @@
       "isbn": "0671872346",
       "pages": 384,
       "group": "book",
-      "img": "./library/img/0671872346.jpg",
+      "img": "img/0671872346.jpg",
       "w": 180,
       "h": 270
     },
@@ -2347,7 +2347,7 @@
       "isbn": "0393025144",
       "pages": 118,
       "group": "book",
-      "img": "./library/img/0393025144.jpg",
+      "img": "img/0393025144.jpg",
       "w": 180,
       "h": 291
     },
@@ -2358,7 +2358,7 @@
       "isbn": "0226039056",
       "pages": 565,
       "group": "book",
-      "img": "./library/img/0226039056.jpg",
+      "img": "img/0226039056.jpg",
       "w": 128,
       "h": 160
     },
@@ -2369,7 +2369,7 @@
       "isbn": "1845400321",
       "pages": 182,
       "group": "book",
-      "img": "./library/img/1845400321.jpg",
+      "img": "img/1845400321.jpg",
       "w": 180,
       "h": 246
     },
@@ -2380,7 +2380,7 @@
       "isbn": "0393310205",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0393310205.jpg",
+      "img": "img/0393310205.jpg",
       "w": 180,
       "h": 268
     },
@@ -2391,7 +2391,7 @@
       "isbn": "0393310213",
       "pages": 128,
       "group": "book",
-      "img": "./library/img/0393310213.jpg",
+      "img": "img/0393310213.jpg",
       "w": 120,
       "h": 180
     },
@@ -2402,7 +2402,7 @@
       "isbn": "0385480016",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0385480016.jpg",
+      "img": "img/0385480016.jpg",
       "w": 160,
       "h": 160
     },
@@ -2413,7 +2413,7 @@
       "isbn": "0140440038",
       "pages": 176,
       "group": "book",
-      "img": "./library/img/0140440038.jpg",
+      "img": "img/0140440038.jpg",
       "w": 180,
       "h": 283
     },
@@ -2424,7 +2424,7 @@
       "isbn": "1934254339",
       "pages": 455,
       "group": "book",
-      "img": "./library/img/1934254339.jpg",
+      "img": "img/1934254339.jpg",
       "w": 180,
       "h": 271
     },
@@ -2443,7 +2443,7 @@
       "isbn": "0802144470",
       "pages": 407,
       "group": "book",
-      "img": "./library/img/0802144470.jpg",
+      "img": "img/0802144470.jpg",
       "w": 180,
       "h": 284
     },
@@ -2454,7 +2454,7 @@
       "isbn": "080214439X",
       "pages": 112,
       "group": "book",
-      "img": "./library/img/080214439X.jpg",
+      "img": "img/080214439X.jpg",
       "w": 180,
       "h": 262
     },
@@ -2465,7 +2465,7 @@
       "isbn": "0446675504",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/0446675504.jpg",
+      "img": "img/0446675504.jpg",
       "w": 180,
       "h": 273
     },
@@ -2476,7 +2476,7 @@
       "isbn": "1569766053",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/1569766053.jpg",
+      "img": "img/1569766053.jpg",
       "w": 180,
       "h": 286
     },
@@ -2487,7 +2487,7 @@
       "isbn": "0691150362",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0691150362.jpg",
+      "img": "img/0691150362.jpg",
       "w": 180,
       "h": 295
     },
@@ -2498,7 +2498,7 @@
       "isbn": "0465046746",
       "pages": 252,
       "group": "book",
-      "img": "./library/img/0465046746.jpg",
+      "img": "img/0465046746.jpg",
       "w": 180,
       "h": 272
     },
@@ -2509,7 +2509,7 @@
       "isbn": "0714508799",
       "pages": 150,
       "group": "book",
-      "img": "./library/img/0714508799.jpg",
+      "img": "img/0714508799.jpg",
       "w": 180,
       "h": 275
     },
@@ -2520,7 +2520,7 @@
       "isbn": "0262134934",
       "pages": 373,
       "group": "book",
-      "img": "./library/img/0262134934.jpg",
+      "img": "img/0262134934.jpg",
       "w": 180,
       "h": 269
     },
@@ -2531,7 +2531,7 @@
       "isbn": "0313359814",
       "pages": 411,
       "group": "book",
-      "img": "./library/img/0313359814.jpg",
+      "img": "img/0313359814.jpg",
       "w": 180,
       "h": 268
     },
@@ -2542,7 +2542,7 @@
       "isbn": "1620408023",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/1620408023.jpg",
+      "img": "img/1620408023.jpg",
       "w": 180,
       "h": 273
     },
@@ -2553,7 +2553,7 @@
       "isbn": "0674970845",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/0674970845.jpg",
+      "img": "img/0674970845.jpg",
       "w": 180,
       "h": 276
     },
@@ -2564,7 +2564,7 @@
       "isbn": "0822332876",
       "pages": 312,
       "group": "book",
-      "img": "./library/img/0822332876.jpg",
+      "img": "img/0822332876.jpg",
       "w": 180,
       "h": 250
     },
@@ -2575,7 +2575,7 @@
       "isbn": "0745662536",
       "pages": 200,
       "group": "book",
-      "img": "./library/img/0745662536.jpg",
+      "img": "img/0745662536.jpg",
       "w": 180,
       "h": 309
     },
@@ -2586,7 +2586,7 @@
       "isbn": "0373892640",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0373892640.jpg",
+      "img": "img/0373892640.jpg",
       "w": 180,
       "h": 221
     },
@@ -2597,7 +2597,7 @@
       "isbn": "1447329015",
       "pages": 520,
       "group": "book",
-      "img": "./library/img/1447329015.jpg",
+      "img": "img/1447329015.jpg",
       "w": 180,
       "h": 271
     },
@@ -2608,7 +2608,7 @@
       "isbn": "0307476707",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/0307476707.jpg",
+      "img": "img/0307476707.jpg",
       "w": 180,
       "h": 277
     },
@@ -2619,7 +2619,7 @@
       "isbn": "0688082742",
       "pages": 376,
       "group": "book",
-      "img": "./library/img/0688082742.jpg",
+      "img": "img/0688082742.jpg",
       "w": 128,
       "h": 202
     },
@@ -2645,7 +2645,7 @@
       "isbn": "0822351110",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/0822351110.jpg",
+      "img": "img/0822351110.jpg",
       "w": 180,
       "h": 271
     },
@@ -2656,7 +2656,7 @@
       "isbn": "1551526433",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/1551526433.jpg",
+      "img": "img/1551526433.jpg",
       "w": 180,
       "h": 269
     },
@@ -2667,7 +2667,7 @@
       "isbn": "0520280067",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0520280067.jpg",
+      "img": "img/0520280067.jpg",
       "w": 180,
       "h": 270
     },
@@ -2678,7 +2678,7 @@
       "isbn": "0674008022",
       "pages": 1088,
       "group": "book",
-      "img": "./library/img/0674008022.jpg",
+      "img": "img/0674008022.jpg",
       "w": 180,
       "h": 304
     },
@@ -2689,7 +2689,7 @@
       "isbn": "0679753354",
       "pages": 416,
       "group": "book",
-      "img": "./library/img/0679753354.jpg",
+      "img": "img/0679753354.jpg",
       "w": 180,
       "h": 278
     },
@@ -2700,7 +2700,7 @@
       "isbn": "0140135154",
       "pages": 176,
       "group": "book",
-      "img": "./library/img/0140135154.jpg",
+      "img": "img/0140135154.jpg",
       "w": 180,
       "h": 279
     },
@@ -2711,7 +2711,7 @@
       "isbn": "0520052560",
       "pages": 688,
       "group": "book",
-      "img": "./library/img/0520052560.jpg",
+      "img": "img/0520052560.jpg",
       "w": 180,
       "h": 269
     },
@@ -2722,7 +2722,7 @@
       "isbn": "1608466388",
       "pages": 392,
       "group": "book",
-      "img": "./library/img/1608466388.jpg",
+      "img": "img/1608466388.jpg",
       "w": 180,
       "h": 266
     },
@@ -2733,7 +2733,7 @@
       "isbn": "0307408833",
       "pages": 144,
       "group": "book",
-      "img": "./library/img/0307408833.jpg",
+      "img": "img/0307408833.jpg",
       "w": 180,
       "h": 218
     },
@@ -2744,7 +2744,7 @@
       "isbn": "0816637946",
       "pages": 408,
       "group": "book",
-      "img": "./library/img/0816637946.jpg",
+      "img": "img/0816637946.jpg",
       "w": 180,
       "h": 262
     },
@@ -2755,7 +2755,7 @@
       "isbn": "0262524414",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0262524414.jpg",
+      "img": "img/0262524414.jpg",
       "w": 180,
       "h": 225
     },
@@ -2766,7 +2766,7 @@
       "isbn": "2840660601",
       "pages": 125,
       "group": "book",
-      "img": "./library/img/2840660601.jpg",
+      "img": "img/2840660601.jpg",
       "w": 180,
       "h": 254
     },
@@ -2777,7 +2777,7 @@
       "isbn": "0262524643",
       "pages": 208,
       "group": "book",
-      "img": "./library/img/0262524643.jpg",
+      "img": "img/0262524643.jpg",
       "w": 180,
       "h": 256
     },
@@ -2788,7 +2788,7 @@
       "isbn": "0143125494",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0143125494.jpg",
+      "img": "img/0143125494.jpg",
       "w": 180,
       "h": 271
     },
@@ -2799,7 +2799,7 @@
       "isbn": "0307352153",
       "pages": 368,
       "group": "book",
-      "img": "./library/img/0307352153.jpg",
+      "img": "img/0307352153.jpg",
       "w": 180,
       "h": 277
     },
@@ -2817,7 +2817,7 @@
       "isbn": "0192801481",
       "pages": 134,
       "group": "book",
-      "img": "./library/img/0192801481.jpg",
+      "img": "img/0192801481.jpg",
       "w": 180,
       "h": 287
     },
@@ -2828,7 +2828,7 @@
       "isbn": "1608466191",
       "pages": 408,
       "group": "book",
-      "img": "./library/img/1608466191.jpg",
+      "img": "img/1608466191.jpg",
       "w": 180,
       "h": 283
     },
@@ -2839,7 +2839,7 @@
       "isbn": "0312420137",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0312420137.jpg",
+      "img": "img/0312420137.jpg",
       "w": 180,
       "h": 265
     },
@@ -2850,7 +2850,7 @@
       "isbn": "0801477786",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/0801477786.jpg",
+      "img": "img/0801477786.jpg",
       "w": 180,
       "h": 284
     },
@@ -2861,7 +2861,7 @@
       "isbn": "0262034670",
       "pages": 216,
       "group": "book",
-      "img": "./library/img/0262034670.jpg",
+      "img": "img/0262034670.jpg",
       "w": 180,
       "h": 267
     },
@@ -2872,7 +2872,7 @@
       "isbn": "0822347717",
       "pages": 328,
       "group": "book",
-      "img": "./library/img/0822347717.jpg",
+      "img": "img/0822347717.jpg",
       "w": 180,
       "h": 294
     },
@@ -2883,7 +2883,7 @@
       "isbn": "0824833570",
       "pages": 264,
       "group": "book",
-      "img": "./library/img/0824833570.jpg",
+      "img": "img/0824833570.jpg",
       "w": 180,
       "h": 269
     },
@@ -2894,7 +2894,7 @@
       "isbn": "0062300547",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0062300547.jpg",
+      "img": "img/0062300547.jpg",
       "w": 180,
       "h": 271
     },
@@ -2905,7 +2905,7 @@
       "isbn": "0300223099",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/0300223099.jpg",
+      "img": "img/0300223099.jpg",
       "w": 180,
       "h": 291
     },
@@ -2924,7 +2924,7 @@
       "isbn": "1551642247",
       "pages": 380,
       "group": "book",
-      "img": "./library/img/1551642247.jpg",
+      "img": "img/1551642247.jpg",
       "w": 180,
       "h": 270
     },
@@ -2935,7 +2935,7 @@
       "isbn": "0887845304",
       "pages": 112,
       "group": "book",
-      "img": "./library/img/0887845304.jpg",
+      "img": "img/0887845304.jpg",
       "w": 180,
       "h": 287
     },
@@ -2946,7 +2946,7 @@
       "isbn": "074567223X",
       "pages": 216,
       "group": "book",
-      "img": "./library/img/074567223X.jpg",
+      "img": "img/074567223X.jpg",
       "w": 180,
       "h": 261
     },
@@ -2957,7 +2957,7 @@
       "isbn": "0745317332",
       "pages": 140,
       "group": "book",
-      "img": "./library/img/0745317332.jpg",
+      "img": "img/0745317332.jpg",
       "w": 128,
       "h": 205
     },
@@ -2976,7 +2976,7 @@
       "isbn": "0486225437",
       "pages": 503,
       "group": "book",
-      "img": "./library/img/0486225437.jpg",
+      "img": "img/0486225437.jpg",
       "w": 180,
       "h": 290
     },
@@ -2987,7 +2987,7 @@
       "isbn": "0140445684",
       "pages": 1152,
       "group": "book",
-      "img": "./library/img/0140445684.jpg",
+      "img": "img/0140445684.jpg",
       "w": 180,
       "h": 282
     },
@@ -2998,7 +2998,7 @@
       "isbn": "0631200665",
       "pages": 1120,
       "group": "book",
-      "img": "./library/img/0631200665.jpg",
+      "img": "img/0631200665.jpg",
       "w": 180,
       "h": 268
     },
@@ -3017,7 +3017,7 @@
       "isbn": "1934105821",
       "pages": 200,
       "group": "book",
-      "img": "./library/img/1934105821.jpg",
+      "img": "img/1934105821.jpg",
       "w": 180,
       "h": 296
     },
@@ -3044,7 +3044,7 @@
       "isbn": "1934105309",
       "pages": 168,
       "group": "book",
-      "img": "./library/img/1934105309.jpg",
+      "img": "img/1934105309.jpg",
       "w": 180,
       "h": 301
     },
@@ -3063,7 +3063,7 @@
       "isbn": "1575861542",
       "pages": 376,
       "group": "book",
-      "img": "./library/img/1575861542.jpg",
+      "img": "img/1575861542.jpg",
       "w": 180,
       "h": 270
     },
@@ -3082,7 +3082,7 @@
       "isbn": "0573663106",
       "pages": 76,
       "group": "book",
-      "img": "./library/img/0573663106.jpg",
+      "img": "img/0573663106.jpg",
       "w": 180,
       "h": 287
     },
@@ -3093,7 +3093,7 @@
       "isbn": "0822224739",
       "pages": 72,
       "group": "book",
-      "img": "./library/img/0822224739.jpg",
+      "img": "img/0822224739.jpg",
       "w": 180,
       "h": 274
     },
@@ -3104,7 +3104,7 @@
       "isbn": "0822224453",
       "pages": 72,
       "group": "book",
-      "img": "./library/img/0822224453.jpg",
+      "img": "img/0822224453.jpg",
       "w": 180,
       "h": 271
     },
@@ -3115,7 +3115,7 @@
       "isbn": "0914845497",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0914845497.jpg",
+      "img": "img/0914845497.jpg",
       "w": 180,
       "h": 193
     },
@@ -3126,7 +3126,7 @@
       "isbn": "0822332019",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/0822332019.jpg",
+      "img": "img/0822332019.jpg",
       "w": 180,
       "h": 278
     },
@@ -3137,7 +3137,7 @@
       "isbn": "1942130120",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/1942130120.jpg",
+      "img": "img/1942130120.jpg",
       "w": 180,
       "h": 240
     },
@@ -3148,7 +3148,7 @@
       "isbn": "1944869484",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/1944869484.jpg",
+      "img": "img/1944869484.jpg",
       "w": 180,
       "h": 256
     },
@@ -3159,7 +3159,7 @@
       "isbn": "0745339344",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0745339344.jpg",
+      "img": "img/0745339344.jpg",
       "w": 180,
       "h": 286
     },
@@ -3170,7 +3170,7 @@
       "isbn": "1542866502",
       "pages": null,
       "group": "book",
-      "img": "./library/img/1542866502.jpg",
+      "img": "img/1542866502.jpg",
       "w": 180,
       "h": 287
     },
@@ -3181,7 +3181,7 @@
       "isbn": "0674736354",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0674736354.jpg",
+      "img": "img/0674736354.jpg",
       "w": 180,
       "h": 277
     },
@@ -3192,7 +3192,7 @@
       "isbn": "067402107X",
       "pages": 384,
       "group": "book",
-      "img": "./library/img/067402107X.jpg",
+      "img": "img/067402107X.jpg",
       "w": 119,
       "h": 180
     },
@@ -3203,7 +3203,7 @@
       "isbn": "0415925789",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/0415925789.jpg",
+      "img": "img/0415925789.jpg",
       "w": 180,
       "h": 270
     },
@@ -3214,7 +3214,7 @@
       "isbn": "0226817423",
       "pages": 354,
       "group": "book",
-      "img": "./library/img/0226817423.jpg",
+      "img": "img/0226817423.jpg",
       "w": 180,
       "h": 264
     },
@@ -3233,7 +3233,7 @@
       "isbn": "1612195180",
       "pages": null,
       "group": "book",
-      "img": "./library/img/1612195180.jpg",
+      "img": "img/1612195180.jpg",
       "w": 180,
       "h": 273
     },
@@ -3252,7 +3252,7 @@
       "isbn": "0804799512",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0804799512.jpg",
+      "img": "img/0804799512.jpg",
       "w": 180,
       "h": 270
     },
@@ -3263,7 +3263,7 @@
       "isbn": "9780865716896",
       "pages": null,
       "group": "book",
-      "img": "./library/img/9780865716896.jpg",
+      "img": "img/9780865716896.jpg",
       "w": 180,
       "h": 215
     },
@@ -3282,7 +3282,7 @@
       "isbn": "1786636395",
       "pages": null,
       "group": "book",
-      "img": "./library/img/1786636395.jpg",
+      "img": "img/1786636395.jpg",
       "w": 180,
       "h": 276
     },
@@ -3293,7 +3293,7 @@
       "isbn": "0262043459",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0262043459.jpg",
+      "img": "img/0262043459.jpg",
       "w": 180,
       "h": 270
     },
@@ -3320,7 +3320,7 @@
       "isbn": "3319708929",
       "pages": null,
       "group": "book",
-      "img": "./library/img/3319708929.jpg",
+      "img": "img/3319708929.jpg",
       "w": 180,
       "h": 271
     },
@@ -3331,7 +3331,7 @@
       "isbn": "9780674970977",
       "pages": null,
       "group": "book",
-      "img": "./library/img/9780674970977.jpg",
+      "img": "img/9780674970977.jpg",
       "w": 140,
       "h": 210
     },
@@ -3342,7 +3342,7 @@
       "isbn": "189200528X",
       "pages": null,
       "group": "book",
-      "img": "./library/img/189200528X.jpg",
+      "img": "img/189200528X.jpg",
       "w": 180,
       "h": 277
     },
@@ -3377,7 +3377,7 @@
       "isbn": "9780198296034",
       "pages": 200,
       "group": "book",
-      "img": "./library/img/9780198296034.jpg",
+      "img": "img/9780198296034.jpg",
       "w": 180,
       "h": 270
     },
@@ -3396,7 +3396,7 @@
       "isbn": "0393358380",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0393358380.jpg",
+      "img": "img/0393358380.jpg",
       "w": 180,
       "h": 270
     },
@@ -3407,7 +3407,7 @@
       "isbn": "0819456608",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0819456608.jpg",
+      "img": "img/0819456608.jpg",
       "w": 180,
       "h": 271
     },
@@ -3418,7 +3418,7 @@
       "isbn": "052139838X",
       "pages": 360,
       "group": "book",
-      "img": "./library/img/052139838X.jpg",
+      "img": "img/052139838X.jpg",
       "w": 180,
       "h": 271
     },
@@ -3429,7 +3429,7 @@
       "isbn": "0803983468",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/0803983468.jpg",
+      "img": "img/0803983468.jpg",
       "w": 180,
       "h": 295
     },
@@ -3440,7 +3440,7 @@
       "isbn": "022626128X",
       "pages": null,
       "group": "book",
-      "img": "./library/img/022626128X.jpg",
+      "img": "img/022626128X.jpg",
       "w": 180,
       "h": 287
     },
@@ -3451,7 +3451,7 @@
       "isbn": "0822345994",
       "pages": 392,
       "group": "book",
-      "img": "./library/img/0822345994.jpg",
+      "img": "img/0822345994.jpg",
       "w": 180,
       "h": 271
     },
@@ -3462,7 +3462,7 @@
       "isbn": "0822363453",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0822363453.jpg",
+      "img": "img/0822363453.jpg",
       "w": 180,
       "h": 270
     },
@@ -3481,7 +3481,7 @@
       "isbn": "1935408348",
       "pages": null,
       "group": "book",
-      "img": "./library/img/1935408348.jpg",
+      "img": "img/1935408348.jpg",
       "w": 180,
       "h": 236
     },
@@ -3508,7 +3508,7 @@
       "isbn": "0226673766",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/0226673766.jpg",
+      "img": "img/0226673766.jpg",
       "w": 180,
       "h": 269
     },
@@ -3519,7 +3519,7 @@
       "isbn": "0688077455",
       "pages": 398,
       "group": "book",
-      "img": "./library/img/0688077455.jpg",
+      "img": "img/0688077455.jpg",
       "w": 180,
       "h": 305
     },
@@ -3530,7 +3530,7 @@
       "isbn": "164259525X",
       "pages": null,
       "group": "book",
-      "img": "./library/img/164259525X.jpg",
+      "img": "img/164259525X.jpg",
       "w": 180,
       "h": 257
     },
@@ -3541,7 +3541,7 @@
       "isbn": "0691163995",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0691163995.jpg",
+      "img": "img/0691163995.jpg",
       "w": 180,
       "h": 271
     },
@@ -3552,7 +3552,7 @@
       "isbn": "0262045699",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0262045699.jpg",
+      "img": "img/0262045699.jpg",
       "w": 180,
       "h": 270
     },
@@ -3571,7 +3571,7 @@
       "isbn": "1989025757",
       "pages": 248,
       "group": "book",
-      "img": "./library/img/1989025757.jpg",
+      "img": "img/1989025757.jpg",
       "w": 180,
       "h": 257
     },
@@ -3582,7 +3582,7 @@
       "isbn": "1523516976",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/1523516976.jpg",
+      "img": "img/1523516976.jpg",
       "w": 180,
       "h": 276
     },
@@ -3609,7 +3609,7 @@
       "isbn": "1583482660",
       "pages": 276,
       "group": "book",
-      "img": "./library/img/1583482660.jpg",
+      "img": "img/1583482660.jpg",
       "w": 180,
       "h": 273
     },
@@ -3620,7 +3620,7 @@
       "isbn": "9781250002488",
       "pages": 208,
       "group": "book",
-      "img": "./library/img/9781250002488.jpg",
+      "img": "img/9781250002488.jpg",
       "w": 180,
       "h": 293
     },
@@ -3631,7 +3631,7 @@
       "isbn": "183867828X",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/183867828X.jpg",
+      "img": "img/183867828X.jpg",
       "w": 180,
       "h": 276
     },
@@ -3650,7 +3650,7 @@
       "isbn": "1568589395",
       "pages": 432,
       "group": "book",
-      "img": "./library/img/1568589395.jpg",
+      "img": "img/1568589395.jpg",
       "w": 141,
       "h": 218
     },
@@ -3661,7 +3661,7 @@
       "isbn": "0822351129",
       "pages": 287,
       "group": "book",
-      "img": "./library/img/0822351129.jpg",
+      "img": "img/0822351129.jpg",
       "w": 180,
       "h": 288
     },
@@ -3672,7 +3672,7 @@
       "isbn": "1786636778",
       "pages": 176,
       "group": "book",
-      "img": "./library/img/1786636778.jpg",
+      "img": "img/1786636778.jpg",
       "w": 140,
       "h": 218
     },
@@ -3707,7 +3707,7 @@
       "isbn": "1984857282",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/1984857282.jpg",
+      "img": "img/1984857282.jpg",
       "w": 180,
       "h": 270
     },
@@ -3718,7 +3718,7 @@
       "isbn": "1422188612",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/1422188612.jpg",
+      "img": "img/1422188612.jpg",
       "w": 132,
       "h": 200
     },
@@ -3729,7 +3729,7 @@
       "isbn": "1933820888",
       "pages": 248,
       "group": "book",
-      "img": "./library/img/1933820888.jpg",
+      "img": "img/1933820888.jpg",
       "w": 180,
       "h": 270
     },
@@ -3748,7 +3748,7 @@
       "isbn": "0143125834",
       "pages": 368,
       "group": "book",
-      "img": "./library/img/0143125834.jpg",
+      "img": "img/0143125834.jpg",
       "w": 180,
       "h": 275
     },
@@ -3759,7 +3759,7 @@
       "isbn": "1119793319",
       "pages": 352,
       "group": "book",
-      "img": "./library/img/1119793319.jpg",
+      "img": "img/1119793319.jpg",
       "w": 180,
       "h": 271
     },
@@ -3770,7 +3770,7 @@
       "isbn": "1492082791",
       "pages": 599,
       "group": "book",
-      "img": "./library/img/1492082791.jpg",
+      "img": "img/1492082791.jpg",
       "w": 180,
       "h": 236
     },
@@ -3805,7 +3805,7 @@
       "isbn": "1552662810",
       "pages": 144,
       "group": "book",
-      "img": "./library/img/1552662810.jpg",
+      "img": "img/1552662810.jpg",
       "w": 180,
       "h": 270
     },
@@ -3824,7 +3824,7 @@
       "isbn": "1933573031",
       "pages": 176,
       "group": "book",
-      "img": "./library/img/1933573031.jpg",
+      "img": "img/1933573031.jpg",
       "w": 180,
       "h": 240
     },
@@ -3843,7 +3843,7 @@
       "isbn": "1933820683",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/1933820683.jpg",
+      "img": "img/1933820683.jpg",
       "w": 180,
       "h": 271
     },
@@ -3854,7 +3854,7 @@
       "isbn": "0123748526",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/0123748526.jpg",
+      "img": "img/0123748526.jpg",
       "w": 180,
       "h": 218
     },
@@ -3881,7 +3881,7 @@
       "isbn": "9781451663884",
       "pages": 384,
       "group": "book",
-      "img": "./library/img/9781451663884.jpg",
+      "img": "img/9781451663884.jpg",
       "w": 180,
       "h": 277
     },
@@ -3892,7 +3892,7 @@
       "isbn": "9780134211282",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/9780134211282.jpg",
+      "img": "img/9780134211282.jpg",
       "w": 180,
       "h": 233
     },
@@ -3903,7 +3903,7 @@
       "isbn": "9780672326141",
       "pages": 288,
       "group": "book",
-      "img": "./library/img/9780672326141.jpg",
+      "img": "img/9780672326141.jpg",
       "w": 180,
       "h": 271
     },
@@ -3922,7 +3922,7 @@
       "isbn": "0321808304",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/0321808304.jpg",
+      "img": "img/0321808304.jpg",
       "w": 180,
       "h": 234
     },
@@ -3933,7 +3933,7 @@
       "isbn": "193382087X",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/193382087X.jpg",
+      "img": "img/193382087X.jpg",
       "w": 180,
       "h": 269
     },
@@ -3944,7 +3944,7 @@
       "isbn": "0134763386",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/0134763386.jpg",
+      "img": "img/0134763386.jpg",
       "w": 180,
       "h": 232
     },
@@ -3955,7 +3955,7 @@
       "isbn": "0984442553",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0984442553.jpg",
+      "img": "img/0984442553.jpg",
       "w": 178,
       "h": 276
     },
@@ -3966,7 +3966,7 @@
       "isbn": "1500615994",
       "pages": 174,
       "group": "book",
-      "img": "./library/img/1500615994.jpg",
+      "img": "img/1500615994.jpg",
       "w": 180,
       "h": 240
     },
@@ -3977,7 +3977,7 @@
       "isbn": "1937557863",
       "pages": null,
       "group": "book",
-      "img": "./library/img/1937557863.jpg",
+      "img": "img/1937557863.jpg",
       "w": 180,
       "h": 278
     },
@@ -3988,7 +3988,7 @@
       "isbn": "0321683684",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/0321683684.jpg",
+      "img": "img/0321683684.jpg",
       "w": 180,
       "h": 252
     },
@@ -4007,7 +4007,7 @@
       "isbn": "1781251568",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/1781251568.jpg",
+      "img": "img/1781251568.jpg",
       "w": 180,
       "h": 284
     },
@@ -4018,7 +4018,7 @@
       "isbn": "1629637122",
       "pages": 208,
       "group": "book",
-      "img": "./library/img/1629637122.jpg",
+      "img": "img/1629637122.jpg",
       "w": 180,
       "h": 288
     },
@@ -4029,7 +4029,7 @@
       "isbn": "1625345798",
       "pages": 296,
       "group": "book",
-      "img": "./library/img/1625345798.jpg",
+      "img": "img/1625345798.jpg",
       "w": 180,
       "h": 140
     },
@@ -4040,7 +4040,7 @@
       "isbn": "9516823181",
       "pages": null,
       "group": "book",
-      "img": "./library/img/9516823181.jpg",
+      "img": "img/9516823181.jpg",
       "w": 180,
       "h": 219
     },
@@ -4059,7 +4059,7 @@
       "isbn": "9781101875322",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/9781101875322.jpg",
+      "img": "img/9781101875322.jpg",
       "w": 180,
       "h": 255
     },
@@ -4094,7 +4094,7 @@
       "isbn": "0062062999",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/0062062999.jpg",
+      "img": "img/0062062999.jpg",
       "w": 180,
       "h": 270
     },
@@ -4113,7 +4113,7 @@
       "isbn": "0894866370",
       "pages": 393,
       "group": "book",
-      "img": "./library/img/0894866370.jpg",
+      "img": "img/0894866370.jpg",
       "w": 121,
       "h": 180
     },
@@ -4124,7 +4124,7 @@
       "isbn": "039335668X",
       "pages": 512,
       "group": "book",
-      "img": "./library/img/039335668X.jpg",
+      "img": "img/039335668X.jpg",
       "w": 180,
       "h": 270
     },
@@ -4135,7 +4135,7 @@
       "isbn": "1492076635",
       "pages": 436,
       "group": "book",
-      "img": "./library/img/1492076635.jpg",
+      "img": "img/1492076635.jpg",
       "w": 180,
       "h": 145
     },
@@ -4146,7 +4146,7 @@
       "isbn": "0399527052",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/0399527052.jpg",
+      "img": "img/0399527052.jpg",
       "w": 180,
       "h": 288
     },
@@ -4157,7 +4157,7 @@
       "isbn": "0822336715",
       "pages": 264,
       "group": "book",
-      "img": "./library/img/0822336715.jpg",
+      "img": "img/0822336715.jpg",
       "w": 128,
       "h": 179
     },
@@ -4192,7 +4192,7 @@
       "isbn": "0876631847",
       "pages": 244,
       "group": "book",
-      "img": "./library/img/0876631847.jpg",
+      "img": "img/0876631847.jpg",
       "w": 128,
       "h": 193
     },
@@ -4203,7 +4203,7 @@
       "isbn": "9780374534271",
       "pages": 304,
       "group": "book",
-      "img": "./library/img/9780374534271.jpg",
+      "img": "img/9780374534271.jpg",
       "w": 180,
       "h": 277
     },
@@ -4214,7 +4214,7 @@
       "isbn": "0452272041",
       "pages": 365,
       "group": "book",
-      "img": "./library/img/0452272041.jpg",
+      "img": "img/0452272041.jpg",
       "w": 180,
       "h": 285
     },
@@ -4233,7 +4233,7 @@
       "isbn": "1593279507",
       "pages": 472,
       "group": "book",
-      "img": "./library/img/1593279507.jpg",
+      "img": "img/1593279507.jpg",
       "w": 180,
       "h": 238
     },
@@ -4244,7 +4244,7 @@
       "isbn": "1572307811",
       "pages": 422,
       "group": "book",
-      "img": "./library/img/1572307811.jpg",
+      "img": "img/1572307811.jpg",
       "w": 180,
       "h": 214
     },
@@ -4255,7 +4255,7 @@
       "isbn": "0918172020",
       "pages": 56,
       "group": "book",
-      "img": "./library/img/0918172020.jpg",
+      "img": "img/0918172020.jpg",
       "w": 180,
       "h": 282
     },
@@ -4266,7 +4266,7 @@
       "isbn": "0984782893",
       "pages": 551,
       "group": "book",
-      "img": "./library/img/0984782893.jpg",
+      "img": "img/0984782893.jpg",
       "w": 180,
       "h": 257
     },
@@ -4277,7 +4277,7 @@
       "isbn": "1483344371",
       "pages": 520,
       "group": "book",
-      "img": "./library/img/1483344371.jpg",
+      "img": "img/1483344371.jpg",
       "w": 180,
       "h": 222
     },
@@ -4288,7 +4288,7 @@
       "isbn": "0596517742",
       "pages": 153,
       "group": "book",
-      "img": "./library/img/0596517742.jpg",
+      "img": "img/0596517742.jpg",
       "w": 180,
       "h": 236
     },
@@ -4299,7 +4299,7 @@
       "isbn": "1118394178",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/1118394178.jpg",
+      "img": "img/1118394178.jpg",
       "w": 180,
       "h": 218
     },
@@ -4310,7 +4310,7 @@
       "isbn": "0936050055",
       "pages": 384,
       "group": "book",
-      "img": "./library/img/0936050055.jpg",
+      "img": "img/0936050055.jpg",
       "w": 180,
       "h": 213
     },
@@ -4321,7 +4321,7 @@
       "isbn": "0130912956",
       "pages": null,
       "group": "book",
-      "img": "./library/img/0130912956.jpg",
+      "img": "img/0130912956.jpg",
       "w": 180,
       "h": 240
     },
@@ -4332,7 +4332,7 @@
       "isbn": "9781101911587",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/9781101911587.jpg",
+      "img": "img/9781101911587.jpg",
       "w": 180,
       "h": 277
     },
@@ -4343,7 +4343,7 @@
       "isbn": "0300209525",
       "pages": 368,
       "group": "book",
-      "img": "./library/img/0300209525.jpg",
+      "img": "img/0300209525.jpg",
       "w": 180,
       "h": 270
     },
@@ -4354,7 +4354,7 @@
       "isbn": "0226486990",
       "pages": 552,
       "group": "book",
-      "img": "./library/img/0226486990.jpg",
+      "img": "img/0226486990.jpg",
       "w": 180,
       "h": 270
     },
@@ -4365,7 +4365,7 @@
       "isbn": "0316487740",
       "pages": 496,
       "group": "book",
-      "img": "./library/img/0316487740.jpg",
+      "img": "img/0316487740.jpg",
       "w": 180,
       "h": 271
     },
@@ -4376,7 +4376,7 @@
       "isbn": "1788734009",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/1788734009.jpg",
+      "img": "img/1788734009.jpg",
       "w": 180,
       "h": 270
     },
@@ -4387,7 +4387,7 @@
       "isbn": "1645472442",
       "pages": 112,
       "group": "book",
-      "img": "./library/img/1645472442.jpg",
+      "img": "img/1645472442.jpg",
       "w": 180,
       "h": 180
     },
@@ -4398,7 +4398,7 @@
       "isbn": "0486250237",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/0486250237.jpg",
+      "img": "img/0486250237.jpg",
       "w": 180,
       "h": 273
     },
@@ -4409,7 +4409,7 @@
       "isbn": "1473658128",
       "pages": 240,
       "group": "book",
-      "img": "./library/img/1473658128.jpg",
+      "img": "img/1473658128.jpg",
       "w": 180,
       "h": 234
     },
@@ -4420,7 +4420,7 @@
       "isbn": "088784796X",
       "pages": 192,
       "group": "book",
-      "img": "./library/img/088784796X.jpg",
+      "img": "img/088784796X.jpg",
       "w": 180,
       "h": 199
     },
@@ -4431,7 +4431,7 @@
       "isbn": "1590306198",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/1590306198.jpg",
+      "img": "img/1590306198.jpg",
       "w": 180,
       "h": 263
     },
@@ -4458,7 +4458,7 @@
       "isbn": "0553380834",
       "pages": 512,
       "group": "book",
-      "img": "./library/img/0553380834.jpg",
+      "img": "img/0553380834.jpg",
       "w": 180,
       "h": 273
     },
@@ -4469,7 +4469,7 @@
       "isbn": "0195024028",
       "pages": 552,
       "group": "book",
-      "img": "./library/img/0195024028.jpg",
+      "img": "img/0195024028.jpg",
       "w": 180,
       "h": 284
     },
@@ -4488,7 +4488,7 @@
       "isbn": "1641551658",
       "pages": 256,
       "group": "book",
-      "img": "./library/img/1641551658.jpg",
+      "img": "img/1641551658.jpg",
       "w": 169,
       "h": 218
     },
@@ -4499,7 +4499,7 @@
       "isbn": "1616890819",
       "pages": 224,
       "group": "book",
-      "img": "./library/img/1616890819.jpg",
+      "img": "img/1616890819.jpg",
       "w": 180,
       "h": 241
     },
@@ -4510,7 +4510,7 @@
       "isbn": "1629638749",
       "pages": 336,
       "group": "book",
-      "img": "./library/img/1629638749.jpg",
+      "img": "img/1629638749.jpg",
       "w": 180,
       "h": 232
     },
@@ -4537,7 +4537,7 @@
       "isbn": "1631868799",
       "pages": 688,
       "group": "book",
-      "img": "./library/img/1631868799.jpg",
+      "img": "img/1631868799.jpg",
       "w": 180,
       "h": 240
     },
@@ -4548,7 +4548,7 @@
       "isbn": "1561583766",
       "pages": 208,
       "group": "book",
-      "img": "./library/img/1561583766.jpg",
+      "img": "img/1561583766.jpg",
       "w": 180,
       "h": 188
     },
@@ -4575,7 +4575,7 @@
       "isbn": "0847818187",
       "pages": 317,
       "group": "book",
-      "img": "./library/img/0847818187.jpg",
+      "img": "img/0847818187.jpg",
       "w": 128,
       "h": 159
     },
@@ -4594,7 +4594,7 @@
       "isbn": "0300176007",
       "pages": 340,
       "group": "book",
-      "img": "./library/img/0300176007.jpg",
+      "img": "img/0300176007.jpg",
       "w": 180,
       "h": 219
     },
@@ -4613,7 +4613,7 @@
       "isbn": "9780804795098",
       "pages": 68,
       "group": "book",
-      "img": "./library/img/9780804795098.jpg",
+      "img": "img/9780804795098.jpg",
       "w": 180,
       "h": 287
     },
@@ -4624,7 +4624,7 @@
       "isbn": "1455535893",
       "pages": 272,
       "group": "book",
-      "img": "./library/img/1455535893.jpg",
+      "img": "img/1455535893.jpg",
       "w": 180,
       "h": 269
     },
@@ -4635,7 +4635,7 @@
       "isbn": "0358561841",
       "pages": 320,
       "group": "book",
-      "img": "./library/img/0358561841.jpg",
+      "img": "img/0358561841.jpg",
       "w": 180,
       "h": 271
     },
