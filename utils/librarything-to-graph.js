@@ -57,7 +57,7 @@ fs.readFile(filename, 'utf8', (err, data) => {
         const node = { id: book.title, workcode: book.workcode, bookid: parseInt(book.books_id), isbn: book.originalisbn, pages: parseInt(book.pages), group: "book" };
         if (fs.existsSync(imgPath)) {
             const imgDimensions = imageSize(imgPath);
-            node.img = imgPath;
+            node.img = `img/${book.originalisbn}.jpg`;
             node.w = imgDimensions.width;
             node.h = imgDimensions.height;
         }
