@@ -1,0 +1,55 @@
+<head>
+    <style> body { margin: 0; } </style>
+  
+    <script src="//unpkg.com/3d-force-graph"></script>
+  </head>
+  
+  <body>
+    <div id="3d-graph"></div>
+    <script type="importmap">{ "imports": { "three": "//unpkg.com/three/build/three.module.js" }}</script>
+    <script type="module">
+      import * as three from '//unpkg.com/three/build/three.module.js';
+      import SpriteText from "//unpkg.com/three-spritetext/dist/three-spritetext.mjs";
+
+      const Graph = ForceGraph3D()
+        (document.getElementById('3d-graph'))
+        .jsonUrl('graph.json')
+        .nodeAutoColorBy('group')
+        .onNodeClick(node => {
+          // Aim at node from outside it
+          const distance = 40;
+          const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
+          Graph.cameraPosition(
+            { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new position
+            node, // look at { x, y, z }
+            3000  // ms transition duration
+          );
+        })
+        .onNodeRightClick(node => {
+          // Open librarything.com on double click if the node is a book
+          if (node.group === 'book') {
+            window.open(`https://librarything.com/work/${node.workcode}`, '_blank');
+          }
+        })
+        .nodeThreeObject(node => {
+          const loader = new three.TextureLoader();
+          if (node.group === 'book') {
+            const imgTexture = loader.load(node.img);
+            const material = new three.MeshBasicMaterial({ map: imgTexture });
+            const geometry = new three.BoxGeometry(node.w/10, node.h/10, node.pages/75); // Assuming depth to be the same as width for cube shape
+            const cube = new three.Mesh(geometry, material);
+            // Rotate the cube at random angles
+            cube.rotation.x = Math.random() * 2 * Math.PI; // Rotate randomly around x-axis
+            cube.rotation.y = Math.random() * 2 * Math.PI; // Rotate randomly around y-axis
+            cube.rotation.z = Math.random() * 2 * Math.PI; // Rotate randomly around z-axis
+            return cube;
+          } else if (node.group === 'ddc') {
+            const sprite = new SpriteText(node.id);
+            sprite.color = 'blue';
+            sprite.textHeight = Math.max(node.points / 2, 3);
+            return sprite;
+          }
+        })
+        .backgroundColor('#808080')
+    </script>
+  </body>
