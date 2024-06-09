@@ -2,7 +2,7 @@ const fs = require('fs');
 const imageSize = require('image-size');
 
 // Read JSON file from command line argument
-const filename = 'librarything_caseygollan.json';
+const filename = './utils/librarything_caseygollan.json';
 fs.readFile(filename, 'utf8', (err, data) => {
   if (err) {
     console.error(`Error reading file from disk: ${err}`);
@@ -15,7 +15,7 @@ fs.readFile(filename, 'utf8', (err, data) => {
     const ddcWordingSet = new Set();
 
     // Ensure the 'img' directory exists
-    const imgDir = './img';
+    const imgDir = './library/img';
     if (!fs.existsSync(imgDir)){
       fs.mkdirSync(imgDir);
     }
@@ -118,7 +118,7 @@ fs.readFile(filename, 'utf8', (err, data) => {
     const processedData = { nodes: filteredNodes, links: filteredLinks };
 
     // Write the processed data to graph.json
-    fs.writeFile('graph.json', JSON.stringify(processedData, null, 2), err => {
+    fs.writeFile('./library/graph.json', JSON.stringify(processedData, null, 2), err => {
       if (err) {
         console.error(`Error writing file: ${err}`);
       } else {
