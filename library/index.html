@@ -1,11 +1,40 @@
 <head>
-    <style> body { margin: 0; } </style>
-  
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta property="og:title" content="📚🕸️ Casey's Library">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://caseyagollan.com/library/">
+    <meta property="og:image" content="https://caseyagollan.com/library/thumbnail.png">
+    <meta property="og:site_name" content="caseyagollan.com">
+    <meta property="og:locale" content="en_US">
+    <title>📚🕸️ Casey's Library</title>
+    <style> 
+      body { margin: 0; } 
+
+      button {
+        background-color: blue;
+        border: none;
+        color: white;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        width: auto;
+        font-size: 2em;
+        height: auto;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+    </style>
     <script src="//unpkg.com/3d-force-graph"></script>
   </head>
   
   <body>
     <div id="3d-graph"></div>
+    <div style="position: absolute; top: 5px; right: 5px;">
+      <button id="modeToggle">📚</button>
+    </div>
     <script type="importmap">{ "imports": { "three": "//unpkg.com/three/build/three.module.js" }}</script>
     <script type="module">
       import * as three from '//unpkg.com/three/build/three.module.js';
@@ -14,7 +43,6 @@
       const Graph = ForceGraph3D()
         (document.getElementById('3d-graph'))
         .jsonUrl('graph.json')
-        .nodeAutoColorBy('group')
         .onNodeClick(node => {
           // Aim at node from outside it
           const distance = 40;
@@ -35,8 +63,17 @@
           const loader = new three.TextureLoader();
           if (node.group === 'book') {
             const imgTexture = loader.load(node.img);
+            if (!imgTexture) {
+              console.error('Failed to load image:', node.img);
+              return;
+            }
             const material = new three.MeshBasicMaterial({ map: imgTexture });
-            const geometry = new three.BoxGeometry(node.w/10, node.h/10, node.pages/75); // Assuming depth to be the same as width for cube shape
+            const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20; // Ensure depth is a positive integer
+            const geometry = new three.BoxGeometry(node.w/10, node.h/10, depth/10);
+            if (!geometry) {
+              console.error('Failed to create geometry for node:', node);
+              return;
+            }
             const cube = new three.Mesh(geometry, material);
             // Rotate the cube at random angles
             cube.rotation.x = Math.random() * 2 * Math.PI; // Rotate randomly around x-axis
@@ -50,6 +87,76 @@
             return sprite;
           }
         })
-        .backgroundColor('#808080')
+        .backgroundColor('#808080');
+
+      let isGridModeActive = false;
+      document.getElementById('modeToggle').addEventListener('click', event => {
+
+        isGridModeActive = !isGridModeActive; // Toggle the mode state immediately on click
+        if (isGridModeActive) {
+          Graph.d3Force('custom', customForce); // Apply custom grid force
+          Graph.numDimensions(2); // Set dimensions to 2 to effectively hide edges in grid mode
+          const filteredNodes = Graph.graphData().nodes.filter(node => node.group !== 'ddc'); // Remove 'ddc' nodes
+          filteredNodes.forEach(node => {
+            if (node.group === 'book') {
+              node.__threeObj?.rotation.set(0, (Math.PI / 2), 0); // Rotate books 90 degrees to show spine towards camera using optional chaining
+            }
+          });
+          window.originalGraphData = { ...Graph.graphData() }; // Save a clone of the original graph data globally
+          Graph.graphData({ nodes: filteredNodes, links: [] }); // Update graph data with filtered nodes and no edges
+          event.target.innerHTML = '🕸️';
+        } else {
+          Graph.d3Force('custom', null); // Remove custom force
+          Graph.numDimensions(3); // Reset dimensions to 3 to show edges again in graph mode
+          // Immediately reset the graph data without animation
+          const currentData = Graph.graphData();
+          const originalNodes = originalGraphData.nodes;
+          const originalLinks = originalGraphData.links;
+
+          // Add back all 'ddc' nodes
+          originalNodes.forEach(node => {
+            if (!currentData.nodes.some(currentNode => currentNode.id === node.id)) {
+              currentData.nodes.push(node);
+            }
+          });
+
+          // Add back all related links
+          currentData.links = []; // Clear current links before adding
+          originalLinks.forEach(link => {
+            currentData.links.push(link);
+          });
+
+
+          // Update the graph data with all nodes and links added
+          Graph.graphData({ nodes: currentData.nodes, links: currentData.links });
+
+          event.target.innerHTML = '📚';
+        }
+      });
+      // Custom force function for 'book' nodes grid arrangement, optimized for minimal spacing without collision
+      function customForce(alpha) {
+        let nodes = Graph.graphData().nodes.sort((a, b) => (b.pages || 0) - (a.pages || 0)).filter(node => node.group === 'book');
+        const pageCounts = nodes.map(node => node.pages || 0);
+        const rowSize = 50; // Set row size to 50 books wide
+        // Calculate minimal spacing based on the size of the child __threeObj
+        const nodeSize = nodes.length > 0 && nodes[0].__threeObj ? nodes[0].__threeObj.scale.x : 50; // Default to 50 if no __threeObj
+        const spacingX = nodeSize + 5; // Minimal spacing to avoid collision on X-axis, adding 5 units buffer
+        const spacingY = nodeSize + 30; // Minimal spacing to avoid collision on Y-axis, adding 30 units buffer
+        const gridWidth = rowSize * spacingX;
+        const gridHeight = Math.ceil(nodes.length / rowSize) * spacingY;
+        nodes.forEach((node, index) => {
+          const row = Math.floor(index / rowSize);
+          const col = index % rowSize;
+
+          // Calculate centered positions with minimal spacing
+          node.x = (col * spacingX) - (gridWidth / 2) + (spacingX / 2);
+          node.y = (row * spacingY) - (gridHeight / 2) + (spacingY / 2);
+
+          // Rotate node to have the spine facing forward
+          if (node.__threeObj) {
+            node.__threeObj.rotation.set(0, Math.PI / 2, 0); // Rotate 90 degrees on Y-axis
+          }
+        });
+      }
     </script>
   </body>
