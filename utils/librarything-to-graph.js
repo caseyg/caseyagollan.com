@@ -54,7 +54,18 @@ fs.readFile(filename, 'utf8', (err, data) => {
                   }
               });
         };
-        const node = { id: book.title, workcode: book.workcode, bookid: parseInt(book.books_id), isbn: book.originalisbn, pages: parseInt(book.pages), group: "book" };
+        const node = {
+            id: book.title,
+            workcode: book.workcode,
+            bookid: parseInt(book.books_id),
+            isbn: book.originalisbn,
+            pages: parseInt(book.pages),
+            group: "book",
+            // Additional metadata used for sorting in grid mode
+            dateacquired: book.dateacquired,
+            publicationYear: parseInt(book.date),
+            ddcCode: Array.isArray(book.ddc.code) ? book.ddc.code[0] : book.ddc.code
+        };
         if (fs.existsSync(imgPath)) {
             const imgDimensions = imageSize(imgPath);
             node.img = `img/${book.originalisbn}.jpg`;

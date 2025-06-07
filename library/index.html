@@ -32,8 +32,9 @@
   
   <body>
     <div id="3d-graph"></div>
-    <div style="position: absolute; top: 5px; right: 5px;">
+    <div style="position: absolute; top: 5px; right: 5px; display:flex; gap:5px;">
       <button id="modeToggle">📚</button>
+      <button id="sortToggle" style="display:none;">📅</button>
     </div>
     <script type="importmap">{ "imports": { "three": "//unpkg.com/three/build/three.module.js" }}</script>
     <script type="module">
@@ -90,6 +91,9 @@
         .backgroundColor('#808080');
 
       let isGridModeActive = false;
+      let sortIndex = 0;
+      const sortModes = ['dateacquired', 'publicationYear', 'ddc'];
+      const sortIcons = ['📅', '📖', '🔢'];
       document.getElementById('modeToggle').addEventListener('click', event => {
 
         isGridModeActive = !isGridModeActive; // Toggle the mode state immediately on click
@@ -104,6 +108,7 @@
           });
           window.originalGraphData = { ...Graph.graphData() }; // Save a clone of the original graph data globally
           Graph.graphData({ nodes: filteredNodes, links: [] }); // Update graph data with filtered nodes and no edges
+          document.getElementById('sortToggle').style.display = 'block';
           event.target.innerHTML = '🕸️';
         } else {
           Graph.d3Force('custom', null); // Remove custom force
@@ -130,12 +135,31 @@
           // Update the graph data with all nodes and links added
           Graph.graphData({ nodes: currentData.nodes, links: currentData.links });
 
+          document.getElementById('sortToggle').style.display = 'none';
           event.target.innerHTML = '📚';
+        }
+      });
+
+      document.getElementById('sortToggle').addEventListener('click', event => {
+        sortIndex = (sortIndex + 1) % sortModes.length;
+        event.target.innerHTML = sortIcons[sortIndex];
+        if (isGridModeActive) {
+          Graph.d3Force('custom', customForce);
         }
       });
       // Custom force function for 'book' nodes grid arrangement, optimized for minimal spacing without collision
       function customForce(alpha) {
-        let nodes = Graph.graphData().nodes.sort((a, b) => (b.pages || 0) - (a.pages || 0)).filter(node => node.group === 'book');
+        let nodes = Graph.graphData().nodes.filter(node => node.group === 'book');
+        nodes.sort((a, b) => {
+          if (sortModes[sortIndex] === 'dateacquired') {
+            return new Date(b.dateacquired || 0) - new Date(a.dateacquired || 0);
+          } else if (sortModes[sortIndex] === 'publicationYear') {
+            return (b.publicationYear || 0) - (a.publicationYear || 0);
+          } else if (sortModes[sortIndex] === 'ddc') {
+            return (a.ddcCode || '').localeCompare(b.ddcCode || '');
+          }
+          return (b.pages || 0) - (a.pages || 0);
+        });
         const pageCounts = nodes.map(node => node.pages || 0);
         const rowSize = 50; // Set row size to 50 books wide
         // Calculate minimal spacing based on the size of the child __threeObj
