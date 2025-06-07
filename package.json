@@ -1,6 +1,14 @@
 {
+  "scripts": {
+    "dev": "serve . -p 8080",
+    "serve": "serve . -p 8080",
+    "update-library": "node utils/librarything-to-graph.js"
+  },
   "dependencies": {
     "fs": "^0.0.1-security",
     "image-size": "^1.1.1"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
   }
 }
