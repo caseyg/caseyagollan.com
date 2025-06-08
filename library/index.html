@@ -27,31 +27,57 @@
       }
 
     </style>
-    <script src="//unpkg.com/3d-force-graph"></script>
+    <script src="//unpkg.com/3d-force-graph@1.71.2"></script>
   </head>
   
   <body>
     <div id="3d-graph"></div>
-    <div style="position: absolute; top: 5px; right: 5px;">
+    <div style="position: absolute; top: 5px; right: 5px; display:flex; gap:5px;">
       <button id="modeToggle">📚</button>
+      <button id="sortToggle" style="display:none;">📅</button>
     </div>
-    <script type="importmap">{ "imports": { "three": "//unpkg.com/three/build/three.module.js" }}</script>
+    <script type="importmap">{ "imports": { "three": "//unpkg.com/three@0.158.0/build/three.module.js" }}</script>
     <script type="module">
-      import * as three from '//unpkg.com/three/build/three.module.js';
+      import * as THREE from 'three';
       import SpriteText from "//unpkg.com/three-spritetext/dist/three-spritetext.mjs";
+
+      let lastClickedNode = null;
 
       const Graph = ForceGraph3D()
         (document.getElementById('3d-graph'))
         .jsonUrl('graph.json')
         .onNodeClick(node => {
-          // Aim at node from outside it
-          const distance = 40;
-          const distRatio = 1 + distance/Math.hypot(node.x, node.y, node.z);
+          if (node.group === 'book') {
+            // If clicking the same book that's already centered, reset camera
+            if (lastClickedNode === node) {
+              Graph.cameraPosition(
+                { x: 0, y: 0, z: 300 }, // Default camera position
+                { x: 0, y: 0, z: 0 }, // Look at center
+                3000  // ms transition duration
+              );
+              lastClickedNode = null;
+            } else {
+              // Aim at node from outside it
+              const distance = isGridModeActive ? 20 : 40; // Closer zoom in grid mode
+              const nodeZ = node.z || 0; // Handle potential undefined z in grid mode
+              const distRatio = 1 + distance/Math.hypot(node.x, node.y, nodeZ);
+              Graph.cameraPosition(
+                { x: node.x * distRatio, y: node.y * distRatio, z: nodeZ * distRatio }, // new position
+                { x: node.x, y: node.y, z: nodeZ }, // look at node position
+                3000  // ms transition duration
+              );
+              lastClickedNode = node;
+            }
+          }
+        })
+        .onBackgroundClick(() => {
+          // Reset camera when clicking on background
           Graph.cameraPosition(
-            { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, // new position
-            node, // look at { x, y, z }
+            { x: 0, y: 0, z: 300 }, // Default camera position
+            { x: 0, y: 0, z: 0 }, // Look at center
             3000  // ms transition duration
           );
+          lastClickedNode = null;
         })
         .onNodeRightClick(node => {
           // Open librarything.com on double click if the node is a book
@@ -60,25 +86,209 @@
           }
         })
         .nodeThreeObject(node => {
-          const loader = new three.TextureLoader();
           if (node.group === 'book') {
-            const imgTexture = loader.load(node.img);
-            if (!imgTexture) {
-              console.error('Failed to load image:', node.img);
-              return;
+            const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20;
+            let frontMaterial, spineMaterial;
+            let width, height;
+            let averageColor = node.averageColor || '#666666'; // Use pre-processed color or default gray
+            
+            // Check if book has image data
+            if (node.img && node.w && node.h && !isNaN(node.w) && !isNaN(node.h)) {
+              // Use actual book cover
+              const loader = new THREE.TextureLoader();
+              const imgTexture = loader.load(node.img, 
+                (texture) => {
+                  // Image loaded successfully, create spine with pre-processed color
+                  createSpine();
+                },
+                undefined, // onProgress  
+                (error) => {
+                  console.error('Failed to load texture:', node.img, error);
+                  createSpine();
+                }
+              );
+              frontMaterial = new THREE.MeshBasicMaterial({ map: imgTexture });
+              width = Math.max(0.1, node.w / 10);
+              height = Math.max(0.1, node.h / 10);
+              
+              // Create spine immediately for books with images (we have pre-processed color)
+              createSpine();
+            } else {
+              // Create fallback cover with random color and title text
+              const canvas = document.createElement('canvas');
+              canvas.width = 256;
+              canvas.height = 384;
+              const ctx = canvas.getContext('2d');
+              
+              // Generate random color based on book title for consistency
+              const titleHash = node.id.split('').reduce((a, b) => {
+                a = ((a << 5) - a) + b.charCodeAt(0);
+                return a & a;
+              }, 0);
+              const hue = Math.abs(titleHash) % 360;
+              const bgColor = `hsl(${hue}, 60%, 45%)`;
+              const textColor = `hsl(${hue}, 60%, 90%)`;
+              averageColor = bgColor; // Use the generated color as average
+              
+              // Fill background
+              ctx.fillStyle = bgColor;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Add title text
+              ctx.fillStyle = textColor;
+              ctx.font = 'bold 18px Arial';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              
+              // Wrap text to fit on cover
+              const words = node.id.split(' ');
+              const lines = [];
+              let currentLine = '';
+              
+              words.forEach(word => {
+                const testLine = currentLine + word + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > canvas.width - 40 && currentLine !== '') {
+                  lines.push(currentLine.trim());
+                  currentLine = word + ' ';
+                } else {
+                  currentLine = testLine;
+                }
+              });
+              lines.push(currentLine.trim());
+              
+              // Draw text lines
+              const lineHeight = 22;
+              const startY = canvas.height / 2 - (lines.length * lineHeight) / 2;
+              lines.forEach((line, index) => {
+                ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
+              });
+              
+              // Create texture from canvas
+              const texture = new THREE.CanvasTexture(canvas);
+              frontMaterial = new THREE.MeshBasicMaterial({ map: texture });
+              
+              // Generate random dimensions similar to real books in the library
+              const randomSeed = Math.abs(titleHash) / 2147483647;
+              const simulatedWidth = 120 + randomSeed * 80;
+              const simulatedHeight = 180 + randomSeed * 100;
+              width = simulatedWidth / 10;
+              height = simulatedHeight / 10;
+              
+              createSpine(); // Create spine immediately for generated covers
             }
-            const material = new three.MeshBasicMaterial({ map: imgTexture });
-            const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20; // Ensure depth is a positive integer
-            const geometry = new three.BoxGeometry(node.w/10, node.h/10, depth/10);
-            if (!geometry) {
-              console.error('Failed to create geometry for node:', node);
-              return;
+            
+            // Function to create spine texture
+            function createSpine() {
+              const spineCanvas = document.createElement('canvas');
+              spineCanvas.width = Math.max(48, depth * 6); // Wider spine for better text
+              spineCanvas.height = 384;
+              const spineCtx = spineCanvas.getContext('2d');
+              
+              // Fill with average color
+              spineCtx.fillStyle = averageColor;
+              spineCtx.fillRect(0, 0, spineCanvas.width, spineCanvas.height);
+              
+              // Add title text (rotated)
+              spineCtx.save();
+              spineCtx.translate(spineCanvas.width / 2, spineCanvas.height / 2);
+              spineCtx.rotate(-Math.PI / 2);
+              spineCtx.fillStyle = 'white';
+              spineCtx.strokeStyle = 'black';
+              spineCtx.lineWidth = 0.5;
+              
+              // Much larger, more legible font sizing
+              const baseFontSize = Math.max(20, Math.min(28, spineCanvas.width * 0.4));
+              spineCtx.font = `bold ${baseFontSize}px Arial`;
+              spineCtx.textAlign = 'center';
+              spineCtx.textBaseline = 'middle';
+              
+              // Smart text wrapping for spine - try 2 lines before truncating
+              const words = node.id.split(' ');
+              let lines = [];
+              let currentLine = '';
+              const maxWidth = spineCanvas.height - 60; // More padding
+              
+              words.forEach(word => {
+                const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                const metrics = spineCtx.measureText(testLine);
+                if (metrics.width > maxWidth && currentLine !== '') {
+                  lines.push(currentLine);
+                  currentLine = word;
+                } else {
+                  currentLine = testLine;
+                }
+              });
+              lines.push(currentLine);
+              
+              // Limit to 2 lines, truncate if needed
+              if (lines.length > 2) {
+                lines = lines.slice(0, 2);
+                lines[1] = lines[1].length > 15 ? lines[1].substring(0, 12) + '...' : lines[1];
+              }
+              
+              // Draw text lines with better outline
+              const lineHeight = baseFontSize + 4;
+              const startY = -(lines.length - 1) * lineHeight / 2;
+              
+              lines.forEach((line, index) => {
+                const y = startY + index * lineHeight;
+                // Thicker outline for better readability
+                spineCtx.lineWidth = 3;
+                spineCtx.strokeText(line, 0, y);
+                spineCtx.fillText(line, 0, y);
+              });
+              
+              spineCtx.restore();
+              
+              const spineTexture = new THREE.CanvasTexture(spineCanvas);
+              spineMaterial = new THREE.MeshBasicMaterial({ map: spineTexture });
             }
-            const cube = new three.Mesh(geometry, material);
+            
+            // Function to create plain back cover
+            function createBackCover() {
+              const backCanvas = document.createElement('canvas');
+              backCanvas.width = 256;
+              backCanvas.height = 384;
+              const backCtx = backCanvas.getContext('2d');
+              
+              // Fill with average color only
+              backCtx.fillStyle = averageColor;
+              backCtx.fillRect(0, 0, backCanvas.width, backCanvas.height);
+              
+              const backTexture = new THREE.CanvasTexture(backCanvas);
+              return new THREE.MeshBasicMaterial({ map: backTexture });
+            }
+            
+            // If no image to load, create spine immediately
+            if (!node.img || !node.w || !node.h || isNaN(node.w) || isNaN(node.h)) {
+              createSpine();
+            }
+            
+            const depthVal = Math.max(0.1, depth / 10);
+            const geometry = new THREE.BoxGeometry(width, height, depthVal);
+            
+            // Create back cover material
+            const backMaterial = createBackCover();
+            
+            // Create materials for book faces
+            // BoxGeometry face order: [right, left, top, bottom, front, back]
+            const paperWhite = new THREE.MeshBasicMaterial({ color: 0xf5f5f0 });
+            const materials = [
+              paperWhite,                                    // right side (paper edge)
+              spineMaterial || frontMaterial,                // left side (spine)
+              paperWhite,                                    // top (paper edge)
+              paperWhite,                                    // bottom (paper edge)
+              frontMaterial,                                 // front (cover)
+              backMaterial                                   // back (plain color)
+            ];
+            
+            const cube = new THREE.Mesh(geometry, materials);
+            
             // Rotate the cube at random angles
-            cube.rotation.x = Math.random() * 2 * Math.PI; // Rotate randomly around x-axis
-            cube.rotation.y = Math.random() * 2 * Math.PI; // Rotate randomly around y-axis
-            cube.rotation.z = Math.random() * 2 * Math.PI; // Rotate randomly around z-axis
+            cube.rotation.x = Math.random() * 2 * Math.PI;
+            cube.rotation.y = Math.random() * 2 * Math.PI;
+            cube.rotation.z = Math.random() * 2 * Math.PI;
             return cube;
           } else if (node.group === 'ddc') {
             const sprite = new SpriteText(node.id);
@@ -90,25 +300,51 @@
         .backgroundColor('#808080');
 
       let isGridModeActive = false;
+      let sortIndex = 0;
+      const sortModes = ['dateacquired', 'publicationYear', 'ddc', 'color'];
+      const sortIcons = ['📅', '⏳', '📖', '🌈'];
       document.getElementById('modeToggle').addEventListener('click', event => {
-
         isGridModeActive = !isGridModeActive; // Toggle the mode state immediately on click
+        
         if (isGridModeActive) {
+          // Switching to grid mode
           Graph.d3Force('custom', customForce); // Apply custom grid force
           Graph.numDimensions(2); // Set dimensions to 2 to effectively hide edges in grid mode
-          const filteredNodes = Graph.graphData().nodes.filter(node => node.group !== 'ddc'); // Remove 'ddc' nodes
+          
+          // Filter nodes based on current sort mode
+          let filteredNodes;
+          if (sortModes[sortIndex] === 'ddc') {
+            // In DDC mode, show both books and DDC nodes
+            filteredNodes = Graph.graphData().nodes.filter(node => node.group === 'book' || node.group === 'ddc');
+          } else {
+            // In other modes, only show books
+            filteredNodes = Graph.graphData().nodes.filter(node => node.group !== 'ddc');
+          }
+          
+          // Set rotation to spine view without animation
           filteredNodes.forEach(node => {
-            if (node.group === 'book') {
-              node.__threeObj?.rotation.set(0, (Math.PI / 2), 0); // Rotate books 90 degrees to show spine towards camera using optional chaining
+            if (node.group === 'book' && node.__threeObj) {
+              node.__threeObj.rotation.set(0, Math.PI / 2, 0); // Show spine towards camera
             }
           });
+          
           window.originalGraphData = { ...Graph.graphData() }; // Save a clone of the original graph data globally
           Graph.graphData({ nodes: filteredNodes, links: [] }); // Update graph data with filtered nodes and no edges
+          
+          // Constrain camera controls to X-axis rotation only in grid mode
+          Graph.controls().enablePan = false;
+          Graph.controls().minPolarAngle = Math.PI / 4; // 45 degrees
+          Graph.controls().maxPolarAngle = 3 * Math.PI / 4; // 135 degrees
+          Graph.controls().enableZoom = true;
+          
+          document.getElementById('sortToggle').style.display = 'block';
           event.target.innerHTML = '🕸️';
         } else {
+          // Switching back to graph mode
           Graph.d3Force('custom', null); // Remove custom force
           Graph.numDimensions(3); // Reset dimensions to 3 to show edges again in graph mode
-          // Immediately reset the graph data without animation
+          
+          // Restore original graph data first
           const currentData = Graph.graphData();
           const originalNodes = originalGraphData.nodes;
           const originalLinks = originalGraphData.links;
@@ -126,37 +362,296 @@
             currentData.links.push(link);
           });
 
-
           // Update the graph data with all nodes and links added
           Graph.graphData({ nodes: currentData.nodes, links: currentData.links });
 
+          // Restore full camera controls
+          Graph.controls().enablePan = true;
+          Graph.controls().minPolarAngle = 0;
+          Graph.controls().maxPolarAngle = Math.PI;
+          Graph.controls().enableZoom = true;
+
+          // Animate books back to random orientations
+          currentData.nodes.forEach(node => {
+            if (node.group === 'book' && node.__threeObj) {
+              const book = node.__threeObj;
+              const startRotation = { x: book.rotation.x, y: book.rotation.y, z: book.rotation.z };
+              const targetRotation = { 
+                x: Math.random() * 2 * Math.PI, 
+                y: Math.random() * 2 * Math.PI, 
+                z: Math.random() * 2 * Math.PI 
+              };
+              
+              let startTime = null;
+              const duration = 1000; // 1 second animation
+              
+              function animateRotation(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                
+                // Smooth easing function
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                book.rotation.x = startRotation.x + (targetRotation.x - startRotation.x) * easeProgress;
+                book.rotation.y = startRotation.y + (targetRotation.y - startRotation.y) * easeProgress;
+                book.rotation.z = startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
+                
+                if (progress < 1) {
+                  requestAnimationFrame(animateRotation);
+                }
+              }
+              
+              requestAnimationFrame(animateRotation);
+            }
+          });
+
+          document.getElementById('sortToggle').style.display = 'none';
           event.target.innerHTML = '📚';
+        }
+      });
+
+      document.getElementById('sortToggle').addEventListener('click', event => {
+        sortIndex = (sortIndex + 1) % sortModes.length;
+        event.target.innerHTML = sortIcons[sortIndex];
+        if (isGridModeActive) {
+          // Update filtered nodes when switching sort modes in grid view
+          let filteredNodes;
+          if (sortModes[sortIndex] === 'ddc') {
+            // In DDC mode, show both books and DDC nodes
+            filteredNodes = window.originalGraphData.nodes.filter(node => node.group === 'book' || node.group === 'ddc');
+          } else {
+            // In other modes, only show books
+            filteredNodes = window.originalGraphData.nodes.filter(node => node.group !== 'ddc');
+          }
+          Graph.graphData({ nodes: filteredNodes, links: [] });
+          Graph.d3Force('custom', customForce);
         }
       });
       // Custom force function for 'book' nodes grid arrangement, optimized for minimal spacing without collision
       function customForce(alpha) {
-        let nodes = Graph.graphData().nodes.sort((a, b) => (b.pages || 0) - (a.pages || 0)).filter(node => node.group === 'book');
-        const pageCounts = nodes.map(node => node.pages || 0);
+        let nodes = Graph.graphData().nodes.filter(node => node.group === 'book');
+        let ddcNodes = Graph.graphData().nodes.filter(node => node.group === 'ddc');
+        
+        // Disable default forces for all nodes when in grid mode
+        Graph.graphData().nodes.forEach(node => {
+          if (node.fx !== undefined) delete node.fx;
+          if (node.fy !== undefined) delete node.fy;
+          if (node.fz !== undefined) delete node.fz;
+        });
+        
+        // Apply color filtering for books without real cover images
+        if (sortModes[sortIndex] === 'color') {
+          nodes.forEach(node => {
+            if (node.__threeObj && node.__threeObj.material) {
+              const materials = Array.isArray(node.__threeObj.material) ? node.__threeObj.material : [node.__threeObj.material];
+              
+              // Check if this book has a real cover image (not generated)
+              const hasRealCover = node.img && node.averageColor;
+              
+              if (!hasRealCover) {
+                // Gray out books without real covers in color mode
+                materials.forEach((material, index) => {
+                  if (index === 4 || index === 5) { // Front and back faces
+                    if (!material.originalColor) {
+                      material.originalColor = material.color ? material.color.clone() : null;
+                      material.originalMap = material.map;
+                    }
+                    material.color = new THREE.Color(0x808080); // Gray
+                    material.map = null;
+                  }
+                });
+              } else {
+                // Restore original colors for books with real covers
+                materials.forEach((material, index) => {
+                  if (index === 4 || index === 5 && material.originalColor) {
+                    material.color = material.originalColor;
+                    material.map = material.originalMap;
+                  }
+                });
+              }
+            }
+          });
+        } else {
+          // Restore all books to original appearance in non-color modes
+          nodes.forEach(node => {
+            if (node.__threeObj && node.__threeObj.material) {
+              const materials = Array.isArray(node.__threeObj.material) ? node.__threeObj.material : [node.__threeObj.material];
+              materials.forEach((material, index) => {
+                if ((index === 4 || index === 5) && material.originalColor) {
+                  material.color = material.originalColor;
+                  material.map = material.originalMap;
+                } else if ((index === 4 || index === 5) && !material.originalColor) {
+                  // For materials that never had originalColor (generated covers), restore white
+                  material.color = new THREE.Color(0xffffff);
+                  // map should already be the generated texture
+                }
+              });
+            }
+          });
+        }
+        
         const rowSize = 50; // Set row size to 50 books wide
         // Calculate minimal spacing based on the size of the child __threeObj
         const nodeSize = nodes.length > 0 && nodes[0].__threeObj ? nodes[0].__threeObj.scale.x : 50; // Default to 50 if no __threeObj
         const spacingX = nodeSize + 5; // Minimal spacing to avoid collision on X-axis, adding 5 units buffer
         const spacingY = nodeSize + 30; // Minimal spacing to avoid collision on Y-axis, adding 30 units buffer
-        const gridWidth = rowSize * spacingX;
-        const gridHeight = Math.ceil(nodes.length / rowSize) * spacingY;
-        nodes.forEach((node, index) => {
-          const row = Math.floor(index / rowSize);
-          const col = index % rowSize;
+        
+        if (sortModes[sortIndex] === 'ddc') {
+          // Sort books by DDC code
+          nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
+          
+          // Group books by DDC classification (first 3 digits) and create position mapping
+          const ddcGroups = {};
+          nodes.forEach(node => {
+            const ddcClass = (node.ddcCode || '').substring(0, 3);
+            if (!ddcGroups[ddcClass]) {
+              ddcGroups[ddcClass] = [];
+            }
+            ddcGroups[ddcClass].push(node);
+          });
+          
+          // Map DDC codes to classification names
+          const ddcClassNames = {
+            '000': 'Computer science, information & general works',
+            '100': 'Philosophy & psychology',
+            '200': 'Religion',
+            '300': 'Social sciences',
+            '400': 'Language',
+            '500': 'Science & mathematics',
+            '600': 'Technology',
+            '700': 'Arts & recreation',
+            '800': 'Literature',
+            '900': 'History & geography'
+          };
+          
+          // Create position mapping for both books and dividers
+          let gridIndex = 0;
+          const positionMap = new Map();
+          
+          Object.keys(ddcGroups).sort().forEach(ddcClass => {
+            if (ddcGroups[ddcClass].length > 0) {
+              // Find and position the DDC divider
+              const dividerName = ddcClassNames[ddcClass] || `DDC ${ddcClass}`;
+              const divider = ddcNodes.find(node => node.id === dividerName);
+              if (divider) {
+                positionMap.set(divider.id, gridIndex);
+                gridIndex++;
+              }
+              
+              // Position books in this classification
+              ddcGroups[ddcClass].forEach(book => {
+                positionMap.set(book.id, gridIndex);
+                gridIndex++;
+              });
+            }
+          });
+          
+          // Apply positions to books
+          nodes.forEach(node => {
+            const index = positionMap.get(node.id);
+            if (index !== undefined) {
+              const row = Math.floor(index / rowSize);
+              const col = index % rowSize;
+              
+              const targetX = (col * spacingX) - ((rowSize * spacingX) / 2) + (spacingX / 2);
+              const targetY = row * spacingY;
+              const targetZ = 0;
+              
+              const easing = 0.05;
+              node.x += (targetX - node.x) * easing;
+              node.y += (targetY - node.y) * easing;
+              node.z = targetZ;
+              
+              node.fx = node.x;
+              node.fy = node.y;
+              node.fz = node.z;
+              
+              if (node.__threeObj) {
+                node.__threeObj.rotation.set(0, Math.PI / 2, 0);
+              }
+            }
+          });
+          
+          // Apply positions to DDC dividers
+          ddcNodes.forEach(node => {
+            const index = positionMap.get(node.id);
+            if (index !== undefined) {
+              const row = Math.floor(index / rowSize);
+              const col = index % rowSize;
+              
+              const targetX = (col * spacingX) - ((rowSize * spacingX) / 2) + (spacingX / 2);
+              const targetY = row * spacingY;
+              const targetZ = 0;
+              
+              const easing = 0.05;
+              node.x += (targetX - node.x) * easing;
+              node.y += (targetY - node.y) * easing;
+              node.z = targetZ;
+              
+              node.fx = node.x;
+              node.fy = node.y;
+              node.fz = node.z;
+            }
+          });
+          
+        } else {
+          // Standard sorting for non-DDC modes
+          nodes.sort((a, b) => {
+            if (sortModes[sortIndex] === 'dateacquired') {
+              return new Date(b.dateacquired || 0) - new Date(a.dateacquired || 0);
+            } else if (sortModes[sortIndex] === 'publicationYear') {
+              return (b.publicationYear || 0) - (a.publicationYear || 0);
+            } else if (sortModes[sortIndex] === 'color') {
+              // Sort by average color hue (books with real covers first)
+              const getHue = (node) => {
+                if (!node.averageColor) return 999; // Put books without real colors at the end
+                const rgb = node.averageColor.match(/\d+/g);
+                if (!rgb) return 999;
+                const r = parseInt(rgb[0]) / 255;
+                const g = parseInt(rgb[1]) / 255;
+                const b = parseInt(rgb[2]) / 255;
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                let h = 0;
+                if (max !== min) {
+                  const d = max - min;
+                  switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                  }
+                  h /= 6;
+                }
+                return h * 360;
+              };
+              return getHue(a) - getHue(b);
+            }
+            return (b.pages || 0) - (a.pages || 0);
+          });
+          
+          // Position books in standard grid
+          nodes.forEach((node, index) => {
+            const row = Math.floor(index / rowSize);
+            const col = index % rowSize;
 
-          // Calculate centered positions with minimal spacing
-          node.x = (col * spacingX) - (gridWidth / 2) + (spacingX / 2);
-          node.y = (row * spacingY) - (gridHeight / 2) + (spacingY / 2);
+            const targetX = (col * spacingX) - ((rowSize * spacingX) / 2) + (spacingX / 2);
+            const targetY = row * spacingY;
+            const targetZ = 0;
+            
+            const easing = 0.05;
+            node.x += (targetX - node.x) * easing;
+            node.y += (targetY - node.y) * easing;
+            node.z = targetZ;
+            
+            node.fx = node.x;
+            node.fy = node.y;
+            node.fz = node.z;
 
-          // Rotate node to have the spine facing forward
-          if (node.__threeObj) {
-            node.__threeObj.rotation.set(0, Math.PI / 2, 0); // Rotate 90 degrees on Y-axis
-          }
-        });
+            if (node.__threeObj) {
+              node.__threeObj.rotation.set(0, Math.PI / 2, 0);
+            }
+          });
+        }
       }
     </script>
   </body>

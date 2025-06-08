@@ -1,9 +1,38 @@
 const fs = require('fs');
 const imageSize = require('image-size');
+const sharp = require('sharp');
+
+// Function to extract average color from image
+async function getImageAverageColor(imagePath) {
+  try {
+    const { data, info } = await sharp(imagePath)
+      .resize(50, 50) // Resize to small image for faster processing
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    
+    let r = 0, g = 0, b = 0;
+    const pixelCount = info.width * info.height;
+    
+    for (let i = 0; i < data.length; i += 3) {
+      r += data[i];
+      g += data[i + 1];
+      b += data[i + 2];
+    }
+    
+    r = Math.floor(r / pixelCount);
+    g = Math.floor(g / pixelCount);
+    b = Math.floor(b / pixelCount);
+    
+    return `rgb(${r}, ${g}, ${b})`;
+  } catch (error) {
+    console.warn(`Could not extract color from ${imagePath}:`, error.message);
+    return '#666666'; // Default gray
+  }
+}
 
 // Read JSON file from command line argument
 const filename = './utils/librarything_caseygollan.json';
-fs.readFile(filename, 'utf8', (err, data) => {
+fs.readFile(filename, 'utf8', async (err, data) => {
   if (err) {
     console.error(`Error reading file from disk: ${err}`);
     return;
@@ -21,7 +50,7 @@ fs.readFile(filename, 'utf8', (err, data) => {
     }
 
     // Collect all unique DDC wordings and create nodes for each book
-    Object.values(jsonData).forEach(book => {
+    const promises = Object.values(jsonData).map(async (book) => {
       if (book.ddc && book.ddc.wording) {
           
           // Check for the existence of the image file
@@ -54,12 +83,26 @@ fs.readFile(filename, 'utf8', (err, data) => {
                   }
               });
         };
-        const node = { id: book.title, workcode: book.workcode, bookid: parseInt(book.books_id), isbn: book.originalisbn, pages: parseInt(book.pages), group: "book" };
+        const node = {
+            id: book.title,
+            workcode: book.workcode,
+            bookid: parseInt(book.books_id),
+            isbn: book.originalisbn,
+            pages: parseInt(book.pages),
+            group: "book",
+            // Additional metadata used for sorting in grid mode
+            dateacquired: book.dateacquired,
+            publicationYear: parseInt(book.date),
+            ddcCode: Array.isArray(book.ddc.code) ? book.ddc.code[0] : book.ddc.code
+        };
         if (fs.existsSync(imgPath)) {
             const imgDimensions = imageSize(imgPath);
             node.img = `img/${book.originalisbn}.jpg`;
             node.w = imgDimensions.width;
             node.h = imgDimensions.height;
+            // Extract average color from the image
+            node.averageColor = await getImageAverageColor(imgPath);
+            console.log(`Extracted color ${node.averageColor} for ${book.title}`);
         }
         nodes.push(node);
         // Add DDC wordings to the set and create edges from book to all DDC wordings
@@ -73,6 +116,9 @@ fs.readFile(filename, 'utf8', (err, data) => {
         book.ddc.wording.forEach(word => ddcWordingSet.add(word));
       }
     });
+
+    // Wait for all image processing to complete
+    await Promise.all(promises);
 
     // Create nodes from unique DDC wordings
     ddcWordingSet.forEach(word => {
