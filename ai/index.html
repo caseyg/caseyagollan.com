@@ -158,8 +158,8 @@
           const dateStr = match[1];
           const timeStr = match[2].replace(/-/g, ':');
           
-          // Parse date and calculate relative time
-          const logDate = new Date(`${dateStr}T${timeStr}`);
+          // Parse date and calculate relative time (EST timezone)
+          const logDate = new Date(`${dateStr}T${timeStr}-05:00`);
           const now = new Date();
           const diffMs = now - logDate;
           const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
