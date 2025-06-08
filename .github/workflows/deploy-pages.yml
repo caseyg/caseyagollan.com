@@ -1,0 +1,155 @@
+name: Deploy to GitHub Pages with Claude Trace
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true  # Important: This fetches LFS files
+          
+      - name: Checkout LFS objects
+        run: git lfs checkout
+        
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Create deployment directory
+        run: |
+          mkdir -p _site
+          
+      - name: Copy site files
+        run: |
+          # Copy all files except .git, _site, and .claude-trace
+          rsync -av --exclude='.git' --exclude='_site' --exclude='.claude-trace' --exclude='.github' . _site/
+          
+      - name: Copy claude-trace HTML files
+        run: |
+          # Create claude-trace directory in deployment
+          mkdir -p _site/claude-trace
+          
+          # Copy only HTML files from .claude-trace
+          if [ -d ".claude-trace" ]; then
+            find .claude-trace -name "*.html" -type f | while read file; do
+              cp "$file" "_site/claude-trace/$(basename "$file")"
+            done
+          fi
+          
+      - name: Create claude-trace index
+        run: |
+          # Create a simple index.html for the claude-trace directory
+          cat > _site/claude-trace/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Claude Trace Logs</title>
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                      max-width: 800px;
+                      margin: 40px auto;
+                      padding: 0 20px;
+                      line-height: 1.6;
+                  }
+                  h1 { color: #333; }
+                  ul { 
+                      list-style: none; 
+                      padding: 0;
+                  }
+                  li { 
+                      margin: 10px 0;
+                      padding: 10px;
+                      background: #f5f5f5;
+                      border-radius: 4px;
+                  }
+                  a {
+                      color: #0066cc;
+                      text-decoration: none;
+                  }
+                  a:hover {
+                      text-decoration: underline;
+                  }
+                  .date {
+                      color: #666;
+                      font-size: 0.9em;
+                  }
+              </style>
+          </head>
+          <body>
+              <h1>Claude Trace Logs</h1>
+              <p><a href="/">← Back to main site</a></p>
+              <ul id="file-list"></ul>
+              <script>
+                  // Get list of HTML files in current directory
+                  fetch('.')
+                      .then(response => response.text())
+                      .then(html => {
+                          const parser = new DOMParser();
+                          const doc = parser.parseFromString(html, 'text/html');
+                          const links = Array.from(doc.querySelectorAll('a'))
+                              .filter(a => a.href.endsWith('.html') && !a.href.endsWith('index.html'))
+                              .map(a => {
+                                  const filename = a.href.split('/').pop();
+                                  const match = filename.match(/log-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2}-\d{2})/);
+                                  const date = match ? `${match[1]} ${match[2].replace(/-/g, ':')}` : filename;
+                                  return { filename, date };
+                              })
+                              .sort((a, b) => b.filename.localeCompare(a.filename));
+                          
+                          const list = document.getElementById('file-list');
+                          links.forEach(({ filename, date }) => {
+                              const li = document.createElement('li');
+                              li.innerHTML = `<a href="${filename}">${filename}</a> <span class="date">${date}</span>`;
+                              list.appendChild(li);
+                          });
+                          
+                          if (links.length === 0) {
+                              list.innerHTML = '<li>No trace logs found.</li>';
+                          }
+                      })
+                      .catch(() => {
+                          // Fallback: list files manually if fetch fails
+                          const files = Array.from(document.querySelectorAll('a'))
+                              .filter(a => a.href.endsWith('.html') && !a.href.endsWith('index.html'));
+                          if (files.length === 0) {
+                              document.getElementById('file-list').innerHTML = '<li>No trace logs found.</li>';
+                          }
+                      });
+              </script>
+          </body>
+          </html>
+          EOF
+          
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+          
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
