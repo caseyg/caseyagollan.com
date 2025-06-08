@@ -31,6 +31,9 @@
       --telescope-highlight: blue;
       --telescope-highlight-hover: rgb(73, 73, 255);
     }
+    html {
+      background: gray;
+    }
     body {
       background: gray;
       color: white;
@@ -45,12 +48,31 @@
     .hidden {
     	display: none;
     }
+    #libraryToggle {
+      position: fixed;
+      top: 5px;
+      right: 5px;
+      background-color: blue;
+      border: none;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+      width: auto;
+      font-size: 2rem;
+      height: auto;
+      border-radius: 5px;
+      cursor: pointer;
+      padding: 0 10px;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
   <header>
     <a class="skip-link" href="/index-accessible.html">Visit Accessible Alternative</a>
-  </header> 
+  </header>
+  <a href="/library/" id="libraryToggle">📄</a>
   <main id="text-container"></main>
   <img src="/sisu.gif" alt="Monument to Finnish Sisu. Rocks are arranged into a large mound at the edge of a grassy plateau, overlooking fields, forests, and lakes, under a bright cloudy sky.">
   <a rel="me" href="https://social.coop/@caseyg" class="hidden">@caseyg@social.coop</a>
