@@ -72,8 +72,20 @@ jobs:
               
               # Extract message count and API calls from HTML file
               if [ -f "$file" ]; then
-                  MESSAGES=$(grep -o '"message"' "$file" | wc -l)
-                  API_CALLS=$(grep -o '"type":"api"' "$file" | wc -l)
+                  # Extract API calls from title element
+                  API_CALLS=$(grep -o '<title>claude-traffic-[0-9]* API Calls</title>' "$file" | grep -o '[0-9]*' | head -1)
+                  [ -z "$API_CALLS" ] && API_CALLS=0
+                  
+                  # Extract message count from corresponding jsonl file (easier parsing)
+                  jsonl_file="../.claude-trace/${file%.html}.jsonl"
+                  if [ -f "$jsonl_file" ]; then
+                      # Count the longest conversation (most representative of total unique messages)
+                      # This gives us the total unique conversation messages rather than accumulated repeats
+                      MESSAGES=$(jq -r '.request.body.messages // [] | length' "$jsonl_file" | sort -nr | head -1)
+                      [ -z "$MESSAGES" ] && MESSAGES=0
+                  else
+                      MESSAGES=0
+                  fi
               else
                   MESSAGES=0
                   API_CALLS=0
