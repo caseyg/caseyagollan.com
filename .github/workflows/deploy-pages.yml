@@ -79,8 +79,8 @@ jobs:
                   # Extract message count from corresponding jsonl file (easier parsing)
                   jsonl_file="../.claude-trace/${file%.html}.jsonl"
                   if [ -f "$jsonl_file" ]; then
-                      # Count the longest conversation (most representative of total unique messages)
-                      # This gives us the total unique conversation messages rather than accumulated repeats
+                      # Get the maximum message count from all API calls in the session
+                      # This represents the peak conversation length (most meaningful count)
                       MESSAGES=$(jq -r '.request.body.messages // [] | length' "$jsonl_file" | sort -nr | head -1)
                       [ -z "$MESSAGES" ] && MESSAGES=0
                   else
