@@ -147,13 +147,52 @@
     if (typeof files === 'undefined' || files.length === 0) {
       list.innerHTML = '<li>No trace logs found.</li>';
     } else {
-      files.forEach(filename => {
-        const match = filename.match(/log-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2}-\d{2})/);
-        const date = match ? `${match[1]} ${match[2].replace(/-/g, ':')}` : filename;
+      files.forEach(file => {
+        // Handle both old string format and new object format
+        const filename = typeof file === 'string' ? file : file.filename;
+        const messages = typeof file === 'object' ? file.messages : 0;
+        const apiCalls = typeof file === 'object' ? file.apiCalls : 0;
         
-        const li = document.createElement('li');
-        li.innerHTML = `<a href="/claude-trace/${filename}">${filename.replace('.html', '')} <span class="date">${date}</span></a>`;
-        list.appendChild(li);
+        const match = filename.match(/log-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2}-\d{2})/);
+        if (match) {
+          const dateStr = match[1];
+          const timeStr = match[2].replace(/-/g, ':');
+          
+          // Parse date and calculate relative time
+          const logDate = new Date(`${dateStr}T${timeStr}`);
+          const now = new Date();
+          const diffMs = now - logDate;
+          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffMinutes = Math.floor(diffMs / (1000 * 60));
+          
+          let relativeTime;
+          if (diffDays > 0) {
+            relativeTime = diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+          } else if (diffHours > 0) {
+            relativeTime = diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+          } else if (diffMinutes > 0) {
+            relativeTime = diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`;
+          } else {
+            relativeTime = 'Just now';
+          }
+          
+          // Format time for display
+          const displayTime = logDate.toLocaleTimeString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: true 
+          });
+          
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="/claude-trace/${filename}">${relativeTime} - ${displayTime} - ${messages} messages - ${apiCalls} API calls</a>`;
+          list.appendChild(li);
+        } else {
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="/claude-trace/${filename}">${filename.replace('.html', '')}</a>`;
+          list.appendChild(li);
+        }
       });
     }
   </script>
