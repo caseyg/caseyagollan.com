@@ -60,7 +60,7 @@ jobs:
           cd _site/claude-trace
           FILES=$(find . -name "*.html" -not -name "index.html" | sort -r | sed 's|^\./||')
           
-          # Create JavaScript array of files
+          # Create JavaScript array of files with metadata
           FILE_LIST="const files = ["
           first=true
           for file in $FILES; do
@@ -69,7 +69,17 @@ jobs:
               else
                   FILE_LIST="$FILE_LIST,"
               fi
-              FILE_LIST="$FILE_LIST\"$file\""
+              
+              # Extract message count and API calls from HTML file
+              if [ -f "$file" ]; then
+                  MESSAGES=$(grep -o '"message"' "$file" | wc -l)
+                  API_CALLS=$(grep -o '"type":"api"' "$file" | wc -l)
+              else
+                  MESSAGES=0
+                  API_CALLS=0
+              fi
+              
+              FILE_LIST="$FILE_LIST{\"filename\":\"$file\",\"messages\":$MESSAGES,\"apiCalls\":$API_CALLS}"
           done
           FILE_LIST="$FILE_LIST];"
           
