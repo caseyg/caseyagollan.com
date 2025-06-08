@@ -53,8 +53,12 @@ jobs:
           
       - name: Create claude-trace index
         run: |
-          # Create a simple index.html for the claude-trace directory
-          cat > _site/claude-trace/index.html << 'EOF'
+          # Generate list of HTML files
+          cd _site/claude-trace
+          FILES=$(find . -name "*.html" -not -name "index.html" | sort -r | sed 's|^\./||')
+          
+          # Create index.html with embedded file list
+          cat > index.html << 'EOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
@@ -98,41 +102,39 @@ jobs:
               <p><a href="/">← Back to main site</a></p>
               <ul id="file-list"></ul>
               <script>
-                  // Get list of HTML files in current directory
-                  fetch('.')
-                      .then(response => response.text())
-                      .then(html => {
-                          const parser = new DOMParser();
-                          const doc = parser.parseFromString(html, 'text/html');
-                          const links = Array.from(doc.querySelectorAll('a'))
-                              .filter(a => a.href.endsWith('.html') && !a.href.endsWith('index.html'))
-                              .map(a => {
-                                  const filename = a.href.split('/').pop();
-                                  const match = filename.match(/log-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2}-\d{2})/);
-                                  const date = match ? `${match[1]} ${match[2].replace(/-/g, ':')}` : filename;
-                                  return { filename, date };
-                              })
-                              .sort((a, b) => b.filename.localeCompare(a.filename));
+                  // File list generated at build time
+                  const files = [
+          EOF
+          
+          # Add each file as a JavaScript array element
+          first=true
+          for file in $FILES; do
+              if [ "$first" = true ]; then
+                  first=false
+              else
+                  echo "," >> index.html
+              fi
+              echo -n "                      \"$file\"" >> index.html
+          done
+          
+          cat >> index.html << 'EOF'
+          
+                  ];
+                  
+                  const list = document.getElementById('file-list');
+                  
+                  if (files.length === 0) {
+                      list.innerHTML = '<li>No trace logs found.</li>';
+                  } else {
+                      files.forEach(filename => {
+                          const match = filename.match(/log-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2}-\d{2})/);
+                          const date = match ? `${match[1]} ${match[2].replace(/-/g, ':')}` : filename;
                           
-                          const list = document.getElementById('file-list');
-                          links.forEach(({ filename, date }) => {
-                              const li = document.createElement('li');
-                              li.innerHTML = `<a href="${filename}">${filename}</a> <span class="date">${date}</span>`;
-                              list.appendChild(li);
-                          });
-                          
-                          if (links.length === 0) {
-                              list.innerHTML = '<li>No trace logs found.</li>';
-                          }
-                      })
-                      .catch(() => {
-                          // Fallback: list files manually if fetch fails
-                          const files = Array.from(document.querySelectorAll('a'))
-                              .filter(a => a.href.endsWith('.html') && !a.href.endsWith('index.html'));
-                          if (files.length === 0) {
-                              document.getElementById('file-list').innerHTML = '<li>No trace logs found.</li>';
-                          }
+                          const li = document.createElement('li');
+                          li.innerHTML = `<a href="${filename}">${filename}</a> <span class="date">${date}</span>`;
+                          list.appendChild(li);
                       });
+                  }
               </script>
           </body>
           </html>
