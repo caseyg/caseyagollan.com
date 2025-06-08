@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>🤖 AI tracing</title>
+  <meta name="description" content="Logs of how Claude Code has been used to generate code on this site.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:title" content="🤖 AI tracing">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://caseyagollan.com/ai/">
+  <meta property="og:image" content="https://caseyagollan.com/sisu.gif">
+  <meta name="theme-color" content="#0000ff">
+  <link rel="stylesheet" href="https://use.typekit.net/rfh8wvj.css">
+  <style>
+    html {
+      background: gray;
+    }
+    body {
+      background: gray;
+      color: white;
+      font-family: ff-dagny-web-pro, sans-serif;
+      font-size: 5vw;
+      font-weight: 100;
+      line-height: 1.5;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 1em;
+      font-weight: 100;
+      margin: 0 0 0.5em 0;
+    }
+    .content {
+      font-size: 0.6em;
+      max-width: 100%;
+    }
+    .section {
+      margin: 20px 0;
+    }
+    .paper-section {
+      background: #f5f5f0;
+      color: #333;
+      padding: 15px;
+      border-radius: 5px;
+    }
+    .rock-section {
+      background: gray;
+      color: white;
+      padding: 15px;
+      border: 2px solid white;
+      border-radius: 5px;
+    }
+    a:link, 
+    a:visited {
+      background: blue;
+      color: white;
+      text-decoration: none;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+    a:hover {
+      background: rgb(73, 73, 255);
+    }
+    ul {
+      list-style-type: none;
+      padding-left: 0;
+      margin: 10px 0;
+    }
+    li {
+      margin: 8px 0;
+    }
+    .trace-list li {
+      margin: 8px 0;
+      font-size: 0.9em;
+    }
+    .trace-list a {
+      display: block;
+      padding: 8px 12px;
+      background: blue;
+      color: white;
+      text-decoration: none;
+      border-radius: 3px;
+    }
+    .trace-list a:hover {
+      background: rgb(73, 73, 255);
+    }
+    .date {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.8em;
+    }
+    .paper-section .date {
+      color: #666;
+    }
+    .nav-toggles {
+      position: fixed;
+      top: 5px;
+      right: 5px;
+      display: flex;
+      gap: 5px;
+    }
+    .nav-toggles a {
+      background-color: blue;
+      border: none;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+      width: auto;
+      font-size: 2rem;
+      height: auto;
+      border-radius: 5px;
+      cursor: pointer;
+      padding: 0 10px;
+      line-height: 1.5;
+    }
+    .intro {
+      margin-bottom: 20px;
+      font-size: 0.8em;
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-toggles">
+    <a href="/">🪨</a>
+    <a href="/library/">📄</a>
+  </div>
+  
+  <h1>🤖 AI tracing</h1>
+  
+  <div class="content">
+    <div class="intro">
+      AI software development is often unattributed and still poorly understood. Even when tagged explicitly within open-source code, the "background conversations" are often kept private. AI tools also abstract away process and system-level information, even from programmers themselves. Thanks to <a href="https://github.com/badlogic/lemmy/tree/main/apps/claude-trace">claude-trace</a>, an unofficial plugin which intercepts detailed information on AI coding usage, information about both the human ideation and AI machinations contributing to this site are intercepted and archived here for transparency, posterity, and further study.
+    </div>
+    
+    <ul id="file-list" class="trace-list">
+      <!-- Files will be inserted here by JavaScript -->
+    </ul>
+    
+  </div>
+
+  <script>
+    // File list will be injected here by the build process
+    /* FILE_LIST_PLACEHOLDER */
+    
+    const list = document.getElementById('file-list');
+    
+    if (typeof files === 'undefined' || files.length === 0) {
+      list.innerHTML = '<li>No trace logs found.</li>';
+    } else {
+      files.forEach(filename => {
+        const match = filename.match(/log-(\d{4}-\d{2}-\d{2})-(\d{2}-\d{2}-\d{2})/);
+        const date = match ? `${match[1]} ${match[2].replace(/-/g, ':')}` : filename;
+        
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="/claude-trace/${filename}">${filename.replace('.html', '')} <span class="date">${date}</span></a>`;
+        list.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
