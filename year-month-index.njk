@@ -21,29 +21,8 @@ permalink: /{{ yearMonth[0] }}/
 </p>
 
 <div class="archive-list">
-  {% for post in monthPosts | reverse %}
-    <article class="{{ 'note' if '/notes/' in post.inputPath else 'bookmark' }}">
-      <time datetime="{{ post.date | date('iso') }}">
-        <a href="{{ post.url }}">{{ post.date | date }}</a>
-      </time>
-      {{ post.templateContent | safe }}
-      {% if post.data.syndication %}
-        <p class="syndication">
-          Also posted on: 
-          {% for link in post.data.syndication %}
-            <a href="{{ link }}">
-              {%- if "social.coop" in link -%}
-                Mastodon
-              {%- elif "bsky.app" in link -%}
-                Bluesky
-              {%- else -%}
-                {{ link | replace("https://", "") }}
-              {%- endif -%}
-            </a>{% if not loop.last %}, {% endif %}
-          {% endfor %}
-        </p>
-      {% endif %}
-    </article>
+  {% for post in monthPosts %}
+    {% include "post-display.njk" %}
   {% endfor %}
 </div>
 

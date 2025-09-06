@@ -10,6 +10,12 @@ module.exports = function (eleventyConfig) {
     if (format === "iso") {
       return d.toISOString().split('T')[0];
     }
+    if (format === "MM") {
+      return String(d.getMonth() + 1).padStart(2, '0');
+    }
+    if (format === "MMMM") {
+      return d.toLocaleDateString('en-US', { month: 'long' });
+    }
     return d.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long', 
