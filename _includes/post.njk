@@ -1,0 +1,26 @@
+---
+layout: base
+---
+
+<article>
+  <time datetime="{{ date | date('iso') }}">{{ date | date }}</time>
+  {{ content | safe }}
+  {% if syndication %}
+    <p class="syndication">
+      Also posted on: 
+      {% for link in syndication %}
+        <a href="{{ link }}">
+          {%- if "social.coop" in link -%}
+            Mastodon
+          {%- elif "bsky.app" in link -%}
+            Bluesky
+          {%- else -%}
+            {{ link | replace("https://", "") }}
+          {%- endif -%}
+        </a>{% if not loop.last %}, {% endif %}
+      {% endfor %}
+    </p>
+  {% endif %}
+</article>
+
+<p><a href="/{{ page.inputPath.includes("/notes/") ? "notes" : "bookmarks" }}">← Back to {{ page.inputPath.includes("/notes/") ? "notes" : "bookmarks" }}</a></p>
