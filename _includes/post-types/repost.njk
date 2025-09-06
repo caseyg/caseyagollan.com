@@ -1,0 +1,45 @@
+<article class="h-entry post-type-repost">
+  <time class="dt-published" datetime="{{ date | date('iso') }}">
+    <a href="{{ page.url }}">{{ date | date }}</a>
+  </time>
+  
+  <div class="repost-content">
+    <p class="repost-context">
+      🔁 Reposted: <a href="{{ data['repost-of'] }}" class="u-repost-of">{{ data['repost-of'] }}</a>
+    </p>
+    
+    {% if content %}
+      <div class="e-content">
+        {{ content | safe }}
+      </div>
+    {% endif %}
+  </div>
+  
+  {% if category %}
+    <footer>
+      <p class="categories">
+        Tagged: 
+        {% for cat in category %}
+          <span class="p-category">{{ cat }}</span>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </p>
+    </footer>
+  {% endif %}
+  
+  {% if syndication %}
+    <p class="syndication">
+      Also posted on: 
+      {% for link in syndication %}
+        <a href="{{ link }}" class="u-syndication">
+          {%- if "social.coop" in link -%}
+            Mastodon
+          {%- elif "bsky.app" in link -%}
+            Bluesky
+          {%- else -%}
+            {{ link | replace("https://", "") }}
+          {%- endif -%}
+        </a>{% if not loop.last %}, {% endif %}
+      {% endfor %}
+    </p>
+  {% endif %}
+</article>
