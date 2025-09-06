@@ -1,0 +1,47 @@
+---
+pagination:
+  data: collections.postsByYear
+  size: 1
+  alias: year
+layout: base
+permalink: /{{ year[0] }}/
+---
+
+<h1>{{ year[0] }} Archive</h1>
+
+{% set yearPosts = year[1] %}
+{% set noteCount = yearPosts | selectattr("inputPath", "containing", "/notes/") | list | length %}
+{% set bookmarkCount = yearPosts | selectattr("inputPath", "containing", "/bookmarks/") | list | length %}
+
+<p class="post-count">
+  {{ yearPosts | length }} post{{ "s" if yearPosts | length != 1 }}:
+  {% if noteCount > 0 %}{{ noteCount }} note{{ "s" if noteCount != 1 }}{% endif %}
+  {% if noteCount > 0 and bookmarkCount > 0 %}, {% endif %}
+  {% if bookmarkCount > 0 %}{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}{% endif %}
+</p>
+
+<div class="archive-list">
+  {% set currentMonth = null %}
+  {% for post in yearPosts | reverse %}
+    {% set postMonth = post.date | date("MM") %}
+    {% set postMonthName = post.date | date("MMMM") %}
+    
+    {% if postMonth != currentMonth %}
+      {% if currentMonth %}</ul>{% endif %}
+      <h2><a href="/{{ year[0] }}/{{ postMonth }}/">{{ postMonthName }}</a></h2>
+      <ul>
+      {% set currentMonth = postMonth %}
+    {% endif %}
+    
+    <li>
+      <a href="{{ post.url }}">{{ post.date | date("D") }}: {{ post.templateContent | striptags | truncate(50) }}</a>
+    </li>
+  {% endfor %}
+  {% if currentMonth %}</ul>{% endif %}
+</div>
+
+<nav aria-label="Archive navigation">
+  <p>
+    <a href="/">← Home</a>
+  </p>
+</nav>

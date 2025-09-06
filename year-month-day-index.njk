@@ -1,0 +1,57 @@
+---
+pagination:
+  data: collections.postsByYearMonthDay
+  size: 1
+  alias: yearMonthDay
+layout: base
+permalink: /{{ yearMonthDay[0] }}/
+---
+
+{% set dayOfWeek = yearMonthDay[1][0].date | weekday %}
+<h1>{{ dayOfWeek }}, {{ yearMonthDay[0] | getMonth | monthName }} {{ yearMonthDay[0] | getDay }}, {{ yearMonthDay[0] | getYear }}</h1>
+
+{% set dayPosts = yearMonthDay[1] %}
+{% set noteCount = dayPosts | selectattr("inputPath", "containing", "/notes/") | list | length %}
+{% set bookmarkCount = dayPosts | selectattr("inputPath", "containing", "/bookmarks/") | list | length %}
+
+<p class="post-count">
+  {{ dayPosts | length }} post{{ "s" if dayPosts | length != 1 }}:
+  {% if noteCount > 0 %}{{ noteCount }} note{{ "s" if noteCount != 1 }}{% endif %}
+  {% if noteCount > 0 and bookmarkCount > 0 %}, {% endif %}
+  {% if bookmarkCount > 0 %}{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}{% endif %}
+</p>
+
+<div class="archive-list">
+  {% for post in dayPosts | reverse %}
+    <article class="{{ 'note' if '/notes/' in post.inputPath else 'bookmark' }}">
+      <time datetime="{{ post.date | date('iso') }}">
+        <a href="{{ post.url }}">{{ post.date | date }}</a>
+      </time>
+      {{ post.templateContent | safe }}
+      {% if post.data.syndication %}
+        <p class="syndication">
+          Also posted on: 
+          {% for link in post.data.syndication %}
+            <a href="{{ link }}">
+              {%- if "social.coop" in link -%}
+                Mastodon
+              {%- elif "bsky.app" in link -%}
+                Bluesky
+              {%- else -%}
+                {{ link | replace("https://", "") }}
+              {%- endif -%}
+            </a>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </p>
+      {% endif %}
+    </article>
+  {% endfor %}
+</div>
+
+<nav aria-label="Archive navigation">
+  <p>
+    <a href="/{{ yearMonthDay[0] | getYear }}/{{ yearMonthDay[0] | getMonth }}/">← {{ yearMonthDay[0] | getMonth | monthName }} {{ yearMonthDay[0] | getYear }}</a> |
+    <a href="/{{ yearMonthDay[0] | getYear }}/">{{ yearMonthDay[0] | getYear }}</a> |
+    <a href="/">Home</a>
+  </p>
+</nav>
