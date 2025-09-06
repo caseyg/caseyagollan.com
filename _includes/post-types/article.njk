@@ -3,9 +3,6 @@
     {% if name %}
       <h1 class="p-name">{{ name }}</h1>
     {% endif %}
-    <time class="dt-published" datetime="{{ date | date('iso') }}">
-      <a href="{{ page.url }}">{{ date | date('iso') }}</a>
-    </time>
   </header>
   
   {% if summary %}

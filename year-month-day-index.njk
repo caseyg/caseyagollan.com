@@ -3,12 +3,11 @@ pagination:
   data: collections.postsByYearMonthDay
   size: 1
   alias: yearMonthDay
-layout: base
+layout: posts-base
 permalink: /{{ yearMonthDay[0] }}/
 ---
 
-{% set dayOfWeek = yearMonthDay[1][0].date | weekday %}
-<h1>{{ dayOfWeek }}, {{ yearMonthDay[0] | getMonth | monthName }} {{ yearMonthDay[0] | getDay }}, {{ yearMonthDay[0] | getYear }}</h1>
+<h1>{{ yearMonthDay[0] }}</h1>
 
 {% set dayPosts = yearMonthDay[1] %}
 {% set noteCount = dayPosts | selectattr("inputPath", "containing", "/notes/") | list | length %}
@@ -21,8 +20,8 @@ permalink: /{{ yearMonthDay[0] }}/
   {% if bookmarkCount > 0 %}{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}{% endif %}
 </p>
 
-<div class="archive-list">
-  {% for post in dayPosts %}
+<div class="posts-list">
+  {% for post in dayPosts | reverse %}
     {% include "post-display.njk" %}
   {% endfor %}
 </div>

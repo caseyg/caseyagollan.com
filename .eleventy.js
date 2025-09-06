@@ -16,6 +16,13 @@ module.exports = function (eleventyConfig) {
     if (format === "MMMM") {
       return d.toLocaleDateString('en-US', { month: 'long' });
     }
+    if (format === "time") {
+      return d.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      }).toLowerCase();
+    }
     return d.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long', 
@@ -167,6 +174,25 @@ module.exports = function (eleventyConfig) {
       if(!grouped[year][month]) { grouped[year][month] = []; }
       
       grouped[year][month].push(post);
+    });
+    
+    return grouped;
+  });
+  
+  // Combined posts by day collection
+  eleventyConfig.addCollection('postsByDay', collection => {
+    const allPosts = collection.getFilteredByGlob('./content/**/*.md');
+    const grouped = {};
+    
+    allPosts.forEach(post => {
+      const date = new Date(post.data.date);
+      const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      if(!grouped[dateKey]) { 
+        grouped[dateKey] = [];
+      }
+      
+      grouped[dateKey].push(post);
     });
     
     return grouped;

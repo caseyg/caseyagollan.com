@@ -3,11 +3,11 @@ pagination:
   data: collections.postsByYearMonth
   size: 1
   alias: yearMonth
-layout: base
+layout: posts-base
 permalink: /{{ yearMonth[0] }}/
 ---
 
-<h1>{{ yearMonth[0] | getMonth | monthName }} {{ yearMonth[0] | getYear }} Archive</h1>
+<h1>{{ yearMonth[0] | getMonth | monthName }} {{ yearMonth[0] | getYear }}</h1>
 
 {% set monthPosts = yearMonth[1] %}
 {% set noteCount = monthPosts | selectattr("inputPath", "containing", "/notes/") | list | length %}
@@ -20,8 +20,8 @@ permalink: /{{ yearMonth[0] }}/
   {% if bookmarkCount > 0 %}{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}{% endif %}
 </p>
 
-<div class="archive-list">
-  {% for post in monthPosts %}
+<div class="posts-list">
+  {% for post in monthPosts | reverse %}
     {% include "post-display.njk" %}
   {% endfor %}
 </div>

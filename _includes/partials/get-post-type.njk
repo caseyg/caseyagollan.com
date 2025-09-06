@@ -1,0 +1,26 @@
+{# Determine post type based on microformat properties #}
+{% if post.data.bookmarkOf or post.data['bookmark-of'] %}
+  {% set postType = "bookmark" %}
+{% elif post.data['in-reply-to'] and post.data.rsvp %}
+  {% set postType = "rsvp" %}
+{% elif post.data['in-reply-to'] %}
+  {% set postType = "reply" %}
+{% elif post.data['repost-of'] %}
+  {% set postType = "repost" %}
+{% elif post.data['like-of'] %}
+  {% set postType = "like" %}
+{% elif post.data['jam-of'] %}
+  {% set postType = "jam" %}
+{% elif post.data.photo %}
+  {% set postType = "photo" %}
+{% elif post.data.audio %}
+  {% set postType = "audio" %}
+{% elif post.data.video %}
+  {% set postType = "video" %}
+{% elif post.data.start %}
+  {% set postType = "event" %}
+{% elif post.data.name and post.templateContent %}
+  {% set postType = "article" %}
+{% else %}
+  {% set postType = "note" %}
+{% endif %}

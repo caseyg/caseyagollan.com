@@ -1,49 +1,38 @@
 ---
-layout: base
+layout: posts-base
 ---
 
-{# Determine post type based on microformat properties #}
-{% set postType = "note" %}
+{# For individual posts, create a post object for consistency #}
+{% set post = {
+  data: {
+    bookmarkOf: bookmarkOf,
+    'bookmark-of': data['bookmark-of'],
+    'in-reply-to': data['in-reply-to'],
+    'repost-of': data['repost-of'],
+    'like-of': data['like-of'],
+    'jam-of': data['jam-of'],
+    photo: photo,
+    audio: audio,
+    video: video,
+    start: start,
+    name: name,
+    rsvp: rsvp,
+    syndication: syndication
+  },
+  templateContent: content,
+  date: date,
+  url: page.url
+} %}
 
-{# Check for specific properties to determine post type #}
-{% if bookmarkOf or data['bookmark-of'] %}
-  {% set postType = "bookmark" %}
-{% elif data['in-reply-to'] and rsvp %}
-  {% set postType = "rsvp" %}
-{% elif data['in-reply-to'] %}
-  {% set postType = "reply" %}
-{% elif data['repost-of'] %}
-  {% set postType = "repost" %}
-{% elif data['like-of'] %}
-  {% set postType = "like" %}
-{% elif data['jam-of'] %}
-  {% set postType = "jam" %}
-{% elif photo %}
-  {% set postType = "photo" %}
-{% elif audio %}
-  {% set postType = "audio" %}
-{% elif video %}
-  {% set postType = "video" %}
-{% elif start %}
-  {% set postType = "event" %}
-{% elif name and content %}
-  {% set postType = "article" %}
-{% endif %}
+{% include "post-display.njk" %}
 
-{# Include the appropriate post type template #}
-{% include "post-types/" + postType + ".njk" %}
-
-{# Navigation based on path or post type #}
+{# Navigation based on path #}
 <nav class="post-navigation">
   <p>
-    {% if postType == "bookmark" %}
+    {% if page.inputPath and "/bookmarks/" in page.inputPath %}
       <a href="/bookmarks/">← Back to bookmarks</a>
-    {% elif postType == "note" %}
+    {% elif page.inputPath and "/notes/" in page.inputPath %}
       <a href="/notes/">← Back to notes</a>
-    {% elif postType == "article" %}
-      <a href="/articles/">← Back to articles</a>
-    {% elif postType == "photo" %}
-      <a href="/photos/">← Back to photos</a>
     {% else %}
       <a href="/posts/">← Back to all posts</a>
     {% endif %}
