@@ -99,6 +99,79 @@
     .syndication a:hover {
       color: white;
     }
+    
+    /* Post type specific styles */
+    .post-type-bookmark .bookmark-link,
+    .post-type-reply .reply-context,
+    .post-type-repost .repost-context,
+    .post-type-like .like-context,
+    .post-type-jam .jam-context,
+    .post-type-rsvp .rsvp-context {
+      font-size: 1.1em;
+      margin: 1vw 0;
+    }
+    
+    .post-type-article h4 {
+      font-size: 2vw;
+      font-weight: 100;
+      margin: 1vw 0;
+    }
+    
+    .post-type-article h4 a {
+      color: white;
+      text-decoration: none;
+    }
+    
+    .post-type-article h4 a:hover {
+      color: rgb(73, 73, 255);
+      text-decoration: underline;
+    }
+    
+    .post-type-photo figure,
+    .post-type-audio figure,
+    .post-type-video figure {
+      margin: 1vw 0;
+    }
+    
+    .post-type-photo img {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    .post-type-audio audio,
+    .post-type-video video {
+      width: 100%;
+      max-width: 600px;
+    }
+    
+    .post-type-event .event-details {
+      background: rgba(0, 0, 255, 0.1);
+      padding: 1vw;
+      margin: 1vw 0;
+      border-radius: 5px;
+    }
+    
+    .post-type-event .event-details strong {
+      color: blue;
+    }
+    
+    .post-type-rsvp data {
+      display: none;
+    }
+    
+    .categories {
+      font-size: 0.9em;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 1vw;
+    }
+    
+    .categories .p-category {
+      background: rgba(0, 0, 255, 0.2);
+      padding: 0.2em 0.5em;
+      border-radius: 3px;
+      margin-right: 0.5em;
+    }
+    
     @media (max-width: 768px) {
       body {
         font-size: 4vw;
