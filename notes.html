@@ -8,7 +8,9 @@ title: Notes
 <div class="notes-list">
   {% for note in collections.notes %}
     <article class="note">
-      <time datetime="{{ note.data.date | date('iso') }}">{{ note.data.date | date }}</time>
+      <time datetime="{{ note.data.date | date('iso') }}">
+        <a href="{{ note.url }}">{{ note.data.date | date }}</a>
+      </time>
       {{ note.content | safe }}
       {% if note.data.syndication %}
         <p class="syndication">

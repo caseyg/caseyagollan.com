@@ -8,7 +8,9 @@ title: Bookmarks
 <div class="bookmarks-list">
   {% for bookmark in collections.bookmarks %}
     <article class="bookmark">
-      <time datetime="{{ bookmark.data.date | date('iso') }}">{{ bookmark.data.date | date }}</time>
+      <time datetime="{{ bookmark.data.date | date('iso') }}">
+        <a href="{{ bookmark.url }}">{{ bookmark.data.date | date }}</a>
+      </time>
       {{ bookmark.content | safe }}
       {% if bookmark.data.syndication %}
         <p class="syndication">
