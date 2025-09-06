@@ -1,0 +1,22 @@
+<footer class="post-meta">
+  <a href="{{ post.url }}" class="u-url permalink" title="Permalink">#</a>
+  <time class="dt-published" datetime="{{ post.date | date('iso') }}">
+    <a href="{{ post.url }}">{{ post.date | date('time') }}</a>
+  </time>
+  {% if post.data.syndication %}
+    <span class="syndication-links">
+      /
+      {% for link in post.data.syndication %}
+        <a href="{{ link }}" class="u-syndication" title="{%- if "social.coop" in link -%}View on Mastodon{%- elif "bsky.app" in link -%}View on Bluesky{%- else -%}{{ link }}{%- endif -%}">
+          {%- if "social.coop" in link -%}
+            <span class="icon-mastodon">🐘</span>
+          {%- elif "bsky.app" in link -%}
+            <span class="icon-bluesky">🦋</span>
+          {%- else -%}
+            🔗
+          {%- endif -%}
+        </a>
+      {% endfor %}
+    </span>
+  {% endif %}
+</footer>

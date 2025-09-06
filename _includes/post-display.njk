@@ -1,34 +1,6 @@
-{# Determine post type based on microformat properties #}
-{% set postType = "note" %}
-
-{% if post.data.bookmarkOf or post.data['bookmark-of'] %}
-  {% set postType = "bookmark" %}
-{% elif post.data['in-reply-to'] and post.data.rsvp %}
-  {% set postType = "rsvp" %}
-{% elif post.data['in-reply-to'] %}
-  {% set postType = "reply" %}
-{% elif post.data['repost-of'] %}
-  {% set postType = "repost" %}
-{% elif post.data['like-of'] %}
-  {% set postType = "like" %}
-{% elif post.data['jam-of'] %}
-  {% set postType = "jam" %}
-{% elif post.data.photo %}
-  {% set postType = "photo" %}
-{% elif post.data.audio %}
-  {% set postType = "audio" %}
-{% elif post.data.video %}
-  {% set postType = "video" %}
-{% elif post.data.start %}
-  {% set postType = "event" %}
-{% elif post.data.name and post.templateContent %}
-  {% set postType = "article" %}
-{% endif %}
+{% include "partials/get-post-type.njk" %}
 
 <article class="h-entry post-type-{{ postType }}">
-  <time class="dt-published" datetime="{{ post.date | date('iso') }}">
-    <a href="{{ post.url }}">{{ post.date | date('iso') }}</a>
-  </time>
   
   {# Display appropriate content based on post type #}
   {% if postType == "bookmark" %}
@@ -187,20 +159,5 @@
     </footer>
   {% endif %}
   
-  {% if post.data.syndication %}
-    <p class="syndication">
-      Also posted on: 
-      {% for link in post.data.syndication %}
-        <a href="{{ link }}" class="u-syndication">
-          {%- if "social.coop" in link -%}
-            Mastodon
-          {%- elif "bsky.app" in link -%}
-            Bluesky
-          {%- else -%}
-            {{ link | replace("https://", "") }}
-          {%- endif -%}
-        </a>{% if not loop.last %}, {% endif %}
-      {% endfor %}
-    </p>
-  {% endif %}
+  {% include "partials/post-footer.njk" %}
 </article>
