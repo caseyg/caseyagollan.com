@@ -26,6 +26,23 @@ jobs:
         with:
           lfs: true  # Important: This fetches LFS files
           submodules: recursive  # Fetch content submodule
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update content submodule to latest
+        run: |
+          git submodule update --init --recursive
+          cd content
+          git fetch origin main
+          git checkout origin/main
+          cd ..
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add content
+            git commit -m "Update content submodule to latest"
+          fi
 
       - name: Checkout LFS objects
         run: git lfs checkout
