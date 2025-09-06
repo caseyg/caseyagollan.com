@@ -1,25 +1,26 @@
 ---
 layout: posts-base
-title: Bookmarks
+title: All Posts
+permalink: /posts/
 ---
 
-<h1>Bookmarks</h1>
+<h1>All Posts</h1>
 
-<div class="bookmarks-list">
-  {% for year, months in collections.bookmarksByMonth | dictsort | reverse %}
+<div class="posts-list">
+  {% for year, months in collections.postsByMonth | dictsort | reverse %}
     <h2>{{ year }}</h2>
-    {% for month, bookmarks in months | dictsort | reverse %}
+    {% for month, posts in months | dictsort | reverse %}
       <h3>{{ month | toMonth }}</h3>
-      {% for bookmark in bookmarks | reverse %}
-        <article class="bookmark">
-          <time datetime="{{ bookmark.data.date | date('iso') }}">
-            <a href="{{ bookmark.url }}">{{ bookmark.data.date | date }}</a>
+      {% for post in posts | reverse %}
+        <article class="{{ 'note' if '/notes/' in post.inputPath else 'bookmark' }}">
+          <time datetime="{{ post.date | date('iso') }}">
+            <a href="{{ post.url }}">{{ post.date | date }}</a>
           </time>
-          {{ bookmark.content | safe }}
-          {% if bookmark.data.syndication %}
+          {{ post.templateContent | safe }}
+          {% if post.data.syndication %}
             <p class="syndication">
               Also posted on: 
-              {% for link in bookmark.data.syndication %}
+              {% for link in post.data.syndication %}
                 <a href="{{ link }}">
                   {%- if "social.coop" in link -%}
                     Mastodon
