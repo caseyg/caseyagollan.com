@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true  # Important: This fetches LFS files
+          submodules: recursive  # Fetch content submodule
 
       - name: Checkout LFS objects
         run: git lfs checkout
@@ -31,6 +32,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm install
