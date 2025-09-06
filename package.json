@@ -1,6 +1,7 @@
 {
   "scripts": {
     "build": "eleventy",
+    "build-ghpages": "eleventy",
     "start": "eleventy --serve --port 8080",
     "dev": "npm run start",
     "serve": "serve . -p 8080",
