@@ -26,7 +26,6 @@ jobs:
         with:
           lfs: true  # Important: This fetches LFS files
           submodules: recursive  # Fetch content submodule
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update content submodule to latest
         run: |
