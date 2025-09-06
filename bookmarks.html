@@ -1,0 +1,31 @@
+---
+layout: base
+title: Bookmarks
+---
+
+<h1>Bookmarks</h1>
+
+<div class="bookmarks-list">
+  {% for bookmark in collections.bookmarks %}
+    <article class="bookmark">
+      <time datetime="{{ bookmark.data.date | date('iso') }}">{{ bookmark.data.date | date }}</time>
+      {{ bookmark.content | safe }}
+      {% if bookmark.data.syndication %}
+        <p class="syndication">
+          Also posted on: 
+          {% for link in bookmark.data.syndication %}
+            <a href="{{ link }}">
+              {%- if "social.coop" in link -%}
+                Mastodon
+              {%- elif "bsky.app" in link -%}
+                Bluesky
+              {%- else -%}
+                {{ link | replace("https://", "") }}
+              {%- endif -%}
+            </a>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </p>
+      {% endif %}
+    </article>
+  {% endfor %}
+</div>
