@@ -1,0 +1,206 @@
+{# Determine post type based on microformat properties #}
+{% set postType = "note" %}
+
+{% if post.data.bookmarkOf or post.data['bookmark-of'] %}
+  {% set postType = "bookmark" %}
+{% elif post.data['in-reply-to'] and post.data.rsvp %}
+  {% set postType = "rsvp" %}
+{% elif post.data['in-reply-to'] %}
+  {% set postType = "reply" %}
+{% elif post.data['repost-of'] %}
+  {% set postType = "repost" %}
+{% elif post.data['like-of'] %}
+  {% set postType = "like" %}
+{% elif post.data['jam-of'] %}
+  {% set postType = "jam" %}
+{% elif post.data.photo %}
+  {% set postType = "photo" %}
+{% elif post.data.audio %}
+  {% set postType = "audio" %}
+{% elif post.data.video %}
+  {% set postType = "video" %}
+{% elif post.data.start %}
+  {% set postType = "event" %}
+{% elif post.data.name and post.templateContent %}
+  {% set postType = "article" %}
+{% endif %}
+
+<article class="h-entry post-type-{{ postType }}">
+  <time class="dt-published" datetime="{{ post.date | date('iso') }}">
+    <a href="{{ post.url }}">{{ post.date | date('iso') }}</a>
+  </time>
+  
+  {# Display appropriate content based on post type #}
+  {% if postType == "bookmark" %}
+    <div class="bookmark-content">
+      <p class="bookmark-link">
+        🔖 Bookmarked: <a href="{{ post.data.bookmarkOf or post.data['bookmark-of'] }}" class="u-bookmark-of">{{ post.data.title or post.data.bookmarkOf or post.data['bookmark-of'] }}</a>
+      </p>
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "reply" %}
+    <div class="reply-content">
+      <p class="reply-context">
+        ↩️ In reply to: <a href="{{ post.data['in-reply-to'] }}" class="u-in-reply-to">{{ post.data['in-reply-to'] }}</a>
+      </p>
+      <div class="e-content">{{ post.templateContent | safe }}</div>
+    </div>
+  {% elif postType == "repost" %}
+    <div class="repost-content">
+      <p class="repost-context">
+        🔁 Reposted: <a href="{{ post.data['repost-of'] }}" class="u-repost-of">{{ post.data['repost-of'] }}</a>
+      </p>
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "like" %}
+    <div class="like-content">
+      <p class="like-context">
+        ❤️ Liked: <a href="{{ post.data['like-of'] }}" class="u-like-of">{{ post.data['like-of'] }}</a>
+      </p>
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "jam" %}
+    <div class="jam-content">
+      <p class="jam-context">
+        🎵 Jamming to: <a href="{{ post.data['jam-of'] }}" class="u-jam-of">{{ post.data.name or post.data['jam-of'] }}</a>
+      </p>
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "photo" %}
+    <div class="photo-content">
+      {% for img in post.data.photo %}
+        <figure>
+          <img src="{{ img.url or img }}" 
+               alt="{{ img.alt or post.data['mp-photo-alt'][loop.index0] or 'Photo' }}" 
+               class="u-photo" />
+          {% if img.alt or post.data['mp-photo-alt'][loop.index0] %}
+            <figcaption>{{ img.alt or post.data['mp-photo-alt'][loop.index0] }}</figcaption>
+          {% endif %}
+        </figure>
+      {% endfor %}
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "audio" %}
+    <div class="audio-content">
+      {% for track in post.data.audio %}
+        <figure>
+          <audio controls class="u-audio">
+            <source src="{{ track.url or track }}" type="{{ track.type or 'audio/mpeg' }}">
+            Your browser does not support the audio element.
+          </audio>
+          {% if track.name or post.data.name %}
+            <figcaption>{{ track.name or post.data.name }}</figcaption>
+          {% endif %}
+        </figure>
+      {% endfor %}
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "video" %}
+    <div class="video-content">
+      {% for vid in post.data.video %}
+        <figure>
+          <video controls class="u-video">
+            <source src="{{ vid.url or vid }}" type="{{ vid.type or 'video/mp4' }}">
+            Your browser does not support the video element.
+          </video>
+          {% if vid.name or post.data.name %}
+            <figcaption>{{ vid.name or post.data.name }}</figcaption>
+          {% endif %}
+        </figure>
+      {% endfor %}
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "rsvp" %}
+    <div class="rsvp-content">
+      <p class="rsvp-context">
+        {% if post.data.rsvp == "yes" %}
+          ✅ RSVPed yes to:
+        {% elif post.data.rsvp == "no" %}
+          ❌ RSVPed no to:
+        {% elif post.data.rsvp == "maybe" %}
+          ❓ RSVPed maybe to:
+        {% elif post.data.rsvp == "interested" %}
+          🤔 RSVPed interested to:
+        {% else %}
+          📅 RSVPed to:
+        {% endif %}
+        <a href="{{ post.data['in-reply-to'] }}" class="u-in-reply-to">{{ post.data['in-reply-to'] }}</a>
+      </p>
+      <data class="p-rsvp" value="{{ post.data.rsvp }}">{{ post.data.rsvp }}</data>
+      {% if post.templateContent %}
+        <div class="e-content">{{ post.templateContent | safe }}</div>
+      {% endif %}
+    </div>
+  {% elif postType == "event" %}
+    <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name }}</a></h4>
+    <div class="event-details">
+      <p class="event-time">
+        <strong>When:</strong> 
+        <time class="dt-start" datetime="{{ post.data.start }}">{{ post.data.start | date('iso') }}</time>
+        {% if post.data.end %}
+          to <time class="dt-end" datetime="{{ post.data.end }}">{{ post.data.end | date('iso') }}</time>
+        {% endif %}
+      </p>
+      {% if post.data.location %}
+        <p class="event-location">
+          <strong>Where:</strong> 
+          <span class="p-location">{{ post.data.location }}</span>
+        </p>
+      {% endif %}
+    </div>
+    {% if post.templateContent %}
+      <div class="e-content">{{ post.templateContent | safe }}</div>
+    {% endif %}
+  {% elif postType == "article" %}
+    <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name }}</a></h4>
+    {% if post.data.summary %}
+      <div class="p-summary">{{ post.data.summary | markdownify | safe }}</div>
+    {% else %}
+      <div class="e-content">{{ post.templateContent | truncate(200) | safe }}</div>
+    {% endif %}
+  {% else %}
+    <div class="e-content">{{ post.templateContent | safe }}</div>
+  {% endif %}
+  
+  {% if post.data.category %}
+    <footer>
+      <p class="categories">
+        Tagged: 
+        {% for cat in post.data.category %}
+          <span class="p-category">{{ cat }}</span>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </p>
+    </footer>
+  {% endif %}
+  
+  {% if post.data.syndication %}
+    <p class="syndication">
+      Also posted on: 
+      {% for link in post.data.syndication %}
+        <a href="{{ link }}" class="u-syndication">
+          {%- if "social.coop" in link -%}
+            Mastodon
+          {%- elif "bsky.app" in link -%}
+            Bluesky
+          {%- else -%}
+            {{ link | replace("https://", "") }}
+          {%- endif -%}
+        </a>{% if not loop.last %}, {% endif %}
+      {% endfor %}
+    </p>
+  {% endif %}
+</article>

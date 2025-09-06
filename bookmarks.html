@@ -5,34 +5,18 @@ title: Bookmarks
 
 <h1>Bookmarks</h1>
 
+<nav class="post-navigation">
+  <p><a href="/posts/">← Back to all posts</a></p>
+</nav>
+
 <div class="bookmarks-list">
   {% for year, months in collections.bookmarksByMonth | dictsort | reverse %}
-    <h2>{{ year }}</h2>
+    <h2><a href="/{{ year }}/">{{ year }}</a></h2>
     {% for month, bookmarks in months | dictsort | reverse %}
-      <h3>{{ month | toMonth }}</h3>
-      {% for bookmark in bookmarks | reverse %}
-        <article class="bookmark">
-          <time datetime="{{ bookmark.data.date | date('iso') }}">
-            <a href="{{ bookmark.url }}">{{ bookmark.data.date | date }}</a>
-          </time>
-          {{ bookmark.content | safe }}
-          {% if bookmark.data.syndication %}
-            <p class="syndication">
-              Also posted on: 
-              {% for link in bookmark.data.syndication %}
-                <a href="{{ link }}">
-                  {%- if "social.coop" in link -%}
-                    Mastodon
-                  {%- elif "bsky.app" in link -%}
-                    Bluesky
-                  {%- else -%}
-                    {{ link | replace("https://", "") }}
-                  {%- endif -%}
-                </a>{% if not loop.last %}, {% endif %}
-              {% endfor %}
-            </p>
-          {% endif %}
-        </article>
+      {% set monthNum = month + 1 %}
+      <h3><a href="/{{ year }}/{% if monthNum < 10 %}0{% endif %}{{ monthNum }}/">{{ month | toMonth }}</a></h3>
+      {% for post in bookmarks | reverse %}
+        {% include "post-display.njk" %}
       {% endfor %}
     {% endfor %}
   {% endfor %}

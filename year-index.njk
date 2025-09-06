@@ -22,7 +22,7 @@ permalink: /{{ year[0] }}/
 
 <div class="archive-list">
   {% set currentMonth = null %}
-  {% for post in yearPosts | reverse %}
+  {% for post in yearPosts %}
     {% set postMonth = post.date | date("MM") %}
     {% set postMonthName = post.date | date("MMMM") %}
     
@@ -34,7 +34,7 @@ permalink: /{{ year[0] }}/
     {% endif %}
     
     <li>
-      <a href="{{ post.url }}">{{ post.date | date("D") }}: {{ post.templateContent | striptags | truncate(50) }}</a>
+      <a href="{{ post.url }}">{{ post.date | date('iso') | truncate(10, true, '') }}: {{ post.templateContent | striptags | truncate(50) }}</a>
     </li>
   {% endfor %}
   {% if currentMonth %}</ul>{% endif %}

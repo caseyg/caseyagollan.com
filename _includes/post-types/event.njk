@@ -2,16 +2,16 @@
   <header>
     <h1 class="p-name">{{ name }}</h1>
     <time class="dt-published" datetime="{{ date | date('iso') }}">
-      <a href="{{ page.url }}">{{ date | date }}</a>
+      <a href="{{ page.url }}">{{ date | date('iso') }}</a>
     </time>
   </header>
   
   <div class="event-details">
     <p class="event-time">
       <strong>When:</strong> 
-      <time class="dt-start" datetime="{{ start }}">{{ start | date }}</time>
+      <time class="dt-start" datetime="{{ start }}">{{ start | date('iso') }}</time>
       {% if end %}
-        to <time class="dt-end" datetime="{{ end }}">{{ end | date }}</time>
+        to <time class="dt-end" datetime="{{ end }}">{{ end | date('iso') }}</time>
       {% endif %}
     </p>
     
