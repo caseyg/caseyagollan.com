@@ -5,6 +5,7 @@ layout: posts-base
 {# For individual posts, create a post object for consistency #}
 {% set post = {
   data: {
+    title: title,
     bookmarkOf: bookmarkOf,
     'bookmark-of': data['bookmark-of'],
     'in-reply-to': data['in-reply-to'],
