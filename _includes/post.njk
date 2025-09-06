@@ -23,4 +23,8 @@ layout: base
   {% endif %}
 </article>
 
-<p><a href="/{{ page.inputPath.includes("/notes/") ? "notes" : "bookmarks" }}">← Back to {{ page.inputPath.includes("/notes/") ? "notes" : "bookmarks" }}</a></p>
+{% if "/notes/" in page.inputPath %}
+  <p><a href="/notes/">← Back to notes</a></p>
+{% else %}
+  <p><a href="/bookmarks/">← Back to bookmarks</a></p>
+{% endif %}

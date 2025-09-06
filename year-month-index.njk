@@ -1,0 +1,55 @@
+---
+pagination:
+  data: collections.postsByYearMonth
+  size: 1
+  alias: yearMonth
+layout: base
+permalink: /{{ yearMonth[0] }}/
+---
+
+<h1>{{ yearMonth[0] | getMonth | monthName }} {{ yearMonth[0] | getYear }} Archive</h1>
+
+{% set monthPosts = yearMonth[1] %}
+{% set noteCount = monthPosts | selectattr("inputPath", "containing", "/notes/") | list | length %}
+{% set bookmarkCount = monthPosts | selectattr("inputPath", "containing", "/bookmarks/") | list | length %}
+
+<p class="post-count">
+  {{ monthPosts | length }} post{{ "s" if monthPosts | length != 1 }}:
+  {% if noteCount > 0 %}{{ noteCount }} note{{ "s" if noteCount != 1 }}{% endif %}
+  {% if noteCount > 0 and bookmarkCount > 0 %}, {% endif %}
+  {% if bookmarkCount > 0 %}{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}{% endif %}
+</p>
+
+<div class="archive-list">
+  {% for post in monthPosts | reverse %}
+    <article class="{{ 'note' if '/notes/' in post.inputPath else 'bookmark' }}">
+      <time datetime="{{ post.date | date('iso') }}">
+        <a href="{{ post.url }}">{{ post.date | date }}</a>
+      </time>
+      {{ post.templateContent | safe }}
+      {% if post.data.syndication %}
+        <p class="syndication">
+          Also posted on: 
+          {% for link in post.data.syndication %}
+            <a href="{{ link }}">
+              {%- if "social.coop" in link -%}
+                Mastodon
+              {%- elif "bsky.app" in link -%}
+                Bluesky
+              {%- else -%}
+                {{ link | replace("https://", "") }}
+              {%- endif -%}
+            </a>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        </p>
+      {% endif %}
+    </article>
+  {% endfor %}
+</div>
+
+<nav aria-label="Archive navigation">
+  <p>
+    <a href="/{{ yearMonth[0] | getYear }}/">← {{ yearMonth[0] | getYear }}</a> |
+    <a href="/">Home</a>
+  </p>
+</nav>

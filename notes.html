@@ -6,28 +6,34 @@ title: Notes
 <h1>Notes</h1>
 
 <div class="notes-list">
-  {% for note in collections.notes %}
-    <article class="note">
-      <time datetime="{{ note.data.date | date('iso') }}">
-        <a href="{{ note.url }}">{{ note.data.date | date }}</a>
-      </time>
-      {{ note.content | safe }}
-      {% if note.data.syndication %}
-        <p class="syndication">
-          Also posted on: 
-          {% for link in note.data.syndication %}
-            <a href="{{ link }}">
-              {%- if "social.coop" in link -%}
-                Mastodon
-              {%- elif "bsky.app" in link -%}
-                Bluesky
-              {%- else -%}
-                {{ link | replace("https://", "") }}
-              {%- endif -%}
-            </a>{% if not loop.last %}, {% endif %}
-          {% endfor %}
-        </p>
-      {% endif %}
-    </article>
+  {% for year, months in collections.notesByMonth | dictsort | reverse %}
+    <h2>{{ year }}</h2>
+    {% for month, notes in months | dictsort | reverse %}
+      <h3>{{ month | toMonth }}</h3>
+      {% for note in notes | reverse %}
+        <article class="note">
+          <time datetime="{{ note.data.date | date('iso') }}">
+            <a href="{{ note.url }}">{{ note.data.date | date }}</a>
+          </time>
+          {{ note.content | safe }}
+          {% if note.data.syndication %}
+            <p class="syndication">
+              Also posted on: 
+              {% for link in note.data.syndication %}
+                <a href="{{ link }}">
+                  {%- if "social.coop" in link -%}
+                    Mastodon
+                  {%- elif "bsky.app" in link -%}
+                    Bluesky
+                  {%- else -%}
+                    {{ link | replace("https://", "") }}
+                  {%- endif -%}
+                </a>{% if not loop.last %}, {% endif %}
+              {% endfor %}
+            </p>
+          {% endif %}
+        </article>
+      {% endfor %}
+    {% endfor %}
   {% endfor %}
 </div>
