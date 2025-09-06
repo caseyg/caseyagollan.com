@@ -147,6 +147,25 @@ module.exports = function (eleventyConfig) {
     return grouped;
   });
   
+  // Combined posts by month collection
+  eleventyConfig.addCollection('postsByMonth', collection => {
+    const allPosts = collection.getFilteredByGlob('./content/**/*.md');
+    const grouped = {};
+    
+    allPosts.forEach(post => {
+      const date = new Date(post.data.date);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      
+      if(!grouped[year]) { grouped[year] = {}; }
+      if(!grouped[year][month]) { grouped[year][month] = []; }
+      
+      grouped[year][month].push(post);
+    });
+    
+    return grouped;
+  });
+  
   // Add filter to convert month number to name
   eleventyConfig.addFilter('toMonth', month => {
     return ['January', 'February', 'March', 'April',

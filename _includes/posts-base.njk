@@ -80,11 +80,6 @@
     article a:hover {
       color: rgb(73, 73, 255);
     }
-    time {
-      display: block;
-      color: rgba(255, 255, 255, 0.7);
-      margin-bottom: 1vw;
-    }
     time a {
       color: blue;
       text-decoration: none;
@@ -103,19 +98,6 @@
     }
     .syndication a:hover {
       color: white;
-    }
-    .post-count {
-      color: rgba(255, 255, 255, 0.7);
-      font-style: italic;
-      margin-bottom: 2vw;
-    }
-    .archive-list ul {
-      list-style: none;
-      padding: 0;
-      margin-bottom: 2vw;
-    }
-    .archive-list li {
-      margin-bottom: 0.5vw;
     }
     @media (max-width: 768px) {
       body {
@@ -150,9 +132,6 @@
         margin-bottom: 42px;
         padding-bottom: 28px;
       }
-      .archive-list li {
-        margin-bottom: 7px;
-      }
     }
   </style>
 </head>
@@ -161,7 +140,6 @@
     <a href="/">🏠</a>
     <a href="/ai/">🤖</a>
     <a href="/library/">📄</a>
-    <a href="/posts/">📡</a>
   </div>
   
   {{ content | safe }}
