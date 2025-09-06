@@ -1,6 +1,5 @@
 .DS_Store
 utils/librarything_caseygollan.json
 /node_modules
-package-lock.json
 _site/
 .claude-trace/
