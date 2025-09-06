@@ -1,0 +1,8 @@
+node_modules/**
+.git/**
+utils/**
+*.md
+package*.json
+.gitignore
+.github/**
+_site/**
