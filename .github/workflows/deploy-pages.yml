@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages with Claude Trace
+name: Deploy to GitHub Pages (11ty)
 
 on:
   push:
@@ -23,84 +23,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           lfs: true  # Important: This fetches LFS files
-          
+
       - name: Checkout LFS objects
         run: git lfs checkout
-        
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build with Eleventy
+        run: npm run build
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        
-      - name: Create deployment directory
-        run: |
-          mkdir -p _site
-          
-      - name: Copy site files
-        run: |
-          # Copy all files except .git, _site, and .claude-trace
-          rsync -av --exclude='.git' --exclude='_site' --exclude='.claude-trace' --exclude='.github' . _site/
-          
-      - name: Copy claude-trace HTML files
-        run: |
-          # Create claude-trace directory in deployment
-          mkdir -p _site/claude-trace
-          
-          # Copy only HTML files from .claude-trace
-          if [ -d ".claude-trace" ]; then
-            find .claude-trace -name "*.html" -type f | while read file; do
-              cp "$file" "_site/claude-trace/$(basename "$file")"
-            done
-          fi
-          
-      - name: Create AI index
-        run: |
-          # Create ai directory in deployment
-          mkdir -p _site/ai
-          
-          # Generate list of HTML files from claude-trace
-          cd _site/claude-trace
-          FILES=$(find . -name "*.html" -not -name "index.html" | sort -r | sed 's|^\./||')
-          
-          # Create JavaScript array of files with metadata
-          FILE_LIST="const files = ["
-          first=true
-          for file in $FILES; do
-              if [ "$first" = true ]; then
-                  first=false
-              else
-                  FILE_LIST="$FILE_LIST,"
-              fi
-              
-              # Extract message count and API calls from HTML file
-              if [ -f "$file" ]; then
-                  # Extract API calls from title element
-                  API_CALLS=$(grep -o '<title>claude-traffic-[0-9]* API Calls</title>' "$file" | grep -o '[0-9]*' | head -1)
-                  [ -z "$API_CALLS" ] && API_CALLS=0
-                  
-                  # Extract message count from corresponding jsonl file (easier parsing)
-                  jsonl_file="../.claude-trace/${file%.html}.jsonl"
-                  if [ -f "$jsonl_file" ]; then
-                      # Get the maximum message count from all API calls in the session
-                      # This represents the peak conversation length (most meaningful count)
-                      MESSAGES=$(jq -r '.request.body.messages // [] | length' "$jsonl_file" | sort -nr | head -1)
-                      [ -z "$MESSAGES" ] && MESSAGES=0
-                  else
-                      MESSAGES=0
-                  fi
-              else
-                  MESSAGES=0
-                  API_CALLS=0
-              fi
-              
-              FILE_LIST="$FILE_LIST{\"filename\":\"$file\",\"messages\":$MESSAGES,\"apiCalls\":$API_CALLS}"
-          done
-          FILE_LIST="$FILE_LIST];"
-          
-          # Copy template and inject file list
-          cd ../ai
-          cp ../../ai/index.html index.html
-          
-          # Replace placeholder with file list
-          sed -i "s|/\* FILE_LIST_PLACEHOLDER \*/|$FILE_LIST|g" index.html
           
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
