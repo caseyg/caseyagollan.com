@@ -1,6 +1,9 @@
 const _ = require('lodash');
+const pluginRss = require("@11ty/eleventy-plugin-rss");
 
 module.exports = function (eleventyConfig) {
+  // Plugins
+  eleventyConfig.addPlugin(pluginRss);
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
   
@@ -45,6 +48,17 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addCollection("posts", function(collectionApi) {
     return collectionApi.getFilteredByGlob("./content/**/*.md")
       .sort((a, b) => new Date(b.data.date) - new Date(a.data.date));
+  });
+
+  // Add metadata for RSS feed
+  eleventyConfig.addGlobalData("metadata", {
+    title: "Casey Gollan",
+    url: "https://caseyagollan.com",
+    language: "en",
+    description: "Posts from caseyagollan.com",
+    author: {
+      name: "Casey Gollan"
+    }
   });
 
   // Add computed data for permalink generation and layout
@@ -270,6 +284,6 @@ module.exports = function (eleventyConfig) {
     },
     htmlTemplateEngine: "njk",
     markdownTemplateEngine: "njk",
-    templateFormats: ["html", "njk", "md"],
+    templateFormats: ["html", "njk", "md", "xml"],
   };
 };
