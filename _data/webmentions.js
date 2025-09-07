@@ -79,7 +79,11 @@ module.exports = async function() {
     }
 
     // Only fetch new mentions in production
+    console.log(`>>> NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`>>> WEBMENTION_IO_TOKEN: ${process.env.WEBMENTION_IO_TOKEN ? 'present' : 'missing'}`);
+    
     if (process.env.NODE_ENV === 'production') {
+        console.log('>>> Fetching new webmentions in production mode...');
         const feed = await fetchWebmentions(cache.lastFetched);
         if (feed) {
             const webmentions = {
