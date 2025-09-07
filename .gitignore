@@ -3,3 +3,5 @@ utils/librarything_caseygollan.json
 /node_modules
 _site/
 .claude-trace/
+.env
+.cache/

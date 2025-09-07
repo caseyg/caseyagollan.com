@@ -1,11 +1,97 @@
 const _ = require('lodash');
 const pluginRss = require("@11ty/eleventy-plugin-rss");
+const sanitizeHTML = require('sanitize-html');
 
 module.exports = function (eleventyConfig) {
   // Plugins
   eleventyConfig.addPlugin(pluginRss);
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
+  
+  // Webmentions Filter
+  eleventyConfig.addNunjucksFilter("getWebmentionsForUrl", function(webmentions, url) {
+    const allowedTypes = ['mention-of', 'in-reply-to'];
+    const allowedHTML = {
+      allowedTags: ['b', 'i', 'em', 'strong', 'a'],
+      allowedAttributes: {
+        'a': ['href']
+      }
+    };
+
+    const hasRequiredFields = entry => {
+      const { author, published, content } = entry;
+      // For mentions, we're more lenient - just need something
+      if (entry['wm-property'] === 'mention-of') {
+        // Even if author fields are empty strings, we'll show the mention
+        return true;
+      }
+      // For replies, we need more info
+      return author && author.name && published && content && (content.html || content.text || content.value);
+    };
+    
+    const sanitize = entry => {
+      const { content } = entry;
+      if (content) {
+        if (content.html) {
+          content.html = sanitizeHTML(content.html, allowedHTML);
+        } else if (content.value && content['content-type'] === 'text/html') {
+          content.value = sanitizeHTML(content.value, allowedHTML);
+        }
+      }
+      return entry;
+    };
+
+    return webmentions
+      .filter(entry => entry['wm-target'] === url)
+      .filter(entry => allowedTypes.includes(entry['wm-property']))
+      .filter(hasRequiredFields)
+      .map(sanitize);
+  });
+  
+  // Filter for likes
+  eleventyConfig.addNunjucksFilter("getWebmentionLikes", function(webmentions, url) {
+    return webmentions
+      .filter(entry => entry['wm-target'] === url)
+      .filter(entry => entry['wm-property'] === 'like-of');
+  });
+  
+  // Filter for reposts
+  eleventyConfig.addNunjucksFilter("getWebmentionReposts", function(webmentions, url) {
+    return webmentions
+      .filter(entry => entry['wm-target'] === url)
+      .filter(entry => entry['wm-property'] === 'repost-of');
+  });
+  
+  // Filter to count webmentions by type
+  eleventyConfig.addNunjucksFilter("countWebmentions", function(webmentions, url) {
+    const filtered = webmentions.filter(entry => entry['wm-target'] === url);
+    const counts = {
+      total: filtered.length,
+      likes: 0,
+      reposts: 0,
+      replies: 0,
+      mentions: 0
+    };
+    
+    filtered.forEach(entry => {
+      switch(entry['wm-property']) {
+        case 'like-of':
+          counts.likes++;
+          break;
+        case 'repost-of':
+          counts.reposts++;
+          break;
+        case 'in-reply-to':
+          counts.replies++;
+          break;
+        case 'mention-of':
+          counts.mentions++;
+          break;
+      }
+    });
+    
+    return counts;
+  });
   
   // Date formatting filter
   eleventyConfig.addNunjucksFilter("date", (date, format) => {

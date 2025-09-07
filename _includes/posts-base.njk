@@ -261,6 +261,96 @@
         padding-bottom: 28px;
       }
     }
+    
+    /* Webmentions styles */
+    .webmentions {
+      margin-top: 3em;
+      padding-top: 2em;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .webmentions h3, .webmentions h4 {
+      margin-top: 1.5em;
+    }
+    
+    .webmentions__list {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .webmentions__item {
+      margin-bottom: 2em;
+    }
+    
+    .webmention {
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+    }
+    
+    .webmention__author {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+    
+    .webmention__author img {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+    }
+    
+    .webmention__content {
+      margin-left: 56px;
+    }
+    
+    .webmention__meta {
+      margin-left: 56px;
+      font-size: 0.875em;
+      opacity: 0.7;
+    }
+    
+    .webmentions__faces {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5em;
+      list-style: none;
+      padding: 0;
+    }
+    
+    .webmentions__faces img {
+      border-radius: 50%;
+    }
+    
+    .webmentions__facepile {
+      margin-bottom: 2em;
+    }
+    
+    /* Webmention counts in footer */
+    .webmention-counts {
+      font-size: 0.9em;
+    }
+    
+    .webmention-link {
+      display: inline-flex;
+      gap: 0.5em;
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    .webmention-link:hover {
+      text-decoration: underline;
+    }
+    
+    .webmention-counts span {
+      cursor: help;
+    }
+    
+    /* Simple mention format */
+    .webmention--mention {
+      display: inline;
+      margin-bottom: 1em;
+    }
   </style>
 </head>
 <body>

@@ -1,0 +1,44 @@
+{% if webmention['wm-property'] == 'mention-of' and not webmention.content %}
+  {# Simple format for mentions without content #}
+  <div class="webmention webmention--mention h-cite">
+    <span class="webmention__icon">🔗</span>
+    <span class="webmention__text">mentioned by <a href="{{ webmention.url }}" target="_blank" rel="noopener" class="u-url">{{ webmention.url }}</a></span>
+  </div>
+{% else %}
+  {# Full format for replies and mentions with content #}
+  <article class="webmention h-cite">
+    <div class="webmention__author p-author h-card">
+      {% if webmention.author.photo and webmention.author.photo != "" %}
+      <img class="u-photo" src="{{ webmention.author.photo }}" alt="{{ webmention.author.name }}">
+      {% endif %}
+      {% if webmention.author.name and webmention.author.name != "" %}
+        <a class="p-name u-url" href="{{ webmention.author.url }}" target="_blank" rel="noopener">{{ webmention.author.name }}</a>
+      {% elif webmention.author.url and webmention.author.url != "" %}
+        <a class="p-name u-url" href="{{ webmention.author.url }}" target="_blank" rel="noopener">{{ webmention.author.url }}</a>
+      {% else %}
+        <span class="p-name">Unknown</span>
+      {% endif %}
+    </div>
+    {% if webmention.content %}
+    <div class="webmention__content p-content">
+      {% if webmention.content.html %}
+        {{ webmention.content.html | safe }}
+      {% elif webmention.content.text %}
+        {{ webmention.content.text }}
+      {% elif webmention.content.value %}
+        {{ webmention.content.value | safe }}
+      {% endif %}
+    </div>
+    {% endif %}
+    <footer class="webmention__meta">
+      {% if webmention.published %}
+      <time class="dt-published" datetime="{{ webmention.published }}">
+        {{ webmention.published | date }}
+      </time>
+      {% endif %}
+      <span class="webmention__source">
+        via <a href="{{ webmention.url }}" target="_blank" rel="noopener">{{ webmention.url | truncate(50) }}</a>
+      </span>
+    </footer>
+  </article>
+{% endif %}
