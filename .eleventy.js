@@ -20,13 +20,15 @@ module.exports = function (eleventyConfig) {
       return d.toLocaleTimeString('en-US', { 
         hour: 'numeric', 
         minute: '2-digit',
-        hour12: true 
+        hour12: true,
+        timeZone: 'America/New_York'
       }).toLowerCase();
     }
     return d.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'long', 
-      day: 'numeric' 
+      day: 'numeric',
+      timeZone: 'America/New_York'
     });
   });
   
