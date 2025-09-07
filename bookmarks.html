@@ -9,7 +9,7 @@ title: Bookmarks
   <p><a href="/posts/">← Back to all posts</a></p>
 </nav>
 
-<div class="bookmarks-list">
+<div class="bookmarks-list h-feed">
   {% for year, months in collections.bookmarksByMonth | dictsort | reverse %}
     <h2><a href="/{{ year }}/">{{ year }}</a></h2>
     {% for month, bookmarks in months | dictsort | reverse %}
