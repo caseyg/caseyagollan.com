@@ -11,6 +11,7 @@
     "update-library": "node utils/librarything-to-graph.js"
   },
   "dependencies": {
+    "@11ty/eleventy-plugin-rss": "^2.0.4",
     "fs": "^0.0.1-security",
     "image-size": "^1.1.1",
     "lodash": "^4.17.21",
