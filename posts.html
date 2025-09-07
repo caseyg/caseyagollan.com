@@ -6,7 +6,7 @@ permalink: /posts/
 
 <h1>All Posts</h1>
 
-<div class="posts-list">
+<div class="posts-list h-feed">
   {% for dateKey, posts in collections.postsByDay | dictsort | reverse %}
     <h2 class="date-header">
       <a href="/{{ dateKey | replace('-', '/') }}/">{{ dateKey }}</a>

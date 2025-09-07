@@ -9,7 +9,7 @@ title: Notes
   <p><a href="/posts/">← Back to all posts</a></p>
 </nav>
 
-<div class="notes-list">
+<div class="notes-list h-feed">
   {% for year, months in collections.notesByMonth | dictsort | reverse %}
     <h2><a href="/{{ year }}/">{{ year }}</a></h2>
     {% for month, notes in months | dictsort | reverse %}
