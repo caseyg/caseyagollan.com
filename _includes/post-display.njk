@@ -177,9 +177,13 @@
     <footer>
       <p class="categories">
         Tagged: 
-        {% for cat in post.data.category %}
-          <span class="p-category">{{ cat }}</span>{% if not loop.last %}, {% endif %}
-        {% endfor %}
+        {% if post.data.category is string %}
+          <span class="p-category">{{ post.data.category }}</span>
+        {% else %}
+          {% for cat in post.data.category %}
+            <span class="p-category">{{ cat }}</span>{% if not loop.last %}, {% endif %}
+          {% endfor %}
+        {% endif %}
       </p>
     </footer>
   {% endif %}

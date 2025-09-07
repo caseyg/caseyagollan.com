@@ -19,4 +19,25 @@
       {% endfor %}
     </span>
   {% endif %}
+  {% set absoluteUrl = metadata.url + post.url %}
+  {% set wmCounts = webmentions.children | countWebmentions(absoluteUrl) %}
+  {% if wmCounts.total > 0 %}
+    <span class="webmention-counts">
+      /
+      <a href="{{ post.url }}#webmentions" class="webmention-link">
+        {% if wmCounts.likes > 0 %}
+          <span title="{{ wmCounts.likes }} like{% if wmCounts.likes != 1 %}s{% endif %}">♥ {{ wmCounts.likes }}</span>
+        {% endif %}
+        {% if wmCounts.reposts > 0 %}
+          <span title="{{ wmCounts.reposts }} repost{% if wmCounts.reposts != 1 %}s{% endif %}">🔁 {{ wmCounts.reposts }}</span>
+        {% endif %}
+        {% if wmCounts.replies > 0 %}
+          <span title="{{ wmCounts.replies }} repl{% if wmCounts.replies == 1 %}y{% else %}ies{% endif %}">💬 {{ wmCounts.replies }}</span>
+        {% endif %}
+        {% if wmCounts.mentions > 0 %}
+          <span title="{{ wmCounts.mentions }} mention{% if wmCounts.mentions != 1 %}s{% endif %}">🔗 {{ wmCounts.mentions }}</span>
+        {% endif %}
+      </a>
+    </span>
+  {% endif %}
 </footer>

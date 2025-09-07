@@ -1,0 +1,62 @@
+{% set pageUrl = post.url if post and post.url else page.url %}
+{% set absoluteUrl = metadata.url + pageUrl %}
+
+<!-- Debug: Looking for URL = {{ absoluteUrl }}, total webmentions = {{ webmentions.children.length if webmentions and webmentions.children else 0 }} -->
+<!-- Debug: webmentions exists = {{ "yes" if webmentions else "no" }}, has children = {{ "yes" if (webmentions and webmentions.children) else "no" }} -->
+
+{% if webmentions and webmentions.children %}
+  {% set mentions = webmentions.children | getWebmentionsForUrl(absoluteUrl) %}
+  {% set likes = webmentions.children | getWebmentionLikes(absoluteUrl) %}
+  {% set reposts = webmentions.children | getWebmentionReposts(absoluteUrl) %}
+{% else %}
+  {% set mentions = [] %}
+  {% set likes = [] %}
+  {% set reposts = [] %}
+{% endif %}
+
+{% if mentions.length or likes.length or reposts.length %}
+<section class="webmentions" id="webmentions">
+  <h3>Webmentions</h3>
+  
+  {% if likes.length %}
+  <div class="webmentions__facepile">
+    <h4>{{ likes.length }} like{% if likes.length != 1 %}s{% endif %}</h4>
+    <ul class="webmentions__faces">
+      {% for like in likes %}
+      <li>
+        <a href="{{ like.author.url }}" target="_blank" rel="noopener" title="{{ like.author.name }}">
+          <img src="{{ like.author.photo }}" alt="{{ like.author.name }}" loading="lazy" width="48" height="48">
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  
+  {% if reposts.length %}
+  <div class="webmentions__facepile">
+    <h4>{{ reposts.length }} repost{% if reposts.length != 1 %}s{% endif %}</h4>
+    <ul class="webmentions__faces">
+      {% for repost in reposts %}
+      <li>
+        <a href="{{ repost.author.url }}" target="_blank" rel="noopener" title="{{ repost.author.name }}">
+          <img src="{{ repost.author.photo }}" alt="{{ repost.author.name }}" loading="lazy" width="48" height="48">
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  
+  {% if mentions.length %}
+  <h4>{{ mentions.length }} repl{% if mentions.length == 1 %}y{% else %}ies{% endif %}</h4>
+  <ol class="webmentions__list">
+    {% for webmention in mentions %}
+    <li class="webmentions__item">
+      {% include 'partials/webmention.njk' %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+</section>
+{% endif %}

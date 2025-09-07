@@ -18,7 +18,9 @@ layout: posts-base
     start: start,
     name: name,
     rsvp: rsvp,
-    syndication: syndication
+    syndication: syndication,
+    category: category,
+    tags: tags
   },
   templateContent: content,
   date: date,
@@ -39,3 +41,6 @@ layout: posts-base
     {% endif %}
   </p>
 </nav>
+
+{# Webmentions #}
+{% include 'partials/webmentions.njk' %}
