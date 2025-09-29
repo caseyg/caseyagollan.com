@@ -1,138 +1,163 @@
-const _ = require('lodash');
+const _ = require("lodash");
 const pluginRss = require("@11ty/eleventy-plugin-rss");
-const sanitizeHTML = require('sanitize-html');
+const sanitizeHTML = require("sanitize-html");
 
 module.exports = function (eleventyConfig) {
   // Plugins
   eleventyConfig.addPlugin(pluginRss);
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
-  
+
   // Webmentions Filter
-  eleventyConfig.addNunjucksFilter("getWebmentionsForUrl", function(webmentions, url) {
-    const allowedTypes = ['mention-of', 'in-reply-to'];
-    const allowedHTML = {
-      allowedTags: ['b', 'i', 'em', 'strong', 'a'],
-      allowedAttributes: {
-        'a': ['href']
-      }
-    };
+  eleventyConfig.addNunjucksFilter(
+    "getWebmentionsForUrl",
+    function (webmentions, url) {
+      const allowedTypes = ["mention-of", "in-reply-to"];
+      const allowedHTML = {
+        allowedTags: ["b", "i", "em", "strong", "a"],
+        allowedAttributes: {
+          a: ["href"],
+        },
+      };
 
-    const hasRequiredFields = entry => {
-      const { author, published, content } = entry;
-      // For mentions, we're more lenient - just need something
-      if (entry['wm-property'] === 'mention-of') {
-        // Even if author fields are empty strings, we'll show the mention
-        return true;
-      }
-      // For replies, we need more info
-      return author && author.name && published && content && (content.html || content.text || content.value);
-    };
-    
-    const sanitize = entry => {
-      const { content } = entry;
-      if (content) {
-        if (content.html) {
-          content.html = sanitizeHTML(content.html, allowedHTML);
-        } else if (content.value && content['content-type'] === 'text/html') {
-          content.value = sanitizeHTML(content.value, allowedHTML);
+      const hasRequiredFields = (entry) => {
+        const { author, published, content } = entry;
+        // For mentions, we're more lenient - just need something
+        if (entry["wm-property"] === "mention-of") {
+          // Even if author fields are empty strings, we'll show the mention
+          return true;
         }
-      }
-      return entry;
-    };
+        // For replies, we need more info
+        return (
+          author &&
+          author.name &&
+          published &&
+          content &&
+          (content.html || content.text || content.value)
+        );
+      };
 
-    return webmentions
-      .filter(entry => entry['wm-target'] === url)
-      .filter(entry => allowedTypes.includes(entry['wm-property']))
-      .filter(hasRequiredFields)
-      .map(sanitize);
-  });
-  
+      const sanitize = (entry) => {
+        const { content } = entry;
+        if (content) {
+          if (content.html) {
+            content.html = sanitizeHTML(content.html, allowedHTML);
+          } else if (content.value && content["content-type"] === "text/html") {
+            content.value = sanitizeHTML(content.value, allowedHTML);
+          }
+        }
+        return entry;
+      };
+
+      return webmentions
+        .filter((entry) => entry["wm-target"] === url)
+        .filter((entry) => allowedTypes.includes(entry["wm-property"]))
+        .filter(hasRequiredFields)
+        .map(sanitize);
+    },
+  );
+
   // Filter for likes
-  eleventyConfig.addNunjucksFilter("getWebmentionLikes", function(webmentions, url) {
-    return webmentions
-      .filter(entry => entry['wm-target'] === url)
-      .filter(entry => entry['wm-property'] === 'like-of');
-  });
-  
+  eleventyConfig.addNunjucksFilter(
+    "getWebmentionLikes",
+    function (webmentions, url) {
+      return webmentions
+        .filter((entry) => entry["wm-target"] === url)
+        .filter((entry) => entry["wm-property"] === "like-of");
+    },
+  );
+
   // Filter for reposts
-  eleventyConfig.addNunjucksFilter("getWebmentionReposts", function(webmentions, url) {
-    return webmentions
-      .filter(entry => entry['wm-target'] === url)
-      .filter(entry => entry['wm-property'] === 'repost-of');
-  });
-  
+  eleventyConfig.addNunjucksFilter(
+    "getWebmentionReposts",
+    function (webmentions, url) {
+      return webmentions
+        .filter((entry) => entry["wm-target"] === url)
+        .filter((entry) => entry["wm-property"] === "repost-of");
+    },
+  );
+
   // Filter to count webmentions by type
-  eleventyConfig.addNunjucksFilter("countWebmentions", function(webmentions, url) {
-    const filtered = webmentions.filter(entry => entry['wm-target'] === url);
-    const counts = {
-      total: filtered.length,
-      likes: 0,
-      reposts: 0,
-      replies: 0,
-      mentions: 0
-    };
-    
-    filtered.forEach(entry => {
-      switch(entry['wm-property']) {
-        case 'like-of':
-          counts.likes++;
-          break;
-        case 'repost-of':
-          counts.reposts++;
-          break;
-        case 'in-reply-to':
-          counts.replies++;
-          break;
-        case 'mention-of':
-          counts.mentions++;
-          break;
-      }
-    });
-    
-    return counts;
-  });
-  
+  eleventyConfig.addNunjucksFilter(
+    "countWebmentions",
+    function (webmentions, url) {
+      const filtered = webmentions.filter(
+        (entry) => entry["wm-target"] === url,
+      );
+      const counts = {
+        total: filtered.length,
+        likes: 0,
+        reposts: 0,
+        replies: 0,
+        mentions: 0,
+      };
+
+      filtered.forEach((entry) => {
+        switch (entry["wm-property"]) {
+          case "like-of":
+            counts.likes++;
+            break;
+          case "repost-of":
+            counts.reposts++;
+            break;
+          case "in-reply-to":
+            counts.replies++;
+            break;
+          case "mention-of":
+            counts.mentions++;
+            break;
+        }
+      });
+
+      return counts;
+    },
+  );
+
   // Date formatting filter
   eleventyConfig.addNunjucksFilter("date", (date, format) => {
     const d = new Date(date);
     if (format === "iso") {
-      return d.toISOString().split('T')[0];
+      return d.toISOString().split("T")[0];
     }
     if (format === "MM") {
-      return String(d.getMonth() + 1).padStart(2, '0');
+      return String(d.getMonth() + 1).padStart(2, "0");
     }
     if (format === "MMMM") {
-      return d.toLocaleDateString('en-US', { month: 'long' });
+      return d.toLocaleDateString("en-US", { month: "long" });
     }
     if (format === "time") {
-      return d.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'America/New_York'
-      }).toLowerCase();
+      return d
+        .toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "America/New_York",
+        })
+        .toLowerCase();
     }
-    return d.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      timeZone: 'America/New_York'
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "America/New_York",
     });
   });
-  
+
   // Collections from content submodule
-  eleventyConfig.addCollection("notes", function(collectionApi) {
+  eleventyConfig.addCollection("notes", function (collectionApi) {
     return collectionApi.getFilteredByGlob("./content/notes/*.md").reverse();
   });
-  
-  eleventyConfig.addCollection("bookmarks", function(collectionApi) {
-    return collectionApi.getFilteredByGlob("./content/bookmarks/*.md").reverse();
+
+  eleventyConfig.addCollection("bookmarks", function (collectionApi) {
+    return collectionApi
+      .getFilteredByGlob("./content/bookmarks/*.md")
+      .reverse();
   });
-  
+
   // Combined collection for all posts
-  eleventyConfig.addCollection("posts", function(collectionApi) {
-    return collectionApi.getFilteredByGlob("./content/**/*.md")
+  eleventyConfig.addCollection("posts", function (collectionApi) {
+    return collectionApi
+      .getFilteredByGlob("./content/**/*.md")
       .sort((a, b) => new Date(b.data.date) - new Date(a.data.date));
   });
 
@@ -143,37 +168,37 @@ module.exports = function (eleventyConfig) {
     language: "en",
     description: "Posts from caseyagollan.com",
     author: {
-      name: "Casey Gollan"
-    }
+      name: "Casey Gollan",
+    },
   });
 
   // Add computed data for permalink generation and layout
   eleventyConfig.addGlobalData("eleventyComputed", {
-    permalink: function(data) {
-      // Only apply to notes and bookmarks from content directory
-      if (data.page.inputPath.includes("/content/notes/") || data.page.inputPath.includes("/content/bookmarks/")) {
+    permalink: function (data) {
+      // Apply to all post types from content directory (indiekit collections)
+      if (data.page.inputPath.includes("/content/")) {
         const date = new Date(data.date);
         const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
         const filename = data.page.fileSlug;
-        
+
         // Extract the slug from filename (e.g., "2025-09-01-207e2" -> "207e2")
-        const slug = filename.split('-').slice(3).join('-') || filename;
-        
+        const slug = filename.split("-").slice(3).join("-") || filename;
+
         return `/${year}/${month}/${day}/${slug}/`;
       }
       return data.permalink;
     },
-    layout: function(data) {
-      // Apply post layout to content files that don't have a layout specified
-      if (!data.layout && (data.page.inputPath.includes("/content/notes/") || data.page.inputPath.includes("/content/bookmarks/"))) {
+    layout: function (data) {
+      // Apply post layout to all content files that don't have a layout specified
+      if (!data.layout && data.page.inputPath.includes("/content/")) {
         return "post";
       }
       return data.layout;
-    }
+    },
   });
-  
+
   // Passthrough copies
   eleventyConfig.addPassthroughCopy("sisu.gif");
   eleventyConfig.addPassthroughCopy("CNAME");
@@ -189,126 +214,153 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addWatchTarget("content");
 
   // Create collections grouped by year
-  eleventyConfig.addCollection('notesByYear', collection => {
-    const allNotes = collection.getFilteredByGlob('./content/notes/*.md');
+  eleventyConfig.addCollection("notesByYear", (collection) => {
+    const allNotes = collection.getFilteredByGlob("./content/notes/*.md");
     const byYear = {};
-    
-    allNotes.forEach(note => {
+
+    allNotes.forEach((note) => {
       const date = new Date(note.data.date);
       const year = date.getFullYear();
-      
-      if(!byYear[year]) {
+
+      if (!byYear[year]) {
         byYear[year] = [];
       }
-      
+
       byYear[year].push(note);
     });
-    
+
     return byYear;
   });
-  
-  eleventyConfig.addCollection('bookmarksByYear', collection => {
-    const allBookmarks = collection.getFilteredByGlob('./content/bookmarks/*.md');
+
+  eleventyConfig.addCollection("bookmarksByYear", (collection) => {
+    const allBookmarks = collection.getFilteredByGlob(
+      "./content/bookmarks/*.md",
+    );
     const byYear = {};
-    
-    allBookmarks.forEach(bookmark => {
+
+    allBookmarks.forEach((bookmark) => {
       const date = new Date(bookmark.data.date);
       const year = date.getFullYear();
-      
-      if(!byYear[year]) {
+
+      if (!byYear[year]) {
         byYear[year] = [];
       }
-      
+
       byYear[year].push(bookmark);
     });
-    
+
     return byYear;
   });
-  
+
   // Add collections grouped by month
-  eleventyConfig.addCollection('notesByMonth', collection => {
-    const allNotes = collection.getFilteredByGlob('./content/notes/*.md');
+  eleventyConfig.addCollection("notesByMonth", (collection) => {
+    const allNotes = collection.getFilteredByGlob("./content/notes/*.md");
     const grouped = {};
-    
-    allNotes.forEach(note => {
+
+    allNotes.forEach((note) => {
       const date = new Date(note.data.date);
       const year = date.getFullYear();
       const month = date.getMonth();
-      
-      if(!grouped[year]) { grouped[year] = {}; }
-      if(!grouped[year][month]) { grouped[year][month] = []; }
-      
+
+      if (!grouped[year]) {
+        grouped[year] = {};
+      }
+      if (!grouped[year][month]) {
+        grouped[year][month] = [];
+      }
+
       grouped[year][month].push(note);
     });
-    
+
     return grouped;
   });
-  
-  eleventyConfig.addCollection('bookmarksByMonth', collection => {
-    const allBookmarks = collection.getFilteredByGlob('./content/bookmarks/*.md');
+
+  eleventyConfig.addCollection("bookmarksByMonth", (collection) => {
+    const allBookmarks = collection.getFilteredByGlob(
+      "./content/bookmarks/*.md",
+    );
     const grouped = {};
-    
-    allBookmarks.forEach(bookmark => {
+
+    allBookmarks.forEach((bookmark) => {
       const date = new Date(bookmark.data.date);
       const year = date.getFullYear();
       const month = date.getMonth();
-      
-      if(!grouped[year]) { grouped[year] = {}; }
-      if(!grouped[year][month]) { grouped[year][month] = []; }
-      
+
+      if (!grouped[year]) {
+        grouped[year] = {};
+      }
+      if (!grouped[year][month]) {
+        grouped[year][month] = [];
+      }
+
       grouped[year][month].push(bookmark);
     });
-    
+
     return grouped;
   });
-  
+
   // Combined posts by month collection
-  eleventyConfig.addCollection('postsByMonth', collection => {
-    const allPosts = collection.getFilteredByGlob('./content/**/*.md');
+  eleventyConfig.addCollection("postsByMonth", (collection) => {
+    const allPosts = collection.getFilteredByGlob("./content/**/*.md");
     const grouped = {};
-    
-    allPosts.forEach(post => {
+
+    allPosts.forEach((post) => {
       const date = new Date(post.data.date);
       const year = date.getFullYear();
       const month = date.getMonth();
-      
-      if(!grouped[year]) { grouped[year] = {}; }
-      if(!grouped[year][month]) { grouped[year][month] = []; }
-      
+
+      if (!grouped[year]) {
+        grouped[year] = {};
+      }
+      if (!grouped[year][month]) {
+        grouped[year][month] = [];
+      }
+
       grouped[year][month].push(post);
     });
-    
+
     return grouped;
   });
-  
+
   // Combined posts by day collection
-  eleventyConfig.addCollection('postsByDay', collection => {
-    const allPosts = collection.getFilteredByGlob('./content/**/*.md');
+  eleventyConfig.addCollection("postsByDay", (collection) => {
+    const allPosts = collection.getFilteredByGlob("./content/**/*.md");
     const grouped = {};
-    
-    allPosts.forEach(post => {
+
+    allPosts.forEach((post) => {
       const date = new Date(post.data.date);
-      const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-      
-      if(!grouped[dateKey]) { 
+      const dateKey = date.toISOString().split("T")[0]; // YYYY-MM-DD
+
+      if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
-      
+
       grouped[dateKey].push(post);
     });
-    
+
     return grouped;
   });
-  
+
   // Add filter to convert month number to name
-  eleventyConfig.addFilter('toMonth', month => {
-    return ['January', 'February', 'March', 'April',
-            'May', 'June', 'July', 'August',
-            'September', 'October', 'November', 'December'][month];
+  eleventyConfig.addFilter("toMonth", (month) => {
+    return [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ][month];
   });
 
   // Year collection
-  eleventyConfig.addCollection('postsByYear', (collection) => {
+  eleventyConfig.addCollection("postsByYear", (collection) => {
     return _.chain(collection.getFilteredByGlob("./content/**/*.md"))
       .groupBy((post) => post.date.getFullYear())
       .toPairs()
@@ -317,11 +369,11 @@ module.exports = function (eleventyConfig) {
   });
 
   // Year / Month collection
-  eleventyConfig.addCollection('postsByYearMonth', (collection) => {
+  eleventyConfig.addCollection("postsByYearMonth", (collection) => {
     return _.chain(collection.getFilteredByGlob("./content/**/*.md"))
       .groupBy((post) => {
         const year = post.date.getFullYear();
-        const month = String(post.date.getMonth() + 1).padStart(2, '0');
+        const month = String(post.date.getMonth() + 1).padStart(2, "0");
         return `${year}/${month}`;
       })
       .toPairs()
@@ -330,12 +382,12 @@ module.exports = function (eleventyConfig) {
   });
 
   // Year / Month / Day collection
-  eleventyConfig.addCollection('postsByYearMonthDay', (collection) => {
+  eleventyConfig.addCollection("postsByYearMonthDay", (collection) => {
     return _.chain(collection.getFilteredByGlob("./content/**/*.md"))
       .groupBy((post) => {
         const year = post.date.getFullYear();
-        const month = String(post.date.getMonth() + 1).padStart(2, '0');
-        const day = String(post.date.getDate()).padStart(2, '0');
+        const month = String(post.date.getMonth() + 1).padStart(2, "0");
+        const day = String(post.date.getDate()).padStart(2, "0");
         return `${year}/${month}/${day}`;
       })
       .toPairs()
@@ -344,20 +396,20 @@ module.exports = function (eleventyConfig) {
   });
 
   // Helper filter to format month names
-  eleventyConfig.addFilter('monthName', (monthNum) => {
+  eleventyConfig.addFilter("monthName", (monthNum) => {
     const date = new Date(2000, parseInt(monthNum) - 1, 1);
-    return date.toLocaleString('en-US', { month: 'long' });
+    return date.toLocaleString("en-US", { month: "long" });
   });
 
   // Helper filters for parsing date parts
-  eleventyConfig.addFilter('getYear', (dateStr) => dateStr.split('/')[0]);
-  eleventyConfig.addFilter('getMonth', (dateStr) => dateStr.split('/')[1]);
-  eleventyConfig.addFilter('getDay', (dateStr) => dateStr.split('/')[2]);
-  
+  eleventyConfig.addFilter("getYear", (dateStr) => dateStr.split("/")[0]);
+  eleventyConfig.addFilter("getMonth", (dateStr) => dateStr.split("/")[1]);
+  eleventyConfig.addFilter("getDay", (dateStr) => dateStr.split("/")[2]);
+
   // Add weekday filter
-  eleventyConfig.addFilter('weekday', (date) => {
+  eleventyConfig.addFilter("weekday", (date) => {
     const d = new Date(date);
-    return d.toLocaleDateString('en-US', { weekday: 'long' });
+    return d.toLocaleDateString("en-US", { weekday: "long" });
   });
 
   return {
@@ -366,7 +418,7 @@ module.exports = function (eleventyConfig) {
       output: "_site",
       // Add external content directory to includes
       includes: "_includes",
-      data: "_data"
+      data: "_data",
     },
     htmlTemplateEngine: "njk",
     markdownTemplateEngine: "njk",
