@@ -8,6 +8,12 @@ module.exports = function (eleventyConfig) {
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
 
+  // Custom truncate filter to use ellipsis character
+  eleventyConfig.addNunjucksFilter("truncate", (str, length = 200) => {
+    if (!str || str.length <= length) return str;
+    return str.substring(0, length).trim() + "…";
+  });
+
   // Decode HTML entities filter
   eleventyConfig.addNunjucksFilter("decodeEntities", (str) => {
     if (!str) return str;
