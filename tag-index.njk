@@ -1,0 +1,33 @@
+---
+pagination:
+  data: collections.tagList
+  size: 1
+  alias: tag
+  addAllPagesToCollections: true
+layout: posts-base
+eleventyComputed:
+  title: "Tagged: {{ tag }}"
+permalink: /tag/{{ tag | slugify }}/
+---
+
+<h1>Tagged: {{ tag }}</h1>
+
+<div class="posts-list">
+  {% set taggedPosts = collections[tag] %}
+  {% if taggedPosts %}
+    <p class="post-count">{{ taggedPosts | length }} post{{ "s" if taggedPosts | length != 1 }}</p>
+
+    {% for post in taggedPosts | reverse %}
+      {% include "post-display.njk" %}
+    {% endfor %}
+  {% else %}
+    <p>No posts found with tag "{{ tag }}"</p>
+  {% endif %}
+</div>
+
+<nav aria-label="Archive navigation">
+  <p>
+    <a href="/posts/">← All posts</a> |
+    <a href="/">Home</a>
+  </p>
+</nav>

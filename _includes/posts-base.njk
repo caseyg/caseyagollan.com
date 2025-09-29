@@ -50,6 +50,7 @@
       font-size: 5vw;
       font-weight: 100;
       margin: 2vw 0;
+      line-height: 1.2;
     }
     h2 {
       font-size: 3.5vw;
@@ -429,25 +430,29 @@
       font-weight: bold;
     }
 
-    .post-meta time {
-      display: inline-block;
-    }
-
-    .post-meta time a {
+    /* Unified pill style for dates, times, and tags */
+    .pill {
       display: inline-block;
       background: gray;
-      color: white;
-      border: 1px solid white;
+      color: rgba(255, 255, 255, 0.3) !important;
+      border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 1em;
-      padding: 0.2em 0.8em;
-      font-size: 0.75em;
+      padding: 0.25em 0.8em;
+      font-size: 0.9em;
+      font-weight: 100;
+      text-decoration: none !important;
       transition: all 0.2s ease;
     }
 
-    .post-meta time a:hover,
-    .post-meta time a:active {
+    .pill:hover,
+    .pill:active {
       background: blue;
       border-color: blue;
+      color: white !important;
+    }
+
+    .post-meta time {
+      display: inline-block;
     }
 
     .post-meta .syndication-links {
@@ -461,6 +466,29 @@
     .post-meta .icon-mastodon,
     .post-meta .icon-bluesky {
       font-size: 1.1em;
+    }
+
+    .post-meta .separator {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .post-meta .tag-pill {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.7) !important;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 1em;
+      padding: 0.2em 0.6em;
+      font-size: 0.9em;
+      text-decoration: none !important;
+      transition: all 0.2s ease;
+      margin: 0 0.1em;
+    }
+
+    .post-meta .tag-pill:hover {
+      background: rgba(0, 0, 255, 0.2);
+      border-color: blue;
+      color: white !important;
     }
 
     @media (max-width: 768px) {
@@ -609,8 +637,8 @@
 </head>
 <body>
   <div class="nav-toggles">
-    <a href="/">🏠</a>
-    <a href="/ai/">🤖</a>
+    <a href="/">👋</a>
+    <!-- <a href="/ai/">🤖</a> -->
     <a href="/library/">📚</a>
     {% if page.url != "/posts/" %}
       <a href="/posts/">📡</a>
