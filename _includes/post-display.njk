@@ -19,14 +19,14 @@
   {% set postType = "video" %}
 {% elif post.data.start %}
   {% set postType = "event" %}
-{% elif post.data.name and post.templateContent %}
+{% elif (post.data.name or post.data.title) and post.templateContent %}
   {% set postType = "article" %}
 {% else %}
   {% set postType = "note" %}
 {% endif %}
 
 <article class="h-entry post-type-{{ postType }}">
-  
+
   {# Display appropriate content based on post type #}
   {% if postType == "bookmark" %}
     <div class="bookmark-content">
@@ -75,8 +75,8 @@
     <div class="photo-content">
       {% for img in post.data.photo %}
         <figure>
-          <img src="{{ img.url or img }}" 
-               alt="{{ img.alt or post.data['mp-photo-alt'][loop.index0] or 'Photo' }}" 
+          <img src="{{ img.url or img }}"
+               alt="{{ img.alt or post.data['mp-photo-alt'][loop.index0] or 'Photo' }}"
                class="u-photo" />
           {% if img.alt or post.data['mp-photo-alt'][loop.index0] %}
             <figcaption>{{ img.alt or post.data['mp-photo-alt'][loop.index0] }}</figcaption>
@@ -146,7 +146,7 @@
     <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name }}</a></h4>
     <div class="event-details">
       <p class="event-time">
-        <strong>When:</strong> 
+        <strong>When:</strong>
         <time class="dt-start" datetime="{{ post.data.start }}">{{ post.data.start | date('iso') }}</time>
         {% if post.data.end %}
           to <time class="dt-end" datetime="{{ post.data.end }}">{{ post.data.end | date('iso') }}</time>
@@ -154,7 +154,7 @@
       </p>
       {% if post.data.location %}
         <p class="event-location">
-          <strong>Where:</strong> 
+          <strong>Where:</strong>
           <span class="p-location">{{ post.data.location }}</span>
         </p>
       {% endif %}
@@ -163,20 +163,27 @@
       <div class="e-content">{{ post.templateContent | safe }}</div>
     {% endif %}
   {% elif postType == "article" %}
-    <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name }}</a></h4>
+    {% if post.isSingle %}
+      <h4 class="p-name">{{ post.data.name or post.data.title }}</h4>
+    {% else %}
+      <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name or post.data.title }}</a></h4>
+    {% endif %}
     {% if post.data.summary %}
       <div class="p-summary">{{ post.data.summary | markdownify | safe }}</div>
+    {% elif post.isSingle %}
+      <div class="e-content">{{ post.templateContent | safe }}</div>
     {% else %}
-      <div class="e-content">{{ post.templateContent | truncate(200) | safe }}</div>
+      {% set truncatedContent = post.templateContent | striptags | truncate(200) %}
+      <div class="e-content">{{ truncatedContent }}{% if truncatedContent.length >= 200 %}...{% endif %}</div>
     {% endif %}
   {% else %}
     <div class="e-content">{{ post.templateContent | safe }}</div>
   {% endif %}
-  
+
   {% if post.data.category %}
     <footer>
       <p class="categories">
-        Tagged: 
+        Tagged:
         {% if post.data.category is string %}
           <span class="p-category">{{ post.data.category }}</span>
         {% else %}
@@ -187,6 +194,6 @@
       </p>
     </footer>
   {% endif %}
-  
+
   {% include "partials/post-footer.njk" %}
 </article>
