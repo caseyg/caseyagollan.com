@@ -164,7 +164,7 @@
     {% endif %}
   {% elif postType == "article" %}
     {% if post.isSingle %}
-      <h4 class="p-name">{{ post.data.name or post.data.title }}</h4>
+      <h1 class="p-name">{{ post.data.name or post.data.title }}</h1>
     {% else %}
       <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name or post.data.title }}</a></h4>
     {% endif %}
@@ -177,21 +177,6 @@
     {% endif %}
   {% else %}
     <div class="e-content">{{ post.templateContent | safe }}</div>
-  {% endif %}
-
-  {% if post.data.category %}
-    <footer>
-      <p class="categories">
-        Tagged:
-        {% if post.data.category is string %}
-          <span class="p-category">{{ post.data.category }}</span>
-        {% else %}
-          {% for cat in post.data.category %}
-            <span class="p-category">{{ cat }}</span>{% if not loop.last %}, {% endif %}
-          {% endfor %}
-        {% endif %}
-      </p>
-    </footer>
   {% endif %}
 
   {% include "partials/post-footer.njk" %}

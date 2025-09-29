@@ -181,6 +181,68 @@ module.exports = function (eleventyConfig) {
       .sort((a, b) => new Date(b.data.date) - new Date(a.data.date));
   });
 
+  // Create collections for each tag/category
+  eleventyConfig.addCollection("tagList", function (collectionApi) {
+    const tagSet = new Set();
+    collectionApi.getAll().forEach((item) => {
+      if (item.data.category) {
+        if (typeof item.data.category === "string") {
+          tagSet.add(item.data.category.toLowerCase());
+        } else if (Array.isArray(item.data.category)) {
+          item.data.category.forEach((cat) => tagSet.add(cat.toLowerCase()));
+        }
+      }
+    });
+    return [...tagSet].sort();
+  });
+
+  // Create collections for each tag dynamically
+  // Collections use the original tag names (case-sensitive)
+  // URLs will use lowercase slugs in templates
+
+  // Dynamically create collections for each unique tag
+  eleventyConfig.on("eleventy.before", async () => {
+    // Get all unique tags and create collections
+    const tagSet = new Set();
+    const taggedPosts = {};
+
+    // This will be populated during the build
+    eleventyConfig.addCollection(
+      "buildTagCollections",
+      function (collectionApi) {
+        const posts = collectionApi.getFilteredByGlob("./content/**/*.md");
+
+        posts.forEach((post) => {
+          if (post.data.category) {
+            const categories =
+              typeof post.data.category === "string"
+                ? [post.data.category]
+                : post.data.category;
+
+            categories.forEach((cat) => {
+              tagSet.add(cat);
+              if (!taggedPosts[cat]) {
+                taggedPosts[cat] = [];
+              }
+              taggedPosts[cat].push(post);
+            });
+          }
+        });
+
+        // Create a collection for each tag using its original case
+        tagSet.forEach((tag) => {
+          eleventyConfig.addCollection(tag, () => {
+            return taggedPosts[tag].sort(
+              (a, b) => new Date(b.data.date) - new Date(a.data.date),
+            );
+          });
+        });
+
+        return [...tagSet];
+      },
+    );
+  });
+
   // Add metadata for RSS feed
   eleventyConfig.addGlobalData("metadata", {
     title: "Casey Gollan",

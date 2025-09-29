@@ -1,8 +1,18 @@
 <footer class="post-meta">
   <a href="{{ post.url }}" class="u-url permalink" title="Permalink">#</a>
   <time class="dt-published" datetime="{{ post.date | date('iso') }}">
-    <a href="{{ post.url }}">{{ post.date | date('time') }}</a>
+    <a href="{{ post.url }}" class="pill">{{ post.date | date('time') }}</a>
   </time>
+  {% if post.data.category %}
+    <span class="separator">/</span>
+    {% if post.data.category is string %}
+      <a href="/tag/{{ post.data.category | slugify }}/" class="pill p-category">#{{ post.data.category | lower }}</a>
+    {% else %}
+      {% for cat in post.data.category %}
+        <a href="/tag/{{ cat | slugify }}/" class="pill p-category">#{{ cat | lower }}</a>
+      {% endfor %}
+    {% endif %}
+  {% endif %}
   {% if post.data.syndication %}
     <span class="syndication-links">
       /

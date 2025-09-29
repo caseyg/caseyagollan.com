@@ -1,18 +1,16 @@
 ---
 layout: posts-base
-title: All Posts
+title: 📡 Posts
 permalink: /posts/
 ---
 
-<h1>All Posts</h1>
+<h1>📡 Posts</h1>
 
 <div class="posts-list h-feed">
-  {% for dateKey, posts in collections.postsByDay | dictsort | reverse %}
+    {% for dateKey, posts in collections.postsByDay | dictsort | reverse %}
     <h2 class="date-header">
-      <a href="/{{ dateKey | replace('-', '/') }}/">{{ dateKey }}</a>
+        <a href="/{{ dateKey | replace('-', '/') }}/">{{ dateKey }}</a>
     </h2>
-    {% for post in posts | reverse %}
-      {% include "post-display.njk" %}
-    {% endfor %}
-  {% endfor %}
+    {% for post in posts | reverse %} {% include "post-display.njk" %} {% endfor
+    %} {% endfor %}
 </div>
