@@ -16,7 +16,7 @@ layout: posts-base
     audio: audio,
     video: video,
     start: start,
-    name: name,
+    name: name or title,
     rsvp: rsvp,
     syndication: syndication,
     category: category,
@@ -24,7 +24,8 @@ layout: posts-base
   },
   templateContent: content,
   date: date,
-  url: page.url
+  url: page.url,
+  isSingle: true
 } %}
 
 {% include "post-display.njk" %}

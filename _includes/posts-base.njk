@@ -116,7 +116,7 @@
     .syndication a:hover {
       color: white;
     }
-    
+
     /* Post type specific styles */
     .post-type-bookmark .bookmark-link,
     .post-type-reply .reply-context,
@@ -127,106 +127,106 @@
       font-size: 1.1em;
       margin: 1vw 0;
     }
-    
+
     .post-type-article h4 {
-      font-size: 2vw;
+      font-size: 2.5vw;
       font-weight: 100;
       margin: 1vw 0;
     }
-    
+
     .post-type-article h4 a {
       color: white;
       text-decoration: none;
     }
-    
+
     .post-type-article h4 a:hover {
       color: rgb(73, 73, 255);
       text-decoration: underline;
     }
-    
+
     .post-type-photo figure,
     .post-type-audio figure,
     .post-type-video figure {
       margin: 1vw 0;
     }
-    
+
     .post-type-photo img {
       max-width: 100%;
       height: auto;
     }
-    
+
     .post-type-audio audio,
     .post-type-video video {
       width: 100%;
       max-width: 600px;
     }
-    
+
     .post-type-event .event-details {
       background: rgba(0, 0, 255, 0.1);
       padding: 1vw;
       margin: 1vw 0;
       border-radius: 5px;
     }
-    
+
     .post-type-event .event-details strong {
       color: blue;
     }
-    
+
     .post-type-rsvp data {
       display: none;
     }
-    
+
     .categories {
       font-size: 0.9em;
       color: rgba(255, 255, 255, 0.7);
       margin-top: 1vw;
     }
-    
+
     .categories .p-category {
       background: rgba(0, 0, 255, 0.2);
       padding: 0.2em 0.5em;
       border-radius: 3px;
       margin-right: 0.5em;
     }
-    
+
     /* Post meta footer */
     .post-meta {
       font-size: 0.9em;
       color: rgba(255, 255, 255, 0.7);
       margin-top: 1vw;
     }
-    
+
     .post-meta a {
       color: rgba(255, 255, 255, 0.7);
       text-decoration: none;
     }
-    
+
     .post-meta a:hover {
       color: white;
     }
-    
+
     .post-meta .permalink {
       font-weight: bold;
       margin-right: 0.5em;
     }
-    
+
     .post-meta time {
       margin-right: 0.5em;
     }
-    
+
     .post-meta .syndication-links {
       margin-left: 0.3em;
     }
-    
+
     .post-meta .syndication-links a {
       margin: 0 0.2em;
     }
-    
+
     .post-meta .icon-mastodon,
     .post-meta .icon-bluesky {
       font-size: 1.1em;
     }
-    
+
     @media (max-width: 768px) {
       body {
         font-size: 4vw;
@@ -239,6 +239,9 @@
         font-size: 6vw;
       }
       h3 {
+        font-size: 5vw;
+      }
+      .post-type-article h4 {
         font-size: 5vw;
       }
     }
@@ -256,60 +259,63 @@
       h3 {
         font-size: 35px;
       }
+      .post-type-article h4 {
+        font-size: 35px;
+      }
       article {
         margin-bottom: 42px;
         padding-bottom: 28px;
       }
     }
-    
+
     /* Webmentions styles */
     .webmentions {
       margin-top: 3em;
       padding-top: 2em;
       border-top: 1px solid rgba(255,255,255,0.2);
     }
-    
+
     .webmentions h3, .webmentions h4 {
       margin-top: 1.5em;
     }
-    
+
     .webmentions__list {
       list-style: none;
       padding: 0;
     }
-    
+
     .webmentions__item {
       margin-bottom: 2em;
     }
-    
+
     .webmention {
       display: flex;
       flex-direction: column;
       gap: 1em;
     }
-    
+
     .webmention__author {
       display: flex;
       align-items: center;
       gap: 0.5em;
     }
-    
+
     .webmention__author img {
       width: 48px;
       height: 48px;
       border-radius: 50%;
     }
-    
+
     .webmention__content {
       margin-left: 56px;
     }
-    
+
     .webmention__meta {
       margin-left: 56px;
       font-size: 0.875em;
       opacity: 0.7;
     }
-    
+
     .webmentions__faces {
       display: flex;
       flex-wrap: wrap;
@@ -317,35 +323,35 @@
       list-style: none;
       padding: 0;
     }
-    
+
     .webmentions__faces img {
       border-radius: 50%;
     }
-    
+
     .webmentions__facepile {
       margin-bottom: 2em;
     }
-    
+
     /* Webmention counts in footer */
     .webmention-counts {
       font-size: 0.9em;
     }
-    
+
     .webmention-link {
       display: inline-flex;
       gap: 0.5em;
       text-decoration: none;
       color: inherit;
     }
-    
+
     .webmention-link:hover {
       text-decoration: underline;
     }
-    
+
     .webmention-counts span {
       cursor: help;
     }
-    
+
     /* Simple mention format */
     .webmention--mention {
       display: inline;
@@ -359,7 +365,7 @@
     <a href="/ai/">🤖</a>
     <a href="/library/">📄</a>
   </div>
-  
+
   {{ content | safe }}
 </body>
 </html>
