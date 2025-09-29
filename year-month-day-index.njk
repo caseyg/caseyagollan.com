@@ -7,29 +7,40 @@ layout: posts-base
 permalink: /{{ yearMonthDay[0] }}/
 ---
 
-<h1>{{ yearMonthDay[0] }}</h1>
-
 {% set dayPosts = yearMonthDay[1] %}
 {% set noteCount = dayPosts | selectattr("inputPath", "containing", "/notes/") | list | length %}
 {% set bookmarkCount = dayPosts | selectattr("inputPath", "containing", "/bookmarks/") | list | length %}
+{% set year = yearMonthDay[0] | getYear %}
+{% set month = yearMonthDay[0] | getMonth %}
+{% set day = yearMonthDay[0] | getDay %}
+{% set otherCount = dayPosts | length - noteCount - bookmarkCount %}
+{% set totalCount = dayPosts | length %}
 
-<p class="post-count">
-  {{ dayPosts | length }} post{{ "s" if dayPosts | length != 1 }}:
-  {% if noteCount > 0 %}{{ noteCount }} note{{ "s" if noteCount != 1 }}{% endif %}
-  {% if noteCount > 0 and bookmarkCount > 0 %}, {% endif %}
-  {% if bookmarkCount > 0 %}{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}{% endif %}
-</p>
+<div style="margin-bottom: 3vw;">
+  <nav aria-label="Archive navigation" style="margin-bottom: 1vw;">
+    <div class="meta-pill">
+      <a href="/{{ year }}/{{ month }}/" class="meta-segment">← {{ month | monthName }} {{ year }}</a>
+      <a href="/{{ year }}/" class="meta-segment">{{ year }}</a>
+      <a href="/" class="meta-segment">Home</a>
+    </div>
+  </nav>
 
-<div class="posts-list">
+  <p class="post-count" style="display: inline-flex; gap: 0.5em; flex-wrap: wrap;">
+    {% if otherCount > 0 %}<span class="pill">{{ otherCount }} post{{ "s" if otherCount != 1 }}</span>{% endif %}
+    {% if noteCount > 0 %}<a href="/notes/" class="pill">{{ noteCount }} note{{ "s" if noteCount != 1 }}</a>{% endif %}
+    {% if bookmarkCount > 0 %}<a href="/bookmarks/" class="pill">{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}</a>{% endif %}
+  </p>
+</div>
+
+<div class="posts-list h-feed">
+  <h2 class="date-header">
+    <div class="meta-pill">
+      <a href="/{{ year }}/" class="meta-segment">{{ year }}</a>
+      <a href="/{{ year }}/{{ month }}/" class="meta-segment">{{ month }}</a>
+      <a href="/{{ year }}/{{ month }}/{{ day }}/" class="meta-segment">{{ day }}</a>
+    </div>
+  </h2>
   {% for post in dayPosts | reverse %}
     {% include "post-display.njk" %}
   {% endfor %}
 </div>
-
-<nav aria-label="Archive navigation">
-  <p>
-    <a href="/{{ yearMonthDay[0] | getYear }}/{{ yearMonthDay[0] | getMonth }}/">← {{ yearMonthDay[0] | getMonth | monthName }} {{ yearMonthDay[0] | getYear }}</a> |
-    <a href="/{{ yearMonthDay[0] | getYear }}/">{{ yearMonthDay[0] | getYear }}</a> |
-    <a href="/">Home</a>
-  </p>
-</nav>

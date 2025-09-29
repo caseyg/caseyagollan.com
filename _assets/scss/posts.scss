@@ -76,17 +76,18 @@ h2.date-header {
   z-index: 10;
   min-height: 80px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 30px 5vw 0;
-  background: gray;
+  padding: 0 5vw;
+  background: linear-gradient(to bottom, gray 0%, gray 40%, transparent 100%);
 
   &::before {
     content: '';
     position: absolute;
     left: 0;
     right: 0;
-    top: 30px;
+    top: 50%;
+    transform: translateY(-50%);
     height: 1px;
     background: rgba(255, 255, 255, 0.15);
     z-index: 0;
@@ -96,27 +97,10 @@ h2.date-header {
     background: blue;
   }
 
-  a {
-    display: inline-block;
-    background: gray;
-    color: rgba(255, 255, 255, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 1em;
-    padding: 0.25em 1em;
-    font-size: 0.65em;
-    font-weight: 100;
-    text-decoration: none !important;
-    transition: all 0.2s ease;
+  .meta-pill {
     position: relative;
     z-index: 1;
-
-    &:hover,
-    &:active {
-      background: blue;
-      border-color: blue;
-      color: white !important;
-      text-decoration: none !important;
-    }
+    font-size: 0.65em;
   }
 }
 

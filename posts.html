@@ -4,12 +4,27 @@ title: 📡 Posts
 permalink: /posts/
 ---
 
-<h1>📡 Posts</h1>
+<div style="margin-bottom: 3vw;">
+  <nav aria-label="Archive navigation" style="margin-bottom: 1vw;">
+    <div class="meta-pill">
+      <a href="/" class="meta-segment">Home</a>
+    </div>
+  </nav>
+
+  <p class="post-count" style="display: inline-flex; gap: 0.5em; flex-wrap: wrap;">
+    <span class="pill">📡 Posts</span>
+  </p>
+</div>
 
 <div class="posts-list h-feed">
     {% for dateKey, posts in collections.postsByDay | dictsort | reverse %}
+    {% set dateParts = dateKey.split('-') %}
     <h2 class="date-header">
-        <a href="/{{ dateKey | replace('-', '/') }}/">{{ dateKey }}</a>
+        <div class="meta-pill">
+          <a href="/{{ dateParts[0] }}/" class="meta-segment">{{ dateParts[0] }}</a>
+          <a href="/{{ dateParts[0] }}/{{ dateParts[1] }}/" class="meta-segment">{{ dateParts[1] }}</a>
+          <a href="/{{ dateParts[0] }}/{{ dateParts[1] }}/{{ dateParts[2] }}/" class="meta-segment">{{ dateParts[2] }}</a>
+        </div>
     </h2>
     {% for post in posts | reverse %} {% include "post-display.njk" %} {% endfor
     %} {% endfor %}

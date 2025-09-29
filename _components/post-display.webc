@@ -1,0 +1,112 @@
+<script webc:type="js" webc:root>
+function getPostType(post) {
+  if (post.data.bookmarkOf || post.data['bookmark-of']) return 'bookmark';
+  if (post.data['in-reply-to'] && post.data.rsvp) return 'rsvp';
+  if (post.data['in-reply-to']) return 'reply';
+  if (post.data['repost-of']) return 'repost';
+  if (post.data['like-of']) return 'like';
+  if (post.data['jam-of']) return 'jam';
+  if (post.data.photo) return 'photo';
+  if (post.data.audio) return 'audio';
+  if (post.data.video) return 'video';
+  if (post.data.start) return 'event';
+  if ((post.data.name || post.data.title) && post.templateContent) return 'article';
+  return 'note';
+}
+
+function stripTags(html) {
+  return html.replace(/<[^>]*>/g, '');
+}
+
+function truncate(str, length = 200) {
+  if (!str || str.length <= length) return str;
+  return str.substring(0, length).trim() + '…';
+}
+
+const postType = getPostType(post);
+const isSingle = post.isSingle || false;
+
+function renderBookmark() {
+  const bookmarkUrl = post.data.bookmarkOf || post.data['bookmark-of'];
+  return `<div class="bookmark-content">
+    <p class="bookmark-link">
+      🔖 Bookmarked: <a href="${bookmarkUrl}" class="u-bookmark-of">${post.data.title || bookmarkUrl}</a>
+    </p>
+    ${post.templateContent ? `<div class="e-content">${post.templateContent}</div>` : ''}
+  </div>`;
+}
+
+function renderReply() {
+  return `<div class="reply-content">
+    <p class="reply-context">
+      ↩️ In reply to: <a href="${post.data['in-reply-to']}" class="u-in-reply-to">${post.data['in-reply-to']}</a>
+    </p>
+    <div class="e-content">${post.templateContent}</div>
+  </div>`;
+}
+
+function renderRepost() {
+  return `<div class="repost-content">
+    <p class="repost-context">
+      🔁 Reposted: <a href="${post.data['repost-of']}" class="u-repost-of">${post.data['repost-of']}</a>
+    </p>
+    ${post.templateContent ? `<div class="e-content">${post.templateContent}</div>` : ''}
+  </div>`;
+}
+
+function renderLike() {
+  return `<div class="like-content">
+    <p class="like-context">
+      ❤️ Liked: <a href="${post.data['like-of']}" class="u-like-of">${post.data['like-of']}</a>
+    </p>
+    ${post.templateContent ? `<div class="e-content">${post.templateContent}</div>` : ''}
+  </div>`;
+}
+
+function renderJam() {
+  return `<div class="jam-content">
+    <p class="jam-context">
+      🎵 Jamming to: <a href="${post.data['jam-of']}" class="u-jam-of">${post.data.name || post.data['jam-of']}</a>
+    </p>
+    ${post.templateContent ? `<div class="e-content">${post.templateContent}</div>` : ''}
+  </div>`;
+}
+
+function renderArticle() {
+  const title = post.data.name || post.data.title;
+  const heading = isSingle
+    ? `<h1 class="p-name">${title}</h1>`
+    : `<h4 class="p-name"><a href="${post.url}">${title}</a></h4>`;
+
+  let content = '';
+  if (post.data.summary) {
+    content = `<div class="p-summary">${post.data.summary}</div>`;
+  } else if (isSingle) {
+    content = `<div class="e-content">${post.templateContent}</div>`;
+  } else {
+    content = `<div class="e-content">${truncate(stripTags(post.templateContent), 200)}</div>`;
+  }
+
+  return heading + content;
+}
+
+function renderNote() {
+  return `<div class="e-content">${post.templateContent}</div>`;
+}
+
+let contentHtml = '';
+switch(postType) {
+  case 'bookmark': contentHtml = renderBookmark(); break;
+  case 'reply': contentHtml = renderReply(); break;
+  case 'repost': contentHtml = renderRepost(); break;
+  case 'like': contentHtml = renderLike(); break;
+  case 'jam': contentHtml = renderJam(); break;
+  case 'article': contentHtml = renderArticle(); break;
+  default: contentHtml = renderNote();
+}
+
+`<article class="h-entry post-type-${postType}${isSingle ? ' is-single' : ''}">
+  ${contentHtml}
+  <post-footer :post="post"></post-footer>
+</article>`
+</script>
