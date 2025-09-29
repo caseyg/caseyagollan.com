@@ -207,47 +207,46 @@ module.exports = function (eleventyConfig) {
   // URLs will use lowercase slugs in templates
 
   // Dynamically create collections for each unique tag
-  eleventyConfig.on("eleventy.before", async () => {
-    // Get all unique tags and create collections
-    const tagSet = new Set();
-    const taggedPosts = {};
+  const tagSet = new Set();
+  const taggedPosts = {};
 
-    // This will be populated during the build
-    eleventyConfig.addCollection(
-      "buildTagCollections",
-      function (collectionApi) {
-        const posts = collectionApi.getFilteredByGlob("./content/**/*.md");
+  // This will be populated during the build
+  eleventyConfig.addCollection(
+    "buildTagCollections",
+    function (collectionApi) {
+      const posts = collectionApi.getFilteredByGlob("./content/**/*.md");
 
-        posts.forEach((post) => {
-          if (post.data.category) {
-            const categories =
-              typeof post.data.category === "string"
-                ? [post.data.category]
-                : post.data.category;
+      posts.forEach((post) => {
+        if (post.data.category) {
+          const categories =
+            typeof post.data.category === "string"
+              ? [post.data.category]
+              : post.data.category;
 
-            categories.forEach((cat) => {
-              tagSet.add(cat);
-              if (!taggedPosts[cat]) {
-                taggedPosts[cat] = [];
-              }
-              taggedPosts[cat].push(post);
-            });
-          }
-        });
+          categories.forEach((cat) => {
+            tagSet.add(cat);
+            if (!taggedPosts[cat]) {
+              taggedPosts[cat] = [];
+            }
+            taggedPosts[cat].push(post);
+          });
+        }
+      });
 
-        // Create a collection for each tag using its original case
-        tagSet.forEach((tag) => {
+      // Create a collection for each tag using its original case
+      tagSet.forEach((tag) => {
+        if (!eleventyConfig.collections || !eleventyConfig.collections[tag]) {
           eleventyConfig.addCollection(tag, () => {
             return taggedPosts[tag].sort(
               (a, b) => new Date(b.data.date) - new Date(a.data.date),
             );
           });
-        });
+        }
+      });
 
-        return [...tagSet];
-      },
-    );
-  });
+      return [...tagSet];
+    },
+  );
 
   // Add metadata for RSS feed
   eleventyConfig.addGlobalData("metadata", {
@@ -304,6 +303,7 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addWatchTarget("library");
   eleventyConfig.addWatchTarget("ai");
   eleventyConfig.addWatchTarget("utils");
+  eleventyConfig.addWatchTarget("_assets/scss");
   // Watch content submodule
   eleventyConfig.addWatchTarget("content");
 
@@ -516,6 +516,6 @@ module.exports = function (eleventyConfig) {
     },
     htmlTemplateEngine: "njk",
     markdownTemplateEngine: "njk",
-    templateFormats: ["html", "njk", "md", "xml"],
+    templateFormats: ["html", "njk", "md", "xml", "11ty.js"],
   };
 };

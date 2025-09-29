@@ -1,53 +1,33 @@
 <footer class="post-meta">
-  <a href="{{ post.url }}" class="u-url permalink" title="Permalink">#</a>
-  <time class="dt-published" datetime="{{ post.date | date('iso') }}">
-    <a href="{{ post.url }}" class="pill">{{ post.date | date('time') }}</a>
-  </time>
-  {% if post.data.category %}
-    <span class="separator">/</span>
-    {% if post.data.category is string %}
-      <a href="/tag/{{ post.data.category | slugify }}/" class="pill p-category">#{{ post.data.category | lower }}</a>
-    {% else %}
-      {% for cat in post.data.category %}
-        <a href="/tag/{{ cat | slugify }}/" class="pill p-category">#{{ cat | lower }}</a>
-      {% endfor %}
+  <div class="meta-pill">
+    <a href="{{ post.url }}" class="meta-segment u-url" title="Permalink">
+      🔗 <time class="dt-published" datetime="{{ post.date | date('iso') }}">{{ post.date | date('time') }}</time>
+    </a>
+    {% if post.data.category %}
+      {% if post.data.category is string %}
+        <a href="/tag/{{ post.data.category | slugify }}/" class="meta-segment p-category">#{{ post.data.category | lower }}</a>
+      {% else %}
+        {% for cat in post.data.category %}
+          <a href="/tag/{{ cat | slugify }}/" class="meta-segment p-category">#{{ cat | lower }}</a>
+        {% endfor %}
+      {% endif %}
     {% endif %}
-  {% endif %}
-  {% if post.data.syndication %}
-    <span class="syndication-links">
-      /
+    {% if post.data.syndication %}
       {% for link in post.data.syndication %}
-        <a href="{{ link }}" class="u-syndication" title="{%- if "social.coop" in link -%}View on Mastodon{%- elif "bsky.app" in link -%}View on Bluesky{%- else -%}{{ link }}{%- endif -%}">
-          {%- if "social.coop" in link -%}
-            <span class="icon-mastodon">🐘</span>
-          {%- elif "bsky.app" in link -%}
-            <span class="icon-bluesky">🦋</span>
-          {%- else -%}
-            🔗
-          {%- endif -%}
+        <a href="{{ link }}" class="meta-segment u-syndication" title="{%- if "social.coop" in link -%}View on Mastodon{%- elif "bsky.app" in link -%}View on Bluesky{%- else -%}{{ link }}{%- endif -%}">
+          {%- if "social.coop" in link -%}🐘{%- elif "bsky.app" in link -%}🦋{%- else -%}🔗{%- endif -%}
         </a>
       {% endfor %}
-    </span>
-  {% endif %}
-  {% set absoluteUrl = metadata.url + post.url %}
-  {% set wmCounts = webmentions.children | countWebmentions(absoluteUrl) %}
-  {% if wmCounts.total > 0 %}
-    <span class="webmention-counts">
-      /
-      <a href="{{ post.url }}#webmentions" class="webmention-link">
-        {% if wmCounts.likes > 0 %}
-          <span title="{{ wmCounts.likes }} like{% if wmCounts.likes != 1 %}s{% endif %}">♥ {{ wmCounts.likes }}</span>
-        {% endif %}
-        {% if wmCounts.reposts > 0 %}
-          <span title="{{ wmCounts.reposts }} repost{% if wmCounts.reposts != 1 %}s{% endif %}">🔁 {{ wmCounts.reposts }}</span>
-        {% endif %}
-        {% if wmCounts.replies > 0 %}
-          <span title="{{ wmCounts.replies }} repl{% if wmCounts.replies == 1 %}y{% else %}ies{% endif %}">💬 {{ wmCounts.replies }}</span>
-        {% endif %}
-        {% if wmCounts.mentions > 0 %}
-          <span title="{{ wmCounts.mentions }} mention{% if wmCounts.mentions != 1 %}s{% endif %}">🔗 {{ wmCounts.mentions }}</span>
-        {% endif %}
+    {% endif %}
+    {% set absoluteUrl = metadata.url + post.url %}
+    {% set wmCounts = webmentions.children | countWebmentions(absoluteUrl) %}
+    {% if wmCounts.total > 0 %}
+      <a href="{{ post.url }}#webmentions" class="meta-segment webmention-link">
+        {% if wmCounts.likes > 0 %}<span title="{{ wmCounts.likes }} like{% if wmCounts.likes != 1 %}s{% endif %}">♥{{ wmCounts.likes }}</span>{% endif %}
+        {% if wmCounts.reposts > 0 %}<span title="{{ wmCounts.reposts }} repost{% if wmCounts.reposts != 1 %}s{% endif %}">🔁{{ wmCounts.reposts }}</span>{% endif %}
+        {% if wmCounts.replies > 0 %}<span title="{{ wmCounts.replies }} repl{% if wmCounts.replies == 1 %}y{% else %}ies{% endif %}">💬{{ wmCounts.replies }}</span>{% endif %}
+        {% if wmCounts.mentions > 0 %}<span title="{{ wmCounts.mentions }} mention{% if wmCounts.mentions != 1 %}s{% endif %}">🔗{{ wmCounts.mentions }}</span>{% endif %}
       </a>
-    </span>
-  {% endif %}
+    {% endif %}
+  </div>
 </footer>
