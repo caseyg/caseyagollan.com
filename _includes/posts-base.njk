@@ -64,6 +64,54 @@
       color: rgb(73, 73, 255);
       text-decoration: underline;
     }
+
+    /* Date headers styling */
+    h2.date-header {
+      text-align: center;
+      margin: 3vw 0 2vw;
+      position: relative;
+      font-size: 1.5vw;
+      font-weight: 100;
+    }
+
+    h2.date-header::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.15);
+      z-index: 0;
+      transition: background 0.2s ease;
+    }
+
+    h2.date-header:has(a:hover)::before {
+      background: blue;
+    }
+
+    h2.date-header a {
+      display: inline-block;
+      background: gray;
+      color: rgba(255, 255, 255, 0.3) !important;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 1em;
+      padding: 0.25em 1em;
+      font-size: 0.65em;
+      font-weight: 100;
+      text-decoration: none !important;
+      transition: all 0.2s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    h2.date-header a:hover,
+    h2.date-header a:active {
+      background: blue;
+      border-color: blue;
+      color: white !important;
+      text-decoration: none !important;
+    }
     h3 {
       font-size: 2.5vw;
       font-weight: 100;
@@ -131,18 +179,186 @@
     .post-type-article h4 {
       font-size: 2.5vw;
       font-weight: 100;
-      margin: 1vw 0;
+      margin: 2vw 0 1.5vw;
+      line-height: calc(1.25em);
+      letter-spacing: -0.02em;
     }
 
     .post-type-article h4 a {
       color: white;
       text-decoration: none;
+      background: rgba(0, 0, 255, 0.2);
+      padding: 0 0.15em;
+      transition: background 0.2s ease;
+      display: inline;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
     }
 
     .post-type-article h4 a:hover {
-      color: rgb(73, 73, 255);
-      text-decoration: underline;
+      background: blue;
     }
+
+    /* Enhanced typography for article content */
+    .post-type-article .e-content {
+      line-height: 1.6;
+      letter-spacing: 0.01em;
+      max-width: 85ch;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      -ms-hyphens: auto;
+      text-align: left;
+    }
+
+    .post-type-article .e-content p {
+      margin: 1em 0;
+      text-indent: 0;
+    }
+
+    .post-type-article .e-content p + p {
+      text-indent: 1.5em;
+    }
+
+    .post-type-article .e-content blockquote {
+      margin: 2em 0;
+      padding: 1.5em;
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.1);
+      font-size: 0.9em;
+      line-height: 1.5;
+      letter-spacing: normal;
+      font-style: normal;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+
+    .post-type-article .e-content blockquote p {
+      text-indent: 0;
+      margin: 0.75em 0;
+    }
+
+    .post-type-article .e-content blockquote p:first-child {
+      margin-top: 0;
+    }
+
+    .post-type-article .e-content blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .post-type-article .e-content h2,
+    .post-type-article .e-content h3 {
+      font-weight: 100;
+      line-height: 1.3;
+      margin: 2em 0 0.75em;
+      letter-spacing: -0.01em;
+    }
+
+    .post-type-article .e-content h2 {
+      font-size: 1.75em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 0.25em;
+    }
+
+    .post-type-article .e-content h3 {
+      font-size: 1.375em;
+    }
+
+    .post-type-article .e-content ul,
+    .post-type-article .e-content ol {
+      margin: 1.5em 0;
+      padding-left: 2em;
+    }
+
+    .post-type-article .e-content li {
+      margin: 0.5em 0;
+      line-height: 1.6;
+    }
+
+    .post-type-article .e-content li > ul,
+    .post-type-article .e-content li > ol {
+      margin: 0.5em 0 0.5em;
+    }
+
+    .post-type-article .e-content img {
+      max-width: 100%;
+      height: auto;
+      margin: 2em 0;
+      display: block;
+    }
+
+    .post-type-article .e-content figure {
+      margin: 2em 0;
+    }
+
+    .post-type-article .e-content figcaption {
+      font-size: 0.875em;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 0.5em;
+      font-style: italic;
+      text-align: center;
+    }
+
+    .post-type-article .e-content code {
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+      font-size: 0.875em;
+      background: rgba(0, 0, 255, 0.1);
+      padding: 0.125em 0.25em;
+      border-radius: 0.2em;
+    }
+
+    .post-type-article .e-content pre {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1.5em;
+      margin: 2em 0;
+      overflow-x: auto;
+      border-radius: 0.5em;
+      line-height: 1.4;
+    }
+
+    .post-type-article .e-content pre code {
+      background: none;
+      padding: 0;
+      font-size: 0.9em;
+    }
+
+    .post-type-article .e-content hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
+      margin: 3em 0;
+    }
+
+    /* First paragraph emphasis */
+    .post-type-article .e-content > p:first-child {
+      font-size: 1.125em;
+      line-height: 1.5;
+      text-indent: 0;
+    }
+
+    /* Drop cap for article beginning */
+    .post-type-article.is-single .e-content > p:first-child::first-letter {
+      float: left;
+      font-size: 4em;
+      line-height: 0.9;
+      margin: 0.05em 0.1em 0 0;
+      font-weight: 100;
+    }
+
+    /* Link styling within articles */
+    .post-type-article .e-content a {
+      color: white;
+      text-decoration: none;
+      background: rgba(0, 0, 255, 0.2);
+      padding: 0.1em 0.2em;
+      transition: background 0.2s ease;
+    }
+
+    .post-type-article .e-content a:hover {
+      background: blue;
+    }
+
+
 
     .post-type-photo figure,
     .post-type-audio figure,
@@ -191,9 +407,13 @@
 
     /* Post meta footer */
     .post-meta {
-      font-size: 0.9em;
+      font-size: 0.65em;
       color: rgba(255, 255, 255, 0.7);
       margin-top: 1vw;
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+      flex-wrap: wrap;
     }
 
     .post-meta a {
@@ -207,11 +427,27 @@
 
     .post-meta .permalink {
       font-weight: bold;
-      margin-right: 0.5em;
     }
 
     .post-meta time {
-      margin-right: 0.5em;
+      display: inline-block;
+    }
+
+    .post-meta time a {
+      display: inline-block;
+      background: gray;
+      color: white;
+      border: 1px solid white;
+      border-radius: 1em;
+      padding: 0.2em 0.8em;
+      font-size: 0.75em;
+      transition: all 0.2s ease;
+    }
+
+    .post-meta time a:hover,
+    .post-meta time a:active {
+      background: blue;
+      border-color: blue;
     }
 
     .post-meta .syndication-links {
@@ -244,6 +480,15 @@
       .post-type-article h4 {
         font-size: 5vw;
       }
+      .post-type-article .e-content {
+        max-width: 100%;
+      }
+      .post-type-article .e-content > p:first-child {
+        font-size: 1.1em;
+      }
+      .post-type-article.is-single .e-content > p:first-child::first-letter {
+        font-size: 3.5em;
+      }
     }
     @media (min-width: 1400px) {
       body {
@@ -261,6 +506,9 @@
       }
       .post-type-article h4 {
         font-size: 35px;
+      }
+      .post-type-article .e-content {
+        max-width: 900px;
       }
       article {
         margin-bottom: 42px;
@@ -363,7 +611,10 @@
   <div class="nav-toggles">
     <a href="/">🏠</a>
     <a href="/ai/">🤖</a>
-    <a href="/library/">📄</a>
+    <a href="/library/">📚</a>
+    {% if page.url != "/posts/" %}
+      <a href="/posts/">📡</a>
+    {% endif %}
   </div>
 
   {{ content | safe }}

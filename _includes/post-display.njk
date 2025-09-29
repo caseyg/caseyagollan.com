@@ -25,7 +25,7 @@
   {% set postType = "note" %}
 {% endif %}
 
-<article class="h-entry post-type-{{ postType }}">
+<article class="h-entry post-type-{{ postType }}{% if post.isSingle %} is-single{% endif %}">
 
   {# Display appropriate content based on post type #}
   {% if postType == "bookmark" %}
@@ -173,8 +173,7 @@
     {% elif post.isSingle %}
       <div class="e-content">{{ post.templateContent | safe }}</div>
     {% else %}
-      {% set truncatedContent = post.templateContent | striptags | truncate(200) %}
-      <div class="e-content">{{ truncatedContent }}{% if truncatedContent.length >= 200 %}...{% endif %}</div>
+      <div class="e-content">{{ post.templateContent | striptags | decodeEntities | truncate(200) }}{% if post.templateContent | striptags | length > 200 %}...{% endif %}</div>
     {% endif %}
   {% else %}
     <div class="e-content">{{ post.templateContent | safe }}</div>
