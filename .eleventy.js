@@ -183,8 +183,12 @@ module.exports = function (eleventyConfig) {
         const day = String(date.getDate()).padStart(2, "0");
         const filename = data.page.fileSlug;
 
-        // Extract the slug from filename (e.g., "2025-09-01-207e2" -> "207e2")
-        const slug = filename.split("-").slice(3).join("-") || filename;
+        // Extract the slug from filename
+        // For date-prefixed files (e.g., "2025-09-01-slug-here" -> "slug-here")
+        // Check if filename starts with YYYY-MM-DD pattern
+        const datePattern = /^\d{4}-\d{2}-\d{2}-(.+)$/;
+        const match = filename.match(datePattern);
+        const slug = match ? match[1] : filename;
 
         return `/${year}/${month}/${day}/${slug}/`;
       }
