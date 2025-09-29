@@ -173,7 +173,7 @@
     {% elif post.isSingle %}
       <div class="e-content">{{ post.templateContent | safe }}</div>
     {% else %}
-      <div class="e-content">{{ post.templateContent | striptags | decodeEntities | truncate(200) }}{% if post.templateContent | striptags | length > 200 %}…{% endif %}</div>
+      <div class="e-content">{{ post.templateContent | striptags | decodeEntities | truncate(200) }}</div>
     {% endif %}
   {% else %}
     <div class="e-content">{{ post.templateContent | safe }}</div>
