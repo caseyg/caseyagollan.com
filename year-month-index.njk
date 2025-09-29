@@ -7,28 +7,45 @@ layout: posts-base
 permalink: /{{ yearMonth[0] }}/
 ---
 
-<h1>{{ yearMonth[0] | getMonth | monthName }} {{ yearMonth[0] | getYear }}</h1>
-
 {% set monthPosts = yearMonth[1] %}
 {% set noteCount = monthPosts | selectattr("inputPath", "containing", "/notes/") | list | length %}
 {% set bookmarkCount = monthPosts | selectattr("inputPath", "containing", "/bookmarks/") | list | length %}
+{% set year = yearMonth[0] | getYear %}
+{% set month = yearMonth[0] | getMonth %}
+{% set otherCount = monthPosts | length - noteCount - bookmarkCount %}
+{% set totalCount = monthPosts | length %}
 
-<p class="post-count">
-  {{ monthPosts | length }} post{{ "s" if monthPosts | length != 1 }}:
-  {% if noteCount > 0 %}{{ noteCount }} note{{ "s" if noteCount != 1 }}{% endif %}
-  {% if noteCount > 0 and bookmarkCount > 0 %}, {% endif %}
-  {% if bookmarkCount > 0 %}{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}{% endif %}
-</p>
+<div style="margin-bottom: 3vw;">
+  <nav aria-label="Archive navigation" style="margin-bottom: 1vw;">
+    <div class="meta-pill">
+      <a href="/{{ year }}/" class="meta-segment">{{ year }}</a>
+      <a href="/" class="meta-segment">Home</a>
+    </div>
+  </nav>
 
-<div class="posts-list">
+  <p class="post-count" style="display: inline-flex; gap: 0.5em; flex-wrap: wrap;">
+    <a href="/{{ year }}/{{ month }}/" class="pill">{{ month | monthName }} {{ year }}</a>
+    {% if otherCount > 0 %}<span class="pill">{{ otherCount }} post{{ "s" if otherCount != 1 }}</span>{% endif %}
+    {% if noteCount > 0 %}<a href="/notes/" class="pill">{{ noteCount }} note{{ "s" if noteCount != 1 }}</a>{% endif %}
+    {% if bookmarkCount > 0 %}<a href="/bookmarks/" class="pill">{{ bookmarkCount }} bookmark{{ "s" if bookmarkCount != 1 }}</a>{% endif %}
+  </p>
+</div>
+
+<div class="posts-list h-feed">
+  {% set renderedDates = [] %}
   {% for post in monthPosts | reverse %}
+    {% set dateKey = post.data.date | date('iso') %}
+    {% if dateKey not in renderedDates %}
+      {% set renderedDates = renderedDates + [dateKey] %}
+      {% set dateParts = dateKey.split('-') %}
+      <h2 class="date-header">
+        <div class="meta-pill">
+          <a href="/{{ dateParts[0] }}/" class="meta-segment">{{ dateParts[0] }}</a>
+          <a href="/{{ dateParts[0] }}/{{ dateParts[1] }}/" class="meta-segment">{{ dateParts[1] }}</a>
+          <a href="/{{ dateParts[0] }}/{{ dateParts[1] }}/{{ dateParts[2] }}/" class="meta-segment">{{ dateParts[2] }}</a>
+        </div>
+      </h2>
+    {% endif %}
     {% include "post-display.njk" %}
   {% endfor %}
 </div>
-
-<nav aria-label="Archive navigation">
-  <p>
-    <a href="/{{ yearMonth[0] | getYear }}/">← {{ yearMonth[0] | getYear }}</a> |
-    <a href="/">Home</a>
-  </p>
-</nav>

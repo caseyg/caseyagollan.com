@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title @text="title ? `${title} - Casey Gollan` : 'Casey Gollan'"></title>
+  <link rel="stylesheet" href="https://use.typekit.net/rfh8wvj.css" />
+  <link rel="stylesheet" href="/assets/posts.css" />
+  <link rel="webmention" href="https://webmention.io/caseyagollan.com/webmention" />
+  <link rel="alternate" type="application/atom+xml" title="Casey Gollan - All Posts" href="/feed.xml" />
+  <style webc:keep @raw="getBundle('css')"></style>
+</head>
+<body>
+  <nav-toggles :page-url="page.url"></nav-toggles>
+
+  <div @raw="content"></div>
+
+  <script webc:keep @raw="getBundle('js')"></script>
+</body>
+</html>

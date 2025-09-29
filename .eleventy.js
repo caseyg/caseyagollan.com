@@ -1,10 +1,16 @@
 const _ = require("lodash");
 const pluginRss = require("@11ty/eleventy-plugin-rss");
+const pluginWebc = require("@11ty/eleventy-plugin-webc");
 const sanitizeHTML = require("sanitize-html");
 
 module.exports = function (eleventyConfig) {
   // Plugins
   eleventyConfig.addPlugin(pluginRss);
+  eleventyConfig.addPlugin(pluginWebc, {
+    components: [
+      "./_components/**/*.webc",
+    ]
+  });
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
 
@@ -304,6 +310,7 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addWatchTarget("ai");
   eleventyConfig.addWatchTarget("utils");
   eleventyConfig.addWatchTarget("_assets/scss");
+  eleventyConfig.addWatchTarget("_components/**/*.webc");
   // Watch content submodule
   eleventyConfig.addWatchTarget("content");
 
@@ -516,6 +523,6 @@ module.exports = function (eleventyConfig) {
     },
     htmlTemplateEngine: "njk",
     markdownTemplateEngine: "njk",
-    templateFormats: ["html", "njk", "md", "xml", "11ty.js"],
+    templateFormats: ["html", "njk", "md", "xml", "11ty.js", "webc"],
   };
 };

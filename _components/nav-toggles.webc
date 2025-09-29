@@ -1,0 +1,6 @@
+<div class="nav-toggles">
+  <a href="/">👋</a>
+  <!-- <a href="/ai/">🤖</a> -->
+  <a href="/library/">📚</a>
+  <a href="/posts/" webc:if="pageUrl !== '/posts/'">📡</a>
+</div>

@@ -1,0 +1,53 @@
+<script webc:type="js" webc:root>
+function formatTime(date) {
+  const d = new Date(date);
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "America/New_York",
+  }).toLowerCase();
+}
+
+function formatDate(date) {
+  return new Date(date).toISOString().split("T")[0];
+}
+
+function slugify(str) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+const category = post.data.category;
+const categories = typeof category === "string" ? [category] : (category || []);
+
+`<footer class="post-meta">
+  <div class="meta-pill">
+    <a href="${post.url}" class="meta-segment u-url" title="Permalink">
+      🔗 <time class="dt-published" datetime="${formatDate(post.date)}">${formatTime(post.date)}</time>
+    </a>
+    ${categories.map(cat => `
+      <a href="/tag/${slugify(cat)}/" class="meta-segment p-category">#${cat.toLowerCase()}</a>
+    `).join('')}
+    ${(post.data.syndication || []).map(link => {
+      const title = link.includes('social.coop') ? 'View on Mastodon' :
+                    link.includes('bsky.app') ? 'View on Bluesky' : link;
+      const icon = link.includes('social.coop') ? '🐘' :
+                   link.includes('bsky.app') ? '🦋' : '🔗';
+      return `<a href="${link}" class="meta-segment u-syndication" title="${title}">${icon}</a>`;
+    }).join('')}
+  </div>
+</footer>`
+</script>
+
+<style webc:scoped>
+:host {
+  font-size: 0.55em;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 1vw;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+</style>

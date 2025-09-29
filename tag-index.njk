@@ -10,24 +10,41 @@ eleventyComputed:
 permalink: /tag/{{ tag | slugify }}/
 ---
 
-<h1>Tagged: {{ tag }}</h1>
+{% set taggedPosts = collections[tag] %}
 
-<div class="posts-list">
-  {% set taggedPosts = collections[tag] %}
+<div style="margin-bottom: 3vw;">
+  <nav aria-label="Archive navigation" style="margin-bottom: 1vw;">
+    <div class="meta-pill">
+      <a href="/posts/" class="meta-segment">All posts</a>
+      <a href="/" class="meta-segment">Home</a>
+    </div>
+  </nav>
+
+  <p class="post-count" style="display: inline-flex; gap: 0.5em; flex-wrap: wrap;">
+    <span class="pill">#{{ tag }}</span>
+    {% if taggedPosts %}<span class="pill">{{ taggedPosts | length }} post{{ "s" if taggedPosts | length != 1 }}</span>{% endif %}
+  </p>
+</div>
+
+<div class="posts-list h-feed">
   {% if taggedPosts %}
-    <p class="post-count">{{ taggedPosts | length }} post{{ "s" if taggedPosts | length != 1 }}</p>
-
+    {% set renderedDates = [] %}
     {% for post in taggedPosts | reverse %}
+      {% set dateKey = post.data.date | date('iso') %}
+      {% if dateKey not in renderedDates %}
+        {% set renderedDates = renderedDates + [dateKey] %}
+        {% set dateParts = dateKey.split('-') %}
+        <h2 class="date-header">
+          <div class="meta-pill">
+            <a href="/{{ dateParts[0] }}/" class="meta-segment">{{ dateParts[0] }}</a>
+            <a href="/{{ dateParts[0] }}/{{ dateParts[1] }}/" class="meta-segment">{{ dateParts[1] }}</a>
+            <a href="/{{ dateParts[0] }}/{{ dateParts[1] }}/{{ dateParts[2] }}/" class="meta-segment">{{ dateParts[2] }}</a>
+          </div>
+        </h2>
+      {% endif %}
       {% include "post-display.njk" %}
     {% endfor %}
   {% else %}
     <p>No posts found with tag "{{ tag }}"</p>
   {% endif %}
 </div>
-
-<nav aria-label="Archive navigation">
-  <p>
-    <a href="/posts/">← All posts</a> |
-    <a href="/">Home</a>
-  </p>
-</nav>
