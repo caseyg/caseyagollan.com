@@ -8,6 +8,26 @@ module.exports = function (eleventyConfig) {
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
 
+  // Decode HTML entities filter
+  eleventyConfig.addNunjucksFilter("decodeEntities", (str) => {
+    if (!str) return str;
+    const entities = {
+      "&quot;": '"',
+      "&#34;": '"',
+      "&apos;": "'",
+      "&#39;": "'",
+      "&amp;": "&",
+      "&#38;": "&",
+      "&lt;": "<",
+      "&#60;": "<",
+      "&gt;": ">",
+      "&#62;": ">",
+      "&nbsp;": " ",
+      "&#160;": " ",
+    };
+    return str.replace(/&[#\w]+;/g, (entity) => entities[entity] || entity);
+  });
+
   // Webmentions Filter
   eleventyConfig.addNunjucksFilter(
     "getWebmentionsForUrl",
@@ -209,6 +229,8 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("library/img");
   eleventyConfig.addPassthroughCopy("library/graph.json");
   eleventyConfig.addPassthroughCopy("library/thumbnail.png");
+  // Copy media files from content submodule to root media folder
+  eleventyConfig.addPassthroughCopy({ "content/media": "media" });
 
   // Watch useful folders
   eleventyConfig.addWatchTarget("library");
