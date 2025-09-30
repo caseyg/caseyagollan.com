@@ -22,7 +22,7 @@
       {% endfor %}
     {% endif %}
     {% set absoluteUrl = metadata.url + post.url %}
-    {% set wmCounts = webmentions.children | countWebmentions(absoluteUrl) %}
+    {% set wmCounts = webmentions | countWebmentions(absoluteUrl) %}
     {% if wmCounts.total > 0 %}
       <a href="{{ post.url }}#webmentions" class="meta-segment webmention-link">
         {% if wmCounts.likes > 0 %}<span title="{{ wmCounts.likes }} like{% if wmCounts.likes != 1 %}s{% endif %}">♥{{ wmCounts.likes }}</span>{% endif %}
