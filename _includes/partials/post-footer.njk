@@ -1,4 +1,6 @@
 <footer class="post-meta">
+  {# Hidden h-card for author info - required by Bridgy and other IndieWeb tools #}
+  <a href="https://caseyagollan.com" class="p-author h-card" style="display:none;">Casey Gollan</a>
   <div class="meta-pill">
     <a href="{{ post.url }}" class="meta-segment u-url" title="Permalink">
       🔗 <time class="dt-published" datetime="{{ post.date | date('iso') }}">{{ post.date | date('time') }}</time>
