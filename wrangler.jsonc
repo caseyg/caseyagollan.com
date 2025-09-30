@@ -3,6 +3,7 @@
   "compatibility_date": "2025-09-30",
   "pages_build_output_dir": "_site",
   "vars": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "WEBMENTION_IO_TOKEN": "***REMOVED***"
   }
 }

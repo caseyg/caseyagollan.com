@@ -12,19 +12,19 @@
     "update-content": "git submodule update --remote --merge"
   },
   "dependencies": {
+    "@11ty/eleventy": "^3.1.2",
     "@11ty/eleventy-plugin-rss": "^2.0.4",
+    "@11ty/eleventy-plugin-webc": "^0.11.2",
     "dotenv": "^17.2.2",
     "fs": "^0.0.1-security",
     "image-size": "^1.1.1",
     "lodash": "^4.17.21",
     "node-fetch": "^2.7.0",
     "sanitize-html": "^2.17.0",
+    "sass": "^1.93.2",
     "sharp": "^0.33.0"
   },
   "devDependencies": {
-    "@11ty/eleventy": "^3.1.2",
-    "@11ty/eleventy-plugin-webc": "^0.11.2",
-    "sass": "^1.93.2",
     "serve": "^14.2.1",
     "wrangler": "^4.40.3"
   }
