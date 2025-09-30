@@ -24,7 +24,6 @@
 {% else %}
   {% set postType = "note" %}
 {% endif %}
-
 <article class="h-entry post-type-{{ postType }}{% if post.isSingle %} is-single{% endif %}">
 
   {# Display appropriate content based on post type #}
@@ -165,15 +164,17 @@
   {% elif postType == "article" %}
     {% if post.isSingle %}
       <h1 class="p-name">{{ post.data.name or post.data.title }}</h1>
-    {% else %}
-      <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name or post.data.title }}</a></h4>
-    {% endif %}
-    {% if post.data.summary %}
-      <div class="p-summary">{% renderTemplate "md" %}{{ post.data.summary }}{% endrenderTemplate %}</div>
-    {% elif post.isSingle %}
+      {% if post.data.summary %}
+        <div class="p-summary">{{ post.data.summary }}</div>
+      {% endif %}
       <div class="e-content">{{ post.templateContent | safe }}</div>
     {% else %}
-      <div class="e-content">{{ post.templateContent | striptags | decodeEntities | truncate(200) }}</div>
+      <h4 class="p-name"><a href="{{ post.url }}">{{ post.data.name or post.data.title }}</a></h4>
+      {% if post.data.summary %}
+        <div class="p-summary">{{ post.data.summary }}</div>
+      {% else %}
+        <div class="e-content">{{ post.templateContent | striptags | decodeEntities | truncate(200) }}</div>
+      {% endif %}
     {% endif %}
   {% else %}
     <div class="e-content">{{ post.templateContent | safe }}</div>

@@ -240,50 +240,51 @@ module.exports = async function (eleventyConfig) {
   });
 
   // Create collections for each tag dynamically
-  // Collections use the original tag names (case-sensitive)
-  // URLs will use lowercase slugs in templates
-
-  // Dynamically create collections for each unique tag
-  const tagSet = new Set();
-  const taggedPosts = {};
-
-  // This will be populated during the build
-  eleventyConfig.addCollection(
-    "buildTagCollections",
-    function (collectionApi) {
-      const posts = collectionApi.getFilteredByGlob("./content/**/*.md");
-
-      posts.forEach((post) => {
-        if (post.data.category) {
-          const categories =
-            typeof post.data.category === "string"
-              ? [post.data.category]
-              : post.data.category;
-
-          categories.forEach((cat) => {
-            tagSet.add(cat);
-            if (!taggedPosts[cat]) {
-              taggedPosts[cat] = [];
-            }
-            taggedPosts[cat].push(post);
-          });
+  // We need to get the tag list first, then create collections for each
+  eleventyConfig.addCollection("changelog", function (collectionApi) {
+    return collectionApi
+      .getFilteredByGlob("./content/**/*.md")
+      .filter((post) => {
+        if (typeof post.data.category === "string") {
+          return post.data.category.toLowerCase() === "changelog";
         }
-      });
-
-      // Create a collection for each tag using its original case
-      tagSet.forEach((tag) => {
-        if (!eleventyConfig.collections || !eleventyConfig.collections[tag]) {
-          eleventyConfig.addCollection(tag, () => {
-            return taggedPosts[tag].sort(
-              (a, b) => new Date(b.data.date) - new Date(a.data.date),
-            );
-          });
+        if (Array.isArray(post.data.category)) {
+          return post.data.category.some(cat => cat.toLowerCase() === "changelog");
         }
-      });
+        return false;
+      })
+      .sort((a, b) => new Date(b.data.date) - new Date(a.data.date));
+  });
 
-      return [...tagSet];
-    },
-  );
+  eleventyConfig.addCollection("ai", function (collectionApi) {
+    return collectionApi
+      .getFilteredByGlob("./content/**/*.md")
+      .filter((post) => {
+        if (typeof post.data.category === "string") {
+          return post.data.category.toLowerCase() === "ai";
+        }
+        if (Array.isArray(post.data.category)) {
+          return post.data.category.some(cat => cat.toLowerCase() === "ai");
+        }
+        return false;
+      })
+      .sort((a, b) => new Date(b.data.date) - new Date(a.data.date));
+  });
+
+  eleventyConfig.addCollection("indieweb", function (collectionApi) {
+    return collectionApi
+      .getFilteredByGlob("./content/**/*.md")
+      .filter((post) => {
+        if (typeof post.data.category === "string") {
+          return post.data.category.toLowerCase() === "indieweb";
+        }
+        if (Array.isArray(post.data.category)) {
+          return post.data.category.some(cat => cat.toLowerCase() === "indieweb");
+        }
+        return false;
+      })
+      .sort((a, b) => new Date(b.data.date) - new Date(a.data.date));
+  });
 
   // Add metadata for RSS feed
   eleventyConfig.addGlobalData("metadata", {
