@@ -3,7 +3,8 @@ const fetch = require('node-fetch');
 const unionBy = require('lodash/unionBy');
 
 // Load .env variables with dotenv
-require('dotenv').config();
+// Don't override existing env vars (e.g., from Cloudflare)
+require('dotenv').config({ override: false });
 
 // Define Cache Location and API Endpoint
 const CACHE_DIR = '.cache';
