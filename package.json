@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "git submodule update --remote --merge && eleventy",
+    "build": "git submodule update --remote --merge && node -e \"console.log('ENV CHECK:', {NODE_ENV: process.env.NODE_ENV, WEBMENTION_IO_TOKEN: process.env.WEBMENTION_IO_TOKEN ? 'present' : 'missing'})\" && eleventy",
     "build-ghpages": "eleventy",
     "start": "eleventy --serve --port 8080",
     "dev": "npm run start",
