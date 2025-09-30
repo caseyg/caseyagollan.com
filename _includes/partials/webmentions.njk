@@ -1,13 +1,11 @@
 {% set pageUrl = post.url if post and post.url else page.url %}
 {% set absoluteUrl = metadata.url + pageUrl %}
+{% set allWebmentions = (webmentionsByUrl[absoluteUrl] if webmentionsByUrl else []) or [] %}
 
-<!-- Debug: Looking for URL = {{ absoluteUrl }}, total webmentions = {{ webmentions.length if webmentions else 0 }} -->
-<!-- Debug: webmentions exists = {{ "yes" if webmentions else "no" }}, is array = {{ "yes" if (webmentions and webmentions.length) else "no" }} -->
-
-{% if webmentions %}
-  {% set mentions = webmentions | getWebmentionsForUrl(absoluteUrl) %}
-  {% set likes = webmentions | getWebmentionLikes(absoluteUrl) %}
-  {% set reposts = webmentions | getWebmentionReposts(absoluteUrl) %}
+{% if allWebmentions.length %}
+  {% set mentions = allWebmentions | getWebmentionsForUrl(absoluteUrl) %}
+  {% set likes = allWebmentions | getWebmentionLikes(absoluteUrl) %}
+  {% set reposts = allWebmentions | getWebmentionReposts(absoluteUrl) %}
 {% else %}
   {% set mentions = [] %}
   {% set likes = [] %}
@@ -20,7 +18,7 @@
   
   {% if likes.length %}
   <div class="webmentions__facepile">
-    <h4>{{ likes.length }} like{% if likes.length != 1 %}s{% endif %}</h4>
+    <h4>{{ likes.length }} favorite{% if likes.length != 1 %}s{% endif %}</h4>
     <ul class="webmentions__faces">
       {% for like in likes %}
       <li>
