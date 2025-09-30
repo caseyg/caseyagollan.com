@@ -7,9 +7,12 @@ const pluginWebc = require("@11ty/eleventy-plugin-webc");
 const pluginWebmentions = require("@chrisburnell/eleventy-cache-webmentions");
 const sanitizeHTML = require("sanitize-html");
 
-module.exports = function (eleventyConfig) {
+module.exports = async function (eleventyConfig) {
+  const { RenderPlugin } = await import("@11ty/eleventy");
+
   // Plugins
   eleventyConfig.addPlugin(pluginRss);
+  eleventyConfig.addPlugin(RenderPlugin);
   eleventyConfig.addPlugin(pluginWebc, {
     components: [
       "./_components/**/*.webc",
