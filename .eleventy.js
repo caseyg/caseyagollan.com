@@ -1,3 +1,6 @@
+// Load environment variables from .env file
+require('dotenv').config();
+
 const _ = require("lodash");
 const pluginRss = require("@11ty/eleventy-plugin-rss");
 const pluginWebc = require("@11ty/eleventy-plugin-webc");
