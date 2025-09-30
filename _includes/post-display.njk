@@ -180,4 +180,8 @@
   {% endif %}
 
   {% include "partials/post-footer.njk" %}
+
+  {% if post.isSingle %}
+    {% include "partials/webmentions.njk" %}
+  {% endif %}
 </article>

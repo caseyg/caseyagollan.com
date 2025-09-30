@@ -22,13 +22,11 @@
       {% endfor %}
     {% endif %}
     {% set absoluteUrl = metadata.url + post.url %}
-    {% set wmCounts = webmentions | countWebmentions(absoluteUrl) %}
+    {% set postWebmentions = (webmentionsByUrl[absoluteUrl] if webmentionsByUrl else []) or [] %}
+    {% set wmCounts = postWebmentions | countWebmentions(absoluteUrl) %}
     {% if wmCounts.total > 0 %}
-      <a href="{{ post.url }}#webmentions" class="meta-segment webmention-link">
-        {% if wmCounts.likes > 0 %}<span title="{{ wmCounts.likes }} like{% if wmCounts.likes != 1 %}s{% endif %}">♥{{ wmCounts.likes }}</span>{% endif %}
-        {% if wmCounts.reposts > 0 %}<span title="{{ wmCounts.reposts }} repost{% if wmCounts.reposts != 1 %}s{% endif %}">🔁{{ wmCounts.reposts }}</span>{% endif %}
-        {% if wmCounts.replies > 0 %}<span title="{{ wmCounts.replies }} repl{% if wmCounts.replies == 1 %}y{% else %}ies{% endif %}">💬{{ wmCounts.replies }}</span>{% endif %}
-        {% if wmCounts.mentions > 0 %}<span title="{{ wmCounts.mentions }} mention{% if wmCounts.mentions != 1 %}s{% endif %}">🔗{{ wmCounts.mentions }}</span>{% endif %}
+      <a href="{{ post.url }}#webmentions" class="meta-segment webmention-count" title="{{ wmCounts.likes }} favorite{% if wmCounts.likes != 1 %}s{% endif %}, {{ wmCounts.reposts }} repost{% if wmCounts.reposts != 1 %}s{% endif %}, {{ wmCounts.replies }} repl{% if wmCounts.replies == 1 %}y{% else %}ies{% endif %}">
+        {% if wmCounts.likes > 0 %}⭐{{ wmCounts.likes }}{% endif %}{% if wmCounts.reposts > 0 %}{% if wmCounts.likes > 0 %} {% endif %}🔁{{ wmCounts.reposts }}{% endif %}{% if wmCounts.replies > 0 %}{% if wmCounts.likes > 0 or wmCounts.reposts > 0 %} {% endif %}💬{{ wmCounts.replies }}{% endif %}
       </a>
     {% endif %}
   </div>
