@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "eleventy",
+    "build": "git submodule update --remote --merge && eleventy",
     "build-ghpages": "eleventy",
     "start": "eleventy --serve --port 8080",
     "dev": "npm run start",
