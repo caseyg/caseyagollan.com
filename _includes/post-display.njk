@@ -1,9 +1,9 @@
 {# Determine post type based on microformat properties #}
 {% if post.data.bookmarkOf or post.data['bookmark-of'] %}
   {% set postType = "bookmark" %}
-{% elif post.data['in-reply-to'] and post.data.rsvp %}
+{% elif (post.data.inReplyTo or post.data['in-reply-to']) and post.data.rsvp %}
   {% set postType = "rsvp" %}
-{% elif post.data['in-reply-to'] %}
+{% elif post.data.inReplyTo or post.data['in-reply-to'] %}
   {% set postType = "reply" %}
 {% elif post.data['repost-of'] %}
   {% set postType = "repost" %}
@@ -40,7 +40,7 @@
   {% elif postType == "reply" %}
     <div class="reply-content">
       <p class="reply-context">
-        ↩️ In reply to: <a href="{{ post.data['in-reply-to'] }}" class="u-in-reply-to">{{ post.data['in-reply-to'] }}</a>
+        ↩️ In reply to: <a href="{{ post.data.inReplyTo or post.data['in-reply-to'] }}" class="u-in-reply-to">{{ post.data.inReplyTo or post.data['in-reply-to'] }}</a>
       </p>
       <div class="e-content">{{ post.templateContent | safe }}</div>
     </div>
@@ -135,7 +135,7 @@
         {% else %}
           📅 RSVPed to:
         {% endif %}
-        <a href="{{ post.data['in-reply-to'] }}" class="u-in-reply-to">{{ post.data['in-reply-to'] }}</a>
+        <a href="{{ post.data.inReplyTo or post.data['in-reply-to'] }}" class="u-in-reply-to">{{ post.data.inReplyTo or post.data['in-reply-to'] }}</a>
       </p>
       <data class="p-rsvp" value="{{ post.data.rsvp }}">{{ post.data.rsvp }}</data>
       {% if post.templateContent %}
