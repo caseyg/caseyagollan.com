@@ -1,6 +1,7 @@
 const _ = require("lodash");
 const pluginRss = require("@11ty/eleventy-plugin-rss");
 const pluginWebc = require("@11ty/eleventy-plugin-webc");
+const pluginWebmentions = require("@chrisburnell/eleventy-cache-webmentions");
 const sanitizeHTML = require("sanitize-html");
 
 module.exports = function (eleventyConfig) {
@@ -10,6 +11,22 @@ module.exports = function (eleventyConfig) {
     components: [
       "./_components/**/*.webc",
     ]
+  });
+
+  // Webmentions plugin
+  eleventyConfig.addPlugin(pluginWebmentions, {
+    domain: "caseyagollan.com",
+    feed: `https://webmention.io/api/mentions.jf2?domain=caseyagollan.com&token=${process.env.WEBMENTION_IO_TOKEN || ''}&per-page=10000`,
+    key: "children",
+    directory: ".cache",
+    duration: "1d",
+    uniqueKey: "wm-id",
+    allowedHTML: {
+      allowedTags: ["b", "i", "em", "strong", "a"],
+      allowedAttributes: {
+        a: ["href"]
+      }
+    }
   });
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
@@ -44,6 +61,8 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addNunjucksFilter(
     "getWebmentionsForUrl",
     function (webmentions, url) {
+      if (!webmentions || !Array.isArray(webmentions)) return [];
+
       const allowedTypes = ["mention-of", "in-reply-to"];
       const allowedHTML = {
         allowedTags: ["b", "i", "em", "strong", "a"],
@@ -93,6 +112,7 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addNunjucksFilter(
     "getWebmentionLikes",
     function (webmentions, url) {
+      if (!webmentions || !Array.isArray(webmentions)) return [];
       return webmentions
         .filter((entry) => entry["wm-target"] === url)
         .filter((entry) => entry["wm-property"] === "like-of");
@@ -103,6 +123,7 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addNunjucksFilter(
     "getWebmentionReposts",
     function (webmentions, url) {
+      if (!webmentions || !Array.isArray(webmentions)) return [];
       return webmentions
         .filter((entry) => entry["wm-target"] === url)
         .filter((entry) => entry["wm-property"] === "repost-of");
@@ -113,6 +134,10 @@ module.exports = function (eleventyConfig) {
   eleventyConfig.addNunjucksFilter(
     "countWebmentions",
     function (webmentions, url) {
+      if (!webmentions || !Array.isArray(webmentions)) {
+        return { total: 0, likes: 0, reposts: 0, replies: 0, mentions: 0 };
+      }
+
       const filtered = webmentions.filter(
         (entry) => entry["wm-target"] === url,
       );

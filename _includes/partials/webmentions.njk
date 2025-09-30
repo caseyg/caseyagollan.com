@@ -1,13 +1,13 @@
 {% set pageUrl = post.url if post and post.url else page.url %}
 {% set absoluteUrl = metadata.url + pageUrl %}
 
-<!-- Debug: Looking for URL = {{ absoluteUrl }}, total webmentions = {{ webmentions.children.length if webmentions and webmentions.children else 0 }} -->
-<!-- Debug: webmentions exists = {{ "yes" if webmentions else "no" }}, has children = {{ "yes" if (webmentions and webmentions.children) else "no" }} -->
+<!-- Debug: Looking for URL = {{ absoluteUrl }}, total webmentions = {{ webmentions.length if webmentions else 0 }} -->
+<!-- Debug: webmentions exists = {{ "yes" if webmentions else "no" }}, is array = {{ "yes" if (webmentions and webmentions.length) else "no" }} -->
 
-{% if webmentions and webmentions.children %}
-  {% set mentions = webmentions.children | getWebmentionsForUrl(absoluteUrl) %}
-  {% set likes = webmentions.children | getWebmentionLikes(absoluteUrl) %}
-  {% set reposts = webmentions.children | getWebmentionReposts(absoluteUrl) %}
+{% if webmentions %}
+  {% set mentions = webmentions | getWebmentionsForUrl(absoluteUrl) %}
+  {% set likes = webmentions | getWebmentionLikes(absoluteUrl) %}
+  {% set reposts = webmentions | getWebmentionReposts(absoluteUrl) %}
 {% else %}
   {% set mentions = [] %}
   {% set likes = [] %}
