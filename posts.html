@@ -17,7 +17,7 @@ permalink: /posts/
 </div>
 
 <div class="posts-list h-feed">
-    {% for dateKey, posts in collections.postsByDay | dictsort | reverse %}
+    {% for dateKey, postsForDay in collections.postsByDay | dictsort | reverse %}
     {% set dateParts = dateKey.split('-') %}
     <h2 class="date-header">
         <div class="meta-pill">
@@ -26,6 +26,8 @@ permalink: /posts/
           <a href="/{{ dateParts[0] }}/{{ dateParts[1] }}/{{ dateParts[2] }}/" class="meta-segment">{{ dateParts[2] }}</a>
         </div>
     </h2>
-    {% for post in posts | reverse %} {% include "post-display.njk" %} {% endfor
-    %} {% endfor %}
+    {% for post in postsForDay | reverse %}
+    {% include "post-display.njk" %}
+    {% endfor %}
+    {% endfor %}
 </div>
