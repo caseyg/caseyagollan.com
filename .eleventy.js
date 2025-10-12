@@ -6,6 +6,8 @@ const pluginRss = require("@11ty/eleventy-plugin-rss");
 const pluginWebc = require("@11ty/eleventy-plugin-webc");
 const pluginWebmentions = require("@chrisburnell/eleventy-cache-webmentions");
 const sanitizeHTML = require("sanitize-html");
+const markdownIt = require("markdown-it");
+const pluginEmbedEverything = require("eleventy-plugin-embed-everything");
 
 module.exports = async function (eleventyConfig) {
   const { RenderPlugin } = await import("@11ty/eleventy");
@@ -18,6 +20,7 @@ module.exports = async function (eleventyConfig) {
       "./_components/**/*.webc",
     ]
   });
+  eleventyConfig.addPlugin(pluginEmbedEverything);
 
   // Webmentions plugin
   eleventyConfig.addPlugin(pluginWebmentions, {
@@ -36,6 +39,14 @@ module.exports = async function (eleventyConfig) {
   });
   // Filters
   eleventyConfig.addNunjucksFilter("json", (value) => JSON.stringify(value));
+
+  // Markdown configuration for automatic link detection and embeds
+  const markdownLibrary = markdownIt({
+    html: true,
+    breaks: true,
+    linkify: true,
+  });
+  eleventyConfig.setLibrary("md", markdownLibrary);
 
   // Custom truncate filter to use ellipsis character
   eleventyConfig.addNunjucksFilter("truncate", (str, length = 200) => {
