@@ -1,19 +1,15 @@
 /**
- * Cloudflare Workers configuration for caseyagollan.com
- * https://developers.cloudflare.com/workers/wrangler/configuration/
+ * Cloudflare Pages configuration for caseyagollan.com
+ * https://developers.cloudflare.com/pages/
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "caseyagollan-com",
-	"main": ".svelte-kit/cloudflare/_worker.js",
+	"name": "caseyagollan",
+	"pages_build_output_dir": ".svelte-kit/cloudflare",
 	"compatibility_date": "2025-01-19",
 	"compatibility_flags": [
 		"nodejs_als"
 	],
-	"assets": {
-		"binding": "ASSETS",
-		"directory": ".svelte-kit/cloudflare"
-	},
 	"observability": {
 		"enabled": true
 	},
