@@ -1,9 +1,28 @@
+/**
+ * Cloudflare Pages configuration for caseyagollan.com
+ * https://developers.cloudflare.com/pages/
+ */
 {
-  "name": "caseyagollan",
-  "compatibility_date": "2025-09-30",
-  "pages_build_output_dir": "_site",
-  "vars": {
-    "NODE_ENV": "production",
-    "WEBMENTION_IO_TOKEN": "***REMOVED***"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "caseyagollan",
+	"pages_build_output_dir": ".svelte-kit/cloudflare",
+	"compatibility_date": "2025-01-19",
+	"compatibility_flags": [
+		"nodejs_als"
+	],
+	"observability": {
+		"enabled": true
+	},
+	/**
+	 * KV Namespace for caching AI insights
+	 * Using the same namespace for both dev and production
+	 * Use `wrangler dev --remote` to test against real KV
+	 */
+	"kv_namespaces": [
+		{
+			"binding": "INSIGHT_CACHE",
+			"id": "9eca3bf2742740d78191c5be95a5be97",
+			"preview_id": "9eca3bf2742740d78191c5be95a5be97"
+		}
+	]
 }

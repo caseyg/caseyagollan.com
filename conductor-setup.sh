@@ -3,24 +3,18 @@ set -e
 
 echo "🚀 Setting up workspace for caseyagollan.com..."
 
-# Check if Node.js is installed
-if ! command -v node &> /dev/null; then
-    echo "❌ Error: Node.js is not installed. Please install Node.js first."
+# Check if Bun is installed
+if ! command -v bun &> /dev/null; then
+    echo "❌ Error: Bun is not installed. Please install Bun first."
+    echo "   Visit: https://bun.sh"
     exit 1
 fi
 
-# Check if npm is installed
-if ! command -v npm &> /dev/null; then
-    echo "❌ Error: npm is not installed. Please install npm first."
-    exit 1
-fi
+echo "✅ Bun $(bun --version) found"
 
-echo "✅ Node.js $(node --version) found"
-echo "✅ npm $(npm --version) found"
-
-# Install npm dependencies
-echo "📦 Installing npm dependencies..."
-npm install
+# Install dependencies
+echo "📦 Installing dependencies..."
+bun install
 
 # Initialize and update git submodule
 echo "📚 Initializing content submodule..."
@@ -39,4 +33,4 @@ fi
 
 echo ""
 echo "✨ Workspace setup complete!"
-echo "   Run 'npm run dev' to start the development server"
+echo "   Run 'bun run dev' to start the development server"

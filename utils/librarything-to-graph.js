@@ -44,9 +44,9 @@ fs.readFile(filename, 'utf8', async (err, data) => {
     const ddcWordingSet = new Set();
 
     // Ensure the 'img' directory exists
-    const imgDir = './library/img';
+    const imgDir = './static/library/img';
     if (!fs.existsSync(imgDir)){
-      fs.mkdirSync(imgDir);
+      fs.mkdirSync(imgDir, { recursive: true });
     }
 
     // Collect all unique DDC wordings and create nodes for each book
@@ -164,11 +164,11 @@ fs.readFile(filename, 'utf8', async (err, data) => {
     const processedData = { nodes: filteredNodes, links: filteredLinks };
 
     // Write the processed data to graph.json
-    fs.writeFile('./library/graph.json', JSON.stringify(processedData, null, 2), err => {
+    fs.writeFile('./static/library/graph.json', JSON.stringify(processedData, null, 2), err => {
       if (err) {
         console.error(`Error writing file: ${err}`);
       } else {
-        console.log('Successfully wrote graph data to graph.json');
+        console.log('Successfully wrote graph data to static/library/graph.json');
       }
     });
   } catch (parseErr) {
