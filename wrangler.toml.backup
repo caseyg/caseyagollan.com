@@ -1,0 +1,7 @@
+name = "caseyagollan-com"
+compatibility_date = "2025-01-19"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "INSIGHT_CACHE"
+id = "9eca3bf2742740d78191c5be95a5be97"

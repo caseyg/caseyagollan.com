@@ -1,5 +1,54 @@
 # TODO
 
+## Homepage Skills Graph - AI Insights (2025-10-19)
+
+### ✅ Completed
+- [x] Structured insight output with custom `provide_insight` tool
+- [x] Returns `insight` + `recommended_topics` array (2-3 topics)
+- [x] Enhanced prompt with verb tense handling, source preferences, current year
+- [x] Sources extracted from web search results (up to 5 displayed)
+- [x] InsightCard UI updated to display recommended topics and sources
+- [x] Fixed streaming detection for custom tool (`tool_use` vs `server_tool_use`)
+- [x] Cloudflare KV namespace created (`INSIGHT_CACHE`)
+- [x] KV caching logic in `/api/generate-insight`:
+  - Check cache before API calls (24-hour TTL)
+  - Replay all streaming events from cache on hit
+  - Save all events + data after successful API call
+- [x] TypeScript types added for Cloudflare Workers platform bindings
+- [x] `wrangler.toml` configured with KV binding and `nodejs_compat` flag
+- [x] Updated to `@sveltejs/adapter-cloudflare`
+
+### 🔧 Current State
+- **Development workflow options**:
+  - `bun run dev` - Vite dev server on :5173 (fast HMR, no KV bindings)
+  - `bun run preview` - Wrangler Pages dev with local KV simulation (build first)
+  - `bun run preview:remote` - Wrangler with remote production KV (build first)
+- KV implementation complete and production-ready
+- **Environment variables**: Both API routes use `platform.env` (required for Cloudflare Workers)
+- **Wrangler Configuration**: `wrangler.jsonc` configured
+  - Workers format with `main` and `assets` bindings
+  - `nodejs_als` compatibility flag
+  - KV namespace binding: `INSIGHT_CACHE`
+  - Observability enabled
+- **✅ Local KV testing fixed**: Use `wrangler pages dev` after build instead of trying to run wrangler during build
+  - SvelteKit uses Vite for dev (no bindings), Wrangler for preview/deploy (with bindings)
+  - EPIPE error resolved by building first, then running wrangler on completed output
+
+### 📝 Notes
+- Cache key format: `insight:{topic}` (lowercase, trimmed)
+- Cache includes: timestamp, topic, insight, recommendedTopics, sources, events array
+- Original implementation reference: `/Users/cag/GitHub/caseyagollan.com/.conductor/tallinn/src/routes/api.insights.ts`
+- Model: `claude-haiku-4-5-20251001` with temperature 1
+- Web search tool: `web_search_20250305`
+
+### 🚀 Next Steps (when ready)
+- [ ] Test KV locally with `bun run preview` to verify cache hits/misses
+- [ ] Deploy to Cloudflare Pages to test KV caching in production
+- [ ] Consider making recommended topics clickable to focus graph
+- [ ] Monitor cache hit rates and API usage
+
+---
+
 ## Library Improvements
 
 - [ ] Fix DDC divider nodes positioning in grid mode - only some are appearing inline in the shelf, need to ensure all relevant DDC dividers show up in proper grid positions when in DDC sort mode

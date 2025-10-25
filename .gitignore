@@ -1,7 +1,34 @@
+# Dependencies
+node_modules
+
+# SvelteKit
+.svelte-kit
+/build
+
+# Cloudflare
+.wrangler
+.dev.vars
+
+# Legacy/Archive (from Eleventy migration)
+.cache
+_site
+archive
+
+# Other build outputs
+.output
+.vercel
+.netlify
+
+# OS
 .DS_Store
-utils/librarything_caseygollan.json
-/node_modules
-_site/
-.claude-trace/
+Thumbs.db
+
+# Environment
 .env
-.cache/
+.env.*
+!.env.example
+!.env.test
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*

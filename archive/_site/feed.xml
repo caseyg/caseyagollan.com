@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <title>Casey Gollan</title>
+  <subtitle>Posts from caseyagollan.com</subtitle>
+  <link href="https://caseyagollan.com/feed.xml" rel="self" />
+  <link href="https://caseyagollan.com/" />
+  <updated>2025-10-16T13:00:01Z</updated>
+  <id>https://caseyagollan.com/</id>
+  <author>
+    <name>Casey Gollan</name>
+  </author>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/10/16/d4642/" />
+    <updated>2025-10-16T13:00:01Z</updated>
+    <id>https://caseyagollan.com/2025/10/16/d4642/</id>
+    <content type="html">&lt;p&gt;i think my deepest &amp;quot;authority issues&amp;quot; thing remaining is just REFUSING to order coffee in branded size terms&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/10/12/sora-cloud-punch/" />
+    <updated>2025-10-13T03:46:54Z</updated>
+    <id>https://caseyagollan.com/2025/10/12/sora-cloud-punch/</id>
+    <content type="html">&lt;p&gt;Tired: Coffee and Claude pop-up. Wired: Kool-Aid and OpenAI data center water brand collab. &lt;a href=&quot;https://sora.chatgpt.com/p/s_68ec6555881881919ff265602115383d&quot;&gt;https://sora.chatgpt.com/p/s_68ec6555881881919ff265602115383d&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/10/12/sora-data-center-water/" />
+    <updated>2025-10-12T13:35:48Z</updated>
+    <id>https://caseyagollan.com/2025/10/12/sora-data-center-water/</id>
+    <content type="html">&lt;p&gt;&amp;quot;Every drop begins in the cloud&amp;quot; … OK Sora kinda ate with this commercial for bottled data center water &lt;a href=&quot;https://sora.chatgpt.com/p/s_68ebad5bb9988191b35dec88fa54a3b5&quot;&gt;https://sora.chatgpt.com/p/s_68ebad5bb9988191b35dec88fa54a3b5&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/10/02/adhd-tax-bike-helmet/" />
+    <updated>2025-10-02T12:45:06Z</updated>
+    <id>https://caseyagollan.com/2025/10/02/adhd-tax-bike-helmet/</id>
+    <content type="html">&lt;p&gt;ADHD tax: buying a new bike helmet approximately every 3 weeks&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>2025-09-30 Changelog</title>
+    <link href="https://caseyagollan.com/2025/09/30/changelog/" />
+    <updated>2025-09-30T20:37:01Z</updated>
+    <id>https://caseyagollan.com/2025/09/30/changelog/</id>
+    <content type="html">&lt;h2&gt;2025-09-29&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Morning: published &amp;quot;Rejection of AI Slop Aesthetic&amp;quot; article through Indiekit.&lt;/li&gt;
+&lt;li&gt;Fixed permalink structure for all post types—articles, notes, bookmarks now use consistent date-based URLs.&lt;/li&gt;
+&lt;li&gt;Improved article display. Removed redundant title links, adding trunctation on index pages, fixing ellipsis handling.&lt;/li&gt;
+&lt;li&gt;Afternoon: typography pass on font sizing and spacing. Built tag system with index pages. Updated nav icons.&lt;/li&gt;
+&lt;li&gt;Late afternoon: refactored inline styles into &lt;code&gt;posts.scss&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Display post metadata as a segmented pill, and update the display a bit. Feeling the liquid glass influence.&lt;/li&gt;
+&lt;li&gt;Made date headers sticky.&lt;/li&gt;
+&lt;li&gt;Evening: migrated from monolithic Nunjucks templates to some reusable WebC components: &lt;code&gt;date-header.webc&lt;/code&gt;, &lt;code&gt;nav-toggles.webc&lt;/code&gt;, &lt;code&gt;post-display.webc&lt;/code&gt;, &lt;code&gt;post-footer.webc&lt;/code&gt;, &lt;code&gt;posts-base.webc&lt;/code&gt;. More to be done here.&lt;/li&gt;
+&lt;li&gt;Trying to make things more DRY and consistent, e.g. same date formatting, metadata, and nav across all archive pages. Fixed post count logic that was lumping notes and bookmarks together.&lt;/li&gt;
+&lt;li&gt;Adjusted pill dimensions to match iOS touch targets. Still wonky. Need to come back to it.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;2025-09-30&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Morning: migrated site from GitHub Pages to Cloudflare Pages. Created &lt;code&gt;wrangler.jsonc&lt;/code&gt;, deleted old GitHub Actions workflows, updated build script to pull content submodule.&lt;/li&gt;
+&lt;li&gt;Added S3 store plugin to Indiekit for Cloudflare R2 media storage. Extracted 146 lines of Indiekit config from &lt;code&gt;package.json&lt;/code&gt; into separate &lt;code&gt;indiekit.config.js&lt;/code&gt;. GitHub repo now handles content, R2 handles media files.&lt;/li&gt;
+&lt;li&gt;Afternoon: debugged env variables across several test deployments. &lt;code&gt;NODE_ENV&lt;/code&gt; and &lt;code&gt;WEBMENTION_IO_TOKEN&lt;/code&gt; needed specific handling in Cloudflare&#39;s build environment. Moved some dev dependencies to regular dependencies.&lt;/li&gt;
+&lt;li&gt;Replaced 101 lines of generated webmentions handling with &lt;code&gt;@chrisburnell/eleventy-cache-webmentions&lt;/code&gt; plugin.&lt;/li&gt;
+&lt;li&gt;Added h-card author info for Bridgy support. Updated templates to use &lt;code&gt;webmentionsByUrl&lt;/code&gt;. Normalized property names—some webmentions use &lt;code&gt;inReplyTo&lt;/code&gt;, others use &lt;code&gt;in-reply-to&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Set up &lt;code&gt;.env&lt;/code&gt; loading for local development. Tested &lt;a href=&quot;http://webmention.io&quot;&gt;webmention.io&lt;/a&gt; webhook.&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/30/quokkas/" />
+    <updated>2025-09-30T18:10:52Z</updated>
+    <id>https://caseyagollan.com/2025/09/30/quokkas/</id>
+    <content type="html">&lt;p&gt;This is a test.&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>Stupid question: As consensus builds around the rejection of &quot;AI slop&quot; aesthetic, is it only a matter of time before models are re-trained to write in the style of &quot;Not AI&quot;?</title>
+    <link href="https://caseyagollan.com/2025/09/29/rejection-of-ai-slop-aesthetic/" />
+    <updated>2025-09-29T15:48:12Z</updated>
+    <id>https://caseyagollan.com/2025/09/29/rejection-of-ai-slop-aesthetic/</id>
+    <content type="html">&lt;p&gt;Wikipedia has an excellent and fascinating page on &lt;a href=&quot;https://en.m.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing&quot;&gt;Signs of AI Writing&lt;/a&gt;, which &lt;a href=&quot;https://www.404media.co/wikipedia-editors-adopt-speedy-deletion-policy-for-ai-slop-articles/&quot;&gt;qualify a page for &amp;quot;speedy deletion&amp;quot;&lt;/a&gt; instead of requiring the community to waste their time deliberating the merits of obvious AI slop.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://caseyagollan.com/media/photos/2025/09/29/screenshot-2025-09-29-at-11-07-31a-am.png&quot; alt=&quot;&quot;&gt;&lt;/p&gt;
+&lt;p&gt;One of my favorite (and maybe lesser known?) capabilities of Claude is the option to define and change &lt;a href=&quot;https://www.anthropic.com/news/styles&quot;&gt;Styles&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;This is probably a bad idea, but my first thought was just to drop the URL of Wikipedia&#39;s guide into Claude and asked it to create a system prompt for avoiding AI-style writing.&lt;/p&gt;
+&lt;p&gt;Notably, it failed to fetch Wikipedia! Probably because of bot blocking due to &lt;a href=&quot;https://www.engadget.com/ai/wikipedia-is-struggling-with-voracious-ai-bot-crawlers-121546854.html&quot;&gt;AI crawlers straining Wikipedia&#39;s servers&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://caseyagollan.com/media/photos/2025/09/29/screenshot-2025-09-29-at-11-14-35a-am.png&quot; alt=&quot;&quot;&gt;&lt;/p&gt;
+&lt;p&gt;Claude attempted to gather the content some other way, but I stopped it and just pasted in the text from the page I already had open.&lt;/p&gt;
+&lt;p&gt;Here&#39;s the &amp;quot;Not AI&amp;quot; system prompt I got back:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Based on the Wikipedia page about AI writing patterns, here&#39;s a system prompt designed to help avoid these telltale signs:&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2&gt;Writing Style Instructions&lt;/h2&gt;
+&lt;p&gt;Write in a natural, varied style that reflects genuine human communication. Focus on clarity and specificity rather than rhetorical flourishes.&lt;/p&gt;
+&lt;h3&gt;Core Principles&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;Be specific, not symbolic.&lt;/strong&gt; State facts directly without inflating their importance. Instead of &amp;quot;stands as a testament to innovation,&amp;quot; write &amp;quot;introduced a new approach.&amp;quot; Avoid describing everything as vital, crucial, captivating, or significant.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Use concrete details.&lt;/strong&gt; Replace generic praise with specific information. Rather than &amp;quot;revolutionary titan of industry,&amp;quot; write &amp;quot;invented a train-coupling device.&amp;quot; Ground your writing in observable facts.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Vary your writing patterns.&lt;/strong&gt; Mix short and long sentences naturally. Avoid rigid structures like constant three-part lists or parallel constructions. Let the content determine the structure, not a formula.&lt;/p&gt;
+&lt;h3&gt;What to Avoid&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;Starting responses with praise (&amp;quot;Great question!&amp;quot;) or collaborative language (&amp;quot;Certainly!&amp;quot;, &amp;quot;I&#39;d be happy to...&amp;quot;)&lt;/li&gt;
+&lt;li&gt;Promotional language (breathtaking, must-see, nestled, vibrant tapestry, rich heritage)&lt;/li&gt;
+&lt;li&gt;Unnecessary analysis tags (highlighting, emphasizing, underscoring, reflecting)&lt;/li&gt;
+&lt;li&gt;Section conclusions that restate the main idea&lt;/li&gt;
+&lt;li&gt;&amp;quot;Not only... but also&amp;quot; constructions and &amp;quot;It&#39;s not just X, it&#39;s Y&amp;quot; patterns&lt;/li&gt;
+&lt;li&gt;Attribution to vague authorities (some experts say, observers note, industry reports suggest)&lt;/li&gt;
+&lt;li&gt;Overuse of transition phrases at the beginning of paragraphs&lt;/li&gt;
+&lt;li&gt;Excessive boldface for emphasis or lists with bolded headers&lt;/li&gt;
+&lt;li&gt;Em dashes where commas or parentheses would work better&lt;/li&gt;
+&lt;li&gt;Future speculation sections about challenges and prospects&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;What to Do Instead&lt;/h3&gt;
+&lt;p&gt;Write with genuine voice and natural variation. Use formatting only when it truly aids comprehension. Support claims with specific sources or acknowledge uncertainty. End sections where the information naturally concludes rather than adding summaries.&lt;/p&gt;
+&lt;p&gt;When discussing any topic, present information neutrally without inserting editorial comments about importance or significance. If something is truly important, the facts themselves will convey this.&lt;/p&gt;
+&lt;p&gt;Choose simple, direct language over inflated vocabulary. Write &amp;quot;affects&amp;quot; not &amp;quot;impacts,&amp;quot; &amp;quot;problem&amp;quot; not &amp;quot;challenge,&amp;quot; &amp;quot;helps&amp;quot; not &amp;quot;enhances.&amp;quot; Let strong facts speak for themselves without rhetorical amplification.&lt;/p&gt;
+&lt;p&gt;Remember: Good writing sounds like a knowledgeable person explaining something clearly, not like a press release or academic abstract. Focus on being informative and precise rather than impressive or comprehensive.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I added this to Claude as a new style called &amp;quot;Not AI&amp;quot;:&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://caseyagollan.com/media/photos/2025/09/29/screenshot-2025-09-29-at-11-22-48a-am.png&quot; alt=&quot;&quot;&gt;&lt;/p&gt;
+&lt;p&gt;And then I prompted Claude to &amp;quot;Write 3 paragraphs about Wikipedia&amp;quot;.&lt;/p&gt;
+&lt;p&gt;Here&#39;s Claude&#39;s response without any style applied (the default). The slop is evident before even getting to the end of the first sentence. 🤣&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Wikipedia stands as one of the most remarkable achievements of the internet age, fundamentally transforming how people access and share knowledge.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;I mean, it&#39;s not &lt;em&gt;wrong&lt;/em&gt;. But it is melodramatic! Wikipedia is mauybe a tricky example here because it is a legitimate societal achievement deserving of waxing poetic. Claude continues:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Launched in January 2001 by Jimmy Wales and Larry Sanger, this free online encyclopedia emerged from an earlier project called Nupedia and quickly grew beyond anyone&#39;s expectations. The name itself combines &amp;quot;wiki,&amp;quot; a Hawaiian word meaning &amp;quot;quick,&amp;quot; with &amp;quot;encyclopedia,&amp;quot; perfectly capturing its essence as a rapidly evolving repository of human knowledge. Today, Wikipedia exists in over 300 languages and contains millions of articles, making it one of the most visited websites globally and the largest reference work in human history.&lt;/p&gt;
+&lt;p&gt;The revolutionary aspect of Wikipedia lies in its collaborative model, where anyone with internet access can contribute, edit, and improve articles. This radical departure from traditional encyclopedia creation relies on a community of volunteers who write, fact-check, and maintain content according to core principles like neutrality, verifiability, and the use of reliable sources.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Tells here: &amp;quot;revolutionary&amp;quot;, &amp;quot;radical&amp;quot;. Again, true! And also trademark slop.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The platform operates on MediaWiki software and follows a complex governance structure with administrators, editors, and various dispute resolution mechanisms. While this open model has faced criticism regarding accuracy and vandalism, numerous studies have shown Wikipedia&#39;s reliability to be comparable to traditional encyclopedias, particularly for scientific topics, thanks to its active community of editors who quickly correct errors and update information.&lt;/p&gt;
+&lt;p&gt;Wikipedia&#39;s impact extends far beyond being merely a reference tool, as it has democratized access to information on an unprecedented scale and influenced how we think about knowledge creation and sharing in the digital age. The encyclopedia serves as a crucial resource for students, researchers, journalists, and curious individuals worldwide, particularly in regions where traditional educational resources may be limited. Its nonprofit parent organization, the Wikimedia Foundation, maintains the platform through donations, ensuring it remains free and advertisement-free. Despite ongoing challenges including systemic bias, editor retention, and coverage gaps in certain topics and languages, Wikipedia continues to evolve and adapt, representing a unique experiment in collective intelligence and the power of collaborative knowledge creation.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;OK! Here&#39;s the same prompt but with the &amp;quot;Not AI&amp;quot; style enabled:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;Wikipedia launched in January 2001 when Jimmy Wales and Larry Sanger created it as a free, openly editable encyclopedia. The site grew from a few hundred articles in its first year to over 60 million articles across more than 300 languages today. Unlike traditional encyclopedias that relied on paid experts, Wikipedia allowed anyone with internet access to write and edit articles, a radical departure from how reference works had been created for centuries.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;OK first ding here is for &amp;quot;radical&amp;quot; 🤣 but in this case, it feels better placed as a callout of a specific differentiator rather than just another embellishment in a list of embellishments.&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;The site runs on a wiki software platform called MediaWiki, which tracks every edit made to every article. Volunteer editors follow five core principles: Wikipedia should maintain a neutral point of view, be verifiable through reliable sources, contain no original research, respect copyright, and follow behavioral guidelines for civil interaction. These volunteers range from subject matter experts contributing to their fields to students fixing typos they spot while doing homework. The Wikimedia Foundation, a nonprofit organization based in San Francisco, maintains the servers and employs about 700 staff members, though the actual content creation and moderation comes from roughly 120,000 active volunteer editors worldwide.&lt;/p&gt;
+&lt;p&gt;Wikipedia has become one of the most visited websites globally, receiving around 15 billion page views per month. Studies have found its accuracy comparable to traditional encyclopedias for many topics, though coverage depth varies significantly by subject. Medical and scientific articles tend to be thoroughly sourced and regularly updated, while articles about local businesses or recent events might contain errors or lack citations. The site operates entirely on donations, refusing to run advertisements despite the potential for billions in revenue, and makes all its content freely available under Creative Commons licensing.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;Overall better! More concise and just plain — in a good way. So is the guidance given by Wikipedia just ... good advice for writing in general?&lt;/p&gt;
+&lt;p&gt;And (stupid question) as consensus builds around the rejection of &amp;quot;AI slop&amp;quot; aesthetic, is it only a matter of time before models are re-trained to write in the style of &amp;quot;Not AI&amp;quot;?&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/27/6c526/" />
+    <updated>2025-09-27T20:26:28Z</updated>
+    <id>https://caseyagollan.com/2025/09/27/6c526/</id>
+    <content type="html">&lt;p&gt;I am ashamed and very sorry to admit that I love(??) Meta Vibes™️ especially because the comments on good posts are just straight up like &amp;quot;Good Slop!&amp;quot;&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/14/b24cf/" />
+    <updated>2025-09-14T14:36:25Z</updated>
+    <id>https://caseyagollan.com/2025/09/14/b24cf/</id>
+    <content type="html">&lt;p&gt;💗 the software doesn&#39;t actually exist yet for this one! I am trying docs (instead of code) as a starting point. So, interested to hear your thoughts on if you&#39;d use this and how (ideally) something like this would work for you.&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/13/2295d/" />
+    <updated>2025-09-13T20:36:39Z</updated>
+    <id>https://caseyagollan.com/2025/09/13/2295d/</id>
+    <content type="html">&lt;p&gt;Otso: Local-first IndieWeb toolkit for archiving, syncing, harmonizing, and publishing your internet trails and streams. &lt;a href=&quot;https://otso.run&quot;&gt;https://otso.run&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;(Decided to try hallucinating a new piece of #indieweb software into existence. Would you run Otso?)&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/09/9cb38/" />
+    <updated>2025-09-10T00:01:53Z</updated>
+    <id>https://caseyagollan.com/2025/09/09/9cb38/</id>
+    <content type="html">&lt;p&gt;Daddy&#39;s Car (2016) is soOoo nostalgic for a different age of AI 👀 &lt;a href=&quot;https://youtu.be/LSHZ_b05W7o&quot;&gt;https://youtu.be/LSHZ_b05W7o&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/08/04359/" />
+    <updated>2025-09-09T02:58:28Z</updated>
+    <id>https://caseyagollan.com/2025/09/08/04359/</id>
+    <content type="html">&lt;p&gt;[test]&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/08/e8e21/" />
+    <updated>2025-09-08T23:53:08Z</updated>
+    <id>https://caseyagollan.com/2025/09/08/e8e21/</id>
+    <content type="html">&lt;p&gt;@stelar@mas.to ended up going with indiekit, 11ty, github actions … so far so good! but still noodling&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/07/indiekit-progress/" />
+    <updated>2025-09-07T17:43:52Z</updated>
+    <id>https://caseyagollan.com/2025/09/07/indiekit-progress/</id>
+    <content type="html">&lt;p&gt;Today&#39;s Indiekit progress:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Made a bunch of new Github Issues here: &lt;a href=&quot;https://github.com/caseyg/caseyagollan.com/issues&quot;&gt;https://github.com/caseyg/caseyagollan.com/issues&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Researched and tested micropub clients, but didn&#39;t find any that I really love: &lt;a href=&quot;https://indieweb.org/Micropub/Clients&quot;&gt;https://indieweb.org/Micropub/Clients&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Fixed timezone (UTC → EST)&lt;/li&gt;
+&lt;li&gt;(Partially) implemented Webmentions using &lt;a href=&quot;http://webmention.io&quot;&gt;webmention.io&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;Compared Indiekit’s JSON feed plugin with 11ty’s RSS feed, ended up going with 11ty&lt;/li&gt;
+&lt;li&gt;Setup Bridgy for backfeeding webmentions from social platforms (Mastodon, Bluesky, Flickr, Github) but not sure it&#39;s fully implemented yet&lt;/li&gt;
+&lt;li&gt;Experimented with a SvelteKit/Vercel/Neon fork instead of 11ty + IndieKit&lt;/li&gt;
+&lt;/ol&gt;
+</content>
+  </entry>
+  <entry>
+    <title>Webmentions Tester</title>
+    <link href="https://caseyagollan.com/2025/09/07/webmentions-tester/" />
+    <updated>2025-09-07T16:41:43Z</updated>
+    <id>https://caseyagollan.com/2025/09/07/webmentions-tester/</id>
+    <content type="html">&lt;p&gt;Testing outgoing webmentions&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/07/ea598/" />
+    <updated>2025-09-07T16:22:33Z</updated>
+    <id>https://caseyagollan.com/2025/09/07/ea598/</id>
+    <content type="html">&lt;p&gt;Testing if my timezone fix worked &lt;a href=&quot;https://github.com/caseyg/caseyagollan.com/issues/6&quot;&gt;https://github.com/caseyg/caseyagollan.com/issues/6&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>Testing iA writer as a micropub client</title>
+    <link href="https://caseyagollan.com/2025/09/07/testing-ia-writer-as-a/" />
+    <updated>2025-09-07T14:09:09Z</updated>
+    <id>https://caseyagollan.com/2025/09/07/testing-ia-writer-as-a/</id>
+    <content type="html">&lt;p&gt;Testing iA writer as a micropub client&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>Quill Docs</title>
+    <link href="https://caseyagollan.com/2025/09/07/quill-docs/" />
+    <updated>2025-09-07T13:43:49Z</updated>
+    <id>https://caseyagollan.com/2025/09/07/quill-docs/</id>
+    <content type="html">&lt;p&gt;Quill is a simple Micropub client for creating posts on your own website.&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/06/indiekit-progress/" />
+    <updated>2025-09-06T20:30:17Z</updated>
+    <id>https://caseyagollan.com/2025/09/06/indiekit-progress/</id>
+    <content type="html">&lt;p&gt;Made a lot of progress on my Indiekit site today: &lt;a href=&quot;https://caseyagollan.com/posts&quot;&gt;https://caseyagollan.com/posts&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;It wasn’t super intuitive on my first go to understand which repository structure to use from the docs.&lt;/p&gt;
+&lt;p&gt;But looking at Paul’s site, I found that it would be better to create a separate content repository.&lt;/p&gt;
+&lt;p&gt;I also realized I should separate the &amp;quot;Kit&amp;quot; repository from the static 11ty site accessed by users. The Indiekit application is really content management and a bunch of server-side functions that deal with syndication, webmentions, etc. So I moved the 11ty logic to the main &lt;a href=&quot;http://caseyagollan.com&quot;&gt;caseyagollan.com&lt;/a&gt; site.&lt;/p&gt;
+&lt;p&gt;I referenced simonw’s site a bunch which is visually pretty basic but has a very thoughtful IA if you look closely at the construction of archive pages, post grouping, and display of metadata.&lt;/p&gt;
+&lt;p&gt;I customized the post slugs because the Indiekit/11ty preset defaults didn’t match the IA from Simon which I liked.&lt;/p&gt;
+&lt;p&gt;I also referenced Paul’s site for an example of how to configure 11ty using git submodules to load content from a separate repository.&lt;/p&gt;
+&lt;p&gt;It&#39;s working! But the posts looked bad. Some like bookmarks were actually empty. So also added post display types based on each Indiekit post type.&lt;/p&gt;
+&lt;p&gt;Did some more stuff that I already forgot. Will write more soon!&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>webmention.io</title>
+    <link href="https://caseyagollan.com/2025/09/06/webmention-io/" />
+    <updated>2025-09-06T16:38:56Z</updated>
+    <id>https://caseyagollan.com/2025/09/06/webmention-io/</id>
+    <content type="html">&lt;p&gt;Testing indiekit share bookmarklet&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/06/b306f/" />
+    <updated>2025-09-06T16:04:45Z</updated>
+    <id>https://caseyagollan.com/2025/09/06/b306f/</id>
+    <content type="html">&lt;p&gt;Testing new indiekit config...&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>Dog Names Overheard</title>
+    <link href="https://caseyagollan.com/2025/09/06/dog-names-overheard/" />
+    <updated>2025-09-06T13:16:31Z</updated>
+    <id>https://caseyagollan.com/2025/09/06/dog-names-overheard/</id>
+    <content type="html"></content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/01/33222/" />
+    <updated>2025-09-01T23:55:04Z</updated>
+    <id>https://caseyagollan.com/2025/09/01/33222/</id>
+    <content type="html"></content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/01/207e2/" />
+    <updated>2025-09-01T22:00:09Z</updated>
+    <id>https://caseyagollan.com/2025/09/01/207e2/</id>
+    <content type="html">&lt;p&gt;Testing syndication again&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title></title>
+    <link href="https://caseyagollan.com/2025/09/01/2501b/" />
+    <updated>2025-09-01T21:12:34Z</updated>
+    <id>https://caseyagollan.com/2025/09/01/2501b/</id>
+    <content type="html">&lt;p&gt;Testing Indiekit 👋 &lt;a href=&quot;https://getindiekit.com/get-started&quot;&gt;https://getindiekit.com/get-started&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry>
+</feed>

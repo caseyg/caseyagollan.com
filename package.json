@@ -1,34 +1,40 @@
 {
-  "name": "caseyagollan.com",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "build": "git submodule update --remote --merge && node -e \"console.log('ENV CHECK:', {NODE_ENV: process.env.NODE_ENV, WEBMENTION_IO_TOKEN: process.env.WEBMENTION_IO_TOKEN ? 'present' : 'missing'})\" && eleventy",
-    "build-ghpages": "eleventy",
-    "start": "eleventy --serve --port 8080",
-    "dev": "npm run start",
-    "serve": "serve . -p 8080",
-    "update-library": "node utils/librarything-to-graph.js",
-    "update-content": "git submodule update --remote --merge"
-  },
-  "dependencies": {
-    "@11ty/eleventy": "^3.1.2",
-    "@11ty/eleventy-plugin-rss": "^2.0.4",
-    "@11ty/eleventy-plugin-webc": "^0.11.2",
-    "@chrisburnell/eleventy-cache-webmentions": "^2.1.11",
-    "dotenv": "^17.2.2",
-    "eleventy-plugin-embed-everything": "^1.21.0",
-    "fs": "^0.0.1-security",
-    "image-size": "^1.1.1",
-    "lodash": "^4.17.21",
-    "markdown-it": "^14.1.0",
-    "node-fetch": "^2.7.0",
-    "sanitize-html": "^2.17.0",
-    "sass": "^1.93.2",
-    "sharp": "^0.33.0"
-  },
-  "devDependencies": {
-    "serve": "^14.2.1",
-    "wrangler": "^4.40.3"
-  }
+	"name": "caseyagollan-com",
+	"private": true,
+	"version": "2.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "bun run build && wrangler pages dev .svelte-kit/cloudflare",
+		"preview:remote": "bun run build && wrangler dev --remote",
+		"deploy": "bun run build && wrangler deploy",
+		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"update-library": "bun utils/librarything-to-graph.js"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20251011.0",
+		"@sveltejs/adapter-auto": "^7.0.0",
+		"@sveltejs/adapter-cloudflare": "^7.2.4",
+		"@sveltejs/kit": "^2.43.2",
+		"@sveltejs/vite-plugin-svelte": "^6.2.0",
+		"mdsvex": "^0.12.6",
+		"svelte": "^5.39.5",
+		"svelte-check": "^4.3.2",
+		"typescript": "^5.9.2",
+		"vite": "^7.1.7",
+		"wrangler": "^4.43.0"
+	},
+	"dependencies": {
+		"3d-force-graph": "^1.79.0",
+		"@anthropic-ai/sdk": "^0.67.0",
+		"d3": "^7.9.0",
+		"gray-matter": "^4.0.3",
+		"marked": "^16.4.1",
+		"three": "^0.180.0",
+		"three-spritetext": "^1.10.0"
+	}
 }

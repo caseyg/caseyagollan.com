@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stupid question: As consensus builds around the rejection of &quot;AI slop&quot; aesthetic, is it only a matter of time before models are re-trained to write in the style of &quot;Not AI&quot;? - Casey Gollan</title>
+  <link rel="stylesheet" href="https://use.typekit.net/rfh8wvj.css" />
+  <link rel="stylesheet" href="/assets/posts.css" />
+  <link rel="webmention" href="https://webmention.io/caseyagollan.com/webmention" />
+  <link rel="alternate" type="application/atom+xml" title="Casey Gollan - All Posts" href="/feed.xml" />
+</head>
+<body>
+  <div class="nav-toggles">
+    <a href="/">👋</a>
+    <!-- <a href="/ai/">🤖</a> -->
+    <a href="/library/">📚</a>
+    
+      <a href="/posts/">📡</a>
+    
+  </div>
+
+  
+
+
+
+
+
+  
+
+<article class="h-entry post-type-article is-single">
+
+  
+  
+    
+      <h1 class="p-name">Stupid question: As consensus builds around the rejection of &quot;AI slop&quot; aesthetic, is it only a matter of time before models are re-trained to write in the style of &quot;Not AI&quot;?</h1>
+      
+      <div class="e-content"><p>Wikipedia has an excellent and fascinating page on <a href="https://en.m.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing">Signs of AI Writing</a>, which <a href="https://www.404media.co/wikipedia-editors-adopt-speedy-deletion-policy-for-ai-slop-articles/">qualify a page for &quot;speedy deletion&quot;</a> instead of requiring the community to waste their time deliberating the merits of obvious AI slop.</p>
+<p><img src="https://caseyagollan.com/media/photos/2025/09/29/screenshot-2025-09-29-at-11-07-31a-am.png" alt=""></p>
+<p>One of my favorite (and maybe lesser known?) capabilities of Claude is the option to define and change <a href="https://www.anthropic.com/news/styles">Styles</a>.</p>
+<p>This is probably a bad idea, but my first thought was just to drop the URL of Wikipedia's guide into Claude and asked it to create a system prompt for avoiding AI-style writing.</p>
+<p>Notably, it failed to fetch Wikipedia! Probably because of bot blocking due to <a href="https://www.engadget.com/ai/wikipedia-is-struggling-with-voracious-ai-bot-crawlers-121546854.html">AI crawlers straining Wikipedia's servers</a>.</p>
+<p><img src="https://caseyagollan.com/media/photos/2025/09/29/screenshot-2025-09-29-at-11-14-35a-am.png" alt=""></p>
+<p>Claude attempted to gather the content some other way, but I stopped it and just pasted in the text from the page I already had open.</p>
+<p>Here's the &quot;Not AI&quot; system prompt I got back:</p>
+<blockquote>
+<p>Based on the Wikipedia page about AI writing patterns, here's a system prompt designed to help avoid these telltale signs:</p>
+<hr>
+<h2>Writing Style Instructions</h2>
+<p>Write in a natural, varied style that reflects genuine human communication. Focus on clarity and specificity rather than rhetorical flourishes.</p>
+<h3>Core Principles</h3>
+<p><strong>Be specific, not symbolic.</strong> State facts directly without inflating their importance. Instead of &quot;stands as a testament to innovation,&quot; write &quot;introduced a new approach.&quot; Avoid describing everything as vital, crucial, captivating, or significant.</p>
+<p><strong>Use concrete details.</strong> Replace generic praise with specific information. Rather than &quot;revolutionary titan of industry,&quot; write &quot;invented a train-coupling device.&quot; Ground your writing in observable facts.</p>
+<p><strong>Vary your writing patterns.</strong> Mix short and long sentences naturally. Avoid rigid structures like constant three-part lists or parallel constructions. Let the content determine the structure, not a formula.</p>
+<h3>What to Avoid</h3>
+<ul>
+<li>Starting responses with praise (&quot;Great question!&quot;) or collaborative language (&quot;Certainly!&quot;, &quot;I'd be happy to...&quot;)</li>
+<li>Promotional language (breathtaking, must-see, nestled, vibrant tapestry, rich heritage)</li>
+<li>Unnecessary analysis tags (highlighting, emphasizing, underscoring, reflecting)</li>
+<li>Section conclusions that restate the main idea</li>
+<li>&quot;Not only... but also&quot; constructions and &quot;It's not just X, it's Y&quot; patterns</li>
+<li>Attribution to vague authorities (some experts say, observers note, industry reports suggest)</li>
+<li>Overuse of transition phrases at the beginning of paragraphs</li>
+<li>Excessive boldface for emphasis or lists with bolded headers</li>
+<li>Em dashes where commas or parentheses would work better</li>
+<li>Future speculation sections about challenges and prospects</li>
+</ul>
+<h3>What to Do Instead</h3>
+<p>Write with genuine voice and natural variation. Use formatting only when it truly aids comprehension. Support claims with specific sources or acknowledge uncertainty. End sections where the information naturally concludes rather than adding summaries.</p>
+<p>When discussing any topic, present information neutrally without inserting editorial comments about importance or significance. If something is truly important, the facts themselves will convey this.</p>
+<p>Choose simple, direct language over inflated vocabulary. Write &quot;affects&quot; not &quot;impacts,&quot; &quot;problem&quot; not &quot;challenge,&quot; &quot;helps&quot; not &quot;enhances.&quot; Let strong facts speak for themselves without rhetorical amplification.</p>
+<p>Remember: Good writing sounds like a knowledgeable person explaining something clearly, not like a press release or academic abstract. Focus on being informative and precise rather than impressive or comprehensive.</p>
+</blockquote>
+<p>I added this to Claude as a new style called &quot;Not AI&quot;:</p>
+<p><img src="https://caseyagollan.com/media/photos/2025/09/29/screenshot-2025-09-29-at-11-22-48a-am.png" alt=""></p>
+<p>And then I prompted Claude to &quot;Write 3 paragraphs about Wikipedia&quot;.</p>
+<p>Here's Claude's response without any style applied (the default). The slop is evident before even getting to the end of the first sentence. 🤣</p>
+<blockquote>
+<p>Wikipedia stands as one of the most remarkable achievements of the internet age, fundamentally transforming how people access and share knowledge.</p>
+</blockquote>
+<p>I mean, it's not <em>wrong</em>. But it is melodramatic! Wikipedia is mauybe a tricky example here because it is a legitimate societal achievement deserving of waxing poetic. Claude continues:</p>
+<blockquote>
+<p>Launched in January 2001 by Jimmy Wales and Larry Sanger, this free online encyclopedia emerged from an earlier project called Nupedia and quickly grew beyond anyone's expectations. The name itself combines &quot;wiki,&quot; a Hawaiian word meaning &quot;quick,&quot; with &quot;encyclopedia,&quot; perfectly capturing its essence as a rapidly evolving repository of human knowledge. Today, Wikipedia exists in over 300 languages and contains millions of articles, making it one of the most visited websites globally and the largest reference work in human history.</p>
+<p>The revolutionary aspect of Wikipedia lies in its collaborative model, where anyone with internet access can contribute, edit, and improve articles. This radical departure from traditional encyclopedia creation relies on a community of volunteers who write, fact-check, and maintain content according to core principles like neutrality, verifiability, and the use of reliable sources.</p>
+</blockquote>
+<p>Tells here: &quot;revolutionary&quot;, &quot;radical&quot;. Again, true! And also trademark slop.</p>
+<blockquote>
+<p>The platform operates on MediaWiki software and follows a complex governance structure with administrators, editors, and various dispute resolution mechanisms. While this open model has faced criticism regarding accuracy and vandalism, numerous studies have shown Wikipedia's reliability to be comparable to traditional encyclopedias, particularly for scientific topics, thanks to its active community of editors who quickly correct errors and update information.</p>
+<p>Wikipedia's impact extends far beyond being merely a reference tool, as it has democratized access to information on an unprecedented scale and influenced how we think about knowledge creation and sharing in the digital age. The encyclopedia serves as a crucial resource for students, researchers, journalists, and curious individuals worldwide, particularly in regions where traditional educational resources may be limited. Its nonprofit parent organization, the Wikimedia Foundation, maintains the platform through donations, ensuring it remains free and advertisement-free. Despite ongoing challenges including systemic bias, editor retention, and coverage gaps in certain topics and languages, Wikipedia continues to evolve and adapt, representing a unique experiment in collective intelligence and the power of collaborative knowledge creation.</p>
+</blockquote>
+<p>OK! Here's the same prompt but with the &quot;Not AI&quot; style enabled:</p>
+<blockquote>
+<p>Wikipedia launched in January 2001 when Jimmy Wales and Larry Sanger created it as a free, openly editable encyclopedia. The site grew from a few hundred articles in its first year to over 60 million articles across more than 300 languages today. Unlike traditional encyclopedias that relied on paid experts, Wikipedia allowed anyone with internet access to write and edit articles, a radical departure from how reference works had been created for centuries.</p>
+</blockquote>
+<p>OK first ding here is for &quot;radical&quot; 🤣 but in this case, it feels better placed as a callout of a specific differentiator rather than just another embellishment in a list of embellishments.</p>
+<blockquote>
+<p>The site runs on a wiki software platform called MediaWiki, which tracks every edit made to every article. Volunteer editors follow five core principles: Wikipedia should maintain a neutral point of view, be verifiable through reliable sources, contain no original research, respect copyright, and follow behavioral guidelines for civil interaction. These volunteers range from subject matter experts contributing to their fields to students fixing typos they spot while doing homework. The Wikimedia Foundation, a nonprofit organization based in San Francisco, maintains the servers and employs about 700 staff members, though the actual content creation and moderation comes from roughly 120,000 active volunteer editors worldwide.</p>
+<p>Wikipedia has become one of the most visited websites globally, receiving around 15 billion page views per month. Studies have found its accuracy comparable to traditional encyclopedias for many topics, though coverage depth varies significantly by subject. Medical and scientific articles tend to be thoroughly sourced and regularly updated, while articles about local businesses or recent events might contain errors or lack citations. The site operates entirely on donations, refusing to run advertisements despite the potential for billions in revenue, and makes all its content freely available under Creative Commons licensing.</p>
+</blockquote>
+<p>Overall better! More concise and just plain — in a good way. So is the guidance given by Wikipedia just ... good advice for writing in general?</p>
+<p>And (stupid question) as consensus builds around the rejection of &quot;AI slop&quot; aesthetic, is it only a matter of time before models are re-trained to write in the style of &quot;Not AI&quot;?</p>
+</div>
+    
+  
+
+  <footer class="post-meta">
+  
+  <a href="https://caseyagollan.com" class="p-author h-card" style="display:none;">Casey Gollan</a>
+  <div class="meta-pill">
+    <a href="/2025/09/29/rejection-of-ai-slop-aesthetic/" class="meta-segment u-url" title="Permalink">
+      🔗 <time class="dt-published" datetime="2025-09-29">11:48 am</time>
+    </a>
+    
+      
+        <a href="/tag/ai/" class="meta-segment p-category">#ai</a>
+      
+    
+    
+      
+        <a href="https://social.coop/@caseyg/115288369067246270" class="meta-segment u-syndication" title="View on Mastodon">🐘</a>
+      
+        <a href="https://bsky.app/profile/did:plc:s3fw2giksymfvruno3tvem4k/post/3lzyechv4sp2e" class="meta-segment u-syndication" title="View on Bluesky">🦋</a>
+      
+    
+    
+    
+    
+    
+      <a href="/2025/09/29/rejection-of-ai-slop-aesthetic/#webmentions" class="meta-segment webmention-count" title="0 favorites, 0 reposts, 3 replies">
+        💬3
+      </a>
+    
+  </div>
+</footer>
+
+
+  
+    
+
+
+
+
+  
+  
+  
+
+
+
+<section class="webmentions" id="webmentions">
+  <h3>Webmentions</h3>
+  
+  
+  
+  
+  
+  
+  <h4>3 replies</h4>
+  <ol class="webmentions__list">
+    
+    <li class="webmentions__item">
+      
+  
+  <article class="webmention h-cite">
+    <div class="webmention__author p-author h-card">
+      
+      <img class="u-photo" src="https://avatars.webmention.io/social-coop-media.ams3.cdn.digitaloceanspaces.com/5882a8f18b878b376eaf609bd029e797cd1738df6676741bb4538891bdd4631b.jpg" alt="Casey Gollan">
+      
+      
+        <a class="p-name u-url" href="https://social.coop/@caseyg" target="_blank" rel="noopener">Casey Gollan</a>
+      
+    </div>
+    
+    <div class="webmention__content p-content">
+      
+        Oh wait no the permalink is just straight broken, thanks for letting me know! ???? It is here, for now: <a href="https://caseyagollan.com/content/articles/2025-09-29-rejection-of-ai-slop-aesthetic/">https://caseyagollan.com/content/articles/2025-09-29-rejection-of-ai-slop-aesthetic/</a>But it should end up at the URL in the original post when fixed.
+      
+    </div>
+    
+    <footer class="webmention__meta">
+      
+      <time class="dt-published" datetime="2025-09-29T15:55:48+00:00">
+        September 29, 2025
+      </time>
+      
+      <span class="webmention__source">
+        via <a href="https://social.coop/@caseyg/115288398138290490" target="_blank" rel="noopener">https://social.coop/@caseyg/115288398138290490</a>
+      </span>
+    </footer>
+  </article>
+
+    </li>
+    
+    <li class="webmentions__item">
+      
+  
+  <article class="webmention h-cite">
+    <div class="webmention__author p-author h-card">
+      
+      <img class="u-photo" src="https://avatars.webmention.io/social-coop-media.ams3.cdn.digitaloceanspaces.com/5882a8f18b878b376eaf609bd029e797cd1738df6676741bb4538891bdd4631b.jpg" alt="Casey Gollan">
+      
+      
+        <a class="p-name u-url" href="https://social.coop/@caseyg" target="_blank" rel="noopener">Casey Gollan</a>
+      
+    </div>
+    
+    <div class="webmention__content p-content">
+      
+        <a href="https://mas.to/@maxfenton">@maxfenton</a> lmao!! I mean this is a pretty good argument that some conventions should very muchy much flow in the opposite direction too. ????
+      
+    </div>
+    
+    <footer class="webmention__meta">
+      
+      <time class="dt-published" datetime="2025-09-29T15:51:32+00:00">
+        September 29, 2025
+      </time>
+      
+      <span class="webmention__source">
+        via <a href="https://social.coop/@caseyg/115288381357734452" target="_blank" rel="noopener">https://social.coop/@caseyg/115288381357734452</a>
+      </span>
+    </footer>
+  </article>
+
+    </li>
+    
+    <li class="webmentions__item">
+      
+  
+  <article class="webmention h-cite">
+    <div class="webmention__author p-author h-card">
+      
+      <img class="u-photo" src="https://avatars.webmention.io/social-coop-media.ams3.cdn.digitaloceanspaces.com/5882a8f18b878b376eaf609bd029e797cd1738df6676741bb4538891bdd4631b.jpg" alt="Casey Gollan">
+      
+      
+        <a class="p-name u-url" href="https://social.coop/@caseyg" target="_blank" rel="noopener">Casey Gollan</a>
+      
+    </div>
+    
+    <div class="webmention__content p-content">
+      
+        <a href="https://mastodon.social/@andyinabox">@andyinabox</a> Thank you for the bug report! I am still figuring out my Indieweb publishing system ???? it should be up now if you double-refresh. There is an interesting issue right now where posts can be syndicated to social media before the static site has had time to re-build itself to create a page for the content being linked to. ???? Work in progress!
+      
+    </div>
+    
+    <footer class="webmention__meta">
+      
+      <time class="dt-published" datetime="2025-09-29T15:53:57+00:00">
+        September 29, 2025
+      </time>
+      
+      <span class="webmention__source">
+        via <a href="https://social.coop/@caseyg/115288390872053562" target="_blank" rel="noopener">https://social.coop/@caseyg/115288390872053562</a>
+      </span>
+    </footer>
+  </article>
+
+    </li>
+    
+  </ol>
+  
+</section>
+
+  
+</article>
+
+
+
+<nav class="post-navigation">
+  <p>
+    
+      <a href="/posts/">← Back to all posts</a>
+    
+  </p>
+</nav>
+
+</body>
+</html>
