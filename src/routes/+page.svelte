@@ -1040,4 +1040,33 @@
             margin-bottom: 3rem;
         }
     }
+
+    @media (max-width: 768px) {
+        .graph-and-insights {
+            padding: 0.75rem;
+        }
+
+        .bio-sticky-container {
+            padding: 0.75rem;
+        }
+
+        .insights-container {
+            padding: 0.75rem;
+        }
+
+        .insights-container :global(.insight-item) {
+            flex: 0 0 160px;
+            min-width: 160px;
+            height: 100px;
+        }
+
+        .insights-container :global(.insight-item:hover) {
+            height: 100px;
+        }
+
+        .insights-container :global(.insight-item:hover::before) {
+            width: 280px;
+            height: 320px;
+        }
+    }
 </style>

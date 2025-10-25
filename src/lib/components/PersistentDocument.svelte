@@ -250,4 +250,20 @@
 			max-height: 400px;
 		}
 	}
+
+	@media (max-width: 768px) {
+		.bio {
+			max-height: 250px;
+			margin-top: 1rem;
+		}
+
+		.content {
+			font-size: 0.875rem;
+		}
+
+		.header-label {
+			font-size: 0.7rem;
+			margin-bottom: 0.75rem;
+		}
+	}
 </style>
