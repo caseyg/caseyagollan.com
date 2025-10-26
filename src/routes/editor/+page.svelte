@@ -145,6 +145,37 @@
 		}
 	}
 
+	async function deleteAllKeys() {
+		const count = keys.length;
+		if (!confirm(`Are you sure you want to delete ALL ${count} keys? This cannot be undone.`)) {
+			return;
+		}
+
+		loading = true;
+		error = null;
+		success = null;
+
+		try {
+			// Delete all keys in parallel
+			const deletePromises = keys.map(key =>
+				fetch(`/api/kv?key=${encodeURIComponent(key.name)}`, {
+					method: 'DELETE'
+				})
+			);
+
+			await Promise.all(deletePromises);
+
+			success = `Successfully deleted ${count} keys`;
+			selectedKey = null;
+			selectedValue = null;
+			await loadKeys();
+		} catch (e: any) {
+			error = `Failed to delete all keys: ${e.message}`;
+		} finally {
+			loading = false;
+		}
+	}
+
 	async function createNewKey() {
 		if (!newKeyName) {
 			error = 'Key name is required';
@@ -245,6 +276,11 @@
 				<button on:click={loadKeys} class="btn-secondary" disabled={loading}>
 					{loading ? 'Refreshing...' : 'Refresh'}
 				</button>
+				{#if keys.length > 0}
+					<button on:click={deleteAllKeys} class="btn-danger" disabled={loading}>
+						Delete All ({keys.length})
+					</button>
+				{/if}
 			</div>
 
 			<div class="keys-list">
