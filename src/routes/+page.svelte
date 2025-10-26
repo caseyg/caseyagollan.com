@@ -20,6 +20,7 @@
         "Casey leads research operations at IBM, building AI productivity tools and serving on the ResearchOps Community board.\n\nPreviously, they co-founded the School for Poetic Computation and led operations at NYU AI Now Institute.",
     );
     let isDocumentUpdating: boolean = $state(false);
+    let isDocumentAnimating: boolean = $state(false);
     let currentEditEvent: { old_text: string; new_text: string } | undefined =
         $state(undefined);
     let insights: Insight[] = $state([]);
@@ -79,18 +80,7 @@
                 return;
             }
 
-            // Check if this is a cached response (JSON) or streaming response
-            const contentType = docResponse.headers.get("content-type");
-            if (contentType?.includes("application/json")) {
-                // Cached response - update document immediately
-                const cachedData = await docResponse.json();
-                documentContent = cachedData.document;
-                isDocumentUpdating = false;
-                isProcessingQueue = false;
-                return;
-            }
-
-            // Handle streaming document updates
+            // Handle streaming document updates (both cached and fresh)
             const docReader = docResponse.body?.getReader();
             const docDecoder = new TextDecoder();
 
@@ -132,7 +122,10 @@
                                     // We'll update it in the 'done' event instead
                                 } else if (docData.type === "done") {
                                     documentContent = docData.document;
-                                    isDocumentUpdating = false;
+                                    // Only clear updating flag if animation is complete
+                                    if (!isDocumentAnimating) {
+                                        isDocumentUpdating = false;
+                                    }
                                 } else if (docData.type === "error") {
                                     console.error(
                                         "Document update error:",
@@ -171,6 +164,14 @@
         // Start processing if not already in progress
         if (!isProcessingQueue) {
             processDocumentUpdateQueue();
+        }
+    }
+
+    function handleAnimationStateChange(animating: boolean) {
+        isDocumentAnimating = animating;
+        // When animation completes, clear the updating flag
+        if (!animating) {
+            isDocumentUpdating = false;
         }
     }
 
@@ -798,11 +799,12 @@
                         bind:focusNodeId={graphFocusNodeId}
                     />
                 </div>
-                <div class="bio-sticky-container">
+                <div class="bio-sticky-container" class:updating={isDocumentUpdating}>
                     <PersistentDocument
                         content={documentContent}
                         isUpdating={isDocumentUpdating}
                         editEvent={currentEditEvent}
+                        onAnimationStateChange={handleAnimationStateChange}
                     />
                 </div>
             </div>
@@ -909,7 +911,8 @@
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 0;
-        align-items: start;
+        align-items: stretch;
+        min-height: 600px;
     }
 
     .skills-section {
@@ -924,12 +927,23 @@
 
     .bio-sticky-container {
         padding: 1.5rem;
-        transition: all 0.3s ease;
+        min-height: 600px;
+        transition: box-shadow 0.6s ease;
+        border-radius: 4px;
     }
 
-    .bio-sticky-container:has(.bio.updating) {
-        background: rgba(150, 150, 255, 0.05);
-        box-shadow: inset 0 0 20px rgba(150, 150, 255, 0.1);
+    .bio-sticky-container.updating {
+        box-shadow: inset 0 0 30px rgba(73, 73, 255, 0.3);
+        animation: glowPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse {
+        0%, 100% {
+            box-shadow: inset 0 0 30px rgba(73, 73, 255, 0.2);
+        }
+        50% {
+            box-shadow: inset 0 0 50px rgba(73, 73, 255, 0.5);
+        }
     }
 
     .insights-container {
@@ -1004,15 +1018,6 @@
 
     .info-section li {
         margin-bottom: 0.5rem;
-    }
-
-    .info-section a {
-        color: rgb(73, 73, 255);
-        text-decoration: none;
-    }
-
-    .info-section a:hover {
-        text-decoration: underline;
     }
 
     @media (max-width: 1200px) {

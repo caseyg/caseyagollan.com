@@ -93,28 +93,6 @@
 	}
 
 
-	.meta-pill {
-		display: inline-flex;
-		background: blue;
-		border-radius: 5px;
-		overflow: hidden;
-	}
-
-	.meta-segment {
-		padding: 0.5rem 1rem;
-		color: white;
-		text-decoration: none;
-		border-right: 1px solid rgba(255, 255, 255, 0.3);
-	}
-
-	.meta-segment:last-child {
-		border-right: none;
-	}
-
-	.meta-segment:hover {
-		background: rgb(73, 73, 255);
-	}
-
 	.header {
 		margin-bottom: 2rem;
 	}

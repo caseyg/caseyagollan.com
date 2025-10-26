@@ -4,11 +4,13 @@
 	let {
 		content = 'Casey leads research operations at IBM, building AI productivity tools and serving on the ResearchOps Community board.\n\nPreviously, they co-founded the School for Poetic Computation and led operations at NYU AI Now Institute.',
 		isUpdating = false,
-		editEvent = undefined
+		editEvent = undefined,
+		onAnimationStateChange = undefined
 	}: {
 		content?: string;
 		isUpdating?: boolean;
 		editEvent?: { old_text: string; new_text: string } | undefined;
+		onAnimationStateChange?: (isAnimating: boolean) => void;
 	} = $props();
 
 	let displayContent = $state(content);
@@ -113,11 +115,13 @@
 		}
 
 		isAnimating = true;
+		onAnimationStateChange?.(true);
 
 		// Find the position of old_text in current displayContent
 		const startPos = displayContent.indexOf(oldText);
 		if (startPos === -1) {
 			isAnimating = false;
+			onAnimationStateChange?.(false);
 			return;
 		}
 
@@ -159,6 +163,7 @@
 		highlightStart = -1;
 		highlightEnd = -1;
 		isAnimating = false;
+		onAnimationStateChange?.(false);
 	}
 
 	function sleep(ms: number) {
@@ -186,12 +191,9 @@
 
 <style>
 	.bio {
-		max-height: 600px;
 		overflow-y: auto;
+		border-radius: 4px;
 		transition: all 0.3s ease;
-	}
-
-	.bio.updating {
 	}
 
 	.header-label {
@@ -247,7 +249,6 @@
 			position: relative;
 			top: 0;
 			margin-top: 2rem;
-			max-height: 400px;
 		}
 	}
 </style>

@@ -61,10 +61,51 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		if (kvCache) {
 			const cached = await kvCache.get(cacheKey);
 			if (cached) {
-				// Return cached bio as a simple response (not streaming)
-				return json({
-					document: cached,
-					fromCache: true
+				// Stream the cached bio to trigger diff animation
+				const stream = new ReadableStream({
+					async start(controller) {
+						const encoder = new TextEncoder();
+
+						// Calculate what changed from current to cached
+						const oldDoc = currentDocument || '';
+						const newDoc = cached;
+
+						// Send edit event to trigger animation
+						controller.enqueue(
+							encoder.encode(
+								`data: ${JSON.stringify({
+									type: 'edit',
+									command: 'str_replace',
+									old_text: oldDoc,
+									new_text: newDoc
+								})}\n\n`
+							)
+						);
+
+						// Small delay to ensure UI updates
+						await new Promise(resolve => setTimeout(resolve, 100));
+
+						// Send done event with final document
+						controller.enqueue(
+							encoder.encode(
+								`data: ${JSON.stringify({
+									type: 'done',
+									document: newDoc
+								})}\n\n`
+							)
+						);
+
+						controller.close();
+					}
+				});
+
+				return new Response(stream, {
+					headers: {
+						'Content-Type': 'text/event-stream',
+						'Cache-Control': 'no-cache',
+						Connection: 'keep-alive',
+						'X-Cache-Status': 'HIT'
+					}
 				});
 			}
 		}
