@@ -13,19 +13,9 @@
 		active?: boolean;
 		isStreaming?: boolean;
 		isThinking?: boolean;
-		sources?: Array<{ url: string; title: string }>;
+		sources?: Array<{ url: string; title: string; page_age: string | null; cited_text: string | null }>;
 		onclick?: () => void;
 	} = $props();
-
-	// Extract domain from URL for favicon
-	function getFaviconUrl(url: string): string {
-		try {
-			const urlObj = new URL(url);
-			return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`;
-		} catch {
-			return '';
-		}
-	}
 </script>
 
 <div class="insight-item" class:active class:streaming={isStreaming} role="button" tabindex="0" {onclick} onkeydown={(e) => e.key === 'Enter' && onclick?.()}>
@@ -39,22 +29,6 @@
 			Loading...
 		{/if}
 	</p>
-
-	{#if sources && sources.length > 0 && !isStreaming}
-		<div class="sources-footer">
-			{#each sources as source (source.url)}
-				<a
-					href={source.url}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="favicon-link"
-					title={source.title}
-				>
-					<img src={getFaviconUrl(source.url)} alt={source.title} class="favicon" />
-				</a>
-			{/each}
-		</div>
-	{/if}
 </div>
 
 <style>
@@ -65,7 +39,7 @@
 		border-radius: 4px;
 		display: flex;
 		flex-direction: column;
-		overflow: hidden;
+		overflow: visible;
 		cursor: pointer;
 		transition: all 0.3s ease;
 		width: 100%;
@@ -88,6 +62,7 @@
 		width: 320px;
 		height: 400px;
 		overflow-y: auto;
+		overflow-x: hidden;
 		scroll-behavior: smooth;
 		background: rgba(255, 255, 255, 0.08);
 		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -98,6 +73,8 @@
 		-webkit-line-clamp: unset;
 		-webkit-box-orient: unset;
 		overflow: visible;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
 	}
 
 	.insight-item.active {
@@ -153,32 +130,5 @@
 		50% {
 			opacity: 1;
 		}
-	}
-
-	.sources-footer {
-		margin-top: auto;
-		padding-top: 0.5rem;
-		border-top: 1px solid rgba(255, 255, 255, 0.1);
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-	}
-
-	.favicon-link {
-		display: inline-block;
-		transition: transform 0.2s ease, opacity 0.2s ease;
-		opacity: 0.8;
-	}
-
-	.favicon-link:hover {
-		transform: scale(1.1);
-		opacity: 1;
-	}
-
-	.favicon {
-		width: 20px;
-		height: 20px;
-		display: block;
-		border-radius: 2px;
 	}
 </style>

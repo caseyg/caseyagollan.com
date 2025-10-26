@@ -7,7 +7,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "bun run build && wrangler pages dev .svelte-kit/cloudflare",
-		"preview:remote": "bun run build && wrangler dev --remote",
+		"preview:remote": "bun run build && wrangler pages dev .svelte-kit/cloudflare --remote",
 		"deploy": "bun run build && wrangler deploy",
 		"cf-typegen": "wrangler types ./src/worker-configuration.d.ts",
 		"prepare": "svelte-kit sync || echo ''",

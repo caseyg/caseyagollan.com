@@ -1,0 +1,106 @@
+- Work
+  - IBM
+    - Product Excellence Office
+    - AI for Product Teams
+  - ResearchOps Community
+    - ResearchOps Community Board
+    - Cha Cha Club
+  - Management
+- Technology
+  - Calm technology
+  - AI
+    - AI Agents
+  - Local-first
+  - Decentralized
+  - Indieweb
+    - IndieKit
+  - History of technology
+  - Tools
+    - Obsidian
+    - IndieKit
+    - Otso
+    - Web frameworks
+      - SvelteKit
+      - Next.js
+  - Open platforms
+    - Portable
+      - Data Transfer Initiative
+    - Interoperable
+    - Extensible
+    - Sustainble
+- Research
+  - History of capitalism
+  - AI ethics and policy
+    - AI Now Institute
+      - Algorithmic accountability
+      - Labor and automation
+  - Knowledge management
+    - Taxonomies
+    - Linked Data
+    - Metadata Systems
+- Operations
+  - ResearchOps
+    - ResearchOps Community
+    - Knowledge Management
+    - Insight Libraries
+  - Systems
+    - Operations as Design
+    - Transparency
+    - Open-Source Administration
+- Design
+  - Accessibility
+  - Information Architecture
+  - Product
+    - Product Dashboards
+    - Carbon Design System
+    - Enterprise Scale
+  - DesignOps
+    - Ops as Service Design
+  - Service design
+    - Ops as Service Design
+    - Design Thinking
+  - Systems design
+    - Leverage Points
+- Art
+  - Publishing
+    - Networked Publishing
+  - Teaching
+    - Projects: The Cooper Union
+  - Activism
+  - Institutions
+    - Cooper Union
+    - Whitney Museum
+    - Vera List Center
+- Education
+  - Alternative Education
+  - Activism
+    - Cooper Union occupation
+    - Free education movement
+    - Free as air and water
+  - Governance
+    - Platform cooperatives
+    - Democratic management
+    - Facilitation
+
+---
+
+## Cross-links
+<!-- Format: source -> target -->
+- AI Agents for Product Teams -> AI Agents
+- Product Strategy Dashboard -> Knowledge Graphs
+- ResearchOps Community Board -> ResearchOps Community
+- Sr. Engineering Manager -> Engineering Management
+- Knowledge Graphs -> Linked Data
+- AI Agents -> Algorithmic Accountability
+- Knowledge Graphs -> Knowledge Management
+- Obsidian -> Knowledge Management
+- Operations as Design -> Systems Design
+- DesignOps -> ResearchOps Community
+- AI Now Institute -> Cooper Union Occupation
+- Platform Studies -> Platform Cooperatives
+- School for Poetic Computation -> Alternative Pedagogy
+- Poetic Computation -> Critical Theory of Technology
+- Generative Art -> SvelteKit
+- Computational Design -> AI Agents
+- Open-Source Administration -> Platform Cooperatives
+- Transparent Operations -> Democratic Management

@@ -12,7 +12,8 @@
         timestamp: number;
         isStreaming?: boolean;
         isThinking?: boolean;
-        sources?: Array<{ url: string; title: string }>;
+        sources?: Array<{ url: string; title: string; page_age: string | null; cited_text: string | null }>;
+        recommendedTopics?: string[];
     }
 
     let textContainer: HTMLElement;
@@ -392,7 +393,7 @@
             // Scroll to the new insight card after it's added to DOM
             setTimeout(() => scrollToInsightCard(topic), 100);
 
-            // Generate new insight with streaming
+            // Generate new insight (non-streaming)
             const insightResponse = await fetch("/api/generate-insight", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -425,195 +426,31 @@
                 return;
             }
 
-            // Process streaming response
-            const reader = insightResponse.body?.getReader();
-            const decoder = new TextDecoder();
-            let buffer = "";
-            let finalInsightText = "";
-            let isFromCache = false;
+            // Parse JSON response
+            const data = await insightResponse.json();
+            console.log('📦 Received insight data:', data);
 
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+            // Update insight with the results
+            const currentInsight = insightsByTopic.get(topic);
+            if (currentInsight) {
+                currentInsight.isStreaming = false;
+                currentInsight.isThinking = false;
+                currentInsight.insight = data.insight || "";
+                currentInsight.sources = data.sources || [];
+                currentInsight.recommendedTopics = data.recommendedTopics || [];
 
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split("\n\n");
-                    buffer = lines.pop() || "";
-
-                    for (const line of lines) {
-                        if (line.startsWith("data: ")) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-
-                                // Check for cache hit marker
-                                if (data.type === "cache_hit") {
-                                    isFromCache = true;
-                                    continue;
-                                }
-
-                                const currentInsight =
-                                    insightsByTopic.get(topic);
-                                if (!currentInsight) continue;
-
-                                // Handle different event types
-                                if (data.type === "block_start") {
-                                    // Content block started - could be text, tool_use, or search results
-                                    if (data.blockType === "text") {
-                                        currentInsight.isThinking = false;
-                                        currentInsight.isStreaming = true;
-                                        // Trigger reactivity by updating the array
-                                        const index = insights.findIndex(
-                                            (i) => i.topic === topic,
-                                        );
-                                        if (index !== -1) {
-                                            insights[index] = {
-                                                ...currentInsight,
-                                            };
-                                            insights = insights;
-                                        }
-                                    }
-                                } else if (data.type === "search_query") {
-                                    // Show search query as it's being built
-                                    if (
-                                        data.query &&
-                                        data.query.includes("query")
-                                    ) {
-                                        currentInsight.insight =
-                                            "🔍 Searching...";
-                                        const index = insights.findIndex(
-                                            (i) => i.topic === topic,
-                                        );
-                                        if (index !== -1) {
-                                            insights[index] = {
-                                                ...currentInsight,
-                                            };
-                                            insights = insights;
-                                        }
-                                    }
-                                } else if (data.type === "search_results") {
-                                    if (
-                                        data.results &&
-                                        data.results.length > 0
-                                    ) {
-                                        // Show search results received
-                                        currentInsight.insight = `✨ Found ${data.results.length} results, generating insight...`;
-                                        const index = insights.findIndex(
-                                            (i) => i.topic === topic,
-                                        );
-                                        if (index !== -1) {
-                                            insights[index] = {
-                                                ...currentInsight,
-                                            };
-                                            insights = insights;
-                                        }
-                                    }
-                                } else if (data.type === "text") {
-                                    // Text delta from final block after tools - this is the real insight
-                                    if (data.isFinal) {
-                                        // On first final text, clear any previous thinking/search text
-                                        if (
-                                            currentInsight.insight.includes(
-                                                "🔍",
-                                            ) ||
-                                            currentInsight.insight.includes(
-                                                "✨",
-                                            ) ||
-                                            currentInsight.insight.includes(
-                                                "I'll search",
-                                            )
-                                        ) {
-                                            currentInsight.insight = "";
-                                        }
-
-                                        currentInsight.insight += data.text;
-                                        finalInsightText += data.text;
-                                        // Trigger reactivity by updating the array
-                                        const index = insights.findIndex(
-                                            (i) => i.topic === topic,
-                                        );
-                                        if (index !== -1) {
-                                            insights[index] = {
-                                                ...currentInsight,
-                                            };
-                                            insights = insights;
-                                        } else {
-                                            console.error(
-                                                "Could not find insight in array for topic:",
-                                                topic,
-                                            );
-                                        }
-                                    }
-                                } else if (data.type === "text_thinking") {
-                                    // Non-final text (thinking before tools) - show it streaming
-                                    currentInsight.insight += data.text;
-                                    const index = insights.findIndex(
-                                        (i) => i.topic === topic,
-                                    );
-                                    if (index !== -1) {
-                                        insights[index] = { ...currentInsight };
-                                        insights = insights;
-                                    }
-                                } else if (data.type === "structured_insight") {
-                                    // Structured insight from custom tool
-                                    currentInsight.insight = data.insight;
-                                    const index = insights.findIndex(
-                                        (i) => i.topic === topic,
-                                    );
-                                    if (index !== -1) {
-                                        insights[index] = { ...currentInsight };
-                                        insights = insights;
-                                    }
-                                } else if (data.type === "done") {
-                                    // Finalize insight
-                                    const currentInsight =
-                                        insightsByTopic.get(topic);
-                                    if (currentInsight) {
-                                        currentInsight.isStreaming = false;
-                                        currentInsight.isThinking = false;
-                                        if (data.insight) {
-                                            currentInsight.insight =
-                                                data.insight;
-                                        }
-                                        if (data.sources) {
-                                            currentInsight.sources =
-                                                data.sources;
-                                        }
-                                        // Update the insight in the array to trigger reactivity
-                                        const index = insights.findIndex(
-                                            (i) => i.topic === topic,
-                                        );
-                                        if (index !== -1) {
-                                            insights[index] = {
-                                                ...currentInsight,
-                                            };
-                                            insights = insights;
-                                        }
-                                    }
-
-                                    // Queue document update instead of processing immediately
-                                    queueDocumentUpdate(topic, data.insight);
-                                } else if (data.type === "error") {
-                                    console.error(
-                                        "Streaming error:",
-                                        data.error,
-                                    );
-                                    // Remove placeholder on error
-                                    insights = insights.filter(
-                                        (i) => i.topic !== topic,
-                                    );
-                                    insightsByTopic.delete(topic);
-                                }
-                            } catch (parseError) {
-                                console.error(
-                                    "Failed to parse SSE data:",
-                                    line,
-                                    parseError,
-                                );
-                            }
-                        }
-                    }
+                // Update the insight in the array to trigger reactivity
+                const index = insights.findIndex((i) => i.topic === topic);
+                if (index !== -1) {
+                    insights[index] = { ...currentInsight };
+                    insights = insights;
                 }
+
+                // Trigger reactivity for the Map by creating a new instance
+                insightsByTopic = new Map(insightsByTopic);
+
+                // Queue document update
+                queueDocumentUpdate(topic, data.insight);
             }
         } catch (error) {
             console.error("Error handling topic click:", error);
@@ -797,6 +634,7 @@
                     <SkillsGraph
                         onTopicClick={handleTopicClick}
                         bind:focusNodeId={graphFocusNodeId}
+                        insightsData={insightsByTopic}
                     />
                 </div>
                 <div class="bio-sticky-container" class:updating={isDocumentUpdating}>
@@ -950,8 +788,10 @@
         display: flex;
         gap: 0.75rem;
         overflow-x: auto;
+        overflow-y: visible;
         scroll-behavior: smooth;
         padding: 1.5rem;
+        padding-top: 120px;
         align-items: flex-end;
         border-top: 1px solid rgba(255, 255, 255, 0.2);
     }

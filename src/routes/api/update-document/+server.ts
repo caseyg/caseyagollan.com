@@ -59,8 +59,9 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		// Try to get cached bio from KV
 		const kvCache = platform?.env?.INSIGHT_CACHE;
 		if (kvCache) {
-			const cached = await kvCache.get(cacheKey);
-			if (cached) {
+			try {
+				const cached = await kvCache.get(cacheKey);
+				if (cached) {
 				// Stream the cached bio to trigger diff animation
 				const stream = new ReadableStream({
 					async start(controller) {
@@ -107,6 +108,10 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 						'X-Cache-Status': 'HIT'
 					}
 				});
+				}
+			} catch (kvError) {
+				console.error('KV cache error (ignoring):', kvError);
+				// Continue to generate fresh bio if cache fails
 			}
 		}
 
@@ -248,9 +253,13 @@ The output should read like a professional bio - clear, concise prose only. Thin
 
 					// Cache the final document in KV
 					if (kvCache) {
-						await kvCache.put(cacheKey, document, {
-							expirationTtl: 60 * 60 * 24 * 30 // 30 days
-						});
+						try {
+							await kvCache.put(cacheKey, document, {
+								expirationTtl: 60 * 60 * 24 * 30 // 30 days
+							});
+						} catch (kvError) {
+							console.error('KV cache write error (ignoring):', kvError);
+						}
 					}
 
 					// Send final completion
