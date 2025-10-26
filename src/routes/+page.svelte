@@ -1059,14 +1059,5 @@
             min-width: 160px;
             height: 100px;
         }
-
-        .insights-container :global(.insight-item:hover) {
-            height: 100px;
-        }
-
-        .insights-container :global(.insight-item:hover::before) {
-            width: 280px;
-            height: 320px;
-        }
     }
 </style>
