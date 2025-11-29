@@ -9,6 +9,17 @@ import matter from 'gray-matter';
 export type { Post } from './posts-types';
 export { POST_TYPES, POST_TYPE_PLURALS, getPostPermalink, getPostsByDay } from './posts-types';
 
+// Mapping from plural folder names to singular type names
+const PLURAL_TO_SINGULAR: Record<string, string> = {
+	notes: 'note',
+	articles: 'article',
+	bookmarks: 'bookmark',
+	photos: 'photo',
+	videos: 'video',
+	replies: 'reply',
+	media: 'media'
+};
+
 import type { Post } from './posts-types';
 
 export async function getAllPosts(): Promise<Post[]> {
@@ -38,7 +49,7 @@ export async function getAllPosts(): Promise<Post[]> {
 
 				posts.push({
 					slug,
-					type: type.slice(0, -1) as Post['type'], // Remove 's' from plural
+					type: PLURAL_TO_SINGULAR[type] as Post['type'],
 					date: dateStr,
 					title: data.title,
 					summary: data.summary,

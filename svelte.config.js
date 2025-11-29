@@ -15,6 +15,10 @@ const config = {
 				if (path.startsWith('/posts') || path === '/feed.xml' || path === '/index-accessible.html') {
 					return;
 				}
+				// Ignore trailing slash mismatches for date-based permalinks
+				if (referrer && path === referrer.replace(/\/$/, '')) {
+					return;
+				}
 				throw new Error(message);
 			}
 		}
