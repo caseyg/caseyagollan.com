@@ -50,17 +50,23 @@
 <style>
 	.webmention-counts {
 		display: inline-flex;
-		gap: 0.5em;
+		gap: 0.375rem;
 		text-decoration: none;
 		color: inherit;
-		font-size: 0.9em;
+		font-size: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		transition: background 0.15s ease, color 0.15s ease;
+		opacity: 0.7;
 	}
 
 	.webmention-counts:hover {
-		text-decoration: underline;
+		background: rgba(255, 255, 255, 0.15);
+		color: #fff;
+		opacity: 1;
 	}
 
 	.wm-count {
-		opacity: 0.8;
+		opacity: 0.9;
 	}
 </style>

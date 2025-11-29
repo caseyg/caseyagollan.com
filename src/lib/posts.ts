@@ -1,19 +1,26 @@
+// Server-only module - contains file system operations
+// For client-safe types and constants, import from '$lib/posts-types'
+
 import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import matter from 'gray-matter';
 
-export interface Post {
-	slug: string;
-	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media';
-	date: string;
-	title?: string;
-	summary?: string;
-	category?: string | string[];
-	content: string;
-	visibility?: string;
-	syndication?: string[];
-	filePath: string;
-}
+// Re-export client-safe types and functions
+export type { Post } from './posts-types';
+export { POST_TYPES, POST_TYPE_PLURALS, getPostPermalink, getPostsByDay } from './posts-types';
+
+// Mapping from plural folder names to singular type names
+const PLURAL_TO_SINGULAR: Record<string, string> = {
+	notes: 'note',
+	articles: 'article',
+	bookmarks: 'bookmark',
+	photos: 'photo',
+	videos: 'video',
+	replies: 'reply',
+	media: 'media'
+};
+
+import type { Post } from './posts-types';
 
 export async function getAllPosts(): Promise<Post[]> {
 	const contentDir = join(process.cwd(), 'content');
@@ -42,7 +49,7 @@ export async function getAllPosts(): Promise<Post[]> {
 
 				posts.push({
 					slug,
-					type: type.slice(0, -1) as Post['type'], // Remove 's' from plural
+					type: PLURAL_TO_SINGULAR[type] as Post['type'],
 					date: dateStr,
 					title: data.title,
 					summary: data.summary,
@@ -68,26 +75,32 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 	return posts.find(p => p.slug === slug) || null;
 }
 
-export function getPostsByDay(posts: Post[]): Map<string, Post[]> {
-	const byDay = new Map<string, Post[]>();
+
+export function getPostsByType(posts: Post[], type: string): Post[] {
+	return posts.filter(p => p.type === type);
+}
+
+export function getAllTags(posts: Post[]): Map<string, number> {
+	const tags = new Map<string, number>();
 
 	for (const post of posts) {
-		const date = new Date(post.date);
-		const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+		if (!post.category) continue;
 
-		if (!byDay.has(dateKey)) {
-			byDay.set(dateKey, []);
+		const categories = Array.isArray(post.category) ? post.category : [post.category];
+		for (const cat of categories) {
+			tags.set(cat, (tags.get(cat) || 0) + 1);
 		}
-		byDay.get(dateKey)!.push(post);
 	}
 
-	return byDay;
+	return tags;
 }
 
-export function getPostPermalink(post: Post): string {
-	const date = new Date(post.date);
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `/${year}/${month}/${day}/${post.slug}/`;
+export function getPostsByTag(posts: Post[], tag: string): Post[] {
+	const tagLower = tag.toLowerCase();
+	return posts.filter(post => {
+		if (!post.category) return false;
+		const categories = Array.isArray(post.category) ? post.category : [post.category];
+		return categories.some(cat => cat.toLowerCase() === tagLower);
+	});
 }
+
