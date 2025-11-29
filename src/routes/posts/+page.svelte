@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
+	import WebmentionCounts from '$lib/components/WebmentionCounts.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -93,6 +94,7 @@
 								</a>
 							{/each}
 						{/if}
+						<WebmentionCounts url={getPermalink(post)} />
 					</div>
 
 					{#if post.title}
