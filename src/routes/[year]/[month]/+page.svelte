@@ -25,6 +25,14 @@
 		return text.slice(0, length).trim() + '...';
 	}
 
+	function getPermalink(post: { date: string; slug: string }) {
+		const date = new Date(post.date);
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		return `/${year}/${month}/${day}/${post.slug}/`;
+	}
+
 	const monthName = new Date(`${data.year}-${data.month}-01`).toLocaleString('en-US', {
 		month: 'long'
 	});
@@ -61,7 +69,9 @@
 				<article class="h-entry post">
 					<div class="post-meta">
 						<span class="post-type">{post.type}</span>
-						<time class="dt-published" datetime={post.date}>{formatPostDate(post.date)}</time>
+						<a href={getPermalink(post)} class="u-url permalink">
+							<time class="dt-published" datetime={post.date}>{formatPostDate(post.date)}</time>
+						</a>
 					</div>
 
 					{#if post.title}
@@ -181,6 +191,15 @@
 		text-transform: uppercase;
 		font-weight: bold;
 		color: rgb(73, 73, 255);
+	}
+
+	.permalink {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.permalink:hover {
+		text-decoration: underline;
 	}
 
 	.post-title {
