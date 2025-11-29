@@ -18,7 +18,7 @@
 
     let textContainer: HTMLElement;
     let documentContent: string = $state(
-        "Casey leads research operations at IBM, building AI productivity tools and serving on the ResearchOps Community board.\n\nPreviously, they co-founded the School for Poetic Computation and led operations at NYU AI Now Institute.",
+        "Casey is a Senior Manager of Engineering in IBM's Product Excellence Office, leading a team that builds AI productivity platforms for hundreds of product teams across one of the largest and oldest technology companies.\n\nPreviously, he co-founded the School for Poetic Computation and led operations at NYU's AI Now Institute. He serves on the ResearchOps Community board and is a member of ChaCha Club.",
     );
     let isDocumentUpdating: boolean = $state(false);
     let isDocumentAnimating: boolean = $state(false);
@@ -185,132 +185,95 @@
       - Alexander
     - Gollan!
   - I
-  - am
-    - am a collaborative leader with
-    - experience
-      - a decade of experience
-  - building,
-    - building organizations,
-  - transforming,
-    - transforming operations,
-  - and
-  - growing
-    - growing
-    - communities
-      - communities at the intersection of technology, art and design, and education.
-  - 💼 👨‍🎨 💻 📚.
+  - lead
+    - lead a team
+    - building
+      - building AI productivity platforms
+    - at
+    - IBM.
+      - IBM, serving hundreds of product teams across one of the largest and oldest technology companies, as Senior Manager of Engineering in the Product Excellence Office.
+  - 💼 🤖 👨‍🎨 📚.
     - 💼 in my career,
-      - 💼 I currently work in
-      - UX Research at IBM
-        - UX Research as Manager of Insights + Engagement at IBM
-      - and serve on the board of the global ResearchOps Community.
-      - Some previous highlights of my career have included:
-      - Figma,
-        - contributing to a pilot of continuous research at Figma,
+      - 💼 My path to engineering leadership has taken me through
+      - research operations,
+        - research operations (building systems for knowledge management and team enablement),
+      - platform engineering,
+        - platform engineering (developing internal tools teams actually adopt),
+      - and
+      - leadership.
+        - leadership (managing teams, strategy, and cross-functional collaboration).
+      - Some highlights:
+      - IBM,
+        - at IBM since 2021, I've built the User Insights Hub (1,000+ research reports), the Winning Products Dashboard, and a Productivity Assistant using multi-agent orchestration,
       - NYU,
-        - leading operations at New York University's AI Now Institute,
+        - leading operations at New York University's AI Now Institute (AI ethics research),
       - SFPC,
-        - helping establish the School for Poetic Computation,
-      - Atavist,
-        - doing digital production and QA for multi-platform experimental publisher Atavist,
-      - OpenNews Source,
-        - copy editing a blog on data journalism in newsrooms for OpenNews Source,
-      - 20x200,
-        - working as a product designer and front-end developer for e-commerce innovator 20x200,
-      - and independent consulting.
-        - and running an independent design and technology consultancy whose work has been
-        - exhibited.
-          - exhibited at the Vienna Biennale, V&A Museum, and ArkDes.
+        - co-founding the School for Poetic Computation (an art school for technologists),
+      - and
+      - ResearchOps.
+        - serving on the board of the ResearchOps Community (18,000+ practitioners).
+    - 🤖 on AI,
+      - 🤖 I work on AI platforms that help product managers with
+      - research synthesis,
+        - research synthesis (processing user feedback at scale),
+      - ideas triage,
+        - ideas triage (clustering and prioritizing feature requests),
+      - and
+      - competitive analysis.
+        - competitive analysis (understanding market positioning).
+      - I'm interested in
+      - agents,
+        - multi-agent orchestration and MCP implementations,
+      - open platforms,
+        - open infrastructure and interoperable systems,
+      - and
+      - local-first.
+        - local-first, decentralized, and indieweb approaches to software.
     - 👨‍🎨 as an artist and educator,
       - 👨‍🎨 In my work as an artist and educator, I've
       - taught,
-        -  taught at The Cooper Union,
+        - taught at The Cooper Union,
       - exhibited,
-        - exhibited at the Whitney Museum,
+        - exhibited at the Whitney Biennial,
       - been awarded a fellowship,
         - been awarded a fellowship at The New School's Center for Art and Politics,
       - and lectured.
         - and lectured at Yale University and Between Bridges Galerie in Berlin.
-    - 💻 as a designer and technologist,
-      - 💻 As a designer and technologist,
-      - I
-      - publish
-        - was selected to participate in Triple Canopy's inaugural Networked Publishing Intensive,
-      - and
-      - write.
-        - my writing has been published by Rhizome at The New Museum.
     - 📚 and as a student.
       - 📚 I've studied
       - art and design,
         - art and design at The Cooper Union (where I received my Bachelor of Fine Arts),
       - and...
         - cooperatives,
-          -  Platform Cooperatives Now with Mondragon University and The New School,
+          - Platform Cooperatives Now with Mondragon University and The New School,
         - and...
-          - design ops,
-            -  DesignOps: Scaling UX Design and User Research with Nielsen Norman Group,
+          - sociocracy,
+            - The Theory and Practice of Sociocracy in Cooperatives with Sociocracy For All,
           - and...
-            - history of capitalism,
-              -  Economic Methods for Historians Workshop (a.k.a. History of Capitalism Summer Camp) at Cornell University ILR School,
+            - decentralized organizing,
+              - Patterns for Decentralized Organizing with The Hum,
             - and...
-              - feminist business,
-                - PathMinding: Get Aligned + Accountable in Your Feminist Business with C.V. Harquail,
+              - democratic management,
+                - Democratic Management Skills with The Democracy at Work Institute,
               - and...
-                - sociocracy,
-                  - The Theory and Practice of Sociocracy in Cooperatives with Sociocracy For All,
+                - design ops,
+                  - DesignOps: Scaling UX Design and User Research with Nielsen Norman Group,
                 - and...
-                  - anti-racism,
-                    - Real Talk: Communication Strategies for a White Anti-Racist Welcome Wagon with AORTA (Anti-Oppression Resource and Training Alliance),
+                  - people management,
+                    - People Management Intensive with Anne Libby,
                   - and...
-                    - remote work,
-                      - How to Manage a Remote Team by Gitlab,
-                    - and...
-                      - values,
-                        - A Humble Laboratory - Running a Lab Based on Your Values by CLEAR Lab (Civic Laboratory for Environmental Action Research),
-                      - and...
-                        - democratic management,
-                          - Democratic Management Skills with The Democracy at Work Institute,
-                        - and...
-                          - non-violent communication,
-                            - Introduction to Nonviolent Communication with NYCNVC,
-                          - and...
-                            - decentralized organizing,
-                              - Patterns for Decentralized Organizing with The Hum,
-                            - and...
-                              - decision-making,
-                                -  Cooperative Decision-Making with Loomio Cooperative and Round Sky Solutions,
-                              - and...
-                                - agile and scrum,
-                                  -  Intro to Agile and Scrum with General Assembly,
-                                - and...
-                                  - participatory governance,
-                                    -  vTaiwan Open Consultation & Participation Officers Training with g0v,
-                                  - and...
-                                    - publishing,
-                                      -  New School Publishing Institute,
-                                    - and...
-                                      - people management,
-                                        - People Management Intensive with Anne Libby,
-                                      - and...
-                                        - and I am still always looking to learn something new.
+                    - and I am still always looking to learn something new.
+  - Based in
+  - NYC.
+    - NYC, building things that bridge technical and business stakeholders.
   - Here's how to
-  - reach me
+  - reach me.
     - reach me by
     - email,
       - email at hello@caseyagollan.com,
-    - linkedin,
-      - linkedin.com/in/casey-gollan,
-    - and
-    - twitter,
-      - twitter.com/@caseyg,
-  - and where (else) to
-  - find me.
-    - find me at:
-    - my wiki
-      - cag.wiki
-    - and
-    - medium.
-      - medium.com/@caseyg.
+    - or
+    - linkedin.
+      - linkedin.com/in/casey-gollan.
   - 🪨 * p.s.
     - 🪨 * p.s. About the rocks. These are the
     - "Monument to Finnish Sisu". 🇫🇮
@@ -412,7 +375,7 @@
                     if (errorData.error === "Claude API key not configured") {
                         // Show helpful message about the topic without AI
                         if (!documentContent.includes("**Note:**")) {
-                            documentContent = `# Casey Gollan\n\n*An AI-generated profile emerging from interactive exploration of their work and interests.*\n\n**Note:** To enable AI-generated insights, add your Claude API key to \`.env\`:\n\`\`\`\nANTHROPIC_API_KEY=your_api_key_here\n\`\`\`\n\nGet your API key from [Anthropic Console](https://console.anthropic.com/).\n\n## Recently explored:\n- ${topic}\n`;
+                            documentContent = `# Casey Gollan\n\n*An AI-generated profile emerging from interactive exploration of his work and interests.*\n\n**Note:** To enable AI-generated insights, add your Claude API key to \`.env\`:\n\`\`\`\nANTHROPIC_API_KEY=your_api_key_here\n\`\`\`\n\nGet your API key from [Anthropic Console](https://console.anthropic.com/).\n\n## Recently explored:\n- ${topic}\n`;
                         } else if (!documentContent.includes(`- ${topic}`)) {
                             documentContent += `- ${topic}\n`;
                         }
@@ -506,7 +469,7 @@
     <title>👋 Hi, I'm Casey Gollan!</title>
     <meta
         name="description"
-        content="I am building, transforming, and growing."
+        content="Senior Manager of Engineering at IBM, building AI productivity platforms. Previously co-founded the School for Poetic Computation."
     />
     <meta property="og:title" content="👋 Hi, I'm Casey Gollan!" />
     <meta property="og:type" content="website" />
@@ -560,8 +523,8 @@
 <main bind:this={textContainer}>
     {#if !browser}
         <p>
-            👋 Hi, I'm Casey! I am building, transforming, and growing 💼 👨‍🎨 💻
-            📚.
+            👋 Hi, I'm Casey! I lead a team building AI productivity platforms at
+            IBM 💼 🤖 👨‍🎨 📚. Based in NYC.
         </p>
     {/if}
 </main>
@@ -576,21 +539,25 @@
         <section class="info-section">
             <h2>Currently</h2>
             <p>
-                I lead a team building AI platforms for Product Managers and
-                Designers to ship winning products with speed and at scale, as
-                part of IBM's Product Excellence Office where I am a Sr.
-                Engineering Manager. Recently shipped: agents for product teams,
-                a dashboard tracking 70+ product strategy metrics, and a
-                research library connecting 1,000+ UX insights to roadmaps.
+                I'm a Senior Manager of Engineering in IBM's Product Excellence
+                Office, leading a team that builds AI productivity platforms for
+                hundreds of product teams across one of the largest and oldest
+                technology companies. Our focus: helping PMs and designers
+                spend less time on synthesis work and more time on strategy.
+                Recently shipped: agents for product teams, a dashboard tracking
+                70+ product strategy metrics, and a research library connecting
+                1,000+ UX insights to roadmaps.
             </p>
             <p>
                 I serve on the board of the global ResearchOps Community
-                (18,000+ practitioners) and am a member of the Cha Cha Club, a
-                members-only club for ReOps professionals.
+                (18,000+ practitioners) and am a member of ChaCha Club. Before
+                IBM, I co-founded the School for Poetic Computation and led
+                operations at NYU's AI Now Institute.
             </p>
             <p>
-                Outside work: learning piano, kicking tires on AI tools,
-                knowledge gardening in Obsidian, writing personal software.
+                Outside work: knowledge gardening in Obsidian, writing personal
+                software, reading about alternative organizing and technology
+                critique.
             </p>
         </section>
 
