@@ -143,6 +143,19 @@
 		}
 	}
 
+	// Prefetch screenshots for all citation URLs in parallel
+	function prefetchCitationScreenshots(nodes: Node[]): void {
+		const citationUrls = nodes
+			.filter(n => n.type === 'citation' && n.url)
+			.map(n => n.url!)
+			.filter(url => !screenshotCache.has(url));
+
+		// Fire off all fetches in parallel (don't await)
+		citationUrls.forEach(url => {
+			fetchScreenshot(url);
+		});
+	}
+
 	// Get display URL (hostname + path)
 	function getDisplayUrl(url: string): string {
 		try {
@@ -293,6 +306,12 @@
 		// If we have a focused node and the simulation is initialized, refresh the graph
 		if (focusedNode && simulation) {
 			applyFocusMode(focusedNode);
+		}
+
+		// Prefetch screenshots for any new citation nodes
+		if (insightsData) {
+			const { nodes } = buildDynamicGraph();
+			prefetchCitationScreenshots(nodes);
 		}
 	});
 
@@ -1107,6 +1126,8 @@
 	:global(.tooltip-browser) {
 		display: flex;
 		flex-direction: column;
+		width: 100%;
+		min-width: 280px;
 	}
 
 	:global(.tooltip-titlebar) {
@@ -1175,7 +1196,8 @@
 	}
 
 	:global(.tooltip-screenshot-container) {
-		width: 280px;
+		width: 100%;
+		min-width: 280px;
 		height: 175px;
 		background: rgba(20, 20, 30, 1);
 		overflow: hidden;
@@ -1191,6 +1213,7 @@
 	:global(.tooltip-screenshot-skeleton) {
 		width: 100%;
 		height: 100%;
+		min-height: 175px;
 		background: rgba(30, 30, 40, 1);
 		display: flex;
 		align-items: center;
@@ -1205,7 +1228,7 @@
 		-webkit-background-clip: text;
 		background-clip: text;
 		-webkit-text-fill-color: transparent;
-		animation: text-shimmer 1.5s ease-in-out infinite;
+		animation: text-shimmer 2s linear infinite;
 	}
 
 	@keyframes text-shimmer {
