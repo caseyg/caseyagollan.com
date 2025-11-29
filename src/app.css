@@ -1,0 +1,20 @@
+/* Global styles - loaded before any page renders */
+html {
+	background: gray;
+}
+
+body {
+	background: gray;
+	color: white;
+	font-family: ff-dagny-web-pro, system-ui, -apple-system, sans-serif;
+	font-size: 5vw;
+	font-weight: 100;
+	line-height: 1.5;
+	margin: 0;
+}
+
+:root {
+	--telescope-text-color: white !important;
+	--telescope-highlight: blue !important;
+	--telescope-highlight-hover: rgb(73, 73, 255) !important;
+}

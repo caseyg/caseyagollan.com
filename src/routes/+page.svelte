@@ -637,26 +637,6 @@
 >
 
 <style>
-    :global(html) {
-        background: gray;
-    }
-
-    :global(body) {
-        background: gray;
-        color: white;
-        font-family: ff-dagny-web-pro, sans-serif;
-        font-size: 5vw;
-        font-weight: 100;
-        line-height: 1.5;
-        margin: 0;
-    }
-
-    :global(:root) {
-        --telescope-text-color: white !important;
-        --telescope-highlight: blue !important;
-        --telescope-highlight-hover: rgb(73, 73, 255) !important;
-    }
-
     .skip-link {
         background: blue;
         color: white;
