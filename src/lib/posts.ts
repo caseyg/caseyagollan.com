@@ -16,7 +16,7 @@ export interface Post {
 }
 
 export async function getAllPosts(): Promise<Post[]> {
-	const contentDir = join(process.cwd(), 'src/content');
+	const contentDir = join(process.cwd(), 'content');
 	const postTypes = ['notes', 'articles', 'bookmarks', 'photos', 'videos', 'replies', 'media'];
 	const posts: Post[] = [];
 
