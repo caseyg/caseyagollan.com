@@ -24,5 +24,14 @@
 			"id": "9eca3bf2742740d78191c5be95a5be97",
 			"preview_id": "9eca3bf2742740d78191c5be95a5be97"
 		}
+	],
+	/**
+	 * R2 bucket for caching website screenshots
+	 */
+	"r2_buckets": [
+		{
+			"binding": "SCREENSHOTS",
+			"bucket_name": "caseyagollan-content"
+		}
 	]
 }

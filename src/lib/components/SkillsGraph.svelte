@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
+	import { SvelteMap } from 'svelte/reactivity';
 	import * as d3 from 'd3';
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
 
@@ -27,6 +28,9 @@
 	let coachmarkTimeout: ReturnType<typeof setTimeout> | null = null;
 	let coachmarkCycleCount = 0;
 	const maxCoachmarkCycles = 3; // Number of full cycles through all category nodes
+
+	// Screenshot cache: Map<url, 'loading' | 'error' | dataUrl>
+	let screenshotCache = new SvelteMap<string, string>();
 
 	// Start cycling coachmark animation through category nodes
 	function startCoachmarkAnimation() {
@@ -117,6 +121,71 @@
 		} catch {
 			return '';
 		}
+	}
+
+	// Fetch screenshot for a URL
+	async function fetchScreenshot(url: string): Promise<void> {
+		if (screenshotCache.has(url)) return;
+
+		screenshotCache.set(url, 'loading');
+
+		try {
+			const response = await fetch(`/api/screenshot?url=${encodeURIComponent(url)}`);
+			if (response.ok) {
+				const blob = await response.blob();
+				const dataUrl = URL.createObjectURL(blob);
+				screenshotCache.set(url, dataUrl);
+			} else {
+				screenshotCache.set(url, 'error');
+			}
+		} catch {
+			screenshotCache.set(url, 'error');
+		}
+	}
+
+	// Get display URL (hostname + path)
+	function getDisplayUrl(url: string): string {
+		try {
+			const urlObj = new URL(url);
+			const path = urlObj.pathname.length > 30
+				? urlObj.pathname.slice(0, 30) + '...'
+				: urlObj.pathname;
+			return urlObj.hostname + path;
+		} catch {
+			return url.slice(0, 40);
+		}
+	}
+
+	// Update tooltip with screenshot when loaded
+	function updateTooltipScreenshot(url: string, d: Node) {
+		const status = screenshotCache.get(url);
+		if (!status || status === 'loading') return;
+
+		const screenshotHtml = status === 'error'
+			? `<div class="tooltip-screenshot-error">Screenshot unavailable</div>`
+			: `<img src="${status}" class="tooltip-screenshot-img" alt="Screenshot" />`;
+
+		const faviconUrl = getFaviconUrl(url);
+		const displayUrl = getDisplayUrl(url);
+
+		tooltip.html(`<div class="tooltip-browser">
+			<div class="tooltip-titlebar">
+				<div class="tooltip-traffic-lights">
+					<span class="tooltip-light red"></span>
+					<span class="tooltip-light yellow"></span>
+					<span class="tooltip-light green"></span>
+				</div>
+				<div class="tooltip-title-text">${d.title || 'Source'}</div>
+			</div>
+			<div class="tooltip-urlbar">
+				<img src="${faviconUrl}" class="tooltip-urlbar-favicon" alt="" />
+				<span class="tooltip-urlbar-url">${displayUrl}</span>
+			</div>
+			<div class="tooltip-screenshot-container">
+				${screenshotHtml}
+			</div>
+			${d.cited_text ? `<div class="tooltip-excerpt-browser">"${d.cited_text}"</div>` : ''}
+		</div>`);
 	}
 
 	// Build dynamic nodes and links from insights data
@@ -647,11 +716,40 @@
 			})
 			.on('mouseenter', function (event: MouseEvent, d: Node) {
 				// Show tooltip for citation nodes
-				if (d.type === 'citation') {
-					const tooltipContent = `<div class="tooltip-source">
-						<div class="tooltip-title">${d.title || 'Source'}</div>
-						${d.page_age ? `<div class="tooltip-date">${d.page_age}</div>` : ''}
-						${d.cited_text ? `<div class="tooltip-excerpt">"${d.cited_text}"</div>` : ''}
+				if (d.type === 'citation' && d.url) {
+					const faviconUrl = getFaviconUrl(d.url);
+					const displayUrl = getDisplayUrl(d.url);
+					const cachedStatus = screenshotCache.get(d.url);
+
+					// Build screenshot section based on cache status
+					let screenshotHtml: string;
+					if (!cachedStatus || cachedStatus === 'loading') {
+						screenshotHtml = `<div class="tooltip-screenshot-skeleton">
+							<span class="loading-text">Loading screenshot</span>
+						</div>`;
+					} else if (cachedStatus === 'error') {
+						screenshotHtml = `<div class="tooltip-screenshot-error">Screenshot unavailable</div>`;
+					} else {
+						screenshotHtml = `<img src="${cachedStatus}" class="tooltip-screenshot-img" alt="Screenshot" />`;
+					}
+
+					const tooltipContent = `<div class="tooltip-browser">
+						<div class="tooltip-titlebar">
+							<div class="tooltip-traffic-lights">
+								<span class="tooltip-light red"></span>
+								<span class="tooltip-light yellow"></span>
+								<span class="tooltip-light green"></span>
+							</div>
+							<div class="tooltip-title-text">${d.title || 'Source'}</div>
+						</div>
+						<div class="tooltip-urlbar">
+							<img src="${faviconUrl}" class="tooltip-urlbar-favicon" alt="" />
+							<span class="tooltip-urlbar-url">${displayUrl}</span>
+						</div>
+						<div class="tooltip-screenshot-container">
+							${screenshotHtml}
+						</div>
+						${d.cited_text ? `<div class="tooltip-excerpt-browser">"${d.cited_text}"</div>` : ''}
 					</div>`;
 
 					tooltip
@@ -660,6 +758,16 @@
 						.style('top', `${event.pageY - 10}px`)
 						.style('opacity', 1)
 						.style('display', 'block');
+
+					// Start fetching screenshot if not already cached
+					if (!cachedStatus) {
+						fetchScreenshot(d.url).then(() => {
+							// Update tooltip if still visible
+							if (tooltip.style('display') === 'block') {
+								updateTooltipScreenshot(d.url!, d);
+							}
+						});
+					}
 				}
 			})
 			.on('mousemove', function (event: MouseEvent, d: Node) {
@@ -985,6 +1093,145 @@
 		border-left: 2px solid rgba(73, 73, 255, 0.5);
 		padding-left: 0.5rem;
 		margin-top: 0.25rem;
+	}
+
+	/* Browser-window styled tooltip */
+	:global(.graph-tooltip) {
+		padding: 0;
+		overflow: hidden;
+		max-width: 320px;
+	}
+
+	:global(.tooltip-browser) {
+		display: flex;
+		flex-direction: column;
+	}
+
+	:global(.tooltip-titlebar) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 8px 10px;
+		background: rgba(40, 40, 50, 0.95);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.tooltip-traffic-lights) {
+		display: flex;
+		gap: 6px;
+	}
+
+	:global(.tooltip-light) {
+		width: 10px;
+		height: 10px;
+		border-radius: 50%;
+	}
+
+	:global(.tooltip-light.red) {
+		background: #ff5f57;
+	}
+
+	:global(.tooltip-light.yellow) {
+		background: #febc2e;
+	}
+
+	:global(.tooltip-light.green) {
+		background: #28c840;
+	}
+
+	:global(.tooltip-title-text) {
+		flex: 1;
+		font-size: 0.75rem;
+		color: rgba(255, 255, 255, 0.8);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	:global(.tooltip-urlbar) {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 10px;
+		background: rgba(30, 30, 40, 0.95);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	:global(.tooltip-urlbar-favicon) {
+		width: 14px;
+		height: 14px;
+		border-radius: 2px;
+	}
+
+	:global(.tooltip-urlbar-url) {
+		font-size: 0.7rem;
+		color: rgba(255, 255, 255, 0.5);
+		font-family: monospace;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	:global(.tooltip-screenshot-container) {
+		width: 280px;
+		height: 175px;
+		background: rgba(20, 20, 30, 1);
+		overflow: hidden;
+	}
+
+	:global(.tooltip-screenshot-img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		object-position: top left;
+	}
+
+	:global(.tooltip-screenshot-skeleton) {
+		width: 100%;
+		height: 100%;
+		background: rgba(30, 30, 40, 1);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	:global(.tooltip-screenshot-skeleton .loading-text) {
+		font-size: 0.8rem;
+		font-style: italic;
+		background: linear-gradient(90deg, rgba(100, 100, 120, 1) 0%, rgba(180, 180, 200, 1) 50%, rgba(100, 100, 120, 1) 100%);
+		background-size: 200% 100%;
+		-webkit-background-clip: text;
+		background-clip: text;
+		-webkit-text-fill-color: transparent;
+		animation: text-shimmer 1.5s ease-in-out infinite;
+	}
+
+	@keyframes text-shimmer {
+		0% { background-position: 200% 0; }
+		100% { background-position: -200% 0; }
+	}
+
+	:global(.tooltip-screenshot-error) {
+		width: 100%;
+		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255, 255, 255, 0.4);
+		font-size: 0.75rem;
+		font-style: italic;
+	}
+
+	:global(.tooltip-excerpt-browser) {
+		font-size: 0.75rem;
+		color: rgba(255, 255, 255, 0.7);
+		line-height: 1.4;
+		font-style: italic;
+		padding: 10px;
+		background: rgba(30, 30, 40, 0.95);
+		border-top: 1px solid rgba(255, 255, 255, 0.1);
+		border-left: 2px solid rgba(73, 73, 255, 0.5);
+		margin: 0;
 	}
 
 	/* Ping ring animation - water droplet effect */
