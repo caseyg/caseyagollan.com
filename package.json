@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
+		"prebuild": "git submodule update --init --recursive || true",
 		"build": "vite build",
 		"preview": "bun run build && wrangler pages dev .svelte-kit/cloudflare",
 		"preview:remote": "bun run build && wrangler pages dev .svelte-kit/cloudflare --remote",
