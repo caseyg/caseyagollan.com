@@ -647,9 +647,8 @@
                     and extensibility over vendor lock-in.
                 </li>
                 <li>
-                    <strong
-                        >Local-first, decentralized, and indieweb software</strong
-                    > — Using Obsidian for local-first knowledge mangement and IndieKit
+                    <strong>Local-first, decentralized, and indieweb software</strong> —
+                    Using Obsidian for local-first knowledge mangement and IndieKit
                     for social publishing and catchement. Prototyping Otso, a set
                     of tools for greater data ownership and agency. Always interested
                     in trying opinionated new software.
@@ -850,6 +849,12 @@
 
     .info-section li {
         margin-bottom: 0.5rem;
+    }
+
+    .info-section li strong {
+        font-variant: small-caps;
+        text-transform: lowercase;
+        font-weight: 600;
     }
 
     /* Sisu image */

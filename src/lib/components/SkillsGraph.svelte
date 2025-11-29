@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import * as d3 from 'd3';
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
@@ -24,6 +24,63 @@
 	let linkSelection: any;
 	let tooltip: any;
 	let hasShownPulse = false;
+	let coachmarkInterval: ReturnType<typeof setInterval> | null = null;
+
+	// Start repeating coachmark animation on the active node
+	function startCoachmarkAnimation() {
+		// Clear any existing interval
+		if (coachmarkInterval) {
+			clearInterval(coachmarkInterval);
+			coachmarkInterval = null;
+		}
+
+		if (!focusedNode || !nodeSelection) return;
+
+		// Function to create a single pulse
+		const createPulse = () => {
+			if (!focusedNode || !nodeSelection) return;
+
+			nodeSelection.each(function(d: Node) {
+				// Only show coachmark on category nodes (initial level)
+				if (d.id === focusedNode && d.type === 'category') {
+					const node = d3.select(this);
+					const ring = node.append('circle')
+						.attr('class', 'coachmark-ring')
+						.attr('r', 10)
+						.style('fill', 'none')
+						.style('stroke', 'rgba(100, 100, 255, 0.6)')
+						.style('stroke-width', '2px');
+
+					ring.transition()
+						.duration(1200)
+						.ease(d3.easeQuadOut)
+						.attr('r', 30)
+						.style('stroke-opacity', 0)
+						.on('end', function() {
+							d3.select(this).remove();
+						});
+				}
+			});
+		};
+
+		// Create first pulse immediately
+		createPulse();
+
+		// Set up repeating interval
+		coachmarkInterval = setInterval(createPulse, 3000);
+	}
+
+	// Stop coachmark animation
+	function stopCoachmarkAnimation() {
+		if (coachmarkInterval) {
+			clearInterval(coachmarkInterval);
+			coachmarkInterval = null;
+		}
+	}
+
+	onDestroy(() => {
+		stopCoachmarkAnimation();
+	});
 
 	// Get favicon URL from a URL
 	function getFaviconUrl(url: string): string {
@@ -520,9 +577,15 @@
 
 		nodeSelection = nodeEnter.merge(nodeSelection);
 
-		// Apply active state
+		// Apply active state and manage coachmark rings
 		nodeSelection.classed('active', (d: Node) => d.id === focusedNode);
 		nodeSelection.classed('focused', focusedNode !== null);
+
+		// Add/remove coachmark rings for active nodes
+		nodeSelection.each(function(d: Node) {
+			const node = d3.select(this);
+			node.selectAll('.coachmark-ring').remove();
+		});
 
 		// Attach click and hover handlers to new nodes
 		nodeSelection
@@ -594,6 +657,9 @@
 		// Gently restart simulation with lower alpha for smoother transitions
 		// Use 0.3 instead of 1 to avoid jerky movements
 		simulation.alpha(0.3).alphaTarget(0).restart();
+
+		// Start coachmark animation on the active node
+		startCoachmarkAnimation();
 	}
 
 	// Drag functions for the simulation
@@ -696,18 +762,18 @@
 								setTimeout(() => {
 									const ring = node.append('circle')
 										.attr('r', 6)
-										.attr('fill', 'none')
-										.attr('stroke', 'blue')
-										.attr('stroke-width', 2)
-										.attr('class', 'ping-ring');
+										.attr('class', 'ping-ring')
+										.style('fill', 'none')
+										.style('stroke', 'rgba(100, 100, 255, 0.6)')
+										.style('stroke-width', '2px');
 
 									// Animate the ring expanding and fading
 									ring.transition()
 										.duration(1500)
 										.ease(d3.easeQuadOut)
 										.attr('r', 50)
-										.attr('stroke-width', 0.5)
-										.attr('stroke-opacity', 0)
+										.style('stroke-width', '0.5px')
+										.style('stroke-opacity', 0)
 										.remove();
 								}, i * 400);
 							}
@@ -833,23 +899,13 @@
 		opacity: 1 !important;
 	}
 
-	/* Active node (the one that was clicked) - coachmark style */
-	.skills-graph :global(.node.active circle) {
+	/* Active node (the one that was clicked) */
+	.skills-graph :global(.node.active circle:not(.coachmark-ring)) {
 		fill: blue !important;
-		stroke: rgba(73, 73, 255, 0.6) !important;
-		stroke-width: 3px !important;
-		animation: coachmark-pulse 2s ease-in-out infinite !important;
 	}
 
-	@keyframes coachmark-pulse {
-		0%, 100% {
-			stroke-width: 3px;
-			stroke-opacity: 0.6;
-		}
-		50% {
-			stroke-width: 8px;
-			stroke-opacity: 0.3;
-		}
+	.skills-graph :global(.coachmark-ring) {
+		pointer-events: none;
 	}
 
 	.skills-graph :global(.node.active text) {
