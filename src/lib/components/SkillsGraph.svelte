@@ -162,7 +162,7 @@
 		if (!status || status === 'loading') return;
 
 		const screenshotHtml = status === 'error'
-			? `<div class="tooltip-screenshot-error">Screenshot unavailable</div>`
+			? `<div class="tooltip-screenshot-skeleton"><span class="loading-text">Loading...</span></div>`
 			: `<img src="${status}" class="tooltip-screenshot-img" alt="Screenshot" />`;
 
 		const faviconUrl = getFaviconUrl(url);
@@ -728,7 +728,9 @@
 							<span class="loading-text">Loading screenshot</span>
 						</div>`;
 					} else if (cachedStatus === 'error') {
-						screenshotHtml = `<div class="tooltip-screenshot-error">Screenshot unavailable</div>`;
+						screenshotHtml = `<div class="tooltip-screenshot-skeleton">
+							<span class="loading-text">Loading...</span>
+						</div>`;
 					} else {
 						screenshotHtml = `<img src="${cachedStatus}" class="tooltip-screenshot-img" alt="Screenshot" />`;
 					}
