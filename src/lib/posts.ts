@@ -32,7 +32,8 @@ export async function getAllPosts(): Promise<Post[]> {
 				const fileContent = await readFile(filePath, 'utf-8');
 				const { data, content } = matter(fileContent);
 
-				const slug = file.replace(/\.md$/, '');
+				// Remove .md extension and strip date prefix (YYYY-MM-DD-) from slug
+			const slug = file.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '');
 
 				// Convert date to string if it's a Date object
 				const dateStr = data.date instanceof Date

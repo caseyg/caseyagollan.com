@@ -6,6 +6,8 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<link rel="webmention" href="https://webmention.io/caseyagollan.com/webmention" />
+	<link rel="pingback" href="https://webmention.io/caseyagollan.com/xmlrpc" />
 </svelte:head>
 
 {@render children?.()}
