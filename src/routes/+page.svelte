@@ -480,7 +480,6 @@
         href="https://unpkg.com/telescopic-text@1.2.4/lib/index.css"
         rel="stylesheet"
     />
-    <link rel="stylesheet" href="https://use.typekit.net/rfh8wvj.css" />
     <link rel="micropub" href="https://kit.caseyagollan.com/micropub" />
     <link
         rel="authorization_endpoint"

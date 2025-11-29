@@ -1,265 +1,61 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import WebmentionCounts from '$lib/components/WebmentionCounts.svelte';
+	import { PostCard, DateHeader, PostsLayout } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 
-	function formatDate(dateStr: string) {
-		const [year, month, day] = dateStr.split('-');
-		return { year, month, day };
-	}
-
-	function formatPostDate(dateStr: string) {
-		const date = new Date(dateStr);
-		return date.toLocaleString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
-		});
-	}
-
-	function truncate(text: string, length: number = 280) {
-		if (text.length <= length) return text;
-		return text.slice(0, length).trim() + '...';
-	}
-
-	function getPermalink(post: { date: string; slug: string }) {
-		const date = new Date(post.date);
-		const year = date.getFullYear();
-		const month = String(date.getMonth() + 1).padStart(2, '0');
-		const day = String(date.getDate()).padStart(2, '0');
-		return `/${year}/${month}/${day}/${post.slug}/`;
-	}
-
-	function getSyndicationInfo(link: string): { icon: string; title: string } {
-		if (link.includes('social.coop') || link.includes('mastodon')) {
-			return { icon: '🐘', title: 'View on Mastodon' };
-		} else if (link.includes('bsky.app')) {
-			return { icon: '🦋', title: 'View on Bluesky' };
-		} else if (link.includes('twitter.com') || link.includes('x.com')) {
-			return { icon: '🐦', title: 'View on X' };
-		} else {
-			return { icon: '🔗', title: link };
-		}
-	}
+	const countText = $derived(data.totalPosts === 1 ? '1 post' : `${data.totalPosts} posts`);
 </script>
 
 <svelte:head>
-	<title>📡 Posts - Casey Gollan</title>
+	<title>Posts - Casey Gollan</title>
 	<meta name="description" content="Posts, notes, and bookmarks by Casey Gollan" />
-	<meta property="og:title" content="📡 Posts - Casey Gollan" />
+	<meta property="og:title" content="Posts - Casey Gollan" />
 	<meta property="og:type" content="website" />
-	<link rel="stylesheet" href="https://use.typekit.net/rfh8wvj.css" />
 </svelte:head>
 
 <Nav currentPage="posts" />
 
-<div class="container">
-
+<PostsLayout>
 	<div class="header">
-		<span class="pill">📡 Posts ({data.totalPosts})</span>
+		<span class="pill">Posts</span>
+		<p class="count-description">{countText}</p>
 	</div>
 
 	<div class="posts-list h-feed">
 		{#each data.postsByDay as [dateKey, postsForDay] (dateKey)}
-			{@const dateInfo = formatDate(dateKey)}
-			<h2 class="date-header">
-				<div class="meta-pill">
-					<a href="/{dateInfo.year}/" class="meta-segment">{dateInfo.year}</a>
-					<a href="/{dateInfo.year}/{dateInfo.month}/" class="meta-segment">{dateInfo.month}</a>
-					<a href="/{dateInfo.year}/{dateInfo.month}/{dateInfo.day}/" class="meta-segment"
-						>{dateInfo.day}</a
-					>
-				</div>
-			</h2>
+			<DateHeader {dateKey} />
 
 			{#each postsForDay as post (post.slug)}
-				<article class="h-entry post">
-					<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
-					<a href="https://caseyagollan.com" class="p-author h-card" style="display:none;">Casey Gollan</a>
-
-					<div class="post-meta">
-						<span class="post-type">{post.type}</span>
-						<a href={getPermalink(post)} class="u-url permalink">
-							<time class="dt-published" datetime={post.date}>{formatPostDate(post.date)}</time>
-						</a>
-						{#if post.syndication && post.syndication.length > 0}
-							{#each post.syndication as link}
-								{@const synInfo = getSyndicationInfo(link)}
-								<a href={link} class="u-syndication syndication-link" title={synInfo.title} target="_blank" rel="noopener">
-									{synInfo.icon}
-								</a>
-							{/each}
-						{/if}
-						<WebmentionCounts url={getPermalink(post)} />
-					</div>
-
-					{#if post.title}
-						<h3 class="p-name post-title">{post.title}</h3>
-					{/if}
-
-					<div class="e-content post-content">
-						{#if post.summary}
-							<p>{post.summary}</p>
-						{:else}
-							<p>{truncate(post.content)}</p>
-						{/if}
-					</div>
-
-					{#if post.category}
-						<div class="post-categories">
-							{#if typeof post.category === 'string'}
-								<span class="category-tag">{post.category}</span>
-							{:else if Array.isArray(post.category)}
-								{#each post.category as cat (cat)}
-									<span class="category-tag">{cat}</span>
-								{/each}
-							{/if}
-						</div>
-					{/if}
-				</article>
+				<PostCard {post} />
 			{/each}
 		{/each}
 	</div>
-</div>
+</PostsLayout>
 
 <style>
-	:global(body) {
-		background: gray;
-		color: white;
-		font-family: ff-dagny-web-pro, sans-serif;
-		margin: 0;
-		padding: 0;
-	}
-
-	.container {
-		max-width: 800px;
-		margin: 0 auto;
-		padding: 2rem;
-	}
-
-	.meta-pill {
-		display: inline-flex;
-		background: blue;
-		border-radius: 5px;
-		overflow: hidden;
-	}
-
-	.meta-segment {
-		padding: 0.5rem 1rem;
-		color: white;
-		text-decoration: none;
-		border-right: 1px solid rgba(255, 255, 255, 0.3);
-	}
-
-	.meta-segment:last-child {
-		border-right: none;
-	}
-
-	.meta-segment:hover {
-		background: rgb(73, 73, 255);
-	}
-
 	.header {
-		margin-bottom: 2rem;
+		margin-bottom: 3rem;
 	}
 
 	.pill {
-		background: blue;
-		color: white;
+		background: #0000ff;
+		color: #fff;
 		padding: 0.5rem 1rem;
-		border-radius: 5px;
+		border-radius: 4px;
 		display: inline-block;
-		font-size: 1.5rem;
+		font-size: 1.25rem;
+		font-weight: 500;
+	}
+
+	.count-description {
+		margin: 0.75rem 0 0;
+		font-size: 0.875rem;
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	.posts-list {
 		line-height: 1.6;
-	}
-
-	.date-header {
-		margin: 2rem 0 1rem;
-		font-size: 1rem;
-		font-weight: normal;
-		position: sticky;
-		top: 0;
-		background: gray;
-		padding: 0.5rem 0;
-		z-index: 10;
-	}
-
-	.post {
-		margin-bottom: 2rem;
-		padding-bottom: 2rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-	}
-
-	.post:last-child {
-		border-bottom: none;
-	}
-
-	.post-meta {
-		display: flex;
-		gap: 1rem;
-		font-size: 0.9rem;
-		opacity: 0.8;
-		margin-bottom: 0.5rem;
-	}
-
-	.post-type {
-		text-transform: uppercase;
-		font-weight: bold;
-		color: rgb(73, 73, 255);
-	}
-
-	.permalink {
-		color: inherit;
-		text-decoration: none;
-	}
-
-	.permalink:hover {
-		text-decoration: underline;
-	}
-
-	.post-title {
-		font-size: 1.3rem;
-		margin: 0.5rem 0;
-		font-weight: bold;
-	}
-
-	.post-content {
-		margin: 1rem 0;
-	}
-
-	.post-content p {
-		margin: 0.5rem 0;
-	}
-
-	.post-categories {
-		display: flex;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-		margin-top: 1rem;
-	}
-
-	.category-tag {
-		background: rgba(255, 255, 255, 0.1);
-		padding: 0.25rem 0.75rem;
-		border-radius: 3px;
-		font-size: 0.85rem;
-	}
-
-	.syndication-link {
-		text-decoration: none;
-		font-size: 1.1em;
-		opacity: 0.8;
-		transition: opacity 0.2s;
-	}
-
-	.syndication-link:hover {
-		opacity: 1;
 	}
 </style>
