@@ -208,18 +208,19 @@
 		const dynamicNodeIds = new Set<string>();
 
 		// Add loading placeholder nodes for topics currently being fetched
-		if (loadingTopics.length > 0 && focusedNode) {
+		// Each loading node is attached to its specific topic, not the current focused node
+		if (loadingTopics.length > 0) {
 			loadingTopics.forEach((topic, idx) => {
 				const loadingId = `loading:${topic}:${idx}`;
 				dynamicNodes.push({
 					id: loadingId,
 					type: 'loading',
-					parent: focusedNode,
+					parent: topic,  // Attach to the specific topic being loaded
 					selected: false
 				});
 				dynamicNodeIds.add(loadingId);
 				dynamicLinks.push({
-					source: focusedNode,
+					source: topic,
 					target: loadingId
 				});
 			});
