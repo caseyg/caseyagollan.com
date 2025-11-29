@@ -163,12 +163,43 @@ fs.readFile(filename, 'utf8', async (err, data) => {
     const filteredNodes = updatedNodes.filter(node => node.group !== 'ddc' || ddcNodeConnections.has(node.id));
     const processedData = { nodes: filteredNodes, links: filteredLinks };
 
-    // Write the processed data to graph.json
-    fs.writeFile('./static/library/graph.json', JSON.stringify(processedData, null, 2), err => {
+    // Minify node keys for smaller payload
+    // Mapping: id->i, workcode->w, bookid->b, isbn->n, pages->p, group->g,
+    // dateacquired->d, publicationYear->y, ddcCode->c, img->m, w->x, h->z, averageColor->a, points->t
+    const minifyNode = (node) => {
+      const minified = { i: node.id, g: node.group };
+      if (node.workcode) minified.w = node.workcode;
+      if (node.bookid) minified.b = node.bookid;
+      if (node.isbn) minified.n = node.isbn;
+      if (node.pages) minified.p = node.pages;
+      if (node.dateacquired) minified.d = node.dateacquired;
+      if (node.publicationYear) minified.y = node.publicationYear;
+      if (node.ddcCode) minified.c = node.ddcCode;
+      if (node.img) minified.m = node.img;
+      if (node.w) minified.x = node.w;
+      if (node.h) minified.z = node.h;
+      if (node.averageColor) minified.a = node.averageColor;
+      if (node.points) minified.t = node.points;
+      return minified;
+    };
+
+    const minifyLink = (link) => ({
+      s: link.source,
+      t: link.target
+    });
+
+    const minifiedData = {
+      nodes: processedData.nodes.map(minifyNode),
+      links: processedData.links.map(minifyLink)
+    };
+
+    // Write the processed data to graph.json (minified, no whitespace)
+    fs.writeFile('./static/library/graph.json', JSON.stringify(minifiedData), err => {
       if (err) {
         console.error(`Error writing file: ${err}`);
       } else {
-        console.log('Successfully wrote graph data to static/library/graph.json');
+        const sizeKB = Math.round(JSON.stringify(minifiedData).length / 1024);
+        console.log(`Successfully wrote graph data to static/library/graph.json (${sizeKB}KB minified)`);
       }
     });
   } catch (parseErr) {
