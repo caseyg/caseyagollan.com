@@ -7,11 +7,13 @@
 	let {
 		onTopicClick,
 		focusNodeId = $bindable(),
-		insightsData
+		insightsData,
+		loadingTopics = []
 	}: {
 		onTopicClick?: (topic: string | null) => void;
 		focusNodeId?: string | null;
 		insightsData?: Map<string, any>;
+		loadingTopics?: string[];
 	} = $props();
 
 	let graphContainer: HTMLDivElement;
@@ -21,6 +23,7 @@
 	let nodeSelection: any;
 	let linkSelection: any;
 	let tooltip: any;
+	let hasShownPulse = false;
 
 	// Get favicon URL from a URL
 	function getFaviconUrl(url: string): string {
@@ -38,7 +41,25 @@
 		const dynamicLinks: Link[] = [];
 		const dynamicNodeIds = new Set<string>();
 
-		if (!insightsData) return { nodes: [...allNodes], links: [...allLinks] };
+		// Add loading placeholder nodes for topics currently being fetched
+		if (loadingTopics.length > 0 && focusedNode) {
+			loadingTopics.forEach((topic, idx) => {
+				const loadingId = `loading:${topic}:${idx}`;
+				dynamicNodes.push({
+					id: loadingId,
+					type: 'loading',
+					parent: focusedNode,
+					selected: false
+				});
+				dynamicNodeIds.add(loadingId);
+				dynamicLinks.push({
+					source: focusedNode,
+					target: loadingId
+				});
+			});
+		}
+
+		if (!insightsData) return { nodes: [...allNodes], links: [...allLinks, ...dynamicLinks] };
 
 		// Create citation nodes and recommended topic nodes for each topic
 		insightsData.forEach((insight, topicId) => {
@@ -122,8 +143,20 @@
 		}
 	});
 
+	// Watch for changes to loading topics
+	$effect(() => {
+		// Track loadingTopics to detect changes
+		const _ = loadingTopics.length;
+
+		// If we have a focused node and the simulation is initialized, refresh the graph
+		if (focusedNode && simulation) {
+			applyFocusMode(focusedNode);
+		}
+	});
+
 	// Get path from a node back to Casey plus immediate connections
-	function getPathAndConnections(nodeId: string): { nodes: Set<string>; links: Set<string> } {
+	// Now accepts currentLinks to include dynamic links from recommended topics
+	function getPathAndConnections(nodeId: string, currentLinks: Link[]): { nodes: Set<string>; links: Set<string> } {
 		const visibleNodes = new Set<string>();
 		const visibleLinks = new Set<string>();
 
@@ -141,7 +174,8 @@
 			processed.add(currentNodeId);
 
 			// Find all links where this node is the target (incoming links)
-			allLinks.forEach((link) => {
+			// Search through ALL links including dynamic ones
+			currentLinks.forEach((link) => {
 				const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
 				const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
 
@@ -159,7 +193,8 @@
 		}
 
 		// Add immediate connections (siblings or other nodes connected to this one)
-		allLinks.forEach((link) => {
+		// Search through ALL links including dynamic ones
+		currentLinks.forEach((link) => {
 			const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
 			const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
 
@@ -212,7 +247,7 @@
 			});
 		} else {
 			focusedNode = nodeId;
-			const { nodes: visibleNodeIds, links: visibleLinkKeys } = getPathAndConnections(nodeId);
+			const { nodes: visibleNodeIds, links: visibleLinkKeys } = getPathAndConnections(nodeId, currentLinks);
 
 			// Add citation nodes for the focused node
 			currentNodes.forEach((n) => {
@@ -274,18 +309,27 @@
 
 		// Apply focused styling to links - mark path-to-casey links as blue
 		if (focusedNode !== null) {
-			// Build the path from focused node back to Casey
+			// Build the path from focused node back to Casey by traversing up the hierarchy
 			const pathNodes = new Set<string>();
 			pathNodes.add(focusedNode);
 
-			// Find the focused node's parent
-			const focusedNodeObj = allNodes.find((n) => n.id === focusedNode);
-			if (focusedNodeObj?.parent) {
-				pathNodes.add(focusedNodeObj.parent);
+			// Traverse up to Casey using current links (which includes dynamic links)
+			let currentNodeId: string | null = focusedNode;
+			const visited = new Set<string>();
 
-				// If parent is not Casey, add Casey
-				if (focusedNodeObj.parent !== 'Casey') {
-					pathNodes.add('Casey');
+			while (currentNodeId && currentNodeId !== 'Casey' && !visited.has(currentNodeId)) {
+				visited.add(currentNodeId);
+
+				// Find the parent by looking for incoming links
+				for (const link of currentLinks) {
+					const sourceId = typeof link.source === 'string' ? link.source : (link.source as any).id;
+					const targetId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+
+					if (targetId === currentNodeId) {
+						pathNodes.add(sourceId);
+						currentNodeId = sourceId;
+						break;
+					}
 				}
 			}
 
@@ -338,7 +382,63 @@
 
 		// Add circles or favicons - all white by default
 		nodeEnter.each(function(d: Node) {
-			if (d.type === 'citation' && d.url) {
+			if (d.type === 'loading') {
+				// Loading placeholder nodes: cycling shapes with shimmer label
+				const node = d3.select(this);
+
+				// Create a group for the shape that will cycle
+				const shapeGroup = node.append('g').attr('class', 'loading-shape-group');
+
+				// Add shapes that will be shown/hidden in sequence
+				// Circle
+				shapeGroup.append('circle')
+					.attr('r', 5)
+					.attr('fill', 'white')
+					.attr('class', 'loading-shape shape-circle');
+
+				// Star (5-pointed)
+				shapeGroup.append('polygon')
+					.attr('points', '0,-6 1.5,-2 6,-2 2.5,1 4,6 0,3 -4,6 -2.5,1 -6,-2 -1.5,-2')
+					.attr('fill', 'white')
+					.attr('class', 'loading-shape shape-star')
+					.style('opacity', 0);
+
+				// Triangle
+				shapeGroup.append('polygon')
+					.attr('points', '0,-6 6,5 -6,5')
+					.attr('fill', 'white')
+					.attr('class', 'loading-shape shape-triangle')
+					.style('opacity', 0);
+
+				// Square (diamond orientation)
+				shapeGroup.append('rect')
+					.attr('x', -4)
+					.attr('y', -4)
+					.attr('width', 8)
+					.attr('height', 8)
+					.attr('transform', 'rotate(45)')
+					.attr('fill', 'white')
+					.attr('class', 'loading-shape shape-square')
+					.style('opacity', 0);
+
+				// Add "Researching" label with letter-by-letter shimmer
+				const label = node.append('text')
+					.attr('dy', -14)
+					.attr('class', 'researching-label')
+					.attr('text-anchor', 'middle')
+					.style('font-size', '12px')
+					.style('font-weight', '300')
+					.style('font-style', 'italic');
+
+				// Split into individual letters with staggered animation delays
+				const text = 'Researching';
+				text.split('').forEach((char, i) => {
+					label.append('tspan')
+						.text(char)
+						.attr('fill', 'white')
+						.attr('class', `shimmer-letter shimmer-letter-${i}`);
+				});
+			} else if (d.type === 'citation' && d.url) {
 				// Citation nodes: show only favicon
 				const faviconUrl = getFaviconUrl(d.url);
 
@@ -366,9 +466,9 @@
 			}
 		});
 
-		// Add text labels (skip citation nodes)
+		// Add text labels (skip citation and loading nodes)
 		nodeEnter.each(function(d: Node) {
-			if (d.type !== 'citation') {
+			if (d.type !== 'citation' && d.type !== 'loading') {
 				d3.select(this)
 					.append('text')
 					.attr('dy', -12)
@@ -391,9 +491,9 @@
 			}
 		});
 
-		// Add label backgrounds - transparent by default (skip citation nodes)
+		// Add label backgrounds - transparent by default (skip citation and loading nodes)
 		nodeEnter.each(function (d: Node) {
-			if (d.type !== 'citation') {
+			if (d.type !== 'citation' && d.type !== 'loading') {
 				const textNode = d3.select(this).select('text');
 				if (!textNode.empty()) {
 					const bbox = (textNode.node() as SVGTextElement).getBBox();
@@ -401,10 +501,10 @@
 					d3.select(this)
 						.insert('rect', 'text')
 						.attr('class', 'label-bg')
-						.attr('x', bbox.x - 4)
-						.attr('y', bbox.y - 2)
-						.attr('width', bbox.width + 8)
-						.attr('height', bbox.height + 4)
+						.attr('x', bbox.x - 2)
+						.attr('y', bbox.y + 1)
+						.attr('width', bbox.width + 4)
+						.attr('height', bbox.height - 2)
 						.attr('fill', 'transparent')
 						.attr('rx', 0)
 						.attr('ry', 0);
@@ -428,6 +528,11 @@
 		nodeSelection
 			.on('click', function (event: MouseEvent, d: Node) {
 				event.stopPropagation();
+
+				// Loading nodes are not clickable
+				if (d.type === 'loading') {
+					return;
+				}
 
 				// Citation nodes don't trigger focus changes
 				if (d.type === 'citation') {
@@ -520,7 +625,7 @@
 			.select(graphContainer)
 			.append('svg')
 			.attr('width', '100%')
-			.attr('height', height)
+			.attr('height', '100%')
 			.attr('viewBox', [0, 0, width, height]);
 
 		// Create tooltip
@@ -569,8 +674,48 @@
 
 		// Background clicks do nothing - focus remains on selected node
 
-		// Initialize with Casey + direct connections
-		applyFocusMode(null);
+		// Initialize with Casey selected by default
+		applyFocusMode('Casey');
+
+		// Show ping animation on a random category node after initial render
+		if (!hasShownPulse) {
+			hasShownPulse = true;
+			// Wait for the simulation to settle a bit
+			setTimeout(() => {
+				// Get category nodes (direct children of Casey)
+				const categoryNodes = allNodes.filter(n => n.type === 'category');
+				if (categoryNodes.length > 0) {
+					// Pick a random category node
+					const randomNode = categoryNodes[Math.floor(Math.random() * categoryNodes.length)];
+					// Find the node element and add ping rings
+					nodeSelection.each(function(d: Node) {
+						if (d.id === randomNode.id) {
+							const node = d3.select(this);
+							// Create multiple expanding rings
+							for (let i = 0; i < 3; i++) {
+								setTimeout(() => {
+									const ring = node.append('circle')
+										.attr('r', 6)
+										.attr('fill', 'none')
+										.attr('stroke', 'blue')
+										.attr('stroke-width', 2)
+										.attr('class', 'ping-ring');
+
+									// Animate the ring expanding and fading
+									ring.transition()
+										.duration(1500)
+										.ease(d3.easeQuadOut)
+										.attr('r', 50)
+										.attr('stroke-width', 0.5)
+										.attr('stroke-opacity', 0)
+										.remove();
+								}, i * 400);
+							}
+						}
+					});
+				}
+			}, 1200);
+		}
 	});
 </script>
 
@@ -579,9 +724,8 @@
 <style>
 	.skills-graph {
 		width: 100%;
-		height: 50vh;
-		max-height: 600px;
-		min-height: 400px;
+		height: 100%;
+		min-height: 300px;
 	}
 
 	.skills-graph :global(svg) {
@@ -689,9 +833,23 @@
 		opacity: 1 !important;
 	}
 
-	/* Active node (the one that was clicked) - blue like hover */
+	/* Active node (the one that was clicked) - coachmark style */
 	.skills-graph :global(.node.active circle) {
 		fill: blue !important;
+		stroke: rgba(73, 73, 255, 0.6) !important;
+		stroke-width: 3px !important;
+		animation: coachmark-pulse 2s ease-in-out infinite !important;
+	}
+
+	@keyframes coachmark-pulse {
+		0%, 100% {
+			stroke-width: 3px;
+			stroke-opacity: 0.6;
+		}
+		50% {
+			stroke-width: 8px;
+			stroke-opacity: 0.3;
+		}
 	}
 
 	.skills-graph :global(.node.active text) {
@@ -745,5 +903,68 @@
 		padding-left: 0.5rem;
 		margin-top: 0.25rem;
 	}
+
+	/* Ping ring animation - water droplet effect */
+	.skills-graph :global(.ping-ring) {
+		pointer-events: none;
+	}
+
+	/* Loading node - shape cycling animation (instant swap) */
+	@keyframes shape-cycle {
+		0%, 24.9% { opacity: 1; }
+		25%, 100% { opacity: 0; }
+	}
+
+	.skills-graph :global(.loading-shape-group .shape-circle) {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0s;
+	}
+
+	.skills-graph :global(.loading-shape-group .shape-star) {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0.5s;
+	}
+
+	.skills-graph :global(.loading-shape-group .shape-triangle) {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1s;
+	}
+
+	.skills-graph :global(.loading-shape-group .shape-square) {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1.5s;
+	}
+
+	/* Loading node styles */
+	.skills-graph :global(.node.loading) {
+		pointer-events: none;
+	}
+
+	.skills-graph :global(.researching-label) {
+		pointer-events: none;
+	}
+
+	/* Letter-by-letter shimmer animation */
+	@keyframes letter-shimmer {
+		0%, 100% { opacity: 0.4; }
+		50% { opacity: 1; }
+	}
+
+	.skills-graph :global(.shimmer-letter) {
+		animation: letter-shimmer 1.5s ease-in-out infinite;
+	}
+
+	/* Stagger each letter's animation */
+	.skills-graph :global(.shimmer-letter-0) { animation-delay: 0s; }
+	.skills-graph :global(.shimmer-letter-1) { animation-delay: 0.1s; }
+	.skills-graph :global(.shimmer-letter-2) { animation-delay: 0.2s; }
+	.skills-graph :global(.shimmer-letter-3) { animation-delay: 0.3s; }
+	.skills-graph :global(.shimmer-letter-4) { animation-delay: 0.4s; }
+	.skills-graph :global(.shimmer-letter-5) { animation-delay: 0.5s; }
+	.skills-graph :global(.shimmer-letter-6) { animation-delay: 0.6s; }
+	.skills-graph :global(.shimmer-letter-7) { animation-delay: 0.7s; }
+	.skills-graph :global(.shimmer-letter-8) { animation-delay: 0.8s; }
+	.skills-graph :global(.shimmer-letter-9) { animation-delay: 0.9s; }
+	.skills-graph :global(.shimmer-letter-10) { animation-delay: 1.0s; }
 
 </style>

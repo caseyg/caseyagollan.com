@@ -24,11 +24,32 @@
     let isDocumentAnimating: boolean = $state(false);
     let currentEditEvent: { old_text: string; new_text: string } | undefined =
         $state(undefined);
-    let insights: Insight[] = $state([]);
-    let insightsByTopic: Map<string, Insight> = $state(new Map());
-    let activeInsightTopic: string | null = $state(null);
-    let graphFocusNodeId: string | null = $state(null);
+    // Casey's starter bio for the initial insight card
+    const caseyBio = "Casey is a Senior Manager of Engineering in IBM's Product Excellence Office, leading a team that builds AI productivity platforms for hundreds of product teams across one of the largest and oldest technology companies.";
+
+    // Initialize with Casey insight
+    const caseyInsight: Insight = {
+        topic: 'Casey',
+        insight: caseyBio,
+        timestamp: Date.now(),
+        isStreaming: false,
+        isThinking: false,
+        sources: [],
+        recommendedTopics: []
+    };
+
+    let insights: Insight[] = $state([caseyInsight]);
+    let insightsByTopic: Map<string, Insight> = $state(new Map([['Casey', caseyInsight]]));
+    let activeInsightTopic: string | null = $state('Casey');
+    let graphFocusNodeId: string | null = $state('Casey');
     let clickedTopics: Set<string> = $state(new Set());
+
+    // Derive loading topics from insights that are currently streaming
+    let loadingTopics: string[] = $derived(
+        insights
+            .filter(i => i.isStreaming && i.topic !== 'Casey')
+            .map(i => i.topic)
+    );
 
     // Document update queue
     interface QueuedUpdate {
@@ -324,6 +345,13 @@
             return;
         }
 
+        // Special handling for Casey - just show the existing bio, don't generate
+        if (topic === 'Casey') {
+            activeInsightTopic = 'Casey';
+            scrollToInsightCard('Casey');
+            return;
+        }
+
         // Check if we already have an insight for this topic
         const existingInsight = insightsByTopic.get(topic);
 
@@ -440,7 +468,7 @@
             const insightIndex = insights.findIndex((i) => i.topic === topic);
             if (insightIndex !== -1) {
                 const container = document.querySelector(
-                    ".insights-container",
+                    ".pane-insights",
                 ) as HTMLElement;
                 const cards = container?.querySelectorAll(".insight-item");
                 const card = cards?.[insightIndex] as HTMLElement;
@@ -511,28 +539,71 @@
     </script>
 </svelte:head>
 
-<header>
-    <a class="skip-link" href="/index-accessible.html"
-        >Visit Accessible Alternative</a
-    >
-</header>
-
+<!-- Full-viewport 3-pane interface -->
 <Nav currentPage="home" />
 
-<main bind:this={textContainer}>
-    {#if !browser}
-        <p>
-            👋 Hi, I'm Casey! I lead a team building AI productivity platforms at
-            IBM 💼 🤖 👨‍🎨 📚. Based in NYC.
-        </p>
+<section class="hero-container">
+    <div class="three-pane">
+        <!-- Left: Graph -->
+        <div class="pane-graph">
+            <SkillsGraph
+                onTopicClick={handleTopicClick}
+                bind:focusNodeId={graphFocusNodeId}
+                insightsData={insightsByTopic}
+                {loadingTopics}
+            />
+        </div>
+
+        <!-- Right: Bio -->
+        <div class="pane-bio" class:updating={isDocumentUpdating}>
+            <PersistentDocument
+                content={documentContent}
+                isUpdating={isDocumentUpdating}
+                editEvent={currentEditEvent}
+                onAnimationStateChange={handleAnimationStateChange}
+            />
+        </div>
+    </div>
+
+    <!-- Bottom: Insight cards -->
+    {#if insights.length > 0}
+        <div class="pane-insights">
+            {#each insights as insight (insight.timestamp)}
+                <InsightCard
+                    topic={insight.topic}
+                    insight={insight.insight}
+                    active={activeInsightTopic === insight.topic}
+                    isStreaming={insight.isStreaming}
+                    isThinking={insight.isThinking}
+                    sources={insight.sources}
+                    onclick={() => handleInsightCardClick(insight.topic)}
+                />
+            {/each}
+        </div>
     {/if}
-</main>
 
-<img
-    src="/sisu.gif"
-    alt="Monument to Finnish Sisu. Rocks are arranged into a large mound at the edge of a grassy plateau, overlooking fields, forests, and lakes, under a bright cloudy sky."
-/>
+    <!-- Scroll indicator -->
+    <div class="scroll-hint">
+        <span>scroll</span>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+</section>
 
+<!-- Expandable telescopic bio -->
+<section class="telescopic-section">
+    <main bind:this={textContainer}>
+        {#if !browser}
+            <p>
+                👋 Hi, I'm Casey! I lead a team building AI productivity platforms at
+                IBM 💼 🤖 👨‍🎨 📚. Based in NYC.
+            </p>
+        {/if}
+    </main>
+</section>
+
+<!-- Info sections below the fold -->
 <div class="info-sections">
     <div class="two-column-section">
         <section class="info-section">
@@ -592,131 +663,53 @@
             </ul>
         </section>
     </div>
-
-    <section class="info-section skills-section">
-        <div class="three-pane-container">
-            <div class="graph-document-container">
-                <div class="graph-and-insights">
-                    <SkillsGraph
-                        onTopicClick={handleTopicClick}
-                        bind:focusNodeId={graphFocusNodeId}
-                        insightsData={insightsByTopic}
-                    />
-                </div>
-                <div class="bio-sticky-container" class:updating={isDocumentUpdating}>
-                    <PersistentDocument
-                        content={documentContent}
-                        isUpdating={isDocumentUpdating}
-                        editEvent={currentEditEvent}
-                        onAnimationStateChange={handleAnimationStateChange}
-                    />
-                </div>
-            </div>
-            {#if insights.length > 0}
-                <div class="insights-container">
-                    {#each insights as insight (insight.timestamp)}
-                        <InsightCard
-                            topic={insight.topic}
-                            insight={insight.insight}
-                            active={activeInsightTopic === insight.topic}
-                            isStreaming={insight.isStreaming}
-                            isThinking={insight.isThinking}
-                            sources={insight.sources}
-                            onclick={() =>
-                                handleInsightCardClick(insight.topic)}
-                        />
-                    {/each}
-                </div>
-            {/if}
-        </div>
-    </section>
 </div>
+
+<img
+    src="/sisu.gif"
+    alt="Monument to Finnish Sisu. Rocks are arranged into a large mound at the edge of a grassy plateau, overlooking fields, forests, and lakes, under a bright cloudy sky."
+    class="sisu-image"
+/>
 
 <a rel="me" href="https://social.coop/@caseyg" class="hidden"
     >@caseyg@social.coop</a
 >
 
 <style>
-    .skip-link {
-        background: blue;
-        color: white;
-        font-weight: 700;
-        left: 0;
-        position: absolute;
-        top: 0;
-        transform: translateY(-100%);
+    /* ==========================================
+       HERO - Full viewport 3-pane interface
+       ========================================== */
+    .hero-container {
+        position: relative;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 500px;
+        display: flex;
+        flex-direction: column;
+        border-bottom: 1px solid var(--border);
     }
 
-    .skip-link:focus {
-        transform: translateY(0%);
-    }
-
-    main {
-        max-width: 1400px;
-        margin: 3rem auto 0;
-        padding: 0 2rem;
-    }
-
-    img {
-        width: 50vw;
-        max-width: 1400px;
-        margin: 3rem auto;
-        padding: 0 2rem;
-        display: block;
-    }
-
-    .hidden {
-        display: none;
-    }
-
-    .info-sections {
-        max-width: 1400px;
-        margin: 3rem auto;
-        padding: 0 2rem;
-        font-size: 1.125rem;
-        font-weight: 300;
-        line-height: 1.6;
-    }
-
-    .two-column-section {
+    .three-pane {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 3rem;
-        margin-bottom: 3rem;
+        grid-template-columns: 2fr 1fr;
+        flex: 1;
+        min-height: 0;
     }
 
-    .three-pane-container {
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 8px;
+    .pane-graph {
+        border-right: 1px solid var(--border);
+        min-width: 0;
+        min-height: 0;
         overflow: hidden;
     }
 
-    .graph-document-container {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 0;
-        align-items: stretch;
-        min-height: 600px;
-    }
-
-    .skills-section {
-        position: relative;
-    }
-
-    .graph-and-insights {
-        min-width: 0;
-        border-right: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 1.5rem;
-    }
-
-    .bio-sticky-container {
-        padding: 1.5rem;
-        min-height: 600px;
+    .pane-bio {
+        padding: var(--spacing-md);
+        overflow-y: auto;
         transition: box-shadow 0.6s ease;
-        border-radius: 4px;
     }
 
-    .bio-sticky-container.updating {
+    .pane-bio.updating {
         box-shadow: inset 0 0 30px rgba(73, 73, 255, 0.3);
         animation: glowPulse 2s ease-in-out infinite;
     }
@@ -730,40 +723,22 @@
         }
     }
 
-    .insights-container {
+    /* Insight cards - horizontal scroll at bottom */
+    .pane-insights {
         display: flex;
-        gap: 0.75rem;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-md);
         overflow-x: auto;
-        overflow-y: visible;
         scroll-behavior: smooth;
-        padding: 1.5rem;
-        padding-top: 120px;
-        align-items: flex-end;
-        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        -webkit-overflow-scrolling: touch;
     }
 
-    .insights-container :global(.insight-item) {
+    .pane-insights :global(.insight-item) {
         flex: 0 0 200px;
         min-width: 200px;
         height: 120px;
         animation: slideInFromLeft 0.4s ease;
-        transition: all 0.3s ease;
-        position: relative;
-    }
-
-    .insights-container :global(.insight-item:hover) {
-        height: 120px;
-        z-index: 10;
-    }
-
-    .insights-container :global(.insight-item:hover::before) {
-        content: "";
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 320px;
-        height: 400px;
-        pointer-events: none;
     }
 
     @keyframes slideInFromLeft {
@@ -777,12 +752,82 @@
         }
     }
 
-    .info-section {
-        margin-bottom: 3rem;
+    /* Scroll indicator */
+    .scroll-hint {
+        position: absolute;
+        bottom: var(--spacing-md);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.25rem;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        font-weight: 300;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        opacity: 0.6;
+        transition: opacity 0.3s ease;
+        animation: bobble 2s ease-in-out infinite;
     }
 
-    .two-column-section .info-section {
-        margin-bottom: 0;
+    .scroll-hint::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -30%);
+        width: 120px;
+        height: 80px;
+        background: radial-gradient(
+            ellipse 60px 50px at center top,
+            var(--background) 0%,
+            var(--background) 30%,
+            transparent 70%
+        );
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .scroll-hint:hover {
+        opacity: 1;
+    }
+
+    @keyframes bobble {
+        0%, 100% { transform: translateX(-50%) translateY(0); }
+        50% { transform: translateX(-50%) translateY(4px); }
+    }
+
+    /* ==========================================
+       TELESCOPIC TEXT SECTION
+       ========================================== */
+    .telescopic-section {
+        padding: var(--spacing-lg) var(--spacing-md);
+    }
+
+    .telescopic-section main {
+        max-width: var(--content-max-width);
+        margin: 0 auto;
+    }
+
+    /* ==========================================
+       INFO SECTIONS
+       ========================================== */
+    .info-sections {
+        max-width: var(--content-max-width);
+        margin: 0 auto;
+        padding: var(--spacing-lg) var(--spacing-md);
+        font-size: 1.125rem;
+        font-weight: 300;
+        line-height: 1.6;
+    }
+
+    .two-column-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-lg);
     }
 
     .info-section h2 {
@@ -800,35 +845,89 @@
     .info-section ul {
         list-style: none;
         padding: 0;
+        margin: 0;
     }
 
     .info-section li {
         margin-bottom: 0.5rem;
     }
 
-    @media (max-width: 1200px) {
-        .graph-document-container {
-            grid-template-columns: 1fr;
+    /* Sisu image */
+    .sisu-image {
+        width: 50vw;
+        max-width: var(--content-max-width);
+        margin: var(--spacing-lg) auto;
+        padding: 0 var(--spacing-md);
+        display: block;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    /* ==========================================
+       RESPONSIVE - TABLET
+       ========================================== */
+    @media (max-width: 1024px) {
+        .three-pane {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .two-column-section {
+            gap: var(--spacing-md);
         }
     }
 
-    @media (max-width: 900px) {
+    /* ==========================================
+       RESPONSIVE - MOBILE
+       ========================================== */
+    @media (max-width: 768px) {
+        .hero-container {
+            height: auto;
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin: var(--spacing-sm);
+        }
+
+        .three-pane {
+            grid-template-columns: 1fr;
+        }
+
+        .pane-graph {
+            border-right: none;
+            border-bottom: 1px solid var(--border);
+            min-height: 50vh;
+        }
+
+        .pane-bio {
+            max-height: 40vh;
+        }
+
+        .scroll-hint {
+            display: none;
+        }
+
+        .two-column-section {
+            grid-template-columns: 1fr;
+        }
+
         .info-sections {
-            max-width: 90vw;
             font-size: 1rem;
+            padding: var(--spacing-md);
         }
 
         .info-section h2 {
             font-size: 1.5rem;
         }
+    }
 
-        .two-column-section {
-            grid-template-columns: 1fr;
-            gap: 0;
-        }
-
-        .two-column-section .info-section {
-            margin-bottom: 3rem;
+    /* ==========================================
+       SMALL MOBILE
+       ========================================== */
+    @media (max-width: 480px) {
+        .pane-insights :global(.insight-item) {
+            flex: 0 0 180px;
+            min-width: 180px;
         }
     }
 </style>

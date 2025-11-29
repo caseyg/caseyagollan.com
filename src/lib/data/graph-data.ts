@@ -4,7 +4,7 @@ import graphMarkdown from "./graph.md?raw";
 
 export interface Node {
   id: string;
-  type: "center" | "category" | "subcategory" | "node" | "citation";
+  type: "center" | "category" | "subcategory" | "node" | "citation" | "loading";
   parent: string | null;
   selected: boolean;
   x?: number;

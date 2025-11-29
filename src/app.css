@@ -11,10 +11,26 @@ body {
 	font-weight: 100;
 	line-height: 1.5;
 	margin: 0;
+	overflow-x: hidden;
 }
 
 :root {
 	--telescope-text-color: white !important;
 	--telescope-highlight: blue !important;
 	--telescope-highlight-hover: rgb(73, 73, 255) !important;
+
+	/* Layout tokens */
+	--content-max-width: 1400px;
+	--spacing-sm: 0.75rem;
+	--spacing-md: 1.5rem;
+	--spacing-lg: 3rem;
+
+	/* Colors */
+	--bg-primary: gray;
+	--accent: blue;
+	--accent-hover: rgb(73, 73, 255);
+	--text-primary: white;
+	--text-secondary: rgba(255, 255, 255, 0.9);
+	--text-muted: rgba(255, 255, 255, 0.6);
+	--border: rgba(255, 255, 255, 0.2);
 }

@@ -79,14 +79,14 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			console.log('🚀 ============================================');
 			console.log('🚀 CACHE MISS - Calling Anthropic API');
 			console.log('🚀 Topic:', topic);
-			console.log('🚀 Model: claude-haiku-4-5-20251001');
+			console.log('🚀 Model: claude-opus-4-5-20251101');
 			console.log('🚀 Using web search tool');
 			console.log('🚀 Mode: NON-STREAMING (to get citations)');
 			console.log('🚀 ============================================');
 			console.log('');
 
 			const apiResponse = await anthropic.messages.create({
-				model: 'claude-haiku-4-5-20251001',
+				model: 'claude-opus-4-5-20251101',
 				max_tokens: 500,
 				temperature: 1,
 				messages: [

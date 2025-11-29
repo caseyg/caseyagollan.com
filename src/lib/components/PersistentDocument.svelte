@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 
 	let {
 		content = 'Casey leads research operations at IBM, building AI productivity tools and serving on the ResearchOps Community board.\n\nPreviously, they co-founded the School for Poetic Computation and led operations at NYU AI Now Institute.',
@@ -174,10 +175,21 @@
 <div class="bio" class:updating={isUpdating}>
 	<div class="header-label">
 		{#if isUpdating}
-			<span class="pulse"></span>
-			Rewriting...
+			<span class="rewriting-label" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
+				<span class="loading-shapes">
+					<svg width="10" height="10" viewBox="-6 -6 12 12">
+						<circle r="4" fill="white" class="shape shape-circle" />
+						<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="white" class="shape shape-star" />
+						<polygon points="0,-5 5,4 -5,4" fill="white" class="shape shape-triangle" />
+						<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="white" class="shape shape-square" />
+					</svg>
+				</span>
+				<span class="shimmer-text">
+					<span class="shimmer-letter" style="animation-delay: 0s">R</span><span class="shimmer-letter" style="animation-delay: 0.08s">e</span><span class="shimmer-letter" style="animation-delay: 0.16s">w</span><span class="shimmer-letter" style="animation-delay: 0.24s">r</span><span class="shimmer-letter" style="animation-delay: 0.32s">i</span><span class="shimmer-letter" style="animation-delay: 0.4s">t</span><span class="shimmer-letter" style="animation-delay: 0.48s">i</span><span class="shimmer-letter" style="animation-delay: 0.56s">n</span><span class="shimmer-letter" style="animation-delay: 0.64s">g</span>
+				</span>
+			</span>
 		{:else}
-			About Casey
+			<span class="about-label" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>About Casey</span>
 		{/if}
 	</div>
 	<div class="content">
@@ -207,26 +219,63 @@
 	}
 
 	.bio.updating .header-label {
-		color: rgb(180, 180, 255);
+		color: white;
 	}
 
-	.pulse {
-		width: 6px;
-		height: 6px;
-		background: rgb(150, 150, 255);
-		border-radius: 50%;
-		animation: pulse 1.5s ease-in-out infinite;
+	.rewriting-label,
+	.about-label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
-	@keyframes pulse {
-		0%, 100% {
-			opacity: 1;
-			transform: scale(1);
-		}
-		50% {
-			opacity: 0.5;
-			transform: scale(1.2);
-		}
+	.loading-shapes {
+		display: inline-flex;
+		vertical-align: middle;
+	}
+
+	.loading-shapes svg {
+		display: block;
+	}
+
+	/* Shape cycling animation (instant swap) */
+	@keyframes shape-cycle {
+		0%, 24.9% { opacity: 1; }
+		25%, 100% { opacity: 0; }
+	}
+
+	.loading-shapes .shape {
+		opacity: 0;
+	}
+
+	.loading-shapes .shape-circle {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0s;
+		opacity: 1;
+	}
+
+	.loading-shapes .shape-star {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0.5s;
+	}
+
+	.loading-shapes .shape-triangle {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1s;
+	}
+
+	.loading-shapes .shape-square {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1.5s;
+	}
+
+	.shimmer-letter {
+		animation: letter-shimmer 1.5s ease-in-out infinite;
+	}
+
+	@keyframes letter-shimmer {
+		0%, 100% { opacity: 0.4; }
+		50% { opacity: 1; }
 	}
 
 	.content {

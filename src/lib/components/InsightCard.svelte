@@ -24,7 +24,17 @@
 		{#if insight}
 			{insight}
 		{:else if isStreaming}
-			<span class="loading-pulse">●</span> Generating...
+			<span class="loading-shapes">
+				<svg width="12" height="12" viewBox="-6 -6 12 12">
+					<circle r="4" fill="white" class="shape shape-circle" />
+					<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="white" class="shape shape-star" />
+					<polygon points="0,-5 5,4 -5,4" fill="white" class="shape shape-triangle" />
+					<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="white" class="shape shape-square" />
+				</svg>
+			</span>
+			<span class="shimmer-text">
+				<span class="shimmer-letter" style="animation-delay: 0s">R</span><span class="shimmer-letter" style="animation-delay: 0.08s">e</span><span class="shimmer-letter" style="animation-delay: 0.16s">s</span><span class="shimmer-letter" style="animation-delay: 0.24s">e</span><span class="shimmer-letter" style="animation-delay: 0.32s">a</span><span class="shimmer-letter" style="animation-delay: 0.4s">r</span><span class="shimmer-letter" style="animation-delay: 0.48s">c</span><span class="shimmer-letter" style="animation-delay: 0.56s">h</span><span class="shimmer-letter" style="animation-delay: 0.64s">i</span><span class="shimmer-letter" style="animation-delay: 0.72s">n</span><span class="shimmer-letter" style="animation-delay: 0.8s">g</span>
+			</span>
 		{:else}
 			Loading...
 		{/if}
@@ -56,25 +66,8 @@
 	}
 
 	.insight-item:hover {
-		position: absolute;
-		bottom: 0;
-		left: 0;
-		width: 320px;
-		height: 400px;
-		overflow-y: auto;
-		overflow-x: hidden;
-		scroll-behavior: smooth;
-		background: rgba(255, 255, 255, 0.08);
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-	}
-
-	.insight-item:hover .insight-text {
-		display: block;
-		-webkit-line-clamp: unset;
-		-webkit-box-orient: unset;
-		overflow: visible;
-		word-wrap: break-word;
-		overflow-wrap: break-word;
+		background: rgba(255, 255, 255, 0.1);
+		border-left-color: rgba(255, 255, 255, 0.3);
 	}
 
 	.insight-item.active {
@@ -114,21 +107,57 @@
 		font-style: italic;
 	}
 
-	.loading-pulse {
+	.loading-shapes {
 		display: inline-block;
-		animation: pulse 1s ease-in-out infinite;
-		color: rgb(150, 150, 255);
-		font-size: 1.2rem;
+		vertical-align: middle;
 		margin-right: 0.5rem;
 	}
 
+	.loading-shapes svg {
+		display: block;
+	}
 
-	@keyframes pulse {
-		0%, 100% {
-			opacity: 0.5;
-		}
-		50% {
-			opacity: 1;
-		}
+	/* Shape cycling animation (instant swap) */
+	@keyframes shape-cycle {
+		0%, 24.9% { opacity: 1; }
+		25%, 100% { opacity: 0; }
+	}
+
+	.loading-shapes .shape {
+		opacity: 0;
+	}
+
+	.loading-shapes .shape-circle {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0s;
+		opacity: 1;
+	}
+
+	.loading-shapes .shape-star {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0.5s;
+	}
+
+	.loading-shapes .shape-triangle {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1s;
+	}
+
+	.loading-shapes .shape-square {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1.5s;
+	}
+
+	.shimmer-text {
+		font-style: italic;
+	}
+
+	.shimmer-letter {
+		animation: letter-shimmer 1.5s ease-in-out infinite;
+	}
+
+	@keyframes letter-shimmer {
+		0%, 100% { opacity: 0.4; }
+		50% { opacity: 1; }
 	}
 </style>
