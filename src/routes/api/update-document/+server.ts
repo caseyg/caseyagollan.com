@@ -66,37 +66,53 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				const stream = new ReadableStream({
 					async start(controller) {
 						const encoder = new TextEncoder();
+						let controllerClosed = false;
+
+						const safeEnqueue = (data: string) => {
+							if (controllerClosed) return;
+							try {
+								controller.enqueue(encoder.encode(data));
+							} catch {
+								controllerClosed = true;
+							}
+						};
+
+						const safeClose = () => {
+							if (controllerClosed) return;
+							try {
+								controller.close();
+								controllerClosed = true;
+							} catch {
+								controllerClosed = true;
+							}
+						};
 
 						// Calculate what changed from current to cached
 						const oldDoc = currentDocument || '';
 						const newDoc = cached;
 
 						// Send edit event to trigger animation
-						controller.enqueue(
-							encoder.encode(
-								`data: ${JSON.stringify({
-									type: 'edit',
-									command: 'str_replace',
-									old_text: oldDoc,
-									new_text: newDoc
-								})}\n\n`
-							)
+						safeEnqueue(
+							`data: ${JSON.stringify({
+								type: 'edit',
+								command: 'str_replace',
+								old_text: oldDoc,
+								new_text: newDoc
+							})}\n\n`
 						);
 
 						// Small delay to ensure UI updates
 						await new Promise(resolve => setTimeout(resolve, 100));
 
 						// Send done event with final document
-						controller.enqueue(
-							encoder.encode(
-								`data: ${JSON.stringify({
-									type: 'done',
-									document: newDoc
-								})}\n\n`
-							)
+						safeEnqueue(
+							`data: ${JSON.stringify({
+								type: 'done',
+								document: newDoc
+							})}\n\n`
 						);
 
-						controller.close();
+						safeClose();
 					}
 				});
 
@@ -171,6 +187,30 @@ The output should read like a professional bio - clear, concise prose only. Thin
 		const stream = new ReadableStream({
 			async start(controller) {
 				const encoder = new TextEncoder();
+				let controllerClosed = false;
+
+				// Helper to safely enqueue data
+				const safeEnqueue = (data: string) => {
+					if (controllerClosed) return false;
+					try {
+						controller.enqueue(encoder.encode(data));
+						return true;
+					} catch {
+						controllerClosed = true;
+						return false;
+					}
+				};
+
+				// Helper to safely close controller
+				const safeClose = () => {
+					if (controllerClosed) return;
+					try {
+						controller.close();
+						controllerClosed = true;
+					} catch {
+						controllerClosed = true;
+					}
+				};
 
 				try {
 					let continueLoop = true;
@@ -208,15 +248,13 @@ The output should read like a professional bio - clear, concise prose only. Thin
 									const input = toolUse.input;
 
 									// Stream the edit operation details
-									controller.enqueue(
-										encoder.encode(
-											`data: ${JSON.stringify({
-												type: 'edit',
-												command: input.command,
-												old_text: input.old_str,
-												new_text: input.new_str
-											})}\n\n`
-										)
+									safeEnqueue(
+										`data: ${JSON.stringify({
+											type: 'edit',
+											command: input.command,
+											old_text: input.old_str,
+											new_text: input.new_str
+										})}\n\n`
 									);
 
 									const result = handleTextEditorTool(input, document);
@@ -225,13 +263,11 @@ The output should read like a professional bio - clear, concise prose only. Thin
 										document = result.newDocument;
 
 										// Stream the updated document
-										controller.enqueue(
-											encoder.encode(
-												`data: ${JSON.stringify({
-													type: 'document_update',
-													document
-												})}\n\n`
-											)
+										safeEnqueue(
+											`data: ${JSON.stringify({
+												type: 'document_update',
+												document
+											})}\n\n`
 										);
 									}
 
@@ -263,28 +299,24 @@ The output should read like a professional bio - clear, concise prose only. Thin
 					}
 
 					// Send final completion
-					controller.enqueue(
-						encoder.encode(
-							`data: ${JSON.stringify({
-								type: 'done',
-								document,
-								iterations: iterationCount
-							})}\n\n`
-						)
+					safeEnqueue(
+						`data: ${JSON.stringify({
+							type: 'done',
+							document,
+							iterations: iterationCount
+						})}\n\n`
 					);
 
-					controller.close();
+					safeClose();
 				} catch (error) {
 					console.error('Error updating document:', error);
-					controller.enqueue(
-						encoder.encode(
-							`data: ${JSON.stringify({
-								type: 'error',
-								error: String(error)
-							})}\n\n`
-						)
+					safeEnqueue(
+						`data: ${JSON.stringify({
+							type: 'error',
+							error: String(error)
+						})}\n\n`
 					);
-					controller.close();
+					safeClose();
 				}
 			}
 		});
