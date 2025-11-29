@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
+	import Webmentions from '$lib/components/Webmentions.svelte';
 
 	let { data }: { data: PageData } = $props();
 
@@ -13,6 +14,18 @@
 			hour: 'numeric',
 			minute: '2-digit'
 		});
+	}
+
+	function getSyndicationInfo(link: string): { icon: string; title: string } {
+		if (link.includes('social.coop') || link.includes('mastodon')) {
+			return { icon: '🐘', title: 'View on Mastodon' };
+		} else if (link.includes('bsky.app')) {
+			return { icon: '🦋', title: 'View on Bluesky' };
+		} else if (link.includes('twitter.com') || link.includes('x.com')) {
+			return { icon: '🐦', title: 'View on X' };
+		} else {
+			return { icon: '🔗', title: link };
+		}
 	}
 
 	const permalink = `/${data.year}/${data.month}/${data.day}/${data.post.slug}/`;
@@ -29,11 +42,22 @@
 
 <div class="container">
 	<article class="h-entry post">
+		<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
+		<a href="https://caseyagollan.com" class="p-author h-card" style="display:none;">Casey Gollan</a>
+
 		<div class="post-meta">
 			<span class="post-type">{data.post.type}</span>
 			<a href={permalink} class="u-url permalink">
 				<time class="dt-published" datetime={data.post.date}>{formatPostDate(data.post.date)}</time>
 			</a>
+			{#if data.post.syndication && data.post.syndication.length > 0}
+				{#each data.post.syndication as link}
+					{@const synInfo = getSyndicationInfo(link)}
+					<a href={link} class="u-syndication syndication-link" title={synInfo.title} target="_blank" rel="noopener">
+						{synInfo.icon}
+					</a>
+				{/each}
+			{/if}
 		</div>
 
 		{#if data.post.title}
@@ -55,6 +79,8 @@
 				{/if}
 			</div>
 		{/if}
+
+		<Webmentions url={permalink} />
 	</article>
 </div>
 
@@ -138,5 +164,16 @@
 		padding: 0.25rem 0.75rem;
 		border-radius: 3px;
 		font-size: 0.85rem;
+	}
+
+	.syndication-link {
+		text-decoration: none;
+		font-size: 1.1em;
+		opacity: 0.8;
+		transition: opacity 0.2s;
+	}
+
+	.syndication-link:hover {
+		opacity: 1;
 	}
 </style>

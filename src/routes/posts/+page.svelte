@@ -32,6 +32,18 @@
 		const day = String(date.getDate()).padStart(2, '0');
 		return `/${year}/${month}/${day}/${post.slug}/`;
 	}
+
+	function getSyndicationInfo(link: string): { icon: string; title: string } {
+		if (link.includes('social.coop') || link.includes('mastodon')) {
+			return { icon: '🐘', title: 'View on Mastodon' };
+		} else if (link.includes('bsky.app')) {
+			return { icon: '🦋', title: 'View on Bluesky' };
+		} else if (link.includes('twitter.com') || link.includes('x.com')) {
+			return { icon: '🐦', title: 'View on X' };
+		} else {
+			return { icon: '🔗', title: link };
+		}
+	}
 </script>
 
 <svelte:head>
@@ -65,11 +77,22 @@
 
 			{#each postsForDay as post (post.slug)}
 				<article class="h-entry post">
+					<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
+					<a href="https://caseyagollan.com" class="p-author h-card" style="display:none;">Casey Gollan</a>
+
 					<div class="post-meta">
 						<span class="post-type">{post.type}</span>
 						<a href={getPermalink(post)} class="u-url permalink">
 							<time class="dt-published" datetime={post.date}>{formatPostDate(post.date)}</time>
 						</a>
+						{#if post.syndication && post.syndication.length > 0}
+							{#each post.syndication as link}
+								{@const synInfo = getSyndicationInfo(link)}
+								<a href={link} class="u-syndication syndication-link" title={synInfo.title} target="_blank" rel="noopener">
+									{synInfo.icon}
+								</a>
+							{/each}
+						{/if}
 					</div>
 
 					{#if post.title}
@@ -225,5 +248,16 @@
 		padding: 0.25rem 0.75rem;
 		border-radius: 3px;
 		font-size: 0.85rem;
+	}
+
+	.syndication-link {
+		text-decoration: none;
+		font-size: 1.1em;
+		opacity: 0.8;
+		transition: opacity 0.2s;
+	}
+
+	.syndication-link:hover {
+		opacity: 1;
 	}
 </style>
