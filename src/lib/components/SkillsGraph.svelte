@@ -24,57 +24,84 @@
 	let linkSelection: any;
 	let tooltip: any;
 	let hasShownPulse = false;
-	let coachmarkInterval: ReturnType<typeof setInterval> | null = null;
+	let coachmarkTimeout: ReturnType<typeof setTimeout> | null = null;
+	let coachmarkCycleCount = 0;
+	const maxCoachmarkCycles = 3; // Number of full cycles through all category nodes
 
-	// Start repeating coachmark animation on the active node
+	// Start cycling coachmark animation through category nodes
 	function startCoachmarkAnimation() {
-		// Clear any existing interval
-		if (coachmarkInterval) {
-			clearInterval(coachmarkInterval);
-			coachmarkInterval = null;
-		}
+		// Clear any existing timeout
+		stopCoachmarkAnimation();
 
-		if (!focusedNode || !nodeSelection) return;
+		// Only run when Casey is focused (category nodes visible)
+		if (focusedNode !== 'Casey' || !nodeSelection) return;
 
-		// Function to create a single pulse
-		const createPulse = () => {
-			if (!focusedNode || !nodeSelection) return;
+		// Get all category nodes
+		const categoryNodes: string[] = [];
+		nodeSelection.each(function(d: Node) {
+			if (d.type === 'category') {
+				categoryNodes.push(d.id);
+			}
+		});
+
+		if (categoryNodes.length === 0) return;
+
+		let currentIndex = 0;
+		coachmarkCycleCount = 0;
+
+		// Function to pulse the next node in sequence
+		const pulseNextNode = () => {
+			// Stop if we're no longer on Casey or have completed cycles
+			if (focusedNode !== 'Casey' || !nodeSelection || coachmarkCycleCount >= maxCoachmarkCycles) {
+				stopCoachmarkAnimation();
+				return;
+			}
+
+			const targetNodeId = categoryNodes[currentIndex];
 
 			nodeSelection.each(function(d: Node) {
-				// Only show coachmark on category nodes (initial level)
-				if (d.id === focusedNode && d.type === 'category') {
+				if (d.id === targetNodeId) {
 					const node = d3.select(this);
 					const ring = node.append('circle')
 						.attr('class', 'coachmark-ring')
-						.attr('r', 10)
+						.attr('r', 6)
 						.style('fill', 'none')
-						.style('stroke', 'rgba(100, 100, 255, 0.6)')
+						.style('stroke', 'rgba(100, 100, 255, 0.5)')
 						.style('stroke-width', '2px');
 
 					ring.transition()
-						.duration(1200)
-						.ease(d3.easeQuadOut)
-						.attr('r', 30)
+						.duration(2000)
+						.ease(d3.easeCubicOut)
+						.attr('r', 35)
 						.style('stroke-opacity', 0)
 						.on('end', function() {
 							d3.select(this).remove();
 						});
 				}
 			});
+
+			// Move to next node
+			currentIndex++;
+			if (currentIndex >= categoryNodes.length) {
+				currentIndex = 0;
+				coachmarkCycleCount++;
+			}
+
+			// Schedule next pulse (slower, more meditative pace)
+			if (coachmarkCycleCount < maxCoachmarkCycles) {
+				coachmarkTimeout = setTimeout(pulseNextNode, 2500);
+			}
 		};
 
-		// Create first pulse immediately
-		createPulse();
-
-		// Set up repeating interval
-		coachmarkInterval = setInterval(createPulse, 3000);
+		// Start after a brief delay
+		coachmarkTimeout = setTimeout(pulseNextNode, 1500);
 	}
 
 	// Stop coachmark animation
 	function stopCoachmarkAnimation() {
-		if (coachmarkInterval) {
-			clearInterval(coachmarkInterval);
-			coachmarkInterval = null;
+		if (coachmarkTimeout) {
+			clearTimeout(coachmarkTimeout);
+			coachmarkTimeout = null;
 		}
 	}
 
