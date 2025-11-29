@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { SvelteMap } from 'svelte/reactivity';
 	import * as d3 from 'd3';
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
 
@@ -30,7 +29,8 @@
 	const maxCoachmarkCycles = 3; // Number of full cycles through all category nodes
 
 	// Screenshot cache: Map<url, 'loading' | 'error' | dataUrl>
-	let screenshotCache = new SvelteMap<string, string>();
+	// Using regular Map (not SvelteMap) to avoid triggering reactivity on cache updates
+	let screenshotCache = new Map<string, string>();
 
 	// Start cycling coachmark animation through category nodes
 	function startCoachmarkAnimation() {
