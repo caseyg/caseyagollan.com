@@ -8,12 +8,6 @@
 	function capitalizeFirst(str: string): string {
 		return str.charAt(0).toUpperCase() + str.slice(1);
 	}
-
-	const countDescription = $derived(
-		data.totalPosts === 1
-			? `1 ${data.type}`
-			: `${data.totalPosts} ${data.typePlural}`
-	);
 </script>
 
 <svelte:head>
@@ -30,7 +24,7 @@
 		current={capitalizeFirst(data.typePlural)}
 		currentIcon={data.typeIcon}
 		options={data.allTypes}
-		{countDescription}
+		count={data.totalPosts}
 	/>
 
 	<div class="posts-list h-feed">

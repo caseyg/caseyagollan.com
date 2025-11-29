@@ -9,9 +9,18 @@
 		permalink: string;
 		syndication?: string[];
 		showType?: boolean;
+		category?: string | string[];
+		activeTag?: string;
 	}
 
-	let { type, date, permalink, syndication = [], showType = true }: Props = $props();
+	let { type, date, permalink, syndication = [], showType = true, category, activeTag }: Props = $props();
+
+	function getCategories(cat: string | string[] | undefined): string[] {
+		if (!cat) return [];
+		return Array.isArray(cat) ? cat : [cat];
+	}
+
+	const categories = $derived(getCategories(category));
 
 	function getTypePlural(t: string): string {
 		return POST_TYPE_PLURALS[t] || t + 's';
@@ -53,6 +62,9 @@
 			<span class="permalink-icon">🔗</span>
 			<time class="dt-published" datetime={date}>{formatRelativeDate(date)}</time>
 		</a>
+		{#each categories as cat (cat)}
+			<a href="/tag/{cat.toLowerCase()}/" class="p-category category-tag" class:active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</a>
+		{/each}
 	</div>
 	{#if (syndication && syndication.length > 0)}
 		<div class="meta-secondary">
@@ -97,7 +109,8 @@
 
 	.post-type,
 	.permalink,
-	.syndication-link {
+	.syndication-link,
+	.category-tag {
 		color: inherit;
 		text-decoration: none;
 		padding: 0.25rem 0.5rem;
@@ -107,8 +120,14 @@
 
 	.post-type:hover,
 	.permalink:hover,
-	.syndication-link:hover {
+	.syndication-link:hover,
+	.category-tag:hover {
 		background: rgba(255, 255, 255, 0.15);
+		color: #fff;
+	}
+
+	.category-tag.active {
+		background: rgba(255, 255, 255, 0.2);
 		color: #fff;
 	}
 

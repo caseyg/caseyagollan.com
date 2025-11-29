@@ -11,12 +11,13 @@
 		current: string;
 		currentIcon?: string;
 		options: Option[];
+		count?: number;
 		countDescription?: string;
 		backLink?: string;
 		backText?: string;
 	}
 
-	let { current, currentIcon, options, countDescription, backLink = '/posts/', backText = 'All Posts' }: Props = $props();
+	let { current, currentIcon, options, count, countDescription, backLink = '/posts/', backText = 'All Posts' }: Props = $props();
 
 	let isOpen = $state(false);
 
@@ -47,6 +48,9 @@
 			aria-haspopup="listbox"
 		>
 			<span class="current-value">{#if currentIcon}<span class="current-icon">{currentIcon}</span>{/if}{current}</span>
+			{#if count !== undefined}
+				<span class="header-count">{count}</span>
+			{/if}
 			<span class="dropdown-arrow" class:open={isOpen}>▾</span>
 		</button>
 
@@ -103,6 +107,15 @@
 
 	.dropdown-container {
 		position: relative;
+	}
+
+	.header-count {
+		background: rgba(255, 255, 255, 0.2);
+		color: rgba(255, 255, 255, 0.9);
+		font-size: 0.75rem;
+		padding: 0.125rem 0.5rem;
+		border-radius: 10px;
+		font-variant-numeric: tabular-nums;
 	}
 
 	.dropdown-trigger {

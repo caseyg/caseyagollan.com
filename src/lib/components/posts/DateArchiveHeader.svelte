@@ -26,40 +26,20 @@
 		}
 		return 'All Posts';
 	});
-
-	const countDescription = $derived.by(() => {
-		if (count === undefined) return '';
-		const postWord = count === 1 ? 'post' : 'posts';
-
-		if (day && month) {
-			const date = new Date(`${year}-${month}-${day}`);
-			const formatted = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-			return `${count} ${postWord} from ${formatted}`;
-		} else if (month) {
-			const date = new Date(`${year}-${month}-01`);
-			const formatted = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-			return `${count} ${postWord} from ${formatted}`;
-		}
-		return `${count} ${postWord} from ${year}`;
-	});
 </script>
 
 <div class="header">
 	<a href={backLink} class="back-link">{backText}</a>
 
 	<div class="date-nav">
-		<a href="/{year}/" class="date-segment" class:active={!month}>{year}</a>
+		<a href="/{year}/" class="date-segment" class:active={!month}>{year}{#if !month && count !== undefined}<span class="segment-count">{count}</span>{/if}</a>
 		{#if month}
-			<a href="/{year}/{month}/" class="date-segment" class:active={month && !day}>{month}</a>
+			<a href="/{year}/{month}/" class="date-segment" class:active={month && !day}>{month}{#if month && !day && count !== undefined}<span class="segment-count">{count}</span>{/if}</a>
 		{/if}
 		{#if day}
-			<a href="/{year}/{month}/{day}/" class="date-segment" class:active={!!day}>{day}</a>
+			<a href="/{year}/{month}/{day}/" class="date-segment" class:active={!!day}>{day}{#if day && count !== undefined}<span class="segment-count">{count}</span>{/if}</a>
 		{/if}
 	</div>
-
-	{#if count !== undefined}
-		<p class="count-description">{countDescription}</p>
-	{/if}
 </div>
 
 <style>
@@ -71,10 +51,11 @@
 		color: rgba(255, 255, 255, 0.7);
 		text-decoration: none;
 		font-size: 0.875rem;
-		display: inline-block;
+		display: block;
 		margin-bottom: 0.5rem;
-		margin-left: -0.5rem;
 		padding: 0.25rem 0.5rem;
+		margin-left: -0.5rem;
+		width: fit-content;
 		border-radius: 4px;
 		transition: background 0.15s ease, color 0.15s ease;
 	}
@@ -118,9 +99,13 @@
 		background: #4949ff;
 	}
 
-	.count-description {
-		margin: 0.75rem 0 0;
-		font-size: 0.875rem;
-		color: rgba(255, 255, 255, 0.7);
+	.segment-count {
+		background: rgba(255, 255, 255, 0.2);
+		color: rgba(255, 255, 255, 0.9);
+		font-size: 0.75rem;
+		padding: 0.125rem 0.5rem;
+		border-radius: 10px;
+		margin-left: 0.5rem;
+		font-variant-numeric: tabular-nums;
 	}
 </style>

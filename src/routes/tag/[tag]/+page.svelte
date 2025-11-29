@@ -4,12 +4,6 @@
 	import { PostCard, DateHeader, DropdownArchiveHeader, PostsLayout } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
-
-	const countDescription = $derived(
-		data.totalPosts === 1
-			? `1 post tagged #${data.tag}`
-			: `${data.totalPosts} posts tagged #${data.tag}`
-	);
 </script>
 
 <svelte:head>
@@ -25,7 +19,7 @@
 	<DropdownArchiveHeader
 		current="#{data.tag}"
 		options={data.allTags}
-		{countDescription}
+		count={data.totalPosts}
 	/>
 
 	<div class="posts-list h-feed">

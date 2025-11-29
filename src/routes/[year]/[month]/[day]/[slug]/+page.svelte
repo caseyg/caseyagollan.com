@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
-	import { PostsLayout, DateArchiveHeader, PostMeta, PostContent, PostCategories } from '$lib/components/posts';
+	import { PostsLayout, DateArchiveHeader, PostMeta, PostContent } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 
@@ -29,6 +29,7 @@
 			date={data.post.date}
 			{permalink}
 			syndication={data.post.syndication}
+			category={data.post.category}
 		/>
 
 		{#if data.post.title}
@@ -36,8 +37,6 @@
 		{/if}
 
 		<PostContent content={data.post.content} />
-
-		<PostCategories category={data.post.category} />
 
 		<Webmentions url={permalink} />
 	</article>

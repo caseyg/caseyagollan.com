@@ -1,7 +1,6 @@
 <script lang="ts">
 	import PostMeta from './PostMeta.svelte';
 	import PostContent from './PostContent.svelte';
-	import PostCategories from './PostCategories.svelte';
 	import type { Post } from '$lib/posts-types';
 
 	interface Props {
@@ -50,6 +49,8 @@
 		{permalink}
 		syndication={post.syndication}
 		{showType}
+		category={post.category}
+		{activeTag}
 	/>
 
 	{#if post.title}
@@ -70,8 +71,6 @@
 	{:else}
 		<PostContent content={post.content} />
 	{/if}
-
-	<PostCategories category={post.category} {activeTag} />
 </article>
 
 <style>
@@ -113,12 +112,16 @@
 	.read-more {
 		display: inline-block;
 		margin-top: 0.5rem;
-		color: #4949ff;
+		color: rgba(255, 255, 255, 0.6);
 		text-decoration: none;
-		font-size: 0.8125rem;
+		font-size: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+		transition: background 0.15s ease, color 0.15s ease;
 	}
 
 	.read-more:hover {
-		text-decoration: underline;
+		background: rgba(255, 255, 255, 0.15);
+		color: #fff;
 	}
 </style>

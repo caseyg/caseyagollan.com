@@ -96,10 +96,11 @@ export function getAllTags(posts: Post[]): Map<string, number> {
 }
 
 export function getPostsByTag(posts: Post[], tag: string): Post[] {
+	const tagLower = tag.toLowerCase();
 	return posts.filter(post => {
 		if (!post.category) return false;
 		const categories = Array.isArray(post.category) ? post.category : [post.category];
-		return categories.includes(tag);
+		return categories.some(cat => cat.toLowerCase() === tagLower);
 	});
 }
 
