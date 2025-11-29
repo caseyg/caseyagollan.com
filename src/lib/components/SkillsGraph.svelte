@@ -584,6 +584,14 @@
 		min-height: 400px;
 	}
 
+	@media (max-width: 768px) {
+		.skills-graph {
+			height: 25vh;
+			min-height: 200px;
+			max-height: 300px;
+		}
+	}
+
 	.skills-graph :global(svg) {
 		width: 100%;
 		height: 100%;
