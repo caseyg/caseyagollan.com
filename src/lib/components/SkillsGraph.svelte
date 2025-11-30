@@ -1057,11 +1057,12 @@
 	}
 
 	/* Active node (the one that was clicked) */
-	.skills-graph :global(.node.active circle:not(.coachmark-ring)) {
+	.skills-graph :global(.node.active circle:not(.coachmark-ring):not(.ping-ring)) {
 		fill: blue !important;
 	}
 
-	.skills-graph :global(.coachmark-ring) {
+	.skills-graph :global(.coachmark-ring),
+	.skills-graph :global(.ping-ring) {
 		pointer-events: none;
 	}
 
