@@ -42,10 +42,15 @@ export async function getAllPosts(): Promise<Post[]> {
 				// Remove .md extension and strip date prefix (YYYY-MM-DD-) from slug
 			const slug = file.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '');
 
-				// Convert date to string if it's a Date object
-				const dateStr = data.date instanceof Date
+				// Extract the original date string from frontmatter to preserve timezone
+				// Gray-matter converts dates to Date objects (UTC), losing local date info
+				const dateMatch = fileContent.match(/^date:\s*(.+)$/m);
+				const rawDateStr = dateMatch ? dateMatch[1].trim() : '';
+
+				// Use raw date string if available, otherwise fall back to parsed date
+				const dateStr = rawDateStr || (data.date instanceof Date
 					? data.date.toISOString()
-					: (data.date || '');
+					: (data.date || ''));
 
 				posts.push({
 					slug,
