@@ -2,6 +2,7 @@
 	import PostMeta from './PostMeta.svelte';
 	import PostContent from './PostContent.svelte';
 	import type { Post } from '$lib/posts-types';
+	import { getPostPermalink } from '$lib/posts-types';
 
 	interface Props {
 		post: Post;
@@ -10,14 +11,6 @@
 	}
 
 	let { post, showType = true, activeTag }: Props = $props();
-
-	function getPermalink(p: { date: string; slug: string }) {
-		const date = new Date(p.date);
-		const year = date.getFullYear();
-		const month = String(date.getMonth() + 1).padStart(2, '0');
-		const day = String(date.getDate()).padStart(2, '0');
-		return `/${year}/${month}/${day}/${p.slug}/`;
-	}
 
 	function getPreview(content: string, maxLength: number = 280): string {
 		// Strip HTML tags
@@ -35,7 +28,7 @@
 		return stripped.slice(0, maxLength).trim() + '...';
 	}
 
-	const permalink = $derived(getPermalink(post));
+	const permalink = $derived(getPostPermalink(post));
 	const isArticle = $derived(post.type === 'article');
 </script>
 
