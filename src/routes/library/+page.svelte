@@ -762,26 +762,30 @@
 		if (sortModes[sortIndex] === 'ddc') {
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
 
+			// Group books by top-level DDC class (first digit + "00")
 			const ddcGroups: Record<string, Node[]> = {};
 			nodes.forEach((node) => {
-				const ddcClass = (node.ddcCode || '').substring(0, 3);
-				if (!ddcGroups[ddcClass]) {
-					ddcGroups[ddcClass] = [];
+				const ddcCode = node.ddcCode || '';
+				// Get top-level class: first digit + "00" (e.g., "701" -> "700")
+				const topLevelClass = ddcCode.length > 0 ? ddcCode.charAt(0) + '00' : '000';
+				if (!ddcGroups[topLevelClass]) {
+					ddcGroups[topLevelClass] = [];
 				}
-				ddcGroups[ddcClass].push(node);
+				ddcGroups[topLevelClass].push(node);
 			});
 
+			// DDC class names matching actual graph data node IDs
 			const ddcClassNames: Record<string, string> = {
 				'000': 'Computer science, information & general works',
 				'100': 'Philosophy & psychology',
 				'200': 'Religion',
 				'300': 'Social sciences',
 				'400': 'Language',
-				'500': 'Science & mathematics',
+				'500': 'Science',
 				'600': 'Technology',
 				'700': 'Arts & recreation',
 				'800': 'Literature',
-				'900': 'History & geography'
+				'900': 'History'
 			};
 
 			let gridIndex = 0;
