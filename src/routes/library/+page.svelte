@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import Nav from '$lib/components/Nav.svelte';
 
@@ -60,6 +60,16 @@
 	let paperWhiteMaterial: THREE.MeshBasicMaterial;
 	const textureCache = new Map<string, THREE.Texture>();
 	const materialCache = new Map<string, THREE.MeshBasicMaterial>();
+	const geometryCache = new Map<string, THREE.BoxGeometry>();
+
+	// Cleanup tracking
+	const animationFrameIds = new Set<number>();
+	let isDestroyed = false;
+
+	// Mobile detection and limits
+	const isMobile = browser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+	const maxTexturesOnMobile = 100; // Limit textures on mobile to prevent crashes
+	let textureCount = 0;
 
 	// Performance: Reusable canvas for texture generation
 	let spineCanvas: HTMLCanvasElement;
@@ -83,6 +93,13 @@
 		const cacheKey = `spine_${node.id}_${depth}_${averageColor}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
+		}
+
+		// On mobile, use simple colored material instead of texture if limit reached
+		if (isMobile && textureCount >= maxTexturesOnMobile) {
+			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
+			materialCache.set(cacheKey, simpleMaterial);
+			return simpleMaterial;
 		}
 
 		spineCanvas.width = Math.max(48, depth * 6);
@@ -150,6 +167,7 @@
 
 		const material = new THREE.MeshBasicMaterial({ map: texture });
 		materialCache.set(cacheKey, material);
+		textureCount++;
 		return material;
 	}
 
@@ -158,6 +176,13 @@
 		const cacheKey = `back_${averageColor}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
+		}
+
+		// On mobile, use simple colored material instead of texture if limit reached
+		if (isMobile && textureCount >= maxTexturesOnMobile) {
+			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
+			materialCache.set(cacheKey, simpleMaterial);
+			return simpleMaterial;
 		}
 
 		coverCanvas.width = 256;
@@ -177,6 +202,7 @@
 
 		const material = new THREE.MeshBasicMaterial({ map: texture });
 		materialCache.set(cacheKey, material);
+		textureCount++;
 		return material;
 	}
 
@@ -189,6 +215,7 @@
 		const loader = new THREE.TextureLoader();
 		const texture = loader.load(url);
 		textureCache.set(url, texture);
+		textureCount++;
 		return texture;
 	}
 
@@ -205,22 +232,34 @@
 			return a & a;
 		}, 0);
 
+		const hue = Math.abs(titleHash) % 360;
+		const randomSeed = Math.abs(titleHash) / 2147483647;
+		const bgColor = `hsl(${hue}, 60%, 45%)`;
+
 		if (materialCache.has(cacheKey)) {
-			const hue = Math.abs(titleHash) % 360;
-			const randomSeed = Math.abs(titleHash) / 2147483647;
 			return {
 				material: materialCache.get(cacheKey)!,
 				width: (120 + randomSeed * 80) / 10,
 				height: (180 + randomSeed * 100) / 10,
-				averageColor: `hsl(${hue}, 60%, 45%)`
+				averageColor: bgColor
+			};
+		}
+
+		// On mobile, use simple colored material instead of texture if limit reached
+		if (isMobile && textureCount >= maxTexturesOnMobile) {
+			const simpleMaterial = new THREE.MeshBasicMaterial({ color: bgColor });
+			materialCache.set(cacheKey, simpleMaterial);
+			return {
+				material: simpleMaterial,
+				width: (120 + randomSeed * 80) / 10,
+				height: (180 + randomSeed * 100) / 10,
+				averageColor: bgColor
 			};
 		}
 
 		coverCanvas.width = 256;
 		coverCanvas.height = 384;
 
-		const hue = Math.abs(titleHash) % 360;
-		const bgColor = `hsl(${hue}, 60%, 45%)`;
 		const textColor = `hsl(${hue}, 60%, 90%)`;
 
 		coverCtx.fillStyle = bgColor;
@@ -265,8 +304,8 @@
 
 		const material = new THREE.MeshBasicMaterial({ map: texture });
 		materialCache.set(cacheKey, material);
+		textureCount++;
 
-		const randomSeed = Math.abs(titleHash) / 2147483647;
 		return {
 			material,
 			width: (120 + randomSeed * 80) / 10,
@@ -300,7 +339,17 @@
 		}
 
 		const depthVal = Math.max(0.1, depth / 10);
-		const geometry = new THREE.BoxGeometry(width, height, depthVal);
+
+		// Cache geometries to reduce memory usage
+		const geometryKey = `${width}_${height}_${depthVal}`;
+		let geometry: THREE.BoxGeometry;
+		if (geometryCache.has(geometryKey)) {
+			geometry = geometryCache.get(geometryKey)!;
+		} else {
+			geometry = new THREE.BoxGeometry(width, height, depthVal);
+			geometryCache.set(geometryKey, geometry);
+		}
+
 		const backMaterial = createBackCoverMaterial(averageColor);
 
 		const materials = [
@@ -487,6 +536,92 @@
 		originalGraphData = { ...Graph.graphData() };
 	});
 
+	onDestroy(() => {
+		if (!browser) return;
+
+		// Set destroyed flag to stop any ongoing animations
+		isDestroyed = true;
+
+		// Cancel all pending animation frames
+		animationFrameIds.forEach((id) => cancelAnimationFrame(id));
+		animationFrameIds.clear();
+
+		// Dispose of Three.js resources
+		// Dispose textures
+		textureCache.forEach((texture) => {
+			texture.dispose();
+		});
+		textureCache.clear();
+
+		// Dispose materials
+		materialCache.forEach((material) => {
+			if (material.map) {
+				material.map.dispose();
+			}
+			material.dispose();
+		});
+		materialCache.clear();
+
+		// Dispose geometries
+		geometryCache.forEach((geometry) => {
+			geometry.dispose();
+		});
+		geometryCache.clear();
+
+		// Dispose paper white material
+		if (paperWhiteMaterial) {
+			paperWhiteMaterial.dispose();
+		}
+
+		// Clean up Graph instance
+		if (Graph) {
+			// Get all nodes and dispose their 3D objects
+			const graphData = Graph.graphData();
+			if (graphData && graphData.nodes) {
+				graphData.nodes.forEach((node: Node) => {
+					if (node.__threeObj) {
+						// Dispose geometry
+						if (node.__threeObj.geometry) {
+							node.__threeObj.geometry.dispose();
+						}
+						// Dispose materials
+						if (Array.isArray(node.__threeObj.material)) {
+							node.__threeObj.material.forEach((mat: THREE.Material) => {
+								if ('map' in mat && mat.map) {
+									mat.map.dispose();
+								}
+								mat.dispose();
+							});
+						} else if (node.__threeObj.material) {
+							const mat = node.__threeObj.material;
+							if ('map' in mat && mat.map) {
+								mat.map.dispose();
+							}
+							mat.dispose();
+						}
+					}
+				});
+			}
+
+			// Destroy the graph
+			if (Graph._destructor) {
+				Graph._destructor();
+			}
+		}
+
+		// Clear canvas contexts
+		if (spineCanvas) {
+			spineCanvas.width = 0;
+			spineCanvas.height = 0;
+		}
+		if (coverCanvas) {
+			coverCanvas.width = 0;
+			coverCanvas.height = 0;
+		}
+
+		console.log('Library page cleanup complete');
+	});
+
 	function toggleMode() {
 		if (!Graph) return;
 
@@ -562,6 +697,7 @@
 					const duration = 1000;
 
 					function animateRotation(timestamp: number) {
+						if (isDestroyed) return; // Stop if component is destroyed
 						if (!startTime) startTime = timestamp;
 						const progress = Math.min((timestamp - startTime) / duration, 1);
 						const easeProgress = 1 - Math.pow(1 - progress, 3);
@@ -574,11 +710,13 @@
 							startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
 
 						if (progress < 1) {
-							requestAnimationFrame(animateRotation);
+							const frameId = requestAnimationFrame(animateRotation);
+							animationFrameIds.add(frameId);
 						}
 					}
 
-					requestAnimationFrame(animateRotation);
+					const initialFrameId = requestAnimationFrame(animateRotation);
+					animationFrameIds.add(initialFrameId);
 				}
 			});
 		}
