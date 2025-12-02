@@ -420,18 +420,36 @@
 	}
 
 	// Fetch book details from Google Books API
-	async function fetchBookDetails(isbn: string): Promise<GoogleBookVolumeInfo | null> {
+	async function fetchBookDetails(
+		isbn: string | undefined,
+		title: string
+	): Promise<GoogleBookVolumeInfo | null> {
 		try {
-			const response = await fetch(
-				`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+			// Try ISBN first if available
+			if (isbn) {
+				const response = await fetch(
+					`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+				);
+				if (response.ok) {
+					const data: GoogleBookData = await response.json();
+					if (data.items && data.items.length > 0) {
+						return data.items[0].volumeInfo;
+					}
+				}
+			}
+
+			// Fall back to title search (quoted for exact match)
+			const titleQuery = encodeURIComponent(`"${title}"`);
+			const titleResponse = await fetch(
+				`https://www.googleapis.com/books/v1/volumes?q=${titleQuery}`
 			);
-			if (!response.ok) {
-				throw new Error('Failed to fetch book details');
+			if (titleResponse.ok) {
+				const titleData: GoogleBookData = await titleResponse.json();
+				if (titleData.items && titleData.items.length > 0) {
+					return titleData.items[0].volumeInfo;
+				}
 			}
-			const data: GoogleBookData = await response.json();
-			if (data.items && data.items.length > 0) {
-				return data.items[0].volumeInfo;
-			}
+
 			return null;
 		} catch (error) {
 			console.error('Error fetching book details:', error);
@@ -555,18 +573,114 @@
 			}
 		}, 1000);
 
-		// Fetch book details if ISBN is available
-		if (node.isbn) {
-			isLoadingBookDetails = true;
-			const details = await fetchBookDetails(node.isbn);
-			if (details) {
-				bookDetails = details;
-			} else {
-				bookDetailError = 'Could not find book details';
-			}
-			isLoadingBookDetails = false;
+		// Fetch book details (tries ISBN first, then falls back to title)
+		isLoadingBookDetails = true;
+		const details = await fetchBookDetails(node.isbn, node.id);
+		if (details) {
+			bookDetails = details;
 		} else {
-			bookDetailError = 'No ISBN available for this book';
+			bookDetailError = 'Could not find book details';
+		}
+		isLoadingBookDetails = false;
+	}
+
+	// Navigate to next/previous book using arrow keys
+	function navigateToAdjacentBook(direction: 'left' | 'right') {
+		if (!Graph || !selectedBook) return;
+
+		const graphData = Graph.graphData();
+		const books = graphData.nodes.filter((n: Node) => n.group === 'book');
+
+		if (books.length === 0) return;
+
+		// Get camera position to determine which books are visible
+		const camera = Graph.camera();
+		const cameraPos = camera.position;
+
+		// Calculate distance from camera to each book
+		const booksWithDistance = books.map((book: Node) => {
+			const dx = (book.x || 0) - cameraPos.x;
+			const dy = (book.y || 0) - cameraPos.y;
+			const dz = (book.z || 0) - cameraPos.z;
+			return {
+				book,
+				distance: Math.sqrt(dx * dx + dy * dy + dz * dz)
+			};
+		});
+
+		// Sort by distance to get nearby books
+		booksWithDistance.sort((a, b) => a.distance - b.distance);
+
+		// Get the closest 50 books as "in view"
+		const nearbyBooks = booksWithDistance.slice(0, 50).map((b) => b.book);
+
+		// Find current book index
+		const currentIndex = nearbyBooks.findIndex((b: Node) => b.id === selectedBook!.id);
+
+		if (currentIndex === -1) {
+			// Current book not in nearby list, select the closest one
+			if (nearbyBooks.length > 0) {
+				selectBook(nearbyBooks[0]);
+			}
+			return;
+		}
+
+		// Calculate next index based on direction
+		let nextIndex: number;
+		if (direction === 'right') {
+			nextIndex = (currentIndex + 1) % nearbyBooks.length;
+		} else {
+			nextIndex = (currentIndex - 1 + nearbyBooks.length) % nearbyBooks.length;
+		}
+
+		const nextBook = nearbyBooks[nextIndex];
+		if (nextBook && nextBook.id !== selectedBook.id) {
+			// Deselect current book (restore opacity) but don't reset camera
+			const currentData = Graph.graphData();
+			currentData.nodes.forEach((n: Node) => {
+				if (n.__threeObj && n.group === 'book') {
+					const materials = Array.isArray(n.__threeObj.material)
+						? n.__threeObj.material
+						: [n.__threeObj.material];
+					materials.forEach((mat: THREE.Material) => {
+						if ('opacity' in mat) {
+							mat.opacity = 1.0;
+						}
+					});
+				}
+			});
+
+			// Stop current orbit animation
+			if (orbitAnimationId !== null) {
+				cancelAnimationFrame(orbitAnimationId);
+				animationFrameIds.delete(orbitAnimationId);
+				orbitAnimationId = null;
+			}
+
+			// Clear orbit resume timeout
+			if (orbitResumeTimeoutId) {
+				clearTimeout(orbitResumeTimeoutId);
+				orbitResumeTimeoutId = null;
+			}
+
+			// Select the next book
+			selectBook(nextBook);
+		}
+	}
+
+	// Handle keyboard navigation
+	function handleKeydown(event: KeyboardEvent) {
+		if (!selectedBook) return;
+
+		if (event.key === 'ArrowLeft') {
+			event.preventDefault();
+			navigateToAdjacentBook('left');
+		} else if (event.key === 'ArrowRight') {
+			event.preventDefault();
+			navigateToAdjacentBook('right');
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			deselectBook();
 		}
 	}
 
@@ -826,10 +940,16 @@
 				}
 			}
 		});
+
+		// Add keyboard event listener for arrow key navigation
+		window.addEventListener('keydown', handleKeydown);
 	});
 
 	onDestroy(() => {
 		if (!browser) return;
+
+		// Remove keyboard event listener
+		window.removeEventListener('keydown', handleKeydown);
 
 		// Set destroyed flag to stop any ongoing animations
 		isDestroyed = true;
