@@ -78,15 +78,15 @@ function expandLink(l: MinifiedLink): Link {
 	return { source: l.s, target: l.t };
 }
 
-export const load: PageServerLoad = async ({ platform }) => {
-	let graphData: GraphData;
+export const load: PageServerLoad = async ({ params, platform }) => {
+	let graphData: GraphData | null = null;
 
 	try {
 		// In Cloudflare, fetch from static path
 		// In dev/build, read from filesystem
 		if (platform?.env) {
 			// Running on Cloudflare - data will be loaded client-side
-			return { graphData: null };
+			return { graphData: null, isbn: params.isbn || null };
 		}
 
 		// Development/build - read from static folder
@@ -100,8 +100,8 @@ export const load: PageServerLoad = async ({ platform }) => {
 		};
 	} catch {
 		// Fallback - client will fetch
-		return { graphData: null };
+		return { graphData: null, isbn: params.isbn || null };
 	}
 
-	return { graphData };
+	return { graphData, isbn: params.isbn || null };
 };

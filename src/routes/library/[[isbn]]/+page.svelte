@@ -5,6 +5,7 @@
 
 	interface PageData {
 		graphData: GraphData | null;
+		isbn: string | null;
 	}
 
 	interface Node {
@@ -92,6 +93,7 @@
 	let bookDetails: GoogleBookVolumeInfo | null = $state(null);
 	let isLoadingBookDetails = $state(false);
 	let bookDetailError: string | null = $state(null);
+	let orbitAnimationId: number | null = null;
 
 	// Top-level DDC class names for shelf labels
 	const topLevelDdcNames = new Set([
@@ -442,12 +444,17 @@
 	}
 
 	// Select a book and show its details
-	async function selectBook(node: Node) {
+	async function selectBook(node: Node, updateUrl = true) {
 		if (!Graph) return;
 
 		selectedBook = node;
 		bookDetails = null;
 		bookDetailError = null;
+
+		// Update URL with ISBN
+		if (updateUrl && browser && node.isbn) {
+			window.history.replaceState({}, '', `/library/${node.isbn}`);
+		}
 
 		// Hide all other books
 		const graphData = Graph.graphData();
@@ -457,19 +464,50 @@
 			}
 		});
 
-		// Zoom to the selected book
-		const distance = 30;
-		const nodeZ = node.z || 0;
-		const distRatio = 1 + distance / Math.hypot(node.x || 0, node.y || 0, nodeZ);
+		// Start orbit animation around the selected book
+		const bookX = node.x || 0;
+		const bookY = node.y || 0;
+		const bookZ = node.z || 0;
+		const orbitRadius = 40;
+		const orbitSpeed = 0.0005; // radians per millisecond
+		let startTime: number | null = null;
+
+		function orbitCamera(timestamp: number) {
+			if (isDestroyed || !selectedBook || selectedBook.id !== node.id) return;
+			if (!startTime) startTime = timestamp;
+
+			const elapsed = timestamp - startTime;
+			const angle = elapsed * orbitSpeed;
+
+			// Orbit in XZ plane around the book
+			const cameraX = bookX + orbitRadius * Math.cos(angle);
+			const cameraZ = bookZ + orbitRadius * Math.sin(angle);
+			const cameraY = bookY + 10; // Slightly above
+
+			Graph.cameraPosition(
+				{ x: cameraX, y: cameraY, z: cameraZ },
+				{ x: bookX, y: bookY, z: bookZ },
+				0 // Instant update for smooth orbit
+			);
+
+			orbitAnimationId = requestAnimationFrame(orbitCamera);
+			animationFrameIds.add(orbitAnimationId);
+		}
+
+		// Start the orbit with a zoom-in first
 		Graph.cameraPosition(
-			{
-				x: (node.x || 0) * distRatio,
-				y: (node.y || 0) * distRatio,
-				z: nodeZ * distRatio
-			},
-			{ x: node.x || 0, y: node.y || 0, z: nodeZ },
+			{ x: bookX + orbitRadius, y: bookY + 10, z: bookZ },
+			{ x: bookX, y: bookY, z: bookZ },
 			1000
 		);
+
+		// Start orbiting after zoom completes
+		setTimeout(() => {
+			if (selectedBook && selectedBook.id === node.id) {
+				orbitAnimationId = requestAnimationFrame(orbitCamera);
+				animationFrameIds.add(orbitAnimationId);
+			}
+		}, 1000);
 
 		// Fetch book details if ISBN is available
 		if (node.isbn) {
@@ -490,6 +528,13 @@
 	function deselectBook() {
 		if (!Graph || !selectedBook) return;
 
+		// Stop orbit animation
+		if (orbitAnimationId !== null) {
+			cancelAnimationFrame(orbitAnimationId);
+			animationFrameIds.delete(orbitAnimationId);
+			orbitAnimationId = null;
+		}
+
 		// Show all books again
 		const graphData = Graph.graphData();
 		graphData.nodes.forEach((n: Node) => {
@@ -500,6 +545,11 @@
 
 		// Reset camera
 		Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+
+		// Remove ISBN from URL
+		if (browser) {
+			window.history.replaceState({}, '', '/library/');
+		}
 
 		selectedBook = null;
 		bookDetails = null;
@@ -704,6 +754,17 @@
 		// Mark loading complete after a short delay to ensure render is visible
 		requestAnimationFrame(() => {
 			isLoading = false;
+
+			// Check for ISBN from route params and select that book
+			if (data.isbn) {
+				const bookNode = graphData.nodes.find(
+					(n: Node) => n.group === 'book' && n.isbn === data.isbn
+				);
+				if (bookNode) {
+					// Small delay to let the graph render first
+					setTimeout(() => selectBook(bookNode, false), 100);
+				}
+			}
 		});
 	});
 
@@ -1195,98 +1256,88 @@
 </div>
 
 {#if selectedBook}
-	<div class="book-overlay" onclick={deselectBook} role="dialog" aria-modal="true" aria-label="Book details">
-		<div class="book-overlay-content" onclick={(e) => e.stopPropagation()}>
-			<button class="close-button" onclick={deselectBook} aria-label="Close">×</button>
+	<aside class="book-sidebar" role="complementary" aria-label="Book details">
+		<button class="close-button" onclick={deselectBook} aria-label="Close">×</button>
 
-			<h2 class="book-title">{selectedBook.id}</h2>
+		<h2 class="book-title">{selectedBook.id}</h2>
 
-			{#if isLoadingBookDetails}
-				<div class="loading-details">
-					<span class="loading-shapes">
-						<svg width="24" height="24" viewBox="-6 -6 12 12">
-							<circle r="4" fill="currentColor" class="shape shape-circle" />
-							<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="currentColor" class="shape shape-star" />
-							<polygon points="0,-5 5,4 -5,4" fill="currentColor" class="shape shape-triangle" />
-							<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="currentColor" class="shape shape-square" />
-						</svg>
-					</span>
-					<p>Loading book details…</p>
+		{#if isLoadingBookDetails}
+			<div class="loading-details">
+				<span class="loading-shapes">
+					<svg width="24" height="24" viewBox="-6 -6 12 12">
+						<circle r="4" fill="currentColor" class="shape shape-circle" />
+						<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="currentColor" class="shape shape-star" />
+						<polygon points="0,-5 5,4 -5,4" fill="currentColor" class="shape shape-triangle" />
+						<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="currentColor" class="shape shape-square" />
+					</svg>
+				</span>
+				<p>Loading book details…</p>
+			</div>
+		{:else if bookDetailError}
+			<div class="error-details">
+				<p>{bookDetailError}</p>
+				{#if selectedBook.workcode}
+					<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer">
+						View on LibraryThing →
+					</a>
+				{/if}
+			</div>
+		{:else if bookDetails}
+			<div class="book-details">
+				{#if bookDetails.subtitle}
+					<p class="book-subtitle">{bookDetails.subtitle}</p>
+				{/if}
+
+				{#if bookDetails.authors && bookDetails.authors.length > 0}
+					<p class="book-authors">{bookDetails.authors.join(', ')}</p>
+				{/if}
+
+				<div class="book-meta">
+					{#if bookDetails.publishedDate}
+						<span class="meta-item">{bookDetails.publishedDate}</span>
+					{/if}
+					{#if bookDetails.pageCount}
+						<span class="meta-item">{bookDetails.pageCount} pages</span>
+					{/if}
+					{#if bookDetails.publisher}
+						<span class="meta-item">{bookDetails.publisher}</span>
+					{/if}
 				</div>
-			{:else if bookDetailError}
-				<div class="error-details">
-					<p>{bookDetailError}</p>
+
+				{#if bookDetails.categories && bookDetails.categories.length > 0}
+					<div class="book-categories">
+						{#each bookDetails.categories as category}
+							<span class="category-tag">{category}</span>
+						{/each}
+					</div>
+				{/if}
+
+				{#if bookDetails.averageRating}
+					<div class="book-rating">
+						<span class="stars">{'★'.repeat(Math.round(bookDetails.averageRating))}{'☆'.repeat(5 - Math.round(bookDetails.averageRating))}</span>
+						<span class="rating-count">({bookDetails.ratingsCount || 0})</span>
+					</div>
+				{/if}
+
+				{#if bookDetails.description}
+					<p class="book-description">{@html bookDetails.description}</p>
+				{/if}
+
+				<div class="book-links">
+					{#if bookDetails.previewLink}
+						<a href={bookDetails.previewLink} target="_blank" rel="noopener noreferrer" class="book-link">
+							Google Books →
+						</a>
+					{/if}
 					{#if selectedBook.workcode}
-						<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer">
-							View on LibraryThing →
+						<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer" class="book-link">
+							LibraryThing →
 						</a>
 					{/if}
 				</div>
-			{:else if bookDetails}
-				<div class="book-details">
-					{#if bookDetails.imageLinks?.thumbnail}
-						<img
-							src={bookDetails.imageLinks.thumbnail.replace('http://', 'https://')}
-							alt="{bookDetails.title} cover"
-							class="book-cover-large"
-						/>
-					{/if}
-
-					{#if bookDetails.subtitle}
-						<p class="book-subtitle">{bookDetails.subtitle}</p>
-					{/if}
-
-					{#if bookDetails.authors && bookDetails.authors.length > 0}
-						<p class="book-authors">by {bookDetails.authors.join(', ')}</p>
-					{/if}
-
-					<div class="book-meta">
-						{#if bookDetails.publisher}
-							<span class="meta-item">{bookDetails.publisher}</span>
-						{/if}
-						{#if bookDetails.publishedDate}
-							<span class="meta-item">{bookDetails.publishedDate}</span>
-						{/if}
-						{#if bookDetails.pageCount}
-							<span class="meta-item">{bookDetails.pageCount} pages</span>
-						{/if}
-					</div>
-
-					{#if bookDetails.categories && bookDetails.categories.length > 0}
-						<div class="book-categories">
-							{#each bookDetails.categories as category}
-								<span class="category-tag">{category}</span>
-							{/each}
-						</div>
-					{/if}
-
-					{#if bookDetails.averageRating}
-						<div class="book-rating">
-							<span class="stars">{'★'.repeat(Math.round(bookDetails.averageRating))}{'☆'.repeat(5 - Math.round(bookDetails.averageRating))}</span>
-							<span class="rating-count">({bookDetails.ratingsCount || 0} ratings)</span>
-						</div>
-					{/if}
-
-					{#if bookDetails.description}
-						<p class="book-description">{@html bookDetails.description}</p>
-					{/if}
-
-					<div class="book-links">
-						{#if bookDetails.previewLink}
-							<a href={bookDetails.previewLink} target="_blank" rel="noopener noreferrer" class="book-link">
-								Preview on Google Books
-							</a>
-						{/if}
-						{#if selectedBook.workcode}
-							<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer" class="book-link">
-								View on LibraryThing
-							</a>
-						{/if}
-					</div>
-				</div>
-			{/if}
-		</div>
-	</div>
+			</div>
+		{/if}
+	</aside>
 {/if}
 
 <style>
@@ -1420,198 +1471,203 @@
 		50% { opacity: 1; transform: translateY(-2px); }
 	}
 
-	/* Book Detail Overlay */
-	.book-overlay {
+	/* Book Detail Sidebar */
+	.book-sidebar {
 		position: fixed;
 		top: 0;
-		left: 0;
-		width: 100vw;
+		right: 0;
+		width: 320px;
 		height: 100vh;
-		background: rgba(0, 0, 0, 0.7);
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		background: #808080;
 		z-index: 1500;
 		padding: 20px;
 		box-sizing: border-box;
+		overflow-y: auto;
+		font-family: system-ui, -apple-system, sans-serif;
+		color: white;
+		animation: slideIn 0.3s ease-out;
 	}
 
-	.book-overlay-content {
-		background: white;
-		border-radius: 12px;
-		padding: 24px;
-		max-width: 500px;
-		width: 100%;
-		max-height: 80vh;
-		overflow-y: auto;
-		position: relative;
-		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	@keyframes slideIn {
+		from {
+			transform: translateX(100%);
+			opacity: 0;
+		}
+		to {
+			transform: translateX(0);
+			opacity: 1;
+		}
 	}
 
 	.close-button {
 		position: absolute;
 		top: 12px;
 		right: 12px;
-		background: none;
+		background: blue;
 		border: none;
-		font-size: 2rem;
+		font-size: 1.5rem;
 		cursor: pointer;
-		color: #666;
+		color: white;
 		line-height: 1;
-		padding: 0;
-		width: 36px;
-		height: 36px;
+		padding: 4px 10px;
+		border-radius: 5px;
 	}
 
 	.close-button:hover {
-		color: #333;
+		background: rgb(73, 73, 255);
 	}
 
 	.book-title {
-		font-size: 1.5rem;
+		font-size: 1.25rem;
 		font-weight: bold;
 		margin: 0 0 8px 0;
-		padding-right: 40px;
-		color: #333;
-		font-family: system-ui, -apple-system, sans-serif;
+		padding-right: 50px;
+		color: white;
+		line-height: 1.3;
 	}
 
 	.book-subtitle {
-		font-size: 1.1rem;
-		color: #666;
+		font-size: 0.95rem;
+		color: rgba(255, 255, 255, 0.8);
 		margin: 0 0 8px 0;
 		font-style: italic;
 	}
 
 	.book-authors {
-		font-size: 1rem;
-		color: #555;
+		font-size: 0.9rem;
+		color: rgba(255, 255, 255, 0.9);
 		margin: 0 0 16px 0;
 	}
 
-	.book-cover-large {
-		display: block;
-		max-width: 150px;
-		height: auto;
-		margin: 0 auto 16px;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-		border-radius: 4px;
-	}
-
 	.book-meta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 8px;
-		margin-bottom: 16px;
-	}
-
-	.meta-item {
-		font-size: 0.85rem;
-		color: #777;
-		padding: 4px 8px;
-		background: #f5f5f5;
-		border-radius: 4px;
-	}
-
-	.book-categories {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
 		margin-bottom: 16px;
 	}
 
+	.meta-item {
+		font-size: 0.75rem;
+		color: white;
+		padding: 3px 8px;
+		background: rgba(255, 255, 255, 0.2);
+		border-radius: 3px;
+	}
+
+	.book-categories {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		margin-bottom: 16px;
+	}
+
 	.category-tag {
-		font-size: 0.8rem;
+		font-size: 0.7rem;
 		color: white;
 		background: blue;
-		padding: 4px 10px;
-		border-radius: 12px;
+		padding: 3px 8px;
+		border-radius: 10px;
 	}
 
 	.book-rating {
 		margin-bottom: 16px;
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 6px;
 	}
 
 	.stars {
 		color: gold;
-		font-size: 1.2rem;
-		letter-spacing: 2px;
+		font-size: 1rem;
+		letter-spacing: 1px;
 	}
 
 	.rating-count {
-		font-size: 0.85rem;
-		color: #777;
+		font-size: 0.75rem;
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	.book-description {
-		font-size: 0.95rem;
-		color: #444;
-		line-height: 1.6;
+		font-size: 0.85rem;
+		color: rgba(255, 255, 255, 0.9);
+		line-height: 1.5;
 		margin-bottom: 16px;
-		max-height: 200px;
-		overflow-y: auto;
+		max-height: none;
 	}
 
 	.book-links {
 		display: flex;
-		flex-direction: column;
+		flex-wrap: wrap;
 		gap: 8px;
 		margin-top: 16px;
 		padding-top: 16px;
-		border-top: 1px solid #eee;
+		border-top: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
 	.book-link {
 		display: inline-block;
-		color: blue;
+		color: white;
+		background: blue;
 		text-decoration: none;
-		font-size: 0.95rem;
+		font-size: 0.85rem;
+		padding: 6px 12px;
+		border-radius: 5px;
 	}
 
 	.book-link:hover {
-		text-decoration: underline;
+		background: rgb(73, 73, 255);
 	}
 
 	.loading-details,
 	.error-details {
 		text-align: center;
-		padding: 24px;
-		color: #666;
+		padding: 24px 0;
+		color: rgba(255, 255, 255, 0.8);
 	}
 
 	.loading-details .loading-shapes {
-		color: blue;
+		color: white;
 	}
 
 	.error-details a {
-		color: blue;
+		color: white;
+		background: blue;
 		text-decoration: none;
+		padding: 6px 12px;
+		border-radius: 5px;
+		display: inline-block;
+		margin-top: 8px;
 	}
 
 	.error-details a:hover {
-		text-decoration: underline;
+		background: rgb(73, 73, 255);
 	}
 
-	/* Mobile adjustments for overlay */
+	/* Mobile adjustments for sidebar */
 	@media (max-width: 600px) {
-		.book-overlay {
-			padding: 10px;
+		.book-sidebar {
+			width: 100%;
+			height: auto;
+			max-height: 50vh;
+			top: auto;
+			bottom: 0;
+			border-radius: 12px 12px 0 0;
+			animation: slideUp 0.3s ease-out;
 		}
 
-		.book-overlay-content {
-			padding: 16px;
-			max-height: 90vh;
+		@keyframes slideUp {
+			from {
+				transform: translateY(100%);
+				opacity: 0;
+			}
+			to {
+				transform: translateY(0);
+				opacity: 1;
+			}
 		}
 
 		.book-title {
-			font-size: 1.25rem;
-		}
-
-		.book-cover-large {
-			max-width: 120px;
+			font-size: 1.1rem;
 		}
 	}
 </style>
