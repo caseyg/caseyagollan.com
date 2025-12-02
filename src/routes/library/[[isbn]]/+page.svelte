@@ -94,6 +94,9 @@
 	let isLoadingBookDetails = $state(false);
 	let bookDetailError: string | null = $state(null);
 	let orbitAnimationId: number | null = null;
+	let orbitPaused = false;
+	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+	let orbitDirection = 1; // 1 or -1 for clockwise/counter-clockwise
 
 	// Top-level DDC class names for shelf labels
 	const topLevelDdcNames = new Set([
@@ -449,11 +452,20 @@
 			window.history.replaceState({}, '', `/library/${node.isbn}`);
 		}
 
-		// Hide all other books
+		// Fade other books to 25% opacity
 		const graphData = Graph.graphData();
 		graphData.nodes.forEach((n: Node) => {
-			if (n.__threeObj) {
-				n.__threeObj.visible = n.id === node.id || n.group !== 'book';
+			if (n.__threeObj && n.group === 'book') {
+				const isSelected = n.id === node.id;
+				const materials = Array.isArray(n.__threeObj.material)
+					? n.__threeObj.material
+					: [n.__threeObj.material];
+				materials.forEach((mat: THREE.Material) => {
+					if ('opacity' in mat) {
+						mat.transparent = true;
+						mat.opacity = isSelected ? 1.0 : 0.25;
+					}
+				});
 			}
 		});
 
@@ -462,15 +474,33 @@
 		const bookY = node.y || 0;
 		const bookZ = node.z || 0;
 		const orbitRadius = 40;
-		const orbitSpeed = 0.0005; // radians per millisecond
+		const orbitSpeed = 0.0003; // radians per millisecond
 		let startTime: number | null = null;
+
+		// Random orbit direction each time
+		orbitDirection = Math.random() > 0.5 ? 1 : -1;
+		orbitPaused = false;
+
+		// Clear any existing resume timeout
+		if (orbitResumeTimeoutId) {
+			clearTimeout(orbitResumeTimeoutId);
+			orbitResumeTimeoutId = null;
+		}
 
 		function orbitCamera(timestamp: number) {
 			if (isDestroyed || !selectedBook || selectedBook.id !== node.id) return;
+
+			// Skip position update if paused, but keep animation frame running
+			if (orbitPaused) {
+				orbitAnimationId = requestAnimationFrame(orbitCamera);
+				animationFrameIds.add(orbitAnimationId);
+				return;
+			}
+
 			if (!startTime) startTime = timestamp;
 
 			const elapsed = timestamp - startTime;
-			const angle = elapsed * orbitSpeed;
+			const angle = elapsed * orbitSpeed * orbitDirection;
 
 			// Orbit in XZ plane around the book
 			const cameraX = bookX + orbitRadius * Math.cos(angle);
@@ -493,6 +523,29 @@
 			{ x: bookX, y: bookY, z: bookZ },
 			1000
 		);
+
+		// Set up pause on user interaction
+		const controls = Graph.controls();
+		const pauseOrbit = () => {
+			if (!selectedBook) return;
+			orbitPaused = true;
+
+			// Clear existing timeout
+			if (orbitResumeTimeoutId) {
+				clearTimeout(orbitResumeTimeoutId);
+			}
+
+			// Resume after 5 seconds of inactivity
+			orbitResumeTimeoutId = setTimeout(() => {
+				if (selectedBook) {
+					orbitPaused = false;
+					startTime = null; // Reset start time so orbit continues smoothly
+				}
+			}, 5000);
+		};
+
+		// Listen for user interaction
+		controls.addEventListener('start', pauseOrbit);
 
 		// Start orbiting after zoom completes
 		setTimeout(() => {
@@ -528,11 +581,25 @@
 			orbitAnimationId = null;
 		}
 
-		// Show all books again
+		// Clear orbit resume timeout
+		if (orbitResumeTimeoutId) {
+			clearTimeout(orbitResumeTimeoutId);
+			orbitResumeTimeoutId = null;
+		}
+		orbitPaused = false;
+
+		// Restore all books to full opacity
 		const graphData = Graph.graphData();
 		graphData.nodes.forEach((n: Node) => {
-			if (n.__threeObj) {
-				n.__threeObj.visible = true;
+			if (n.__threeObj && n.group === 'book') {
+				const materials = Array.isArray(n.__threeObj.material)
+					? n.__threeObj.material
+					: [n.__threeObj.material];
+				materials.forEach((mat: THREE.Material) => {
+					if ('opacity' in mat) {
+						mat.opacity = 1.0;
+					}
+				});
 			}
 		});
 
@@ -1305,13 +1372,6 @@
 					</div>
 				{/if}
 
-				{#if bookDetails.averageRating}
-					<div class="book-rating">
-						<span class="stars">{'★'.repeat(Math.round(bookDetails.averageRating))}{'☆'.repeat(5 - Math.round(bookDetails.averageRating))}</span>
-						<span class="rating-count">({bookDetails.ratingsCount || 0})</span>
-					</div>
-				{/if}
-
 				{#if bookDetails.description}
 					<p class="book-description">{@html bookDetails.description}</p>
 				{/if}
@@ -1464,14 +1524,17 @@
 		50% { opacity: 1; transform: translateY(-2px); }
 	}
 
-	/* Book Detail Sidebar */
+	/* Book Detail Sidebar - Liquid Glass Effect */
 	.book-sidebar {
 		position: fixed;
 		top: 0;
 		right: 0;
 		width: 320px;
 		height: 100vh;
-		background: #808080;
+		background: rgba(128, 128, 128, 0.6);
+		backdrop-filter: blur(20px);
+		-webkit-backdrop-filter: blur(20px);
+		border-left: 1px solid rgba(255, 255, 255, 0.1);
 		z-index: 1500;
 		padding: 20px;
 		box-sizing: border-box;
@@ -1645,6 +1708,8 @@
 			top: auto;
 			bottom: 0;
 			border-radius: 12px 12px 0 0;
+			border-left: none;
+			border-top: 1px solid rgba(255, 255, 255, 0.2);
 			animation: slideUp 0.3s ease-out;
 		}
 
