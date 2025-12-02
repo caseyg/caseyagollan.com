@@ -293,7 +293,10 @@
 						<div
 							class="key-item"
 							class:selected={selectedKey === key.name}
+							role="button"
+							tabindex="0"
 							on:click={() => loadValue(key.name)}
+							on:keydown={(e) => e.key === 'Enter' && loadValue(key.name)}
 						>
 							<div class="key-name">{key.name}</div>
 							{#if key.expiration}
@@ -352,7 +355,7 @@
 							class="code-editor"
 							placeholder="Enter value (JSON or text)..."
 							spellcheck="false"
-						/>
+						></textarea>
 					{:else}
 						<pre class="code-display">{editedValue}</pre>
 					{/if}
@@ -368,9 +371,9 @@
 
 <!-- New Key Modal -->
 {#if showNewKeyModal}
-	<div class="modal-overlay" on:click={() => showNewKeyModal = false}>
-		<div class="modal" on:click|stopPropagation>
-			<h2>Create New Key</h2>
+	<div class="modal-overlay" role="presentation" on:click={() => showNewKeyModal = false} on:keydown={(e) => e.key === 'Escape' && (showNewKeyModal = false)}>
+		<div class="modal" role="dialog" aria-labelledby="modal-title" on:click|stopPropagation on:keydown|stopPropagation>
+			<h2 id="modal-title">Create New Key</h2>
 
 			<label>
 				Key Name
@@ -390,7 +393,7 @@
 					rows="8"
 					class="code-editor"
 					spellcheck="false"
-				/>
+				></textarea>
 			</label>
 
 			<label>
