@@ -842,15 +842,17 @@
 			if (node.fz !== undefined) delete node.fz;
 		});
 
-		const booksPerShelf = 40; // Max books per shelf row
+		const booksPerShelf = 50; // Max books per shelf row
 		// Use actual book dimensions for spacing calculations
+		// When books are rotated to show spines, depth becomes the horizontal spacing
 		const sampleBook = nodes.find((n) => n.__threeObj);
-		const bookWidth = sampleBook?.__threeObj?.geometry?.parameters?.width || 15;
+		const bookDepth = sampleBook?.__threeObj?.geometry?.parameters?.depth || 2;
 		const bookHeight = sampleBook?.__threeObj?.geometry?.parameters?.height || 25;
-		const spacingX = bookWidth + 2;
-		const shelfHeight = bookHeight + 8; // Spacing between shelves (rows)
-		const shelfStartX = -(booksPerShelf * spacingX) / 2; // Left edge of shelf
-		const labelOffsetX = shelfStartX - 80; // Position for DDC label (left of shelf)
+		const spacingX = bookDepth + 0.5; // Small gap between book spines
+		const shelfHeight = bookHeight + 5; // Spacing between shelves (rows)
+		const shelfWidth = booksPerShelf * spacingX;
+		const shelfStartX = -shelfWidth / 2; // Left edge of shelf
+		const labelOffsetX = shelfStartX - 50; // Position for DDC label (left of shelf)
 
 		if (sortModes[sortIndex] === 'ddc') {
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
@@ -1031,7 +1033,7 @@
 			</span>
 			<p class="shimmer-text">
 				{#each loadingProgress.split('') as letter, i}
-					<span class="shimmer-letter" style="animation-delay: {i * 0.05}s">{letter}</span>
+					<span class="shimmer-letter" style="animation-delay: {i * 0.03}s">{letter === ' ' ? '\u00A0' : letter}</span>
 				{/each}
 			</p>
 		</div>
@@ -1119,40 +1121,46 @@
 
 	.loading-shapes {
 		display: inline-block;
+		animation: shape-rotate 3s linear infinite;
 	}
 
 	.loading-shapes svg {
 		display: block;
 	}
 
-	/* Shape cycling animation (instant swap) */
-	@keyframes shape-cycle {
-		0%, 24.9% { opacity: 1; }
-		25%, 100% { opacity: 0; }
+	@keyframes shape-rotate {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
 	}
 
+	/* Hide all shapes except one that morphs */
 	.loading-shapes .shape {
 		opacity: 0;
 	}
 
 	.loading-shapes .shape-circle {
-		animation: shape-cycle 2s steps(1) infinite;
+		animation: shape-morph 2s ease-in-out infinite;
 		animation-delay: 0s;
 	}
 
 	.loading-shapes .shape-star {
-		animation: shape-cycle 2s steps(1) infinite;
+		animation: shape-morph 2s ease-in-out infinite;
 		animation-delay: 0.5s;
 	}
 
 	.loading-shapes .shape-triangle {
-		animation: shape-cycle 2s steps(1) infinite;
+		animation: shape-morph 2s ease-in-out infinite;
 		animation-delay: 1s;
 	}
 
 	.loading-shapes .shape-square {
-		animation: shape-cycle 2s steps(1) infinite;
+		animation: shape-morph 2s ease-in-out infinite;
 		animation-delay: 1.5s;
+	}
+
+	@keyframes shape-morph {
+		0%, 20% { opacity: 1; }
+		25%, 100% { opacity: 0; }
 	}
 
 	.shimmer-text {
@@ -1162,11 +1170,12 @@
 	}
 
 	.shimmer-letter {
-		animation: letter-shimmer 1.5s ease-in-out infinite;
+		display: inline-block;
+		animation: letter-wave 2s ease-in-out infinite;
 	}
 
-	@keyframes letter-shimmer {
-		0%, 100% { opacity: 0.4; }
-		50% { opacity: 1; }
+	@keyframes letter-wave {
+		0%, 100% { opacity: 0.3; transform: translateY(0); }
+		50% { opacity: 1; transform: translateY(-2px); }
 	}
 </style>
