@@ -564,6 +564,19 @@
 			})
 			.backgroundColor('#808080');
 
+		// Configure touch controls for better mobile experience
+		const controls = Graph.controls();
+		controls.enableDamping = true;
+		controls.dampingFactor = 0.1;
+		controls.rotateSpeed = 0.8;
+		controls.zoomSpeed = 1.2;
+		controls.panSpeed = 0.8;
+		// Enable touch gestures: one finger = rotate, two fingers = pan/zoom
+		controls.touches = {
+			ONE: THREE.TOUCH.ROTATE,
+			TWO: THREE.TOUCH.DOLLY_PAN
+		};
+
 		// Store original data for mode switching
 		originalGraphData = { ...Graph.graphData() };
 
@@ -703,11 +716,17 @@
 			Graph.graphData({ nodes: filteredNodes, links: [] });
 
 			// Enable panning for easier shelf navigation
-			Graph.controls().enablePan = true;
-			Graph.controls().minPolarAngle = Math.PI / 4;
-			Graph.controls().maxPolarAngle = (3 * Math.PI) / 4;
-			Graph.controls().enableZoom = true;
-			Graph.controls().enableRotate = true;
+			const controls = Graph.controls();
+			controls.enablePan = true;
+			controls.minPolarAngle = Math.PI / 4;
+			controls.maxPolarAngle = (3 * Math.PI) / 4;
+			controls.enableZoom = true;
+			controls.enableRotate = true;
+			// In shelf mode: one finger = pan, two fingers = zoom
+			controls.touches = {
+				ONE: THREE.TOUCH.PAN,
+				TWO: THREE.TOUCH.DOLLY_ROTATE
+			};
 		} else {
 			Graph.d3Force('custom', null);
 			Graph.numDimensions(3);
@@ -739,11 +758,17 @@
 			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
 
 			// Re-enable full 3D controls
-			Graph.controls().enablePan = true;
-			Graph.controls().minPolarAngle = 0;
-			Graph.controls().maxPolarAngle = Math.PI;
-			Graph.controls().enableZoom = true;
-			Graph.controls().enableRotate = true;
+			const controls = Graph.controls();
+			controls.enablePan = true;
+			controls.minPolarAngle = 0;
+			controls.maxPolarAngle = Math.PI;
+			controls.enableZoom = true;
+			controls.enableRotate = true;
+			// In graph mode: one finger = rotate, two fingers = pan/zoom
+			controls.touches = {
+				ONE: THREE.TOUCH.ROTATE,
+				TWO: THREE.TOUCH.DOLLY_PAN
+			};
 
 			// Reheat the force simulation to animate nodes back to graph layout
 			Graph.d3ReheatSimulation();
