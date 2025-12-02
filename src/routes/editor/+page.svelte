@@ -372,7 +372,7 @@
 <!-- New Key Modal -->
 {#if showNewKeyModal}
 	<div class="modal-overlay" role="presentation" on:click={() => showNewKeyModal = false} on:keydown={(e) => e.key === 'Escape' && (showNewKeyModal = false)}>
-		<div class="modal" role="dialog" aria-labelledby="modal-title" on:click|stopPropagation on:keydown|stopPropagation>
+		<div class="modal" role="dialog" aria-labelledby="modal-title" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
 			<h2 id="modal-title">Create New Key</h2>
 
 			<label>
