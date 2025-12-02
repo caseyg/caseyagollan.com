@@ -51,7 +51,9 @@
 
 ## Library Improvements
 
-- [ ] Fix DDC divider nodes positioning in grid mode - only some are appearing inline in the shelf, need to ensure all relevant DDC dividers show up in proper grid positions when in DDC sort mode
+- [x] Fix DDC divider nodes positioning in grid mode - only some are appearing inline in the shelf, need to ensure all relevant DDC dividers show up in proper grid positions when in DDC sort mode
+  - Fixed by grouping books by top-level DDC class (e.g., 700) instead of full 3-digit code (e.g., 701)
+  - Updated DDC class names to match actual graph data ("Science" and "History" instead of "Science & mathematics" and "History & geography")
 
 ## Future Enhancements
 
