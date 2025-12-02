@@ -18,6 +18,10 @@
 		"enabled": true
 	},
 	/**
+	 * Enable preview URLs for branch deployments
+	 */
+	"preview_urls": true,
+	/**
 	 * Custom domain routing
 	 */
 	"routes": [
