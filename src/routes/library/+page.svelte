@@ -56,6 +56,20 @@
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
 
+	// Top-level DDC class names for shelf labels
+	const topLevelDdcNames = new Set([
+		'Computer science, information & general works',
+		'Philosophy & psychology',
+		'Religion',
+		'Social sciences',
+		'Language',
+		'Science',
+		'Technology',
+		'Arts & recreation',
+		'Literature',
+		'History'
+	]);
+
 	// Performance: Cached materials
 	let paperWhiteMaterial: THREE.MeshBasicMaterial;
 	const textureCache = new Map<string, THREE.Texture>();
@@ -523,6 +537,12 @@
 				if (node.group === 'book') {
 					return createBookObject(node);
 				} else if (node.group === 'ddc') {
+					// In grid mode, only show top-level DDC category labels
+					if (isGridModeActive && !topLevelDdcNames.has(node.id)) {
+						// Return invisible placeholder for non-top-level DDC nodes
+						const emptyGroup = new THREE.Group();
+						return emptyGroup;
+					}
 					const sprite = new SpriteText(node.id);
 					sprite.color = 'blue';
 					sprite.textHeight = Math.max((node.points || 1) / 2, 3);
@@ -628,13 +648,19 @@
 		isGridModeActive = !isGridModeActive;
 
 		if (isGridModeActive) {
+			// Store original data before switching to grid mode
+			originalGraphData = JSON.parse(JSON.stringify(Graph.graphData()));
+
 			Graph.d3Force('custom', customForce);
 			Graph.numDimensions(2);
 
 			let filteredNodes: Node[];
 			if (sortModes[sortIndex] === 'ddc') {
+				// In DDC mode, only include books and top-level DDC categories
 				filteredNodes = Graph.graphData().nodes.filter(
-					(node: Node) => node.group === 'book' || node.group === 'ddc'
+					(node: Node) =>
+						node.group === 'book' ||
+						(node.group === 'ddc' && topLevelDdcNames.has(node.id))
 				);
 			} else {
 				filteredNodes = Graph.graphData().nodes.filter((node: Node) => node.group !== 'ddc');
@@ -646,40 +672,56 @@
 				}
 			});
 
-			originalGraphData = { ...Graph.graphData() };
 			Graph.graphData({ nodes: filteredNodes, links: [] });
 
-			Graph.controls().enablePan = false;
+			// Refresh node objects to update DDC label visibility
+			Graph.nodeThreeObjectExtend(false);
+			Graph.refresh();
+
+			// Enable panning for easier shelf navigation
+			Graph.controls().enablePan = true;
 			Graph.controls().minPolarAngle = Math.PI / 4;
 			Graph.controls().maxPolarAngle = (3 * Math.PI) / 4;
 			Graph.controls().enableZoom = true;
+			Graph.controls().enableRotate = true;
 		} else {
 			Graph.d3Force('custom', null);
 			Graph.numDimensions(3);
 
-			const currentData = Graph.graphData() as GraphData;
-			const originalNodes = originalGraphData.nodes;
-			const originalLinks = originalGraphData.links;
-
-			originalNodes.forEach((node: Node) => {
-				if (!currentData.nodes.some((currentNode: Node) => currentNode.id === node.id)) {
-					currentData.nodes.push(node);
-				}
+			// Restore all original nodes and links
+			const restoredNodes = originalGraphData.nodes.map((origNode: Node) => {
+				// Find current node to preserve position for animation
+				const currentNode = Graph.graphData().nodes.find((n: Node) => n.id === origNode.id);
+				return {
+					...origNode,
+					x: currentNode?.x ?? origNode.x,
+					y: currentNode?.y ?? origNode.y,
+					z: currentNode?.z ?? 0,
+					// Clear fixed positions to allow force simulation
+					fx: undefined,
+					fy: undefined,
+					fz: undefined
+				};
 			});
 
-			currentData.links = [];
-			originalLinks.forEach((link: Link) => {
-				currentData.links.push(link);
-			});
+			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
 
-			Graph.graphData({ nodes: currentData.nodes, links: currentData.links });
+			// Refresh node objects to show all DDC labels again
+			Graph.nodeThreeObjectExtend(false);
+			Graph.refresh();
 
+			// Re-enable full 3D controls
 			Graph.controls().enablePan = true;
 			Graph.controls().minPolarAngle = 0;
 			Graph.controls().maxPolarAngle = Math.PI;
 			Graph.controls().enableZoom = true;
+			Graph.controls().enableRotate = true;
 
-			currentData.nodes.forEach((node: Node) => {
+			// Reheat the force simulation to animate nodes back to graph layout
+			Graph.d3ReheatSimulation();
+
+			// Animate book rotations
+			restoredNodes.forEach((node: Node) => {
 				if (node.group === 'book' && node.__threeObj) {
 					const book = node.__threeObj;
 					const startRotation = {
@@ -697,7 +739,7 @@
 					const duration = 1000;
 
 					function animateRotation(timestamp: number) {
-						if (isDestroyed) return; // Stop if component is destroyed
+						if (isDestroyed) return;
 						if (!startTime) startTime = timestamp;
 						const progress = Math.min((timestamp - startTime) / duration, 1);
 						const easeProgress = 1 - Math.pow(1 - progress, 3);
@@ -729,13 +771,21 @@
 
 		let filteredNodes: Node[];
 		if (sortModes[sortIndex] === 'ddc') {
+			// In DDC mode, only include books and top-level DDC categories
 			filteredNodes = originalGraphData.nodes.filter(
-				(node: Node) => node.group === 'book' || node.group === 'ddc'
+				(node: Node) =>
+					node.group === 'book' ||
+					(node.group === 'ddc' && topLevelDdcNames.has(node.id))
 			);
 		} else {
 			filteredNodes = originalGraphData.nodes.filter((node: Node) => node.group !== 'ddc');
 		}
 		Graph.graphData({ nodes: filteredNodes, links: [] });
+
+		// Refresh to update DDC label visibility
+		Graph.nodeThreeObjectExtend(false);
+		Graph.refresh();
+
 		Graph.d3Force('custom', customForce);
 	}
 
@@ -744,7 +794,7 @@
 
 		let nodes = Graph.graphData().nodes.filter((node: Node) => node.group === 'book') as Node[];
 		const ddcNodes = Graph.graphData().nodes.filter(
-			(node: Node) => node.group === 'ddc'
+			(node: Node) => node.group === 'ddc' && topLevelDdcNames.has(node.id)
 		) as Node[];
 
 		Graph.graphData().nodes.forEach((node: Node) => {
@@ -753,11 +803,12 @@
 			if (node.fz !== undefined) delete node.fz;
 		});
 
-		const rowSize = 50;
+		const booksPerShelf = 40; // Max books per shelf row
 		const nodeSize =
 			nodes.length > 0 && nodes[0].__threeObj ? nodes[0].__threeObj.scale.x : 50;
 		const spacingX = nodeSize + 5;
-		const spacingY = nodeSize + 30;
+		const shelfHeight = nodeSize + 60; // Spacing between shelves (rows)
+		const labelOffsetX = -120; // Position for DDC label (left of books)
 
 		if (sortModes[sortIndex] === 'ddc') {
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
@@ -766,7 +817,6 @@
 			const ddcGroups: Record<string, Node[]> = {};
 			nodes.forEach((node) => {
 				const ddcCode = node.ddcCode || '';
-				// Get top-level class: first digit + "00" (e.g., "701" -> "700")
 				const topLevelClass = ddcCode.length > 0 ? ddcCode.charAt(0) + '00' : '000';
 				if (!ddcGroups[topLevelClass]) {
 					ddcGroups[topLevelClass] = [];
@@ -788,73 +838,64 @@
 				'900': 'History'
 			};
 
-			let gridIndex = 0;
-			const positionMap = new Map<string, number>();
+			let currentShelfRow = 0;
+			const easing = 0.05;
 
+			// Position each DDC category on its own shelf
 			Object.keys(ddcGroups)
 				.sort()
 				.forEach((ddcClass) => {
-					if (ddcGroups[ddcClass].length > 0) {
-						const dividerName = ddcClassNames[ddcClass] || `DDC ${ddcClass}`;
-						const divider = ddcNodes.find((node) => node.id === dividerName);
-						if (divider) {
-							positionMap.set(divider.id, gridIndex);
-							gridIndex++;
+					const booksInCategory = ddcGroups[ddcClass];
+					if (booksInCategory.length === 0) return;
+
+					const dividerName = ddcClassNames[ddcClass] || `DDC ${ddcClass}`;
+					const divider = ddcNodes.find((node) => node.id === dividerName);
+
+					// Calculate how many rows this category needs
+					const rowsNeeded = Math.ceil(booksInCategory.length / booksPerShelf);
+
+					// Position the DDC label at the start of this category's shelves
+					if (divider) {
+						const targetX = labelOffsetX;
+						const targetY = currentShelfRow * shelfHeight;
+						const targetZ = 0;
+
+						divider.x = (divider.x || 0) + (targetX - (divider.x || 0)) * easing;
+						divider.y = (divider.y || 0) + (targetY - (divider.y || 0)) * easing;
+						divider.z = targetZ;
+
+						divider.fx = divider.x;
+						divider.fy = divider.y;
+						divider.fz = divider.z;
+					}
+
+					// Position books on shelves for this category
+					booksInCategory.forEach((book, idx) => {
+						const rowWithinCategory = Math.floor(idx / booksPerShelf);
+						const colWithinRow = idx % booksPerShelf;
+
+						const targetX = colWithinRow * spacingX - (booksPerShelf * spacingX) / 2 + spacingX / 2;
+						const targetY = (currentShelfRow + rowWithinCategory) * shelfHeight;
+						const targetZ = 0;
+
+						book.x = (book.x || 0) + (targetX - (book.x || 0)) * easing;
+						book.y = (book.y || 0) + (targetY - (book.y || 0)) * easing;
+						book.z = targetZ;
+
+						book.fx = book.x;
+						book.fy = book.y;
+						book.fz = book.z;
+
+						if (book.__threeObj) {
+							book.__threeObj.rotation.set(0, Math.PI / 2, 0);
 						}
+					});
 
-						ddcGroups[ddcClass].forEach((book) => {
-							positionMap.set(book.id, gridIndex);
-							gridIndex++;
-						});
-					}
+					// Move to next category's shelf rows
+					currentShelfRow += rowsNeeded;
 				});
-
-			nodes.forEach((node) => {
-				const index = positionMap.get(node.id);
-				if (index !== undefined) {
-					const row = Math.floor(index / rowSize);
-					const col = index % rowSize;
-
-					const targetX = col * spacingX - (rowSize * spacingX) / 2 + spacingX / 2;
-					const targetY = row * spacingY;
-					const targetZ = 0;
-
-					const easing = 0.05;
-					node.x = (node.x || 0) + (targetX - (node.x || 0)) * easing;
-					node.y = (node.y || 0) + (targetY - (node.y || 0)) * easing;
-					node.z = targetZ;
-
-					node.fx = node.x;
-					node.fy = node.y;
-					node.fz = node.z;
-
-					if (node.__threeObj) {
-						node.__threeObj.rotation.set(0, Math.PI / 2, 0);
-					}
-				}
-			});
-
-			ddcNodes.forEach((node) => {
-				const index = positionMap.get(node.id);
-				if (index !== undefined) {
-					const row = Math.floor(index / rowSize);
-					const col = index % rowSize;
-
-					const targetX = col * spacingX - (rowSize * spacingX) / 2 + spacingX / 2;
-					const targetY = row * spacingY;
-					const targetZ = 0;
-
-					const easing = 0.05;
-					node.x = (node.x || 0) + (targetX - (node.x || 0)) * easing;
-					node.y = (node.y || 0) + (targetY - (node.y || 0)) * easing;
-					node.z = targetZ;
-
-					node.fx = node.x;
-					node.fy = node.y;
-					node.fz = node.z;
-				}
-			});
 		} else {
+			// Non-DDC sort modes: simple grid layout
 			nodes.sort((a, b) => {
 				if (sortModes[sortIndex] === 'dateacquired') {
 					return (
@@ -895,15 +936,15 @@
 				return (b.pages || 0) - (a.pages || 0);
 			});
 
+			const easing = 0.05;
 			nodes.forEach((node, index) => {
-				const row = Math.floor(index / rowSize);
-				const col = index % rowSize;
+				const row = Math.floor(index / booksPerShelf);
+				const col = index % booksPerShelf;
 
-				const targetX = col * spacingX - (rowSize * spacingX) / 2 + spacingX / 2;
-				const targetY = row * spacingY;
+				const targetX = col * spacingX - (booksPerShelf * spacingX) / 2 + spacingX / 2;
+				const targetY = row * shelfHeight;
 				const targetZ = 0;
 
-				const easing = 0.05;
 				node.x = (node.x || 0) + (targetX - (node.x || 0)) * easing;
 				node.y = (node.y || 0) + (targetY - (node.y || 0)) * easing;
 				node.z = targetZ;
