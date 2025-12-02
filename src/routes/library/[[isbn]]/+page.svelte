@@ -141,9 +141,10 @@
 	function createSpineTexture(
 		node: Node,
 		depth: number,
-		averageColor: string
+		averageColor: string,
+		bookHeight?: number
 	): THREE.MeshBasicMaterial {
-		const cacheKey = `spine_${node.id}_${depth}_${averageColor}`;
+		const cacheKey = `spine_${node.id}_${depth}_${averageColor}_${bookHeight}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
@@ -155,56 +156,48 @@
 			return simpleMaterial;
 		}
 
-		spineCanvas.width = Math.max(48, depth * 6);
-		spineCanvas.height = 384;
+		// Match canvas aspect ratio to actual spine geometry
+		// Spine face is (depthVal x height) where depthVal = depth/10
+		// Use resolution multiplier for crisp text
+		const resolution = 8;
+		const spineWidth = Math.max(depth / 10, 0.5); // Match depthVal from createBookObject
+		const spineHeight = bookHeight || 25;
+
+		spineCanvas.width = Math.round(spineWidth * resolution * 10);
+		spineCanvas.height = Math.round(spineHeight * resolution * 10);
 
 		spineCtx.fillStyle = averageColor;
 		spineCtx.fillRect(0, 0, spineCanvas.width, spineCanvas.height);
 
-		spineCtx.save();
-		spineCtx.translate(spineCanvas.width / 2, spineCanvas.height / 2);
-		spineCtx.rotate(-Math.PI / 2);
 		spineCtx.fillStyle = 'white';
 		spineCtx.strokeStyle = 'black';
-		spineCtx.lineWidth = 0.5;
 
-		const baseFontSize = Math.max(20, Math.min(28, spineCanvas.width * 0.4));
+		// Font size relative to spine width
+		const baseFontSize = Math.max(8, Math.min(14, spineCanvas.width * 0.25));
 		spineCtx.font = `bold ${baseFontSize}px Arial`;
-		spineCtx.textAlign = 'center';
-		spineCtx.textBaseline = 'middle';
+		spineCtx.textAlign = 'left';
+		spineCtx.textBaseline = 'top';
 
-		const words = node.id.split(' ');
-		let lines: string[] = [];
-		let currentLine = '';
-		const maxWidth = spineCanvas.height - 60;
+		// Draw text vertically (rotated 90 degrees) - left aligned from top
+		const padding = 10;
+		const maxTextWidth = spineCanvas.height - padding * 2;
 
-		words.forEach((word) => {
-			const testLine = currentLine + (currentLine ? ' ' : '') + word;
-			const metrics = spineCtx.measureText(testLine);
-			if (metrics.width > maxWidth && currentLine !== '') {
-				lines.push(currentLine);
-				currentLine = word;
-			} else {
-				currentLine = testLine;
-			}
-		});
-		lines.push(currentLine);
-
-		if (lines.length > 2) {
-			lines = lines.slice(0, 2);
-			lines[1] = lines[1].length > 15 ? lines[1].substring(0, 12) + '...' : lines[1];
+		// Truncate title if too long
+		let title = node.id;
+		let metrics = spineCtx.measureText(title);
+		while (metrics.width > maxTextWidth && title.length > 10) {
+			title = title.slice(0, -4) + '…';
+			metrics = spineCtx.measureText(title);
 		}
 
-		const lineHeight = baseFontSize + 4;
-		const startY = (-(lines.length - 1) * lineHeight) / 2;
-
-		lines.forEach((line, index) => {
-			const y = startY + index * lineHeight;
-			spineCtx.lineWidth = 3;
-			spineCtx.strokeText(line, 0, y);
-			spineCtx.fillText(line, 0, y);
-		});
-
+		// Draw text rotated 90 degrees (reading from bottom to top)
+		spineCtx.save();
+		spineCtx.translate(spineCanvas.width / 2 + baseFontSize / 3, spineCanvas.height - padding);
+		spineCtx.rotate(-Math.PI / 2);
+		spineCtx.lineWidth = 2;
+		spineCtx.strokeStyle = 'rgba(0,0,0,0.5)';
+		spineCtx.strokeText(title, 0, 0);
+		spineCtx.fillText(title, 0, 0);
 		spineCtx.restore();
 
 		// Create texture from canvas copy (since we reuse canvas)
@@ -381,14 +374,14 @@
 			frontMaterial = new THREE.MeshBasicMaterial({ map: imgTexture });
 			width = Math.max(0.1, node.w / 10);
 			height = Math.max(0.1, node.h / 10);
-			spineMaterial = createSpineTexture(node, depth, averageColor);
+			spineMaterial = createSpineTexture(node, depth, averageColor, height);
 		} else {
 			const placeholder = createPlaceholderCover(node);
 			frontMaterial = placeholder.material;
 			width = placeholder.width;
 			height = placeholder.height;
 			averageColor = placeholder.averageColor;
-			spineMaterial = createSpineTexture(node, depth, averageColor);
+			spineMaterial = createSpineTexture(node, depth, averageColor, height);
 		}
 
 		const depthVal = Math.max(0.1, depth / 10);
