@@ -41,6 +41,35 @@
 		links: Link[];
 	}
 
+	interface GoogleBookVolumeInfo {
+		title?: string;
+		subtitle?: string;
+		authors?: string[];
+		publisher?: string;
+		publishedDate?: string;
+		description?: string;
+		pageCount?: number;
+		categories?: string[];
+		averageRating?: number;
+		ratingsCount?: number;
+		imageLinks?: {
+			thumbnail?: string;
+			smallThumbnail?: string;
+		};
+		language?: string;
+		previewLink?: string;
+		infoLink?: string;
+	}
+
+	interface GoogleBookData {
+		kind: string;
+		totalItems: number;
+		items?: Array<{
+			id: string;
+			volumeInfo: GoogleBookVolumeInfo;
+		}>;
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let THREE: any;
 
@@ -57,6 +86,12 @@
 	const sortIcons = ['📅', '⏳', '📖', '🌈'];
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
+
+	// Book detail overlay state
+	let selectedBook: Node | null = $state(null);
+	let bookDetails: GoogleBookVolumeInfo | null = $state(null);
+	let isLoadingBookDetails = $state(false);
+	let bookDetailError: string | null = $state(null);
 
 	// Top-level DDC class names for shelf labels
 	const topLevelDdcNames = new Set([
@@ -386,6 +421,92 @@
 		return cube;
 	}
 
+	// Fetch book details from Google Books API
+	async function fetchBookDetails(isbn: string): Promise<GoogleBookVolumeInfo | null> {
+		try {
+			const response = await fetch(
+				`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+			);
+			if (!response.ok) {
+				throw new Error('Failed to fetch book details');
+			}
+			const data: GoogleBookData = await response.json();
+			if (data.items && data.items.length > 0) {
+				return data.items[0].volumeInfo;
+			}
+			return null;
+		} catch (error) {
+			console.error('Error fetching book details:', error);
+			return null;
+		}
+	}
+
+	// Select a book and show its details
+	async function selectBook(node: Node) {
+		if (!Graph) return;
+
+		selectedBook = node;
+		bookDetails = null;
+		bookDetailError = null;
+
+		// Hide all other books
+		const graphData = Graph.graphData();
+		graphData.nodes.forEach((n: Node) => {
+			if (n.__threeObj) {
+				n.__threeObj.visible = n.id === node.id || n.group !== 'book';
+			}
+		});
+
+		// Zoom to the selected book
+		const distance = 30;
+		const nodeZ = node.z || 0;
+		const distRatio = 1 + distance / Math.hypot(node.x || 0, node.y || 0, nodeZ);
+		Graph.cameraPosition(
+			{
+				x: (node.x || 0) * distRatio,
+				y: (node.y || 0) * distRatio,
+				z: nodeZ * distRatio
+			},
+			{ x: node.x || 0, y: node.y || 0, z: nodeZ },
+			1000
+		);
+
+		// Fetch book details if ISBN is available
+		if (node.isbn) {
+			isLoadingBookDetails = true;
+			const details = await fetchBookDetails(node.isbn);
+			if (details) {
+				bookDetails = details;
+			} else {
+				bookDetailError = 'Could not find book details';
+			}
+			isLoadingBookDetails = false;
+		} else {
+			bookDetailError = 'No ISBN available for this book';
+		}
+	}
+
+	// Deselect book and restore view
+	function deselectBook() {
+		if (!Graph || !selectedBook) return;
+
+		// Show all books again
+		const graphData = Graph.graphData();
+		graphData.nodes.forEach((n: Node) => {
+			if (n.__threeObj) {
+				n.__threeObj.visible = true;
+			}
+		});
+
+		// Reset camera
+		Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+
+		selectedBook = null;
+		bookDetails = null;
+		bookDetailError = null;
+		lastClickedNode = null;
+	}
+
 	// Expand minified data if needed
 	function expandGraphData(rawData: unknown): GraphData {
 		const data = rawData as {
@@ -516,29 +637,29 @@
 			.graphData(graphData)
 			.onNodeClick((node: Node) => {
 				if (node.group === 'book') {
-					if (lastClickedNode === node) {
-						Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 3000);
-						lastClickedNode = null;
+					// If a book is already selected
+					if (selectedBook) {
+						// Tapping the same book deselects it
+						if (selectedBook.id === node.id) {
+							deselectBook();
+						} else {
+							// Tapping a different book - deselect first, then select new one
+							deselectBook();
+							selectBook(node);
+						}
 					} else {
-						const distance = isGridModeActive ? 20 : 40;
-						const nodeZ = node.z || 0;
-						const distRatio = 1 + distance / Math.hypot(node.x || 0, node.y || 0, nodeZ);
-						Graph.cameraPosition(
-							{
-								x: (node.x || 0) * distRatio,
-								y: (node.y || 0) * distRatio,
-								z: nodeZ * distRatio
-							},
-							{ x: node.x || 0, y: node.y || 0, z: nodeZ },
-							3000
-						);
-						lastClickedNode = node;
+						// No book selected, select this one
+						selectBook(node);
 					}
 				}
 			})
 			.onBackgroundClick(() => {
-				Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 3000);
-				lastClickedNode = null;
+				if (selectedBook) {
+					deselectBook();
+				} else {
+					Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 3000);
+					lastClickedNode = null;
+				}
 			})
 			.onNodeRightClick((node: Node) => {
 				if (node.group === 'book') {
@@ -1073,6 +1194,101 @@
 	>
 </div>
 
+{#if selectedBook}
+	<div class="book-overlay" onclick={deselectBook} role="dialog" aria-modal="true" aria-label="Book details">
+		<div class="book-overlay-content" onclick={(e) => e.stopPropagation()}>
+			<button class="close-button" onclick={deselectBook} aria-label="Close">×</button>
+
+			<h2 class="book-title">{selectedBook.id}</h2>
+
+			{#if isLoadingBookDetails}
+				<div class="loading-details">
+					<span class="loading-shapes">
+						<svg width="24" height="24" viewBox="-6 -6 12 12">
+							<circle r="4" fill="currentColor" class="shape shape-circle" />
+							<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="currentColor" class="shape shape-star" />
+							<polygon points="0,-5 5,4 -5,4" fill="currentColor" class="shape shape-triangle" />
+							<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="currentColor" class="shape shape-square" />
+						</svg>
+					</span>
+					<p>Loading book details…</p>
+				</div>
+			{:else if bookDetailError}
+				<div class="error-details">
+					<p>{bookDetailError}</p>
+					{#if selectedBook.workcode}
+						<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer">
+							View on LibraryThing →
+						</a>
+					{/if}
+				</div>
+			{:else if bookDetails}
+				<div class="book-details">
+					{#if bookDetails.imageLinks?.thumbnail}
+						<img
+							src={bookDetails.imageLinks.thumbnail.replace('http://', 'https://')}
+							alt="{bookDetails.title} cover"
+							class="book-cover-large"
+						/>
+					{/if}
+
+					{#if bookDetails.subtitle}
+						<p class="book-subtitle">{bookDetails.subtitle}</p>
+					{/if}
+
+					{#if bookDetails.authors && bookDetails.authors.length > 0}
+						<p class="book-authors">by {bookDetails.authors.join(', ')}</p>
+					{/if}
+
+					<div class="book-meta">
+						{#if bookDetails.publisher}
+							<span class="meta-item">{bookDetails.publisher}</span>
+						{/if}
+						{#if bookDetails.publishedDate}
+							<span class="meta-item">{bookDetails.publishedDate}</span>
+						{/if}
+						{#if bookDetails.pageCount}
+							<span class="meta-item">{bookDetails.pageCount} pages</span>
+						{/if}
+					</div>
+
+					{#if bookDetails.categories && bookDetails.categories.length > 0}
+						<div class="book-categories">
+							{#each bookDetails.categories as category}
+								<span class="category-tag">{category}</span>
+							{/each}
+						</div>
+					{/if}
+
+					{#if bookDetails.averageRating}
+						<div class="book-rating">
+							<span class="stars">{'★'.repeat(Math.round(bookDetails.averageRating))}{'☆'.repeat(5 - Math.round(bookDetails.averageRating))}</span>
+							<span class="rating-count">({bookDetails.ratingsCount || 0} ratings)</span>
+						</div>
+					{/if}
+
+					{#if bookDetails.description}
+						<p class="book-description">{@html bookDetails.description}</p>
+					{/if}
+
+					<div class="book-links">
+						{#if bookDetails.previewLink}
+							<a href={bookDetails.previewLink} target="_blank" rel="noopener noreferrer" class="book-link">
+								Preview on Google Books
+							</a>
+						{/if}
+						{#if selectedBook.workcode}
+							<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer" class="book-link">
+								View on LibraryThing
+							</a>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		</div>
+	</div>
+{/if}
+
 <style>
 	:global(html) {
 		background: #808080;
@@ -1202,5 +1418,200 @@
 	@keyframes letter-wave {
 		0%, 100% { opacity: 0.3; transform: translateY(0); }
 		50% { opacity: 1; transform: translateY(-2px); }
+	}
+
+	/* Book Detail Overlay */
+	.book-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		background: rgba(0, 0, 0, 0.7);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1500;
+		padding: 20px;
+		box-sizing: border-box;
+	}
+
+	.book-overlay-content {
+		background: white;
+		border-radius: 12px;
+		padding: 24px;
+		max-width: 500px;
+		width: 100%;
+		max-height: 80vh;
+		overflow-y: auto;
+		position: relative;
+		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	}
+
+	.close-button {
+		position: absolute;
+		top: 12px;
+		right: 12px;
+		background: none;
+		border: none;
+		font-size: 2rem;
+		cursor: pointer;
+		color: #666;
+		line-height: 1;
+		padding: 0;
+		width: 36px;
+		height: 36px;
+	}
+
+	.close-button:hover {
+		color: #333;
+	}
+
+	.book-title {
+		font-size: 1.5rem;
+		font-weight: bold;
+		margin: 0 0 8px 0;
+		padding-right: 40px;
+		color: #333;
+		font-family: system-ui, -apple-system, sans-serif;
+	}
+
+	.book-subtitle {
+		font-size: 1.1rem;
+		color: #666;
+		margin: 0 0 8px 0;
+		font-style: italic;
+	}
+
+	.book-authors {
+		font-size: 1rem;
+		color: #555;
+		margin: 0 0 16px 0;
+	}
+
+	.book-cover-large {
+		display: block;
+		max-width: 150px;
+		height: auto;
+		margin: 0 auto 16px;
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+		border-radius: 4px;
+	}
+
+	.book-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-bottom: 16px;
+	}
+
+	.meta-item {
+		font-size: 0.85rem;
+		color: #777;
+		padding: 4px 8px;
+		background: #f5f5f5;
+		border-radius: 4px;
+	}
+
+	.book-categories {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-bottom: 16px;
+	}
+
+	.category-tag {
+		font-size: 0.8rem;
+		color: white;
+		background: blue;
+		padding: 4px 10px;
+		border-radius: 12px;
+	}
+
+	.book-rating {
+		margin-bottom: 16px;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.stars {
+		color: gold;
+		font-size: 1.2rem;
+		letter-spacing: 2px;
+	}
+
+	.rating-count {
+		font-size: 0.85rem;
+		color: #777;
+	}
+
+	.book-description {
+		font-size: 0.95rem;
+		color: #444;
+		line-height: 1.6;
+		margin-bottom: 16px;
+		max-height: 200px;
+		overflow-y: auto;
+	}
+
+	.book-links {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 16px;
+		padding-top: 16px;
+		border-top: 1px solid #eee;
+	}
+
+	.book-link {
+		display: inline-block;
+		color: blue;
+		text-decoration: none;
+		font-size: 0.95rem;
+	}
+
+	.book-link:hover {
+		text-decoration: underline;
+	}
+
+	.loading-details,
+	.error-details {
+		text-align: center;
+		padding: 24px;
+		color: #666;
+	}
+
+	.loading-details .loading-shapes {
+		color: blue;
+	}
+
+	.error-details a {
+		color: blue;
+		text-decoration: none;
+	}
+
+	.error-details a:hover {
+		text-decoration: underline;
+	}
+
+	/* Mobile adjustments for overlay */
+	@media (max-width: 600px) {
+		.book-overlay {
+			padding: 10px;
+		}
+
+		.book-overlay-content {
+			padding: 16px;
+			max-height: 90vh;
+		}
+
+		.book-title {
+			font-size: 1.25rem;
+		}
+
+		.book-cover-large {
+			max-width: 120px;
+		}
 	}
 </style>
