@@ -478,7 +478,7 @@
 		// Initialize reusable canvases
 		initCanvases();
 
-		loadingProgress = 'Loading 3D engine...';
+		loadingProgress = 'Unpacking boxes…';
 
 		// Dynamic imports
 		const [ForceGraph3DModule, THREEModule, SpriteTextModule] = await Promise.all([
@@ -494,7 +494,7 @@
 		// Initialize shared materials
 		paperWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xf5f5f0 });
 
-		loadingProgress = 'Loading book data...';
+		loadingProgress = 'Cataloging collection…';
 
 		// Load graph data - use server-provided data or fetch
 		let graphData: GraphData;
@@ -507,7 +507,7 @@
 		}
 
 		const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
-		loadingProgress = `Building ${bookCount} books...`;
+		loadingProgress = `Organizing ${bookCount} books…`;
 
 		// Allow UI to update before heavy graph creation
 		await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -1021,8 +1021,19 @@
 {#if isLoading}
 	<div class="loading-overlay">
 		<div class="loading-content">
-			<div class="loading-spinner"></div>
-			<p>{loadingProgress}</p>
+			<span class="loading-shapes">
+				<svg width="24" height="24" viewBox="-6 -6 12 12">
+					<circle r="4" fill="white" class="shape shape-circle" />
+					<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="white" class="shape shape-star" />
+					<polygon points="0,-5 5,4 -5,4" fill="white" class="shape shape-triangle" />
+					<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="white" class="shape shape-square" />
+				</svg>
+			</span>
+			<p class="shimmer-text">
+				{#each loadingProgress.split('') as letter, i}
+					<span class="shimmer-letter" style="animation-delay: {i * 0.05}s">{letter}</span>
+				{/each}
+			</p>
 		</div>
 	</div>
 {/if}
@@ -1100,27 +1111,62 @@
 		text-align: center;
 		color: white;
 		font-family: system-ui, -apple-system, sans-serif;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 1rem;
 	}
 
-	.loading-content p {
-		margin-top: 1rem;
-		font-size: 1.1rem;
-		opacity: 0.9;
+	.loading-shapes {
+		display: inline-block;
 	}
 
-	.loading-spinner {
-		width: 50px;
-		height: 50px;
-		border: 4px solid rgba(255, 255, 255, 0.3);
-		border-top-color: white;
-		border-radius: 50%;
-		animation: spin 1s linear infinite;
-		margin: 0 auto;
+	.loading-shapes svg {
+		display: block;
 	}
 
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
+	/* Shape cycling animation (instant swap) */
+	@keyframes shape-cycle {
+		0%, 24.9% { opacity: 1; }
+		25%, 100% { opacity: 0; }
+	}
+
+	.loading-shapes .shape {
+		opacity: 0;
+	}
+
+	.loading-shapes .shape-circle {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0s;
+	}
+
+	.loading-shapes .shape-star {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 0.5s;
+	}
+
+	.loading-shapes .shape-triangle {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1s;
+	}
+
+	.loading-shapes .shape-square {
+		animation: shape-cycle 2s steps(1) infinite;
+		animation-delay: 1.5s;
+	}
+
+	.shimmer-text {
+		font-style: italic;
+		font-size: 1.2rem;
+		margin: 0;
+	}
+
+	.shimmer-letter {
+		animation: letter-shimmer 1.5s ease-in-out infinite;
+	}
+
+	@keyframes letter-shimmer {
+		0%, 100% { opacity: 0.4; }
+		50% { opacity: 1; }
 	}
 </style>
