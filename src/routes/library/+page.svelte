@@ -668,9 +668,13 @@
 			// Store original data before switching to grid mode
 			// Use a lighter-weight copy that preserves node references but copies structure
 			const currentData = Graph.graphData();
+			// Store links with string IDs (before graph mutates them to object references)
 			originalGraphData = {
 				nodes: currentData.nodes.map((n: Node) => ({ ...n })),
-				links: currentData.links.map((l: Link) => ({ ...l }))
+				links: currentData.links.map((l: Link) => ({
+					source: typeof l.source === 'object' ? (l.source as Node).id : l.source,
+					target: typeof l.target === 'object' ? (l.target as Node).id : l.target
+				}))
 			};
 
 			Graph.d3Force('custom', customForce);
@@ -839,11 +843,14 @@
 		});
 
 		const booksPerShelf = 40; // Max books per shelf row
-		const nodeSize =
-			nodes.length > 0 && nodes[0].__threeObj ? nodes[0].__threeObj.scale.x : 50;
-		const spacingX = nodeSize + 5;
-		const shelfHeight = nodeSize + 60; // Spacing between shelves (rows)
-		const labelOffsetX = -120; // Position for DDC label (left of books)
+		// Use actual book dimensions for spacing calculations
+		const sampleBook = nodes.find((n) => n.__threeObj);
+		const bookWidth = sampleBook?.__threeObj?.geometry?.parameters?.width || 15;
+		const bookHeight = sampleBook?.__threeObj?.geometry?.parameters?.height || 25;
+		const spacingX = bookWidth + 2;
+		const shelfHeight = bookHeight + 8; // Spacing between shelves (rows)
+		const shelfStartX = -(booksPerShelf * spacingX) / 2; // Left edge of shelf
+		const labelOffsetX = shelfStartX - 80; // Position for DDC label (left of shelf)
 
 		if (sortModes[sortIndex] === 'ddc') {
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
@@ -893,15 +900,16 @@
 					if (divider) {
 						const targetX = labelOffsetX;
 						const targetY = currentShelfRow * shelfHeight;
-						const targetZ = 0;
+						const targetZ = 5; // Slightly in front of books
 
-						divider.x = (divider.x || 0) + (targetX - (divider.x || 0)) * easing;
-						divider.y = (divider.y || 0) + (targetY - (divider.y || 0)) * easing;
+						// Snap labels to position quickly
+						divider.x = targetX;
+						divider.y = targetY;
 						divider.z = targetZ;
 
-						divider.fx = divider.x;
-						divider.fy = divider.y;
-						divider.fz = divider.z;
+						divider.fx = targetX;
+						divider.fy = targetY;
+						divider.fz = targetZ;
 					}
 
 					// Position books on shelves for this category
@@ -909,7 +917,7 @@
 						const rowWithinCategory = Math.floor(idx / booksPerShelf);
 						const colWithinRow = idx % booksPerShelf;
 
-						const targetX = colWithinRow * spacingX - (booksPerShelf * spacingX) / 2 + spacingX / 2;
+						const targetX = shelfStartX + colWithinRow * spacingX + spacingX / 2;
 						const targetY = (currentShelfRow + rowWithinCategory) * shelfHeight;
 						const targetZ = 0;
 
@@ -976,7 +984,7 @@
 				const row = Math.floor(index / booksPerShelf);
 				const col = index % booksPerShelf;
 
-				const targetX = col * spacingX - (booksPerShelf * spacingX) / 2 + spacingX / 2;
+				const targetX = shelfStartX + col * spacingX + spacingX / 2;
 				const targetY = row * shelfHeight;
 				const targetZ = 0;
 
