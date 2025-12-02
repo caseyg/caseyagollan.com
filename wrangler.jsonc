@@ -10,6 +10,10 @@
 	"compatibility_flags": [
 		"nodejs_als"
 	],
+	/**
+	 * Enable workers.dev subdomain for preview deployments
+	 */
+	"workers_dev": true,
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare"
