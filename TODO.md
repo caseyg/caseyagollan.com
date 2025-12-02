@@ -51,7 +51,20 @@
 
 ## Library Improvements
 
-- [ ] Fix DDC divider nodes positioning in grid mode - only some are appearing inline in the shelf, need to ensure all relevant DDC dividers show up in proper grid positions when in DDC sort mode
+- [x] Fix DDC divider nodes positioning in grid mode - only some are appearing inline in the shelf, need to ensure all relevant DDC dividers show up in proper grid positions when in DDC sort mode
+  - Fixed by grouping books by top-level DDC class (e.g., 700) instead of full 3-digit code (e.g., 701)
+  - Updated DDC class names to match actual graph data ("Science" and "History" instead of "Science & mathematics" and "History & geography")
+- [x] Separate shelves for each DDC category in DDC sort mode
+  - Each DDC category (e.g., "Arts & recreation", "Technology") gets its own shelf rows
+  - DDC label positioned on the left side of each category's shelf
+- [x] Hide non-top-level DDC node labels in grid mode
+  - Only top-level category labels shown (e.g., "Arts & recreation"), subcategories hidden
+- [x] Fix graph animation when returning from shelf to graph mode
+  - Clear fixed positions (fx/fy/fz) on nodes before returning to graph
+  - Reheat force simulation with `d3ReheatSimulation()` for smooth animation back
+- [x] Improve drag/pan behavior in shelf view
+  - Enable panning for easier shelf navigation
+  - Maintain zoom and rotation controls
 
 ## Future Enhancements
 
