@@ -49,6 +49,8 @@
 	let graphContainer: HTMLDivElement;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let Graph: any;
+	let isLoading = $state(true);
+	let loadingProgress = $state('Loading library...');
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
 	const sortModes = ['dateacquired', 'publicationYear', 'ddc', 'color'];
@@ -476,6 +478,8 @@
 		// Initialize reusable canvases
 		initCanvases();
 
+		loadingProgress = 'Loading 3D engine...';
+
 		// Dynamic imports
 		const [ForceGraph3DModule, THREEModule, SpriteTextModule] = await Promise.all([
 			import('3d-force-graph'),
@@ -490,6 +494,8 @@
 		// Initialize shared materials
 		paperWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xf5f5f0 });
 
+		loadingProgress = 'Loading book data...';
+
 		// Load graph data - use server-provided data or fetch
 		let graphData: GraphData;
 		if (data.graphData) {
@@ -499,6 +505,12 @@
 			const rawData = await response.json();
 			graphData = expandGraphData(rawData);
 		}
+
+		const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
+		loadingProgress = `Building ${bookCount} books...`;
+
+		// Allow UI to update before heavy graph creation
+		await new Promise((resolve) => requestAnimationFrame(resolve));
 
 		Graph = ForceGraph3D()(graphContainer)
 			.graphData(graphData)
@@ -554,6 +566,11 @@
 
 		// Store original data for mode switching
 		originalGraphData = { ...Graph.graphData() };
+
+		// Mark loading complete after a short delay to ensure render is visible
+		requestAnimationFrame(() => {
+			isLoading = false;
+		});
 	});
 
 	onDestroy(() => {
@@ -649,7 +666,12 @@
 
 		if (isGridModeActive) {
 			// Store original data before switching to grid mode
-			originalGraphData = JSON.parse(JSON.stringify(Graph.graphData()));
+			// Use a lighter-weight copy that preserves node references but copies structure
+			const currentData = Graph.graphData();
+			originalGraphData = {
+				nodes: currentData.nodes.map((n: Node) => ({ ...n })),
+				links: currentData.links.map((l: Link) => ({ ...l }))
+			};
 
 			Graph.d3Force('custom', customForce);
 			Graph.numDimensions(2);
@@ -657,26 +679,24 @@
 			let filteredNodes: Node[];
 			if (sortModes[sortIndex] === 'ddc') {
 				// In DDC mode, only include books and top-level DDC categories
-				filteredNodes = Graph.graphData().nodes.filter(
+				filteredNodes = currentData.nodes.filter(
 					(node: Node) =>
 						node.group === 'book' ||
 						(node.group === 'ddc' && topLevelDdcNames.has(node.id))
 				);
 			} else {
-				filteredNodes = Graph.graphData().nodes.filter((node: Node) => node.group !== 'ddc');
+				filteredNodes = currentData.nodes.filter((node: Node) => node.group !== 'ddc');
 			}
 
-			filteredNodes.forEach((node: Node) => {
+			// Rotate books to shelf orientation
+			for (let i = 0; i < filteredNodes.length; i++) {
+				const node = filteredNodes[i];
 				if (node.group === 'book' && node.__threeObj) {
 					node.__threeObj.rotation.set(0, Math.PI / 2, 0);
 				}
-			});
+			}
 
 			Graph.graphData({ nodes: filteredNodes, links: [] });
-
-			// Refresh node objects to update DDC label visibility
-			Graph.nodeThreeObjectExtend(false);
-			Graph.refresh();
 
 			// Enable panning for easier shelf navigation
 			Graph.controls().enablePan = true;
@@ -689,10 +709,18 @@
 			Graph.numDimensions(3);
 
 			// Restore all original nodes and links
-			const restoredNodes = originalGraphData.nodes.map((origNode: Node) => {
-				// Find current node to preserve position for animation
-				const currentNode = Graph.graphData().nodes.find((n: Node) => n.id === origNode.id);
-				return {
+			// Build a map for faster lookups instead of using .find() in a loop
+			const currentNodes = Graph.graphData().nodes;
+			const currentNodeMap = new Map<string, Node>();
+			for (let i = 0; i < currentNodes.length; i++) {
+				currentNodeMap.set(currentNodes[i].id, currentNodes[i]);
+			}
+
+			const restoredNodes: Node[] = [];
+			for (let i = 0; i < originalGraphData.nodes.length; i++) {
+				const origNode = originalGraphData.nodes[i];
+				const currentNode = currentNodeMap.get(origNode.id);
+				restoredNodes.push({
 					...origNode,
 					x: currentNode?.x ?? origNode.x,
 					y: currentNode?.y ?? origNode.y,
@@ -701,14 +729,10 @@
 					fx: undefined,
 					fy: undefined,
 					fz: undefined
-				};
-			});
+				});
+			}
 
 			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
-
-			// Refresh node objects to show all DDC labels again
-			Graph.nodeThreeObjectExtend(false);
-			Graph.refresh();
 
 			// Re-enable full 3D controls
 			Graph.controls().enablePan = true;
@@ -720,47 +744,63 @@
 			// Reheat the force simulation to animate nodes back to graph layout
 			Graph.d3ReheatSimulation();
 
-			// Animate book rotations
-			restoredNodes.forEach((node: Node) => {
-				if (node.group === 'book' && node.__threeObj) {
-					const book = node.__threeObj;
-					const startRotation = {
-						x: book.rotation.x,
-						y: book.rotation.y,
-						z: book.rotation.z
-					};
-					const targetRotation = {
-						x: Math.random() * 2 * Math.PI,
-						y: Math.random() * 2 * Math.PI,
-						z: Math.random() * 2 * Math.PI
-					};
+			// Skip rotation animations on mobile to prevent crashes
+			if (!isMobile) {
+				// Animate book rotations on desktop only
+				for (let i = 0; i < restoredNodes.length; i++) {
+					const node = restoredNodes[i];
+					if (node.group === 'book' && node.__threeObj) {
+						const book = node.__threeObj;
+						const startRotation = {
+							x: book.rotation.x,
+							y: book.rotation.y,
+							z: book.rotation.z
+						};
+						const targetRotation = {
+							x: Math.random() * 2 * Math.PI,
+							y: Math.random() * 2 * Math.PI,
+							z: Math.random() * 2 * Math.PI
+						};
 
-					let startTime: number | null = null;
-					const duration = 1000;
+						let startTime: number | null = null;
+						const duration = 1000;
 
-					function animateRotation(timestamp: number) {
-						if (isDestroyed) return;
-						if (!startTime) startTime = timestamp;
-						const progress = Math.min((timestamp - startTime) / duration, 1);
-						const easeProgress = 1 - Math.pow(1 - progress, 3);
+						function animateRotation(timestamp: number) {
+							if (isDestroyed) return;
+							if (!startTime) startTime = timestamp;
+							const progress = Math.min((timestamp - startTime) / duration, 1);
+							const easeProgress = 1 - Math.pow(1 - progress, 3);
 
-						book.rotation.x =
-							startRotation.x + (targetRotation.x - startRotation.x) * easeProgress;
-						book.rotation.y =
-							startRotation.y + (targetRotation.y - startRotation.y) * easeProgress;
-						book.rotation.z =
-							startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
+							book.rotation.x =
+								startRotation.x + (targetRotation.x - startRotation.x) * easeProgress;
+							book.rotation.y =
+								startRotation.y + (targetRotation.y - startRotation.y) * easeProgress;
+							book.rotation.z =
+								startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
 
-						if (progress < 1) {
-							const frameId = requestAnimationFrame(animateRotation);
-							animationFrameIds.add(frameId);
+							if (progress < 1) {
+								const frameId = requestAnimationFrame(animateRotation);
+								animationFrameIds.add(frameId);
+							}
 						}
-					}
 
-					const initialFrameId = requestAnimationFrame(animateRotation);
-					animationFrameIds.add(initialFrameId);
+						const initialFrameId = requestAnimationFrame(animateRotation);
+						animationFrameIds.add(initialFrameId);
+					}
 				}
-			});
+			} else {
+				// On mobile, just set random rotations immediately without animation
+				for (let i = 0; i < restoredNodes.length; i++) {
+					const node = restoredNodes[i];
+					if (node.group === 'book' && node.__threeObj) {
+						node.__threeObj.rotation.set(
+							Math.random() * 2 * Math.PI,
+							Math.random() * 2 * Math.PI,
+							Math.random() * 2 * Math.PI
+						);
+					}
+				}
+			}
 		}
 	}
 
@@ -781,11 +821,6 @@
 			filteredNodes = originalGraphData.nodes.filter((node: Node) => node.group !== 'ddc');
 		}
 		Graph.graphData({ nodes: filteredNodes, links: [] });
-
-		// Refresh to update DDC label visibility
-		Graph.nodeThreeObjectExtend(false);
-		Graph.refresh();
-
 		Graph.d3Force('custom', customForce);
 	}
 
@@ -975,9 +1010,17 @@
 	<link rel="webmention" href="https://webmention.io/caseyagollan.com/webmention" />
 </svelte:head>
 
+{#if isLoading}
+	<div class="loading-overlay">
+		<div class="loading-content">
+			<div class="loading-spinner"></div>
+			<p>{loadingProgress}</p>
+		</div>
+	</div>
+{/if}
 <div bind:this={graphContainer} class="graph-container"></div>
 <Nav currentPage="library" />
-<div class="controls">
+<div class="controls" class:hidden={isLoading}>
 	<button id="modeToggle" onclick={toggleMode}>{isGridModeActive ? '🕸️' : '📚'}</button>
 	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]}</button
@@ -1027,7 +1070,49 @@
 		background-color: rgb(73, 73, 255);
 	}
 
-	.controls button.hidden {
+	.controls button.hidden,
+	.controls.hidden {
 		display: none;
+	}
+
+	.loading-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		background: #808080;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 2000;
+	}
+
+	.loading-content {
+		text-align: center;
+		color: white;
+		font-family: system-ui, -apple-system, sans-serif;
+	}
+
+	.loading-content p {
+		margin-top: 1rem;
+		font-size: 1.1rem;
+		opacity: 0.9;
+	}
+
+	.loading-spinner {
+		width: 50px;
+		height: 50px;
+		border: 4px solid rgba(255, 255, 255, 0.3);
+		border-top-color: white;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+		margin: 0 auto;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 </style>
