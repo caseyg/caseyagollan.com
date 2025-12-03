@@ -723,20 +723,93 @@
 	}
 
 	function applySearchFilter(query: string) {
-		if (!Graph) return;
+		if (!Graph || !originalGraphData) return;
 
-		const graphData = Graph.graphData();
 		const lowerQuery = query.toLowerCase().trim();
 
-		graphData.nodes.forEach((node: Node) => {
-			if (node.group === 'book' && node.__threeObj) {
-				const title = node.id.toLowerCase();
-				const matches = lowerQuery === '' || title.includes(lowerQuery);
+		if (lowerQuery === '') {
+			// Restore full graph data
+			const currentNodes = Graph.graphData().nodes;
+			const currentNodeMap = new Map<string, Node>();
+			currentNodes.forEach((n: Node) => currentNodeMap.set(n.id, n));
 
-				// Set visibility based on match
-				node.__threeObj.visible = matches;
-			}
-		});
+			const restoredNodes = originalGraphData.nodes.map((origNode) => {
+				const currentNode = currentNodeMap.get(origNode.id);
+				return {
+					...origNode,
+					x: currentNode?.x ?? origNode.x,
+					y: currentNode?.y ?? origNode.y,
+					z: currentNode?.z ?? origNode.z,
+					__threeObj: currentNode?.__threeObj
+				};
+			});
+
+			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
+			Graph.d3ReheatSimulation();
+		} else {
+			// Filter to matching books and their connected DDC nodes
+			const matchingBookIds = new Set<string>();
+			const connectedDdcIds = new Set<string>();
+
+			// Find matching books
+			originalGraphData.nodes.forEach((node) => {
+				if (node.group === 'book') {
+					const title = node.id.toLowerCase();
+					if (title.includes(lowerQuery)) {
+						matchingBookIds.add(node.id);
+					}
+				}
+			});
+
+			// Find DDC nodes connected to matching books
+			originalGraphData.links.forEach((link) => {
+				const sourceId = typeof link.source === 'object' ? (link.source as Node).id : link.source;
+				const targetId = typeof link.target === 'object' ? (link.target as Node).id : link.target;
+
+				if (matchingBookIds.has(sourceId)) {
+					connectedDdcIds.add(targetId);
+				} else if (matchingBookIds.has(targetId)) {
+					connectedDdcIds.add(sourceId);
+				}
+			});
+
+			// Get current positions for smooth transition
+			const currentNodes = Graph.graphData().nodes;
+			const currentNodeMap = new Map<string, Node>();
+			currentNodes.forEach((n: Node) => currentNodeMap.set(n.id, n));
+
+			// Filter nodes
+			const filteredNodes = originalGraphData.nodes
+				.filter((node) => {
+					if (node.group === 'book') {
+						return matchingBookIds.has(node.id);
+					} else if (node.group === 'ddc') {
+						return connectedDdcIds.has(node.id);
+					}
+					return false;
+				})
+				.map((node) => {
+					const currentNode = currentNodeMap.get(node.id);
+					return {
+						...node,
+						x: currentNode?.x ?? node.x,
+						y: currentNode?.y ?? node.y,
+						z: currentNode?.z ?? node.z,
+						__threeObj: currentNode?.__threeObj
+					};
+				});
+
+			// Filter links to only include those between filtered nodes
+			const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+			const filteredLinks = originalGraphData.links.filter((link) => {
+				const sourceId = typeof link.source === 'object' ? (link.source as Node).id : link.source;
+				const targetId = typeof link.target === 'object' ? (link.target as Node).id : link.target;
+				return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId);
+			});
+
+			Graph.graphData({ nodes: filteredNodes, links: filteredLinks });
+			Graph.d3ReheatSimulation();
+		}
 	}
 
 	// Deselect book and restore view
