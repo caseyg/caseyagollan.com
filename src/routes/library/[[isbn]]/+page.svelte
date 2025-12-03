@@ -98,6 +98,11 @@
 	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	let orbitDirection = 1; // 1 or -1 for clockwise/counter-clockwise
 
+	// Search state
+	let searchQuery = $state('');
+	let isSearchExpanded = $state(false);
+	let searchInputEl: HTMLInputElement;
+
 	// Top-level DDC class names for shelf labels
 	const topLevelDdcNames = new Set([
 		'Computer science, information & general works',
@@ -670,6 +675,13 @@
 
 	// Handle keyboard navigation
 	function handleKeydown(event: KeyboardEvent) {
+		// Close search on Escape if search is expanded
+		if (event.key === 'Escape' && isSearchExpanded) {
+			event.preventDefault();
+			closeSearch();
+			return;
+		}
+
 		if (!selectedBook) return;
 
 		if (event.key === 'ArrowLeft') {
@@ -682,6 +694,49 @@
 			event.preventDefault();
 			deselectBook();
 		}
+	}
+
+	// Search functions
+	function toggleSearch() {
+		isSearchExpanded = !isSearchExpanded;
+		if (isSearchExpanded) {
+			// Focus the input after it's rendered
+			setTimeout(() => searchInputEl?.focus(), 50);
+		} else {
+			closeSearch();
+		}
+	}
+
+	function closeSearch() {
+		isSearchExpanded = false;
+		searchQuery = '';
+		// Restore all book visibility
+		if (Graph) {
+			applySearchFilter('');
+		}
+	}
+
+	function handleSearchInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		searchQuery = target.value;
+		applySearchFilter(searchQuery);
+	}
+
+	function applySearchFilter(query: string) {
+		if (!Graph) return;
+
+		const graphData = Graph.graphData();
+		const lowerQuery = query.toLowerCase().trim();
+
+		graphData.nodes.forEach((node: Node) => {
+			if (node.group === 'book' && node.__threeObj) {
+				const title = node.id.toLowerCase();
+				const matches = lowerQuery === '' || title.includes(lowerQuery);
+
+				// Set visibility based on match
+				node.__threeObj.visible = matches;
+			}
+		});
 	}
 
 	// Deselect book and restore view
@@ -1433,6 +1488,19 @@
 	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]}</button
 	>
+	<div class="search-container" class:expanded={isSearchExpanded}>
+		<button id="searchToggle" onclick={toggleSearch} aria-label="Search books">🔍</button>
+		{#if isSearchExpanded}
+			<input
+				bind:this={searchInputEl}
+				type="text"
+				class="search-input"
+				placeholder="Search books…"
+				value={searchQuery}
+				oninput={handleSearchInput}
+			/>
+		{/if}
+	</div>
 </div>
 
 {#if selectedBook}
@@ -1559,6 +1627,39 @@
 	.controls button.hidden,
 	.controls.hidden {
 		display: none;
+	}
+
+	.search-container {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+	}
+
+	.search-input {
+		width: 0;
+		padding: 0;
+		border: none;
+		border-radius: 5px;
+		font-size: 1rem;
+		background: white;
+		color: #333;
+		opacity: 0;
+		transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+	}
+
+	.search-container.expanded .search-input {
+		width: 180px;
+		padding: 8px 12px;
+		opacity: 1;
+	}
+
+	.search-input:focus {
+		outline: none;
+		box-shadow: 0 0 0 2px rgba(73, 73, 255, 0.5);
+	}
+
+	.search-input::placeholder {
+		color: #999;
 	}
 
 	.loading-overlay {
@@ -1846,6 +1947,11 @@
 
 		.book-title {
 			font-size: 1.1rem;
+		}
+
+		.search-container.expanded .search-input {
+			width: 120px;
+			font-size: 0.9rem;
 		}
 	}
 </style>
