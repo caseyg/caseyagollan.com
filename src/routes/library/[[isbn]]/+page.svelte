@@ -1050,8 +1050,16 @@
 			TWO: THREE.TOUCH.DOLLY_PAN
 		};
 
-		// Store original data for mode switching
-		originalGraphData = { ...Graph.graphData() };
+		// Store original data for mode switching and search
+		// Deep copy with string IDs for links (before graph mutates them to object references)
+		const initialData = Graph.graphData();
+		originalGraphData = {
+			nodes: initialData.nodes.map((n: Node) => ({ ...n })),
+			links: initialData.links.map((l: Link) => ({
+				source: typeof l.source === 'object' ? (l.source as Node).id : l.source,
+				target: typeof l.target === 'object' ? (l.target as Node).id : l.target
+			}))
+		};
 
 		// Mark loading complete after a short delay to ensure render is visible
 		requestAnimationFrame(() => {
@@ -1563,19 +1571,21 @@
 	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]}</button
 	>
-	<div class="search-container" class:expanded={isSearchExpanded}>
-		<button id="searchToggle" onclick={toggleSearch} aria-label="Search books">🔍</button>
+	<button class="search-container" class:expanded={isSearchExpanded} onclick={isSearchExpanded ? undefined : toggleSearch} aria-label="Search books">
+		<span class="search-icon">🔍</span>
 		{#if isSearchExpanded}
 			<input
 				bind:this={searchInputEl}
 				type="text"
 				class="search-input"
-				placeholder="Search books…"
+				placeholder="Search…"
 				value={searchQuery}
 				oninput={handleSearchInput}
+				onclick={(e) => e.stopPropagation()}
 			/>
+			<button class="search-close" onclick={closeSearch} aria-label="Close search">×</button>
 		{/if}
-	</div>
+	</button>
 </div>
 
 {#if selectedBook}
@@ -1707,34 +1717,55 @@
 	.search-container {
 		display: flex;
 		align-items: center;
-		gap: 5px;
+		gap: 0;
+		transition: width 0.3s ease, padding 0.3s ease;
+		overflow: hidden;
+	}
+
+	.search-icon {
+		flex-shrink: 0;
+	}
+
+	.search-container.expanded {
+		padding-right: 8px;
 	}
 
 	.search-input {
 		width: 0;
 		padding: 0;
 		border: none;
-		border-radius: 5px;
+		border-radius: 0;
 		font-size: 1rem;
-		background: white;
-		color: #333;
+		background: transparent;
+		color: white;
 		opacity: 0;
 		transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+		outline: none;
 	}
 
 	.search-container.expanded .search-input {
-		width: 180px;
-		padding: 8px 12px;
+		width: 140px;
+		padding: 0 8px;
 		opacity: 1;
 	}
 
-	.search-input:focus {
-		outline: none;
-		box-shadow: 0 0 0 2px rgba(73, 73, 255, 0.5);
+	.search-input::placeholder {
+		color: rgba(255, 255, 255, 0.7);
 	}
 
-	.search-input::placeholder {
-		color: #999;
+	.search-close {
+		background: transparent;
+		border: none;
+		color: white;
+		font-size: 1.2rem;
+		cursor: pointer;
+		padding: 0 4px;
+		line-height: 1;
+		opacity: 0.8;
+	}
+
+	.search-close:hover {
+		opacity: 1;
 	}
 
 	.loading-overlay {
@@ -2025,7 +2056,7 @@
 		}
 
 		.search-container.expanded .search-input {
-			width: 120px;
+			width: 100px;
 			font-size: 0.9rem;
 		}
 	}
