@@ -1059,7 +1059,9 @@
 
 			// Check for ISBN from route params and select that book
 			if (data.isbn) {
-				const bookNode = graphData.nodes.find(
+				// Use Graph.graphData() to get nodes with __threeObj attached
+				const currentNodes = Graph.graphData().nodes;
+				const bookNode = currentNodes.find(
 					(n: Node) => n.group === 'book' && n.isbn === data.isbn
 				);
 				if (bookNode) {
