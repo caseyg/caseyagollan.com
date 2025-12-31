@@ -508,16 +508,6 @@
         href="https://unpkg.com/telescopic-text@1.2.4/lib/index.css"
         rel="stylesheet"
     />
-    <link rel="micropub" href="https://kit.caseyagollan.com/micropub" />
-    <link
-        rel="authorization_endpoint"
-        href="https://kit.caseyagollan.com/auth"
-    />
-    <link rel="token_endpoint" href="https://kit.caseyagollan.com/auth/token" />
-    <link
-        rel="webmention"
-        href="https://webmention.io/caseyagollan.com/webmention"
-    />
     <link rel="feed" href="/posts/" type="text/html" title="All Posts" />
     <link
         rel="alternate"
@@ -670,9 +660,6 @@
     class="sisu-image"
 />
 
-<a rel="me" href="https://social.coop/@caseyg" class="hidden"
-    >@caseyg@social.coop</a
->
 
 <style>
     /* ==========================================
@@ -864,10 +851,6 @@
         margin: var(--spacing-lg) auto;
         padding: 0 var(--spacing-md);
         display: block;
-    }
-
-    .hidden {
-        display: none;
     }
 
     /* ==========================================
