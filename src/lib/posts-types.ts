@@ -1,5 +1,11 @@
 // Client-safe post types and constants (no Node.js imports)
 
+export interface MediaItem {
+	url: string;
+	alt?: string;
+	type?: string;
+}
+
 export interface Post {
 	slug: string;
 	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media';
@@ -10,6 +16,8 @@ export interface Post {
 	content: string;
 	visibility?: string;
 	syndication?: string[];
+	photo?: MediaItem[];
+	video?: MediaItem[];
 	filePath: string;
 }
 

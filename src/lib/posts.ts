@@ -5,9 +5,44 @@ import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import matter from 'gray-matter';
 
+import type { Post, MediaItem } from './posts-types';
+
 // Re-export client-safe types and functions
-export type { Post } from './posts-types';
+export type { Post, MediaItem } from './posts-types';
 export { POST_TYPES, POST_TYPE_PLURALS, getPostPermalink, getPostsByDay } from './posts-types';
+
+function normalizeMedia(
+	value: unknown,
+	altFallbacks?: unknown
+): MediaItem[] | undefined {
+	if (!value) return undefined;
+	const items = Array.isArray(value) ? value : [value];
+	const altList = Array.isArray(altFallbacks) ? altFallbacks : [];
+
+	const normalized = items
+		.map((item, i): MediaItem | null => {
+			if (typeof item === 'string') {
+				return { url: item, alt: typeof altList[i] === 'string' ? altList[i] : undefined };
+			}
+			if (item && typeof item === 'object' && typeof (item as any).url === 'string') {
+				const m = item as Record<string, unknown>;
+				return {
+					url: m.url as string,
+					alt:
+						typeof m.alt === 'string'
+							? m.alt
+							: typeof altList[i] === 'string'
+								? (altList[i] as string)
+								: undefined,
+					type: typeof m.type === 'string' ? m.type : undefined
+				};
+			}
+			return null;
+		})
+		.filter((m): m is MediaItem => m !== null);
+
+	return normalized.length > 0 ? normalized : undefined;
+}
 
 // Mapping from plural folder names to singular type names
 const PLURAL_TO_SINGULAR: Record<string, string> = {
@@ -19,8 +54,6 @@ const PLURAL_TO_SINGULAR: Record<string, string> = {
 	replies: 'reply',
 	media: 'media'
 };
-
-import type { Post } from './posts-types';
 
 export async function getAllPosts(): Promise<Post[]> {
 	const contentDir = join(process.cwd(), 'content');
@@ -62,6 +95,8 @@ export async function getAllPosts(): Promise<Post[]> {
 					content,
 					visibility: data.visibility,
 					syndication: data.syndication,
+					photo: normalizeMedia(data.photo, data['mp-photo-alt']),
+					video: normalizeMedia(data.video),
 					filePath: `${type}/${file}`
 				});
 			}

@@ -2,7 +2,7 @@
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
-	import { PostsLayout, DateArchiveHeader, PostMeta, PostContent } from '$lib/components/posts';
+	import { PostsLayout, DateArchiveHeader, PostMeta, PostContent, PostMedia } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 
@@ -36,6 +36,7 @@
 			<h1 class="p-name post-title">{data.post.title}</h1>
 		{/if}
 
+		<PostMedia photos={data.post.photo} videos={data.post.video} />
 		<PostContent content={data.post.content} />
 
 		<Webmentions url={permalink} />
