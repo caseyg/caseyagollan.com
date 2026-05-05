@@ -1,6 +1,7 @@
 <script lang="ts">
 	import PostMeta from './PostMeta.svelte';
 	import PostContent from './PostContent.svelte';
+	import PostMedia from './PostMedia.svelte';
 	import type { Post } from '$lib/posts-types';
 	import { getPostPermalink } from '$lib/posts-types';
 
@@ -62,6 +63,7 @@
 		</p>
 		<a href={permalink} class="read-more">Read more</a>
 	{:else}
+		<PostMedia photos={post.photo} videos={post.video} />
 		<PostContent content={post.content} />
 	{/if}
 </article>
