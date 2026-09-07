@@ -98,6 +98,11 @@
 	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	let orbitDirection = 1; // 1 or -1 for clockwise/counter-clockwise
 
+	// Search state
+	let searchQuery = $state('');
+	let isSearchExpanded = $state(false);
+	let searchInputEl: HTMLInputElement;
+
 	// Top-level DDC class names for shelf labels
 	const topLevelDdcNames = new Set([
 		'Computer science, information & general works',
@@ -670,6 +675,13 @@
 
 	// Handle keyboard navigation
 	function handleKeydown(event: KeyboardEvent) {
+		// Close search on Escape if search is expanded
+		if (event.key === 'Escape' && isSearchExpanded) {
+			event.preventDefault();
+			closeSearch();
+			return;
+		}
+
 		if (!selectedBook) return;
 
 		if (event.key === 'ArrowLeft') {
@@ -681,6 +693,122 @@
 		} else if (event.key === 'Escape') {
 			event.preventDefault();
 			deselectBook();
+		}
+	}
+
+	// Search functions
+	function toggleSearch() {
+		isSearchExpanded = !isSearchExpanded;
+		if (isSearchExpanded) {
+			// Focus the input after it's rendered
+			setTimeout(() => searchInputEl?.focus(), 50);
+		} else {
+			closeSearch();
+		}
+	}
+
+	function closeSearch() {
+		isSearchExpanded = false;
+		searchQuery = '';
+		// Restore all book visibility
+		if (Graph) {
+			applySearchFilter('');
+		}
+	}
+
+	function handleSearchInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		searchQuery = target.value;
+		applySearchFilter(searchQuery);
+	}
+
+	function applySearchFilter(query: string) {
+		if (!Graph || !originalGraphData) return;
+
+		const lowerQuery = query.toLowerCase().trim();
+
+		if (lowerQuery === '') {
+			// Restore full graph data
+			const currentNodes = Graph.graphData().nodes;
+			const currentNodeMap = new Map<string, Node>();
+			currentNodes.forEach((n: Node) => currentNodeMap.set(n.id, n));
+
+			const restoredNodes = originalGraphData.nodes.map((origNode) => {
+				const currentNode = currentNodeMap.get(origNode.id);
+				return {
+					...origNode,
+					x: currentNode?.x ?? origNode.x,
+					y: currentNode?.y ?? origNode.y,
+					z: currentNode?.z ?? origNode.z,
+					__threeObj: currentNode?.__threeObj
+				};
+			});
+
+			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
+			Graph.d3ReheatSimulation();
+		} else {
+			// Filter to matching books and their connected DDC nodes
+			const matchingBookIds = new Set<string>();
+			const connectedDdcIds = new Set<string>();
+
+			// Find matching books
+			originalGraphData.nodes.forEach((node) => {
+				if (node.group === 'book') {
+					const title = node.id.toLowerCase();
+					if (title.includes(lowerQuery)) {
+						matchingBookIds.add(node.id);
+					}
+				}
+			});
+
+			// Find DDC nodes connected to matching books
+			originalGraphData.links.forEach((link) => {
+				const sourceId = typeof link.source === 'object' ? (link.source as Node).id : link.source;
+				const targetId = typeof link.target === 'object' ? (link.target as Node).id : link.target;
+
+				if (matchingBookIds.has(sourceId)) {
+					connectedDdcIds.add(targetId);
+				} else if (matchingBookIds.has(targetId)) {
+					connectedDdcIds.add(sourceId);
+				}
+			});
+
+			// Get current positions for smooth transition
+			const currentNodes = Graph.graphData().nodes;
+			const currentNodeMap = new Map<string, Node>();
+			currentNodes.forEach((n: Node) => currentNodeMap.set(n.id, n));
+
+			// Filter nodes
+			const filteredNodes = originalGraphData.nodes
+				.filter((node) => {
+					if (node.group === 'book') {
+						return matchingBookIds.has(node.id);
+					} else if (node.group === 'ddc') {
+						return connectedDdcIds.has(node.id);
+					}
+					return false;
+				})
+				.map((node) => {
+					const currentNode = currentNodeMap.get(node.id);
+					return {
+						...node,
+						x: currentNode?.x ?? node.x,
+						y: currentNode?.y ?? node.y,
+						z: currentNode?.z ?? node.z,
+						__threeObj: currentNode?.__threeObj
+					};
+				});
+
+			// Filter links to only include those between filtered nodes
+			const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+			const filteredLinks = originalGraphData.links.filter((link) => {
+				const sourceId = typeof link.source === 'object' ? (link.source as Node).id : link.source;
+				const targetId = typeof link.target === 'object' ? (link.target as Node).id : link.target;
+				return filteredNodeIds.has(sourceId) && filteredNodeIds.has(targetId);
+			});
+
+			Graph.graphData({ nodes: filteredNodes, links: filteredLinks });
+			Graph.d3ReheatSimulation();
 		}
 	}
 
@@ -922,8 +1050,16 @@
 			TWO: THREE.TOUCH.DOLLY_PAN
 		};
 
-		// Store original data for mode switching
-		originalGraphData = { ...Graph.graphData() };
+		// Store original data for mode switching and search
+		// Deep copy with string IDs for links (before graph mutates them to object references)
+		const initialData = Graph.graphData();
+		originalGraphData = {
+			nodes: initialData.nodes.map((n: Node) => ({ ...n })),
+			links: initialData.links.map((l: Link) => ({
+				source: typeof l.source === 'object' ? (l.source as Node).id : l.source,
+				target: typeof l.target === 'object' ? (l.target as Node).id : l.target
+			}))
+		};
 
 		// Mark loading complete after a short delay to ensure render is visible
 		requestAnimationFrame(() => {
@@ -931,7 +1067,9 @@
 
 			// Check for ISBN from route params and select that book
 			if (data.isbn) {
-				const bookNode = graphData.nodes.find(
+				// Use Graph.graphData() to get nodes with __threeObj attached
+				const currentNodes = Graph.graphData().nodes;
+				const bookNode = currentNodes.find(
 					(n: Node) => n.group === 'book' && n.isbn === data.isbn
 				);
 				if (bookNode) {
@@ -1433,6 +1571,21 @@
 	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]}</button
 	>
+	<button class="search-container" class:expanded={isSearchExpanded} onclick={isSearchExpanded ? undefined : toggleSearch} aria-label="Search books">
+		<span class="search-icon">🔍</span>
+		{#if isSearchExpanded}
+			<input
+				bind:this={searchInputEl}
+				type="text"
+				class="search-input"
+				placeholder="Search…"
+				value={searchQuery}
+				oninput={handleSearchInput}
+				onclick={(e) => e.stopPropagation()}
+			/>
+			<button class="search-close" onclick={closeSearch} aria-label="Close search">×</button>
+		{/if}
+	</button>
 </div>
 
 {#if selectedBook}
@@ -1559,6 +1712,60 @@
 	.controls button.hidden,
 	.controls.hidden {
 		display: none;
+	}
+
+	.search-container {
+		display: flex;
+		align-items: center;
+		gap: 0;
+		transition: width 0.3s ease, padding 0.3s ease;
+		overflow: hidden;
+	}
+
+	.search-icon {
+		flex-shrink: 0;
+	}
+
+	.search-container.expanded {
+		padding-right: 8px;
+	}
+
+	.search-input {
+		width: 0;
+		padding: 0;
+		border: none;
+		border-radius: 0;
+		font-size: 1rem;
+		background: transparent;
+		color: white;
+		opacity: 0;
+		transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+		outline: none;
+	}
+
+	.search-container.expanded .search-input {
+		width: 140px;
+		padding: 0 8px;
+		opacity: 1;
+	}
+
+	.search-input::placeholder {
+		color: rgba(255, 255, 255, 0.7);
+	}
+
+	.search-close {
+		background: transparent;
+		border: none;
+		color: white;
+		font-size: 1.2rem;
+		cursor: pointer;
+		padding: 0 4px;
+		line-height: 1;
+		opacity: 0.8;
+	}
+
+	.search-close:hover {
+		opacity: 1;
 	}
 
 	.loading-overlay {
@@ -1846,6 +2053,11 @@
 
 		.book-title {
 			font-size: 1.1rem;
+		}
+
+		.search-container.expanded .search-input {
+			width: 100px;
+			font-size: 0.9rem;
 		}
 	}
 </style>
