@@ -11,7 +11,8 @@ declare global {
 		interface Platform {
 			env?: {
 				INSIGHT_CACHE: KVNamespace;
-				ANTHROPIC_API_KEY: string;
+				INFERENCE_COOP_API_KEY: string;
+				KAGI_API_KEY: string;
 				NODE_ENV: string;
 				WEBMENTION_IO_TOKEN: string;
 			};

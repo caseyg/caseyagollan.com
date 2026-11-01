@@ -400,10 +400,10 @@
                 try {
                     const errorData = await insightResponse.json();
                     console.error("Error data:", errorData);
-                    if (errorData.error === "Claude API key not configured") {
+                    if (errorData.error === "AI inference API key not configured" || errorData.error === "Search API key not configured") {
                         // Show helpful message about the topic without AI
                         if (!documentContent.includes("**Note:**")) {
-                            documentContent = `# Casey Gollan\n\n*An AI-generated profile emerging from interactive exploration of his work and interests.*\n\n**Note:** To enable AI-generated insights, add your Claude API key to \`.env\`:\n\`\`\`\nANTHROPIC_API_KEY=your_api_key_here\n\`\`\`\n\nGet your API key from [Anthropic Console](https://console.anthropic.com/).\n\n## Recently explored:\n- ${topic}\n`;
+                            documentContent = `# Casey Gollan\n\n*An AI-generated profile emerging from interactive exploration of his work and interests.*\n\n**Note:** To enable AI-generated insights, add your API keys to \`.env\`:\n\n- \`INFERENCE_COOP_API_KEY\` — from [dashboard.inference.coop](https://dashboard.inference.coop)\n- \`KAGI_API_KEY\` — from [kagi.com/settings](https://kagi.com/settings)\n\n## Recently explored:\n- ${topic}\n`;
                         } else if (!documentContent.includes(`- ${topic}`)) {
                             documentContent += `- ${topic}\n`;
                         }

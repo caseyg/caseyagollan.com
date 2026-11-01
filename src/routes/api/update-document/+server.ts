@@ -1,48 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import Anthropic from '@anthropic-ai/sdk';
-
-// Text editor tool implementation
-function handleTextEditorTool(toolInput: any, document: string): { result: string; newDocument?: string } {
-	const { command, old_str, new_str, file_text, insert_line, view_range } = toolInput;
-
-	if (command === 'view') {
-		const lines = document.split('\n');
-		const start = view_range ? view_range[0] - 1 : 0;
-		const end = view_range ? (view_range[1] === -1 ? lines.length : view_range[1]) : lines.length;
-		const viewLines = lines.slice(start, end);
-		const result = viewLines.map((line, i) => `${start + i + 1}: ${line}`).join('\n');
-		return { result };
-	}
-
-	if (command === 'str_replace') {
-		const regex = new RegExp(old_str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-		const matches = document.match(regex);
-		const count = matches ? matches.length : 0;
-
-		if (count === 0) {
-			return { result: 'Error: No match found for replacement' };
-		} else if (count > 1) {
-			return { result: `Error: Found ${count} matches. Please provide more context for unique match.` };
-		} else {
-			const newDocument = document.replace(old_str, new_str);
-			return { result: 'Successfully replaced text at exactly one location.', newDocument };
-		}
-	}
-
-	if (command === 'create') {
-		return { result: `File created successfully with ${file_text.split('\n').length} lines.`, newDocument: file_text };
-	}
-
-	if (command === 'insert') {
-		const lines = document.split('\n');
-		lines.splice(insert_line, 0, new_str);
-		const newDocument = lines.join('\n');
-		return { result: `Successfully inserted text at line ${insert_line}.`, newDocument };
-	}
-
-	return { result: 'Unknown command' };
-}
+import OpenAI from 'openai';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	try {
@@ -132,56 +90,18 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		}
 
 		// Get API key from platform.env (Cloudflare Workers)
-		const ANTHROPIC_API_KEY = platform?.env?.ANTHROPIC_API_KEY;
+		const INFERENCE_COOP_API_KEY = platform?.env?.INFERENCE_COOP_API_KEY;
 
-		if (!ANTHROPIC_API_KEY) {
-			return json({ error: 'Claude API key not configured' }, { status: 500 });
+		if (!INFERENCE_COOP_API_KEY) {
+			return json({ error: 'AI inference API key not configured' }, { status: 500 });
 		}
 
-		const anthropic = new Anthropic({
-			apiKey: ANTHROPIC_API_KEY
+		const document = currentDocument || 'Casey leads research operations at IBM, building AI productivity tools and serving on the ResearchOps Community board.\n\nPreviously, they co-founded the School for Poetic Computation and led operations at NYU AI Now Institute.\n';
+
+		const openai = new OpenAI({
+			apiKey: INFERENCE_COOP_API_KEY,
+			baseURL: 'https://gateway.inference.coop/v1'
 		});
-
-		let document = currentDocument || 'Casey leads research operations at IBM, building AI productivity tools and serving on the ResearchOps Community board.\n\nPreviously, they co-founded the School for Poetic Computation and led operations at NYU AI Now Institute.\n';
-
-		const messages: any[] = [
-			{
-				role: 'user',
-				content: `I just learned this about Casey Gollan's work with "${topic}": "${insight}"
-
-Please update the profile to incorporate this new information using TARGETED edits. Requirements:
-
-1. MAXIMUM 150 words total - HARD LIMIT, must cut text if needed to stay under
-2. Plain text only - NO markdown, NO headings, NO bullets, NO lists, NO formatting
-3. 2 paragraphs maximum
-4. Write as a cohesive narrative
-5. PRIORITIZE BREVITY - use concise language, eliminate redundancy
-
-CRITICAL Instructions for targeted editing:
-1. View the current document first
-2. Check the word count - if over 120 words, CONDENSE before adding new info
-3. Identify ONLY the specific sentence(s) or phrase(s) that need to change
-4. When replacing text, make it MORE CONCISE than the original
-5. Remove less important details to make room for new information
-6. Use str_replace to replace ONLY those specific parts - not the entire document
-7. Keep unchanged text exactly as-is
-
-Example approach:
-- If adding info about tools AND the bio is getting long, SHORTEN the existing tools sentence while adding the new detail
-- Replace verbose phrases with concise equivalents
-- Eliminate redundant information
-- Focus on the most important, distinctive details only
-
-The output should read like a professional bio - clear, concise prose only. Think "elevator pitch" not "resume".`
-			}
-		];
-
-		const tools: any[] = [
-			{
-				type: 'text_editor_20250728',
-				name: 'str_replace_based_edit_tool'
-			}
-		];
 
 		// Create streaming response
 		const stream = new ReadableStream({
@@ -189,7 +109,6 @@ The output should read like a professional bio - clear, concise prose only. Thin
 				const encoder = new TextEncoder();
 				let controllerClosed = false;
 
-				// Helper to safely enqueue data
 				const safeEnqueue = (data: string) => {
 					if (controllerClosed) return false;
 					try {
@@ -201,7 +120,6 @@ The output should read like a professional bio - clear, concise prose only. Thin
 					}
 				};
 
-				// Helper to safely close controller
 				const safeClose = () => {
 					if (controllerClosed) return;
 					try {
@@ -213,84 +131,48 @@ The output should read like a professional bio - clear, concise prose only. Thin
 				};
 
 				try {
-					let continueLoop = true;
-					let iterationCount = 0;
-					const maxIterations = 10;
+					const completion = await openai.chat.completions.create({
+						model: 'greenpt/glm-5.3-flash',
+						max_tokens: 2000,
+						messages: [
+							{
+								role: 'system',
+								content: `You are a concise biography editor. You update profile documents by incorporating new information while keeping the text tight and focused.
 
-					while (continueLoop && iterationCount < maxIterations) {
-						iterationCount++;
-
-						const response = await anthropic.messages.create({
-							model: 'claude-haiku-4-5-20251001',
-							max_tokens: 2000,
-							messages,
-							tools
-						});
-
-						// Add assistant's response to messages
-						messages.push({
-							role: 'assistant',
-							content: response.content
-						});
-
-						// Check if we should continue (tool use present)
-						const toolUseBlocks = response.content.filter((block) => block.type === 'tool_use');
-
-						if (toolUseBlocks.length === 0) {
-							// No more tool use, we're done
-							continueLoop = false;
-						} else {
-							// Process tool uses
-							const toolResults: any[] = [];
-
-							for (const toolUse of toolUseBlocks) {
-								if (toolUse.type === 'tool_use') {
-									const input = toolUse.input;
-
-									// Stream the edit operation details
-									safeEnqueue(
-										`data: ${JSON.stringify({
-											type: 'edit',
-											command: input.command,
-											old_text: input.old_str,
-											new_text: input.new_str
-										})}\n\n`
-									);
-
-									const result = handleTextEditorTool(input, document);
-
-									if (result.newDocument) {
-										document = result.newDocument;
-
-										// Stream the updated document
-										safeEnqueue(
-											`data: ${JSON.stringify({
-												type: 'document_update',
-												document
-											})}\n\n`
-										);
-									}
-
-									toolResults.push({
-										type: 'tool_result',
-										tool_use_id: toolUse.id,
-										content: result.result
-									});
-								}
-							}
-
-							// Add tool results to messages
-							messages.push({
+RULES:
+1. MAXIMUM 150 words total - HARD LIMIT
+2. Plain text only - NO markdown, NO headings, NO bullets, NO lists, NO formatting
+3. 2 paragraphs maximum
+4. Write as a cohesive narrative
+5. PRIORITIZE BREVITY - use concise language, eliminate redundancy
+6. Output ONLY the updated document text - nothing else (no quotes, no explanations, no preamble)`
+							},
+							{
 								role: 'user',
-								content: toolResults
-							});
-						}
-					}
+								content: `Current document:\n---\n${document}\n---\n\nNew information to incorporate about "${topic}":\n${insight}\n\nPlease produce the updated document. Keep it under 150 words, plain text only, 2 paragraphs max. Replace the entire document with the updated version.`
+							}
+						]
+					});
+
+					const newDocument = completion.choices[0]?.message?.content?.trim() || document;
+
+					// Send edit event to trigger animation
+					safeEnqueue(
+						`data: ${JSON.stringify({
+							type: 'edit',
+							command: 'str_replace',
+							old_text: document,
+							new_text: newDocument
+						})}\n\n`
+					);
+
+					// Small delay to ensure UI updates
+					await new Promise(resolve => setTimeout(resolve, 100));
 
 					// Cache the final document in KV
 					if (kvCache) {
 						try {
-							await kvCache.put(cacheKey, document, {
+							await kvCache.put(cacheKey, newDocument, {
 								expirationTtl: 60 * 60 * 24 * 30 // 30 days
 							});
 						} catch (kvError) {
@@ -302,8 +184,7 @@ The output should read like a professional bio - clear, concise prose only. Thin
 					safeEnqueue(
 						`data: ${JSON.stringify({
 							type: 'done',
-							document,
-							iterations: iterationCount
+							document: newDocument
 						})}\n\n`
 					);
 
