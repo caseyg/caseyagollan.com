@@ -9,13 +9,13 @@ interface KagiSearchResult {
 
 async function kagiSearch(query: string, apiKey: string): Promise<KagiSearchResult[]> {
 	try {
-		const response = await fetch('https://kagi.com/api/v0/fastsearch', {
+		const response = await fetch('https://kagi.com/api/v1/search', {
 			method: 'POST',
 			headers: {
-				'Authorization': `Bot ${apiKey}`,
+				'Authorization': `Bearer ${apiKey}`,
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ q: query, limit: 5 })
+			body: JSON.stringify({ query })
 		});
 
 		if (!response.ok) {
@@ -24,19 +24,32 @@ async function kagiSearch(query: string, apiKey: string): Promise<KagiSearchResu
 		}
 
 		const data = await response.json() as any;
-		const results = data?.data || [];
+		const results: any[] = data?.data?.search || [];
 
 		return results
 			.filter((r: any) => r.url && r.title)
+			.slice(0, 5)
 			.map((r: any) => ({
 				url: r.url,
-				title: r.title,
-				snippet: r.snippet || ''
+				title: stripHtml(r.title),
+				snippet: stripHtml(r.snippet || '')
 			}));
 	} catch (e) {
 		console.error('Kagi search failed:', e);
 		return [];
 	}
+}
+
+// Kagi snippets contain <strong> markup; strip it for clean text
+function stripHtml(text: string): string {
+	return text
+		.replace(/<[^>]*>/g, '')
+		.replace(/&amp;/g, '&')
+		.replace(/&#39;/g, "'")
+		.replace(/&quot;/g, '"')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.trim();
 }
 
 function buildPrompt(topic: string, searchResults: KagiSearchResult[], context: string): string {
