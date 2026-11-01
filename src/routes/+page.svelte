@@ -440,8 +440,10 @@
                 // Trigger reactivity for the Map by creating a new instance
                 insightsByTopic = new Map(insightsByTopic);
 
-                // Queue document update
-                queueDocumentUpdate(topic, data.insight);
+                // Only rewrite the bio if the insight actually produced text
+                if (data.insight) {
+                    queueDocumentUpdate(topic, data.insight);
+                }
             }
         } catch (error) {
             console.error("Error handling topic click:", error);

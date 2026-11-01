@@ -188,7 +188,9 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 		const completion = await openai.chat.completions.create({
 			model: 'greenpt/deepseek-v4.1-flash',
-			max_tokens: 500,
+			// Reasoning models emit chain-of-thought before the answer; 500 was too
+			// small and produced empty content (finish_reason: 'length')
+			max_tokens: 2000,
 			temperature: 1,
 			messages: [
 				{
@@ -199,7 +201,9 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		});
 
 		const fullText = completion.choices[0]?.message?.content || '';
+		const finishReason = completion.choices[0]?.finish_reason;
 		console.log('📝 Full text response:', fullText);
+		console.log('📝 Finish reason:', finishReason);
 
 		// Split on "Related topics:" to separate insight from topics
 		const parts = fullText.split(/Related topics:/i);
@@ -216,6 +220,16 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 		console.log('💡 Extracted insight:', insightText.substring(0, 100));
 		console.log('💡 Extracted topics:', recommendedTopics);
+
+		// Guard: never serve or cache an empty insight. Reasoning models can
+		// exhaust the token budget before writing content (finish_reason: 'length').
+		if (!insightText) {
+			console.error('❌ Empty insight from model. finish_reason:', finishReason);
+			return new Response(JSON.stringify({ error: 'Failed to generate insight' }), {
+				status: 500,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
 
 		// Build sources from Kagi search results
 		const sources = searchResults

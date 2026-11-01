@@ -36,7 +36,7 @@
 				<span class="shimmer-letter" style="animation-delay: 0s">R</span><span class="shimmer-letter" style="animation-delay: 0.08s">e</span><span class="shimmer-letter" style="animation-delay: 0.16s">s</span><span class="shimmer-letter" style="animation-delay: 0.24s">e</span><span class="shimmer-letter" style="animation-delay: 0.32s">a</span><span class="shimmer-letter" style="animation-delay: 0.4s">r</span><span class="shimmer-letter" style="animation-delay: 0.48s">c</span><span class="shimmer-letter" style="animation-delay: 0.56s">h</span><span class="shimmer-letter" style="animation-delay: 0.64s">i</span><span class="shimmer-letter" style="animation-delay: 0.72s">n</span><span class="shimmer-letter" style="animation-delay: 0.8s">g</span>
 			</span>
 		{:else}
-			Loading...
+			No insight available
 		{/if}
 	</p>
 </div>
