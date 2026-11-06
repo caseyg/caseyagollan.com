@@ -2,6 +2,9 @@ import type { PageServerLoad } from './$types';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+// Keep the library index prerendered while serving arbitrary ISBN deep links.
+export const prerender = 'auto';
+
 interface MinifiedNode {
 	i: string; // id
 	g: string; // group
