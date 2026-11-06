@@ -49,7 +49,7 @@
 	/>
 
 	{#if post.title || (post.type === 'bookmark' && post.bookmarkOf)}
-		<h3 class="p-name post-title">
+		<h3 class="p-name post-title" class:bookmark-title={post.type === 'bookmark' && !!post.bookmarkOf}>
 			{#if post.type === 'bookmark' && post.bookmarkOf}
 				<BookmarkTitle url={post.bookmarkOf} title={post.title} />
 			{:else if isArticle}
@@ -61,7 +61,7 @@
 	{/if}
 
 	{#if post.type === 'bookmark' && post.bookmarkOf}
-		<p class="bookmark-url"><small>{post.bookmarkOf.replace(/^https?:\/\//, '')}</small></p>
+		<p class="bookmark-url"><small><a href={post.bookmarkOf}>{post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 	{/if}
 
 	{#if isArticle}
@@ -101,6 +101,20 @@
 	}
 
 	.title-link:hover {
+		text-decoration: underline;
+	}
+
+	.post-title.bookmark-title {
+		margin-bottom: 0.1rem;
+	}
+
+	.bookmark-url a {
+		color: rgba(255, 255, 255, 0.6);
+		text-decoration: none;
+		text-underline-offset: 0.15em;
+	}
+
+	.bookmark-url a:hover {
 		text-decoration: underline;
 	}
 

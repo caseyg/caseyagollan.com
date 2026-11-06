@@ -34,7 +34,7 @@
 		/>
 
 		{#if data.post.title || (data.post.type === 'bookmark' && data.post.bookmarkOf)}
-			<h1 class="p-name post-title">
+			<h1 class="p-name post-title" class:bookmark-title={data.post.type === 'bookmark' && !!data.post.bookmarkOf}>
 				{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
 					<BookmarkTitle url={data.post.bookmarkOf} title={data.post.title} />
 				{:else}
@@ -44,7 +44,7 @@
 		{/if}
 
 		{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
-			<p class="bookmark-url"><small>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</small></p>
+			<p class="bookmark-url"><small><a href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 		{/if}
 
 		<PostMedia photos={data.post.photo} videos={data.post.video} />
@@ -57,6 +57,20 @@
 <style>
 	.post {
 		margin-bottom: 2rem;
+	}
+
+	.post-title.bookmark-title {
+		margin-bottom: 0.1rem;
+	}
+
+	.bookmark-url a {
+		color: rgba(255, 255, 255, 0.6);
+		text-decoration: none;
+		text-underline-offset: 0.15em;
+	}
+
+	.bookmark-url a:hover {
+		text-decoration: underline;
 	}
 
 	.bookmark-url {

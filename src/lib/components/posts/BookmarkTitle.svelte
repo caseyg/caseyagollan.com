@@ -7,8 +7,11 @@
 <style>
 	a {
 		color: inherit;
-		text-decoration: underline;
+		text-decoration: none;
 		text-underline-offset: 0.15em;
 		overflow-wrap: anywhere;
+	}
+	a:hover {
+		text-decoration: underline;
 	}
 </style>
