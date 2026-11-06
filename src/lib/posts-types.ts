@@ -11,6 +11,7 @@ export interface Post {
 	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media';
 	date: string;
 	title?: string;
+	bookmarkOf?: string;
 	summary?: string;
 	category?: string | string[];
 	content: string;

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import BookmarkTitle from '$lib/components/posts/BookmarkTitle.svelte';
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
 	import { PostsLayout, DateArchiveHeader, PostMeta, PostContent, PostMedia } from '$lib/components/posts';
@@ -32,8 +33,18 @@
 			category={data.post.category}
 		/>
 
-		{#if data.post.title}
-			<h1 class="p-name post-title">{data.post.title}</h1>
+		{#if data.post.title || (data.post.type === 'bookmark' && data.post.bookmarkOf)}
+			<h1 class="p-name post-title">
+				{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
+					<BookmarkTitle url={data.post.bookmarkOf} title={data.post.title} />
+				{:else}
+					{data.post.title}
+				{/if}
+			</h1>
+		{/if}
+
+		{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
+			<p class="bookmark-url"><small>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</small></p>
 		{/if}
 
 		<PostMedia photos={data.post.photo} videos={data.post.video} />
@@ -46,6 +57,11 @@
 <style>
 	.post {
 		margin-bottom: 2rem;
+	}
+
+	.bookmark-url {
+		margin: 0 0 1rem;
+		overflow-wrap: anywhere;
 	}
 
 	.post-title {
