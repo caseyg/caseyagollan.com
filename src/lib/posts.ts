@@ -1,7 +1,8 @@
 // Server-only module - parses the Markdown snapshot bundled by Vite
 // For client-safe types and constants, import from '$lib/posts-types'
 
-import { parsePost, PLURAL_TO_SINGULAR } from './server/parse-post';
+import { building, dev } from '$app/environment';
+import { createPostReader } from './server/build-posts';
 
 import type { Post } from './posts-types';
 
@@ -16,14 +17,7 @@ const markdownFiles = import.meta.glob<string>('/content/*/*.md', {
 	eager: true
 });
 
-export async function getAllPosts(): Promise<Post[]> {
-	const posts: Post[] = [];
-	for (const [path, markdown] of Object.entries(markdownFiles)) {
-		const [, , type, file] = path.split('/');
-		if (Object.hasOwn(PLURAL_TO_SINGULAR, type)) posts.push(parsePost(markdown, type, file));
-	}
-	return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-}
+export const getAllPosts = createPostReader(markdownFiles, building && !dev);
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
 	const posts = await getAllPosts();

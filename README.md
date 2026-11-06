@@ -1,63 +1,46 @@
 # caseyagollan.com
 
-Casey Gollan's personal website built with SvelteKit 2, featuring an interactive bio with telescopic text and a 3D library visualization.
-
-## Tech Stack
-
-- **Framework**: SvelteKit 2 with TypeScript
-- **Runtime**: Bun (local development)
-- **Adapter**: `@sveltejs/adapter-cloudflare` for Cloudflare Pages
-- **3D Library**: Three.js via `3d-force-graph`
-- **Interactive Text**: `telescopic-text`
+Personal website built with SvelteKit 2, Svelte 5, TypeScript, and Vite. Deployed as a Cloudflare Worker with static assets using `@sveltejs/adapter-cloudflare`.
 
 ## Development
 
-Install dependencies:
-
 ```sh
 bun install
-```
-
-Start the development server:
-
-```sh
+git submodule update --init --recursive
 bun run dev
-
-# or open the app in a new browser tab
-bun run dev --open
 ```
 
-## Building
-
-Create a production build:
+The `content/` submodule contains the canonical Markdown and media snapshot. Vite bundles Markdown for the Worker; production prerendering reuses parsed posts within the build. Development and runtime reads do not use that parsing cache.
 
 ```sh
-bun run build
+bun test             # Regression tests
+bun run check        # Svelte/TypeScript diagnostics
+bun run build        # Production build, including submodule initialization
+bun run preview      # Build and run Wrangler with local Cloudflare bindings
+bun run preview:remote
 ```
 
-Preview the production build:
-
-```sh
-bun run preview
-```
-
-## Library Management
-
-Update the 3D library visualization after adding books to LibraryThing:
-
-1. Export JSON from [LibraryThing](https://www.librarything.com/export)
-2. Save as `librarything_caseygollan.json` in `/utils/`
-3. Run `bun run update-library`
-4. Run ImageOptim on `/static/library/img/` directory
+Use Vite for fast development and Wrangler preview when testing KV/R2 bindings. See `.env.example` for configuration names; keep credentials in ignored files.
 
 ## Deployment
 
-The site deploys to Cloudflare Pages. Connect your GitHub repository to Cloudflare Pages with the following settings:
+Cloudflare Workers Builds watches this repository. Production uses `bun run build`, followed by `bun run wrangler deploy`; branches use `bun run wrangler versions upload`. The entry point and static assets are generated in `.svelte-kit/cloudflare/`. `wrangler.jsonc` defines routes and runtime bindings.
 
-- **Framework preset**: SvelteKit
-- **Build command**: `bun run build`
-- **Build output directory**: `.svelte-kit/output/client`
-- **Root directory**: `/` (or your workspace directory)
-- **Environment variables**: None required
+Build caching is enabled. Both triggers exclude documentation, tests, and agent planning metadata from starting builds: `docs/*`, `tests/*`, `.superpowers/*`, `README.md`, `AGENTS.md`, `PLAN.md`, and `TODO.md`. Application source, static assets, the content submodule pointer, lockfile, and configuration continue to trigger builds. Trigger settings live in Cloudflare, not Wrangler configuration.
 
-Cloudflare Pages will automatically build and deploy when you push to your main branch.
+For a manual deployment use `bun run deploy` (builds first). For a packaging check use `bun run build` and `bun run wrangler deploy --dry-run`.
+
+## Library management
+
+Export JSON from [LibraryThing](https://www.librarything.com/export) to `utils/librarything_caseygollan.json`, run `bun run update-library`, and optimize downloaded covers in `static/library/img/`. The script writes `static/library/graph.json` and cover images.
+
+## Repository layout
+
+- `src/`: application routes, components, post parsing, and API handlers.
+- `content/`: canonical content Git submodule.
+- `static/`: public assets, including the library dataset and covers.
+- `utils/`: library import script and its source export.
+- `tests/`: regression coverage.
+- `docs/`: implementation plans and evidence.
+
+Legacy Eleventy source/output, the nested starter app, duplicate content trees, and obsolete agent workspaces were removed. Tracked historical versions remain in Git history.
