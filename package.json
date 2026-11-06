@@ -28,13 +28,13 @@
 		"@types/d3-force": "^3",
 		"@types/d3-selection": "^3",
 		"@types/d3-transition": "^3",
+		"@types/three": "^0.180.0",
 		"mdsvex": "^0.12.6",
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.7",
-		"wrangler": "^4.43.0",
-		"@types/bun": "^1.4.4"
+		"wrangler": "^4.43.0"
 	},
 	"dependencies": {
 		"3d-force-graph": "^1.79.0",

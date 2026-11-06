@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import type * as Three from 'three';
 	import { browser } from '$app/environment';
 	import Nav from '$lib/components/Nav.svelte';
 
@@ -29,7 +30,7 @@
 		fx?: number;
 		fy?: number;
 		fz?: number;
-		__threeObj?: THREE.Mesh;
+		__threeObj?: Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]>;
 	}
 
 	interface Link {
@@ -113,10 +114,10 @@
 	]);
 
 	// Performance: Cached materials
-	let paperWhiteMaterial: THREE.MeshBasicMaterial;
-	const textureCache = new Map<string, THREE.Texture>();
-	const materialCache = new Map<string, THREE.MeshBasicMaterial>();
-	const geometryCache = new Map<string, THREE.BoxGeometry>();
+	let paperWhiteMaterial: Three.MeshBasicMaterial;
+	const textureCache = new Map<string, Three.Texture>();
+	const materialCache = new Map<string, Three.MeshBasicMaterial>();
+	const geometryCache = new Map<string, Three.BoxGeometry>();
 
 	// Cleanup tracking
 	const animationFrameIds = new Set<number>();
@@ -146,7 +147,7 @@
 		depth: number,
 		averageColor: string,
 		bookHeight?: number
-	): THREE.MeshBasicMaterial {
+	): Three.MeshBasicMaterial {
 		const cacheKey = `spine_${node.id}_${depth}_${averageColor}_${bookHeight}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
@@ -221,7 +222,7 @@
 	}
 
 	// Performance: Create back cover with cached canvas
-	function createBackCoverMaterial(averageColor: string): THREE.MeshBasicMaterial {
+	function createBackCoverMaterial(averageColor: string): Three.MeshBasicMaterial {
 		const cacheKey = `back_${averageColor}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
@@ -256,7 +257,7 @@
 	}
 
 	// Performance: Load texture with caching
-	function loadTexture(url: string): THREE.Texture {
+	function loadTexture(url: string): Three.Texture {
 		if (textureCache.has(url)) {
 			return textureCache.get(url)!;
 		}
@@ -270,7 +271,7 @@
 
 	// Performance: Create placeholder cover for books without images
 	function createPlaceholderCover(node: Node): {
-		material: THREE.MeshBasicMaterial;
+		material: Three.MeshBasicMaterial;
 		width: number;
 		height: number;
 		averageColor: string;
@@ -364,10 +365,10 @@
 	}
 
 	// Create book 3D object
-	function createBookObject(node: Node): THREE.Mesh {
+	function createBookObject(node: Node): Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]> {
 		const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20;
-		let frontMaterial: THREE.MeshBasicMaterial;
-		let spineMaterial: THREE.MeshBasicMaterial;
+		let frontMaterial: Three.MeshBasicMaterial;
+		let spineMaterial: Three.MeshBasicMaterial;
 		let width: number;
 		let height: number;
 		let averageColor = node.averageColor || '#666666';
@@ -391,7 +392,7 @@
 
 		// Cache geometries to reduce memory usage
 		const geometryKey = `${width}_${height}_${depthVal}`;
-		let geometry: THREE.BoxGeometry;
+		let geometry: Three.BoxGeometry;
 		if (geometryCache.has(geometryKey)) {
 			geometry = geometryCache.get(geometryKey)!;
 		} else {
@@ -478,7 +479,7 @@
 				const materials = Array.isArray(n.__threeObj.material)
 					? n.__threeObj.material
 					: [n.__threeObj.material];
-				materials.forEach((mat: THREE.Material) => {
+				materials.forEach((mat: Three.Material) => {
 					if ('opacity' in mat) {
 						mat.transparent = true;
 						mat.opacity = isSelected ? 1.0 : 0.25;
@@ -589,7 +590,7 @@
 		if (!Graph || !selectedBook) return;
 
 		const graphData = Graph.graphData();
-		const books = graphData.nodes.filter((n: Node) => n.group === 'book');
+		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book');
 
 		if (books.length === 0) return;
 
@@ -642,7 +643,7 @@
 					const materials = Array.isArray(n.__threeObj.material)
 						? n.__threeObj.material
 						: [n.__threeObj.material];
-					materials.forEach((mat: THREE.Material) => {
+					materials.forEach((mat: Three.Material) => {
 						if ('opacity' in mat) {
 							mat.opacity = 1.0;
 						}
@@ -709,7 +710,7 @@
 				const materials = Array.isArray(n.__threeObj.material)
 					? n.__threeObj.material
 					: [n.__threeObj.material];
-				materials.forEach((mat: THREE.Material) => {
+				materials.forEach((mat: Three.Material) => {
 					if ('opacity' in mat) {
 						mat.opacity = 1.0;
 					}
@@ -857,9 +858,10 @@
 		// Allow UI to update before heavy graph creation
 		await new Promise((resolve) => requestAnimationFrame(resolve));
 
-		Graph = ForceGraph3D()(graphContainer)
+		Graph = new ForceGraph3D(graphContainer)
 			.graphData(graphData)
-			.onNodeClick((node: Node) => {
+			.onNodeClick((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					// If a book is already selected
 					if (selectedBook) {
@@ -885,12 +887,14 @@
 					lastClickedNode = null;
 				}
 			})
-			.onNodeRightClick((node: Node) => {
+			.onNodeRightClick((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					window.open(`https://librarything.com/work/${node.workcode}`, '_blank');
 				}
 			})
-			.nodeThreeObject((node: Node) => {
+			.nodeThreeObject((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					return createBookObject(node);
 				} else if (node.group === 'ddc') {
@@ -998,7 +1002,7 @@
 						}
 						// Dispose materials
 						if (Array.isArray(node.__threeObj.material)) {
-							node.__threeObj.material.forEach((mat: THREE.Material) => {
+							node.__threeObj.material.forEach((mat: Three.MeshBasicMaterial) => {
 								if ('map' in mat && mat.map) {
 									mat.map.dispose();
 								}
@@ -1396,7 +1400,7 @@
 <svelte:head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+	<meta http-equiv="x-ua-compatible" content="ie=edge" />
 	<meta property="og:title" content="Casey's Library" />
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://caseyagollan.com/library/" />
