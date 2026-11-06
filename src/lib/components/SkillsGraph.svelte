@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import * as d3 from 'd3';
+	import { select } from 'd3-selection';
+	import { drag } from 'd3-drag';
+	import { forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide } from 'd3-force';
+	import { easeCubicOut, easeQuadOut } from 'd3-ease';
+	import 'd3-transition';
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
 
 	let {
@@ -65,7 +69,7 @@
 
 			nodeSelection.each(function(d: Node) {
 				if (d.id === targetNodeId) {
-					const node = d3.select(this);
+					const node = select(this);
 					const ring = node.append('circle')
 						.attr('class', 'coachmark-ring')
 						.attr('r', 6)
@@ -75,11 +79,11 @@
 
 					ring.transition()
 						.duration(2000)
-						.ease(d3.easeCubicOut)
+						.ease(easeCubicOut)
 						.attr('r', 35)
 						.style('stroke-opacity', 0)
 						.on('end', function() {
-							d3.select(this).remove();
+							select(this).remove();
 						});
 				}
 			});
@@ -513,7 +517,7 @@
 				// Check if this link is part of the hierarchical path to Casey
 				const isPathToCasey = pathNodes.has(sourceId) && pathNodes.has(targetId);
 
-				d3.select(this)
+				select(this)
 					.classed('path-to-casey', isPathToCasey)
 					.attr('stroke', isPathToCasey ? 'blue' : 'white')
 					.attr('opacity', isPathToCasey ? 1 : 0.25);
@@ -546,8 +550,7 @@
 			})
 			.style('opacity', 0)
 			.call(
-				d3
-					.drag<any, any>()
+				drag<any, any>()
 					.on('start', dragstarted)
 					.on('drag', dragged)
 					.on('end', dragended)
@@ -557,7 +560,7 @@
 		nodeEnter.each(function(d: Node) {
 			if (d.type === 'loading') {
 				// Loading placeholder nodes: cycling shapes with shimmer label
-				const node = d3.select(this);
+				const node = select(this);
 
 				// Create a group for the shape that will cycle
 				const shapeGroup = node.append('g').attr('class', 'loading-shape-group');
@@ -616,13 +619,13 @@
 				const faviconUrl = getFaviconUrl(d.url);
 
 				// Add a white circle background
-				d3.select(this)
+				select(this)
 					.append('circle')
 					.attr('r', 8)
 					.attr('fill', 'white');
 
 				// Add favicon image
-				d3.select(this)
+				select(this)
 					.append('image')
 					.attr('xlink:href', faviconUrl)
 					.attr('x', -8)
@@ -632,7 +635,7 @@
 					.attr('class', 'favicon');
 			} else {
 				// Regular nodes: just circles
-				d3.select(this)
+				select(this)
 					.append('circle')
 					.attr('r', (d.type === 'center') ? 8 : (d.type === 'category') ? 6 : 4)
 					.attr('fill', 'white');
@@ -642,7 +645,7 @@
 		// Add text labels (skip citation and loading nodes)
 		nodeEnter.each(function(d: Node) {
 			if (d.type !== 'citation' && d.type !== 'loading') {
-				d3.select(this)
+				select(this)
 					.append('text')
 					.attr('dy', -12)
 					.text(d.id)
@@ -667,11 +670,11 @@
 		// Add label backgrounds - transparent by default (skip citation and loading nodes)
 		nodeEnter.each(function (d: Node) {
 			if (d.type !== 'citation' && d.type !== 'loading') {
-				const textNode = d3.select(this).select('text');
+				const textNode = select(this).select('text');
 				if (!textNode.empty()) {
 					const bbox = (textNode.node() as SVGTextElement).getBBox();
 
-					d3.select(this)
+					select(this)
 						.insert('rect', 'text')
 						.attr('class', 'label-bg')
 						.attr('x', bbox.x - 2)
@@ -699,7 +702,7 @@
 
 		// Add/remove coachmark rings for active nodes
 		nodeSelection.each(function(d: Node) {
-			const node = d3.select(this);
+			const node = select(this);
 			node.selectAll('.coachmark-ring').remove();
 		});
 
@@ -844,15 +847,14 @@
 		const height = graphContainer.clientHeight;
 
 		// Create SVG
-		svg = d3
-			.select(graphContainer)
+		svg = select(graphContainer)
 			.append('svg')
 			.attr('width', '100%')
 			.attr('height', '100%')
 			.attr('viewBox', [0, 0, width, height]);
 
 		// Create tooltip
-		tooltip = d3.select('body')
+		tooltip = select('body')
 			.append('div')
 			.attr('class', 'graph-tooltip')
 			.style('position', 'absolute')
@@ -871,18 +873,16 @@
 		nodeSelection = nodeGroup.selectAll('g');
 
 		// Create force simulation
-		simulation = d3
-			.forceSimulation()
+		simulation = forceSimulation()
 			.force(
 				'link',
-				d3
-					.forceLink()
+				forceLink()
 					.id((d: any) => d.id)
 					.distance(80)
 			)
-			.force('charge', d3.forceManyBody().strength(-200))
-			.force('center', d3.forceCenter(width / 2, height / 2))
-			.force('collision', d3.forceCollide().radius(40));
+			.force('charge', forceManyBody().strength(-200))
+			.force('center', forceCenter(width / 2, height / 2))
+			.force('collision', forceCollide().radius(40));
 
 		// Update positions on tick
 		simulation.on('tick', () => {
@@ -913,7 +913,7 @@
 					// Find the node element and add ping rings
 					nodeSelection.each(function(d: Node) {
 						if (d.id === randomNode.id) {
-							const node = d3.select(this);
+							const node = select(this);
 							// Create multiple expanding rings
 							for (let i = 0; i < 3; i++) {
 								setTimeout(() => {
@@ -927,7 +927,7 @@
 									// Animate the ring expanding and fading
 									ring.transition()
 										.duration(1500)
-										.ease(d3.easeQuadOut)
+										.ease(easeQuadOut)
 										.attr('r', 50)
 										.style('stroke-width', '0.5px')
 										.style('stroke-opacity', 0)
