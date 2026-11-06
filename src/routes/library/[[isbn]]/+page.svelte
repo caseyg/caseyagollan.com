@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { pushState, replaceState } from '$app/navigation';
-	import { librarySortModes, readLibraryView, writeLibraryView } from '$lib/library-view';
+	import { librarySortModes, libraryShelfYear, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
 
 	interface PageData {
@@ -909,9 +909,9 @@
 			.nodeThreeObject((node: Node) => {
 				if (node.group === 'book') {
 					return createBookObject(node);
-				} else if (node.group === 'ddc') {
+				} else if (node.group === 'ddc' || node.group === 'shelf-label') {
 					// In grid mode, only show top-level DDC category labels
-					if (isGridModeActive && !topLevelDdcNames.has(node.id)) {
+					if (isGridModeActive && node.group === 'ddc' && !topLevelDdcNames.has(node.id)) {
 						// Return invisible placeholder for non-top-level DDC nodes
 						const emptyGroup = new THREE.Group();
 						return emptyGroup;
@@ -1122,17 +1122,7 @@
 			Graph.d3Force('custom', customForce);
 			Graph.numDimensions(2);
 
-			let filteredNodes: Node[];
-			if (sortModes[sortIndex] === 'ddc') {
-				// In DDC mode, only include books and top-level DDC categories
-				filteredNodes = currentData.nodes.filter(
-					(node: Node) =>
-						node.group === 'book' ||
-						(node.group === 'ddc' && topLevelDdcNames.has(node.id))
-				);
-			} else {
-				filteredNodes = currentData.nodes.filter((node: Node) => node.group !== 'ddc');
-			}
+			const filteredNodes = shelfNodes(currentData.nodes);
 
 			// Rotate books to shelf orientation
 			for (let i = 0; i < filteredNodes.length; i++) {
@@ -1278,18 +1268,19 @@
 		updateLibraryUrl();
 	}
 
-	function applyShelfSort() {
-		let filteredNodes: Node[];
-		if (sortModes[sortIndex] === 'ddc') {
-			// In DDC mode, only include books and top-level DDC categories
-			filteredNodes = originalGraphData.nodes.filter(
-				(node: Node) =>
-					node.group === 'book' ||
-					(node.group === 'ddc' && topLevelDdcNames.has(node.id))
-			);
-		} else {
-			filteredNodes = originalGraphData.nodes.filter((node: Node) => node.group !== 'ddc');
+	function shelfNodes(source: Node[]): Node[] {
+		const sort = sortModes[sortIndex];
+		const books = source.filter((node) => node.group === 'book');
+		if (sort === 'ddc') {
+			return [...books, ...source.filter((node) => node.group === 'ddc' && topLevelDdcNames.has(node.id))];
 		}
+		if (sort === 'color') return books;
+		const years = [...new Set(books.map((book) => libraryShelfYear(book, sort)))];
+		return [...books, ...years.map((year) => ({ id: year, group: 'shelf-label' }))];
+	}
+
+	function applyShelfSort() {
+		const filteredNodes = shelfNodes(originalGraphData.nodes);
 		Graph.graphData({ nodes: filteredNodes, links: [] });
 		Graph.d3Force('custom', customForce);
 		refreshShelves();
@@ -1321,7 +1312,39 @@
 		const shelfStartX = -shelfWidth / 2; // Left edge of shelf
 		const labelOffsetX = shelfStartX; // Position for DDC label (left of shelf)
 
-		if (sortModes[sortIndex] === 'ddc') {
+		if (sortModes[sortIndex] === 'dateacquired' || sortModes[sortIndex] === 'publicationYear') {
+			const sort = sortModes[sortIndex];
+			const groups = new Map<string, Node[]>();
+			for (const book of nodes) {
+				const year = libraryShelfYear(book, sort);
+				if (!groups.has(year)) groups.set(year, []);
+				groups.get(year)!.push(book);
+			}
+			const headings = Graph.graphData().nodes.filter((node: Node) => node.group === 'shelf-label') as Node[];
+			const years = [...groups.keys()].sort((a, b) => (Number(b) || 0) - (Number(a) || 0));
+			let shelfRow = 0;
+			for (const year of years) {
+				const books = groups.get(year)!;
+				if (sort === 'dateacquired') books.sort((a, b) => (b.dateacquired || '').localeCompare(a.dateacquired || ''));
+				const heading = headings.find((node) => node.id === year);
+				if (heading) {
+					heading.x = heading.fx = shelfStartX;
+					heading.y = heading.fy = -shelfRow * shelfHeight + bookHeight / 2 + 10;
+					heading.z = heading.fz = 5;
+				}
+				let rowWidth = 0;
+				books.forEach((book, index) => {
+					if (index % booksPerShelf === 0) rowWidth = 0;
+					const depth = book.__threeObj?.geometry?.parameters?.depth || bookDepth;
+					book.x = book.fx = shelfStartX + rowWidth + depth / 2;
+					book.y = book.fy = -(shelfRow + Math.floor(index / booksPerShelf)) * shelfHeight;
+					book.z = book.fz = 0;
+					book.__threeObj?.rotation.set(0, Math.PI / 2, 0);
+					rowWidth += depth + 0.5;
+				});
+				shelfRow += Math.ceil(books.length / booksPerShelf) + 0.7;
+			}
+		} else if (sortModes[sortIndex] === 'ddc') {
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
 
 			// Group books by top-level DDC class (first digit + "00")

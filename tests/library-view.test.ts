@@ -24,3 +24,13 @@ test('returning to default options removes their query parameters', () => {
 	const url = writeLibraryView(new URL('https://example.com/library?view=shelves&sort=ddc'), false, 'dateacquired');
 	expect(url.search).toBe('');
 });
+
+test('year headings use acquisition calendar year or publication year with unknown fallback', async () => {
+	const { libraryShelfYear } = await import('../src/lib/library-view');
+	const book = { dateacquired: '2020-12-31T23:30:00-05:00', publicationYear: 1998 };
+	expect(libraryShelfYear(book, 'dateacquired')).toBe('2020');
+	expect(libraryShelfYear(book, 'publicationYear')).toBe('1998');
+	expect(libraryShelfYear({}, 'dateacquired')).toBe('Unknown year');
+	expect(libraryShelfYear({ dateacquired: 'invalid' }, 'dateacquired')).toBe('Unknown year');
+	expect(libraryShelfYear({ publicationYear: 0 }, 'publicationYear')).toBe('Unknown year');
+});

@@ -15,3 +15,16 @@ export function writeLibraryView(url: URL, shelves: boolean, sort: LibrarySort) 
 	else next.searchParams.delete('sort');
 	return next;
 }
+
+export function libraryShelfYear(
+	book: { dateacquired?: string; publicationYear?: number },
+	sort: LibrarySort
+): string {
+	if (sort === 'dateacquired') {
+		// LibraryThing dates are calendar dates; preserve their year across time zones.
+		const year = book.dateacquired?.match(/^(\d{4})-/)?.[1];
+		return year && Number(year) > 0 ? year : 'Unknown year';
+	}
+	return book.publicationYear && Number.isInteger(book.publicationYear) && book.publicationYear > 0
+		? String(book.publicationYear) : 'Unknown year';
+}
