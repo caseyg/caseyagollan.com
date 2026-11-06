@@ -1,12 +1,12 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '$lib/assets/favicon.png';
 	import '../app.css';
 
 	let { children } = $props();
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" type="image/png" sizes="128x128" href={favicon} />
 	<!-- IndieAuth -->
 	<link rel="authorization_endpoint" href="https://kit.caseyagollan.com/auth" />
 	<link rel="token_endpoint" href="https://kit.caseyagollan.com/auth/token" />
