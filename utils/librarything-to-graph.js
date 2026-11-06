@@ -85,6 +85,7 @@ fs.readFile(filename, 'utf8', async (err, data) => {
         };
         const node = {
             id: book.title,
+            authorLastName: book.primaryauthor?.split(",")[0]?.trim(),
             workcode: book.workcode,
             bookid: parseInt(book.books_id),
             isbn: book.originalisbn,
@@ -168,6 +169,7 @@ fs.readFile(filename, 'utf8', async (err, data) => {
     // dateacquired->d, publicationYear->y, ddcCode->c, img->m, w->x, h->z, averageColor->a, points->t
     const minifyNode = (node) => {
       const minified = { i: node.id, g: node.group };
+      if (node.authorLastName) minified.au = node.authorLastName;
       if (node.workcode) minified.w = node.workcode;
       if (node.bookid) minified.b = node.bookid;
       if (node.isbn) minified.n = node.isbn;

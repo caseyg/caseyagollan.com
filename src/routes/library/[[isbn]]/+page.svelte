@@ -4,6 +4,8 @@
 	import { pushState, replaceState } from '$app/navigation';
 	import { librarySortModes, libraryShelfYear, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
+	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
+	import { layoutSpine } from '$lib/library-spine';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -16,6 +18,7 @@
 		workcode?: string;
 		bookid?: number;
 		isbn?: string;
+		authorLastName?: string;
 		pages?: number;
 		dateacquired?: string;
 		publicationYear?: number;
@@ -152,7 +155,7 @@
 		averageColor: string,
 		bookHeight?: number
 	): THREE.MeshBasicMaterial {
-		const cacheKey = `spine_${node.id}_${depth}_${averageColor}_${bookHeight}`;
+		const cacheKey = `spine_${node.id}_${node.authorLastName || ""}_${depth}_${averageColor}_${bookHeight}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
@@ -170,24 +173,26 @@
 		const color = new THREE.Color(averageColor);
 		const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 		spineCtx.fillStyle = luminance > 0.18 ? '#111111' : '#ffffff';
-		const padding = spineCanvas.width * 0.2;
-		const maxTextWidth = spineCanvas.height - padding * 2;
-		const preferredSize = spineCanvas.width * 0.65;
-		spineCtx.font = `600 ${preferredSize}px Arial`;
-		const fontSize = Math.max(preferredSize * 0.65,
-			Math.min(preferredSize, preferredSize * maxTextWidth / Math.max(1, spineCtx.measureText(node.id).width)));
-		spineCtx.font = `600 ${fontSize}px Arial`;
-		spineCtx.textAlign = 'center';
-		spineCtx.textBaseline = 'middle';
-		let title = node.id;
-		if (spineCtx.measureText(title).width > maxTextWidth) {
-			while (title.length && spineCtx.measureText(title + '…').width > maxTextWidth) title = title.slice(0, -1);
-			title += '…';
-		}
+		const layout = layoutSpine(node.id, node.authorLastName || '', spineCanvas.height, spineCanvas.width,
+			(text, size) => {
+				spineCtx.font = `600 ${size}px Arial`;
+				return spineCtx.measureText(text).width;
+			});
 		spineCtx.save();
 		spineCtx.translate(spineCanvas.width / 2, spineCanvas.height / 2);
 		spineCtx.rotate(-Math.PI / 2);
-		spineCtx.fillText(title, 0, 0);
+		spineCtx.textAlign = 'left';
+		spineCtx.textBaseline = 'middle';
+		spineCtx.font = `600 ${layout.titleSize}px Arial`;
+		layout.lines.forEach((line, index) => {
+			const y = (index - (layout.lines.length - 1) / 2) * layout.titleSize * 1.2;
+			spineCtx.fillText(line, -spineCanvas.height / 2 + layout.padding, y);
+		});
+		if (layout.author) {
+			spineCtx.textAlign = 'right';
+			spineCtx.font = `600 ${layout.authorSize}px Arial`;
+			spineCtx.fillText(layout.author, spineCanvas.height / 2 - layout.padding, 0);
+		}
 		spineCtx.restore();
 
 		// Create texture from canvas copy (since we reuse canvas)
@@ -274,7 +279,7 @@
 
 		const hue = Math.abs(titleHash) % 360;
 		const randomSeed = Math.abs(titleHash) / 2147483647;
-		const bgColor = `hsl(${hue}, 60%, 45%)`;
+		const bgColor = placeholderColor(node.id);
 
 		if (materialCache.has(cacheKey)) {
 			return {
@@ -361,7 +366,7 @@
 		let spineMaterial: THREE.MeshBasicMaterial;
 		let width: number;
 		let height: number;
-		let averageColor = node.averageColor || '#666666';
+		let averageColor = spineColor(node);
 
 		if (node.img && node.w && node.h && !isNaN(node.w) && !isNaN(node.h)) {
 			const imgTexture = loadTexture('/library/' + node.img);
@@ -739,6 +744,8 @@
 				workcode?: string;
 				b?: number;
 				bookid?: number;
+				au?: string;
+				authorLastName?: string;
 				n?: string;
 				isbn?: string;
 				p?: number;
@@ -770,6 +777,7 @@
 					group: n.g!,
 					workcode: n.w,
 					bookid: n.b,
+					authorLastName: n.au,
 					isbn: n.n,
 					pages: n.p,
 					dateacquired: n.d,
@@ -795,6 +803,7 @@
 				group: n.group || n.g!,
 				workcode: n.workcode || n.w,
 				bookid: n.bookid || n.b,
+				authorLastName: n.authorLastName || n.au,
 				isbn: n.isbn || n.n,
 				pages: n.pages || n.p,
 				dateacquired: n.dateacquired || n.d,
@@ -1431,46 +1440,8 @@
 					currentShelfRow += rowsNeeded + 0.7;
 				});
 		} else {
-			// Non-DDC sort modes: simple grid layout
-			nodes.sort((a, b) => {
-				if (sortModes[sortIndex] === 'dateacquired') {
-					return (
-						new Date(b.dateacquired || 0).getTime() - new Date(a.dateacquired || 0).getTime()
-					);
-				} else if (sortModes[sortIndex] === 'publicationYear') {
-					return (b.publicationYear || 0) - (a.publicationYear || 0);
-				} else if (sortModes[sortIndex] === 'color') {
-					const getHue = (node: Node) => {
-						if (!node.averageColor) return 999;
-						const rgb = node.averageColor.match(/\d+/g);
-						if (!rgb) return 999;
-						const r = parseInt(rgb[0]) / 255;
-						const g = parseInt(rgb[1]) / 255;
-						const blueVal = parseInt(rgb[2]) / 255;
-						const max = Math.max(r, g, blueVal);
-						const min = Math.min(r, g, blueVal);
-						let h = 0;
-						if (max !== min) {
-							const d = max - min;
-							switch (max) {
-								case r:
-									h = (g - blueVal) / d + (g < blueVal ? 6 : 0);
-									break;
-								case g:
-									h = (blueVal - r) / d + 2;
-									break;
-								case blueVal:
-									h = (r - g) / d + 4;
-									break;
-							}
-							h /= 6;
-						}
-						return h * 360;
-					};
-					return getHue(a) - getHue(b);
-				}
-				return (b.pages || 0) - (a.pages || 0);
-			});
+			const keys = new Map(nodes.map((node) => [node.id, colorSortKey(spineColor(node))]));
+			nodes.sort((a, b) => compareColorKeys(keys.get(a.id)!, keys.get(b.id)!) || a.id.localeCompare(b.id));
 
 			const easing = 1;
 			nodes.forEach((node, index) => {

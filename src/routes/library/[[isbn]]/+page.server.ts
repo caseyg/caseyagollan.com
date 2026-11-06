@@ -5,6 +5,7 @@ import { join } from 'path';
 interface MinifiedNode {
 	i: string; // id
 	g: string; // group
+	au?: string; // author surname
 	w?: string; // workcode
 	b?: number; // bookid
 	n?: string; // isbn
@@ -32,6 +33,7 @@ interface MinifiedGraphData {
 interface Node {
 	id: string;
 	group: string;
+	authorLastName?: string;
 	workcode?: string;
 	bookid?: number;
 	isbn?: string;
@@ -59,6 +61,7 @@ interface GraphData {
 // Expand minified keys back to full names
 function expandNode(n: MinifiedNode): Node {
 	const node: Node = { id: n.i, group: n.g };
+	if (n.au) node.authorLastName = n.au;
 	if (n.w) node.workcode = n.w;
 	if (n.b) node.bookid = n.b;
 	if (n.n) node.isbn = n.n;
