@@ -84,6 +84,7 @@
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
 	const sortModes = ['dateacquired', 'publicationYear', 'ddc', 'color'];
+	const sortLabels = ['Recently acquired', 'Publication year', 'Subject shelves', 'Color'];
 	const sortIcons = ['📅', '⏳', '📖', '🌈'];
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
@@ -718,7 +719,8 @@
 		});
 
 		// Reset camera
-		Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+		if (isGridModeActive) frameShelves();
+		else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 
 		// Remove ISBN from URL
 		if (browser) {
@@ -881,7 +883,8 @@
 				if (selectedBook) {
 					deselectBook();
 				} else {
-					Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 3000);
+					if (isGridModeActive) frameShelves();
+					else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 					lastClickedNode = null;
 				}
 			})
@@ -902,7 +905,13 @@
 					}
 					const sprite = new SpriteText(node.id);
 					sprite.color = 'blue';
-					sprite.textHeight = Math.max((node.points || 1) / 2, 3);
+					sprite.textHeight = isGridModeActive ? 5 : Math.max((node.points || 1) / 2, 3);
+					if (isGridModeActive) {
+						sprite.color = '#ffffff';
+						sprite.backgroundColor = '#242424';
+						sprite.padding = 2;
+						(sprite as unknown as { center: { set: (x: number, y: number) => void } }).center.set(0, 0.5);
+					}
 					return sprite;
 				}
 				return null;
@@ -1034,9 +1043,33 @@
 		console.log('Library page cleanup complete');
 	});
 
+	function frameShelves(duration = 700) {
+		if (!Graph) return;
+		const nodes = Graph.graphData().nodes as Node[];
+		if (!nodes.length) return;
+		const minY = Math.min(...nodes.map((n) => n.y || 0)) - 20;
+		const maxY = Math.max(...nodes.map((n) => n.y || 0)) + 20;
+		const centerY = (minY + maxY) / 2;
+		const camera = Graph.camera();
+		const fov = camera.fov * Math.PI / 180;
+		const halfWidth = Math.max(150, ...nodes.map((n) => Math.abs(n.x || 0) + 20));
+		const distance = Math.max((maxY - minY) / 2, halfWidth / camera.aspect) / Math.tan(fov / 2) * 1.15;
+		camera.up.set(0, 1, 0);
+		Graph.cameraPosition({ x: 0, y: centerY, z: distance }, { x: 0, y: centerY, z: 0 }, duration);
+	}
+
+	function refreshShelves() {
+		// Recreate labels when changing modes; graph labels use popularity-based sizes.
+		Graph.nodeThreeObject(Graph.nodeThreeObject());
+		customForce();
+		frameShelves();
+		Graph.d3ReheatSimulation();
+	}
+
 	function toggleMode() {
 		if (!Graph) return;
 
+		deselectBook();
 		isGridModeActive = !isGridModeActive;
 
 		if (isGridModeActive) {
@@ -1083,12 +1116,14 @@
 			controls.minPolarAngle = Math.PI / 4;
 			controls.maxPolarAngle = (3 * Math.PI) / 4;
 			controls.enableZoom = true;
-			controls.enableRotate = true;
+			controls.enableRotate = false;
+			controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
 			// In shelf mode: one finger = pan, two fingers = zoom
 			controls.touches = {
 				ONE: THREE.TOUCH.PAN,
-				TWO: THREE.TOUCH.DOLLY_ROTATE
+				TWO: THREE.TOUCH.DOLLY_PAN
 			};
+			refreshShelves();
 		} else {
 			Graph.d3Force('custom', null);
 			Graph.numDimensions(3);
@@ -1119,9 +1154,13 @@
 
 			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
 
+			Graph.nodeThreeObject(Graph.nodeThreeObject());
+			Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 700);
+
 			// Re-enable full 3D controls
 			const controls = Graph.controls();
 			controls.enablePan = true;
+			controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
 			controls.minPolarAngle = 0;
 			controls.maxPolarAngle = Math.PI;
 			controls.enableZoom = true;
@@ -1198,6 +1237,7 @@
 	function toggleSort() {
 		if (!Graph || !isGridModeActive) return;
 
+		deselectBook();
 		sortIndex = (sortIndex + 1) % sortModes.length;
 
 		let filteredNodes: Node[];
@@ -1213,6 +1253,7 @@
 		}
 		Graph.graphData({ nodes: filteredNodes, links: [] });
 		Graph.d3Force('custom', customForce);
+		refreshShelves();
 	}
 
 	function customForce() {
@@ -1234,12 +1275,12 @@
 		// When books are rotated to show spines, depth becomes the horizontal spacing
 		const sampleBook = nodes.find((n) => n.__threeObj);
 		const bookDepth = sampleBook?.__threeObj?.geometry?.parameters?.depth || 2;
-		const bookHeight = sampleBook?.__threeObj?.geometry?.parameters?.height || 25;
+		const bookHeight = Math.max(25, ...nodes.map((n) => n.__threeObj?.geometry?.parameters?.height || 25));
 		const spacingX = bookDepth + 0.5; // Small gap between book spines
-		const shelfHeight = bookHeight + 5; // Spacing between shelves (rows)
+		const shelfHeight = bookHeight + 12; // Spacing between shelves (rows)
 		const shelfWidth = booksPerShelf * spacingX;
 		const shelfStartX = -shelfWidth / 2; // Left edge of shelf
-		const labelOffsetX = shelfStartX - 50; // Position for DDC label (left of shelf)
+		const labelOffsetX = shelfStartX; // Position for DDC label (left of shelf)
 
 		if (sortModes[sortIndex] === 'ddc') {
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
@@ -1270,7 +1311,7 @@
 			};
 
 			let currentShelfRow = 0;
-			const easing = 0.05;
+			const easing = 1;
 
 			// Position each DDC category on its own shelf
 			Object.keys(ddcGroups)
@@ -1288,7 +1329,7 @@
 					// Position the DDC label at the start of this category's shelves
 					if (divider) {
 						const targetX = labelOffsetX;
-						const targetY = currentShelfRow * shelfHeight;
+						const targetY = -currentShelfRow * shelfHeight + bookHeight / 2 + 10;
 						const targetZ = 5; // Slightly in front of books
 
 						// Snap labels to position quickly
@@ -1304,10 +1345,12 @@
 					// Position books on shelves for this category
 					booksInCategory.forEach((book, idx) => {
 						const rowWithinCategory = Math.floor(idx / booksPerShelf);
-						const colWithinRow = idx % booksPerShelf;
 
-						const targetX = shelfStartX + colWithinRow * spacingX + spacingX / 2;
-						const targetY = (currentShelfRow + rowWithinCategory) * shelfHeight;
+						const rowStart = rowWithinCategory * booksPerShelf;
+						const precedingWidth = booksInCategory.slice(rowStart, idx).reduce(
+							(sum, n) => sum + (n.__threeObj?.geometry?.parameters?.depth || bookDepth) + 0.5, 0);
+						const targetX = shelfStartX + precedingWidth + (book.__threeObj?.geometry?.parameters?.depth || bookDepth) / 2;
+						const targetY = -(currentShelfRow + rowWithinCategory) * shelfHeight;
 						const targetZ = 0;
 
 						book.x = (book.x || 0) + (targetX - (book.x || 0)) * easing;
@@ -1324,7 +1367,7 @@
 					});
 
 					// Move to next category's shelf rows
-					currentShelfRow += rowsNeeded;
+					currentShelfRow += rowsNeeded + 0.7;
 				});
 		} else {
 			// Non-DDC sort modes: simple grid layout
@@ -1368,13 +1411,14 @@
 				return (b.pages || 0) - (a.pages || 0);
 			});
 
-			const easing = 0.05;
+			const easing = 1;
 			nodes.forEach((node, index) => {
 				const row = Math.floor(index / booksPerShelf);
-				const col = index % booksPerShelf;
+				const precedingWidth = nodes.slice(row * booksPerShelf, index).reduce(
+					(sum, n) => sum + (n.__threeObj?.geometry?.parameters?.depth || bookDepth) + 0.5, 0);
 
-				const targetX = shelfStartX + col * spacingX + spacingX / 2;
-				const targetY = row * shelfHeight;
+				const targetX = shelfStartX + precedingWidth + (node.__threeObj?.geometry?.parameters?.depth || bookDepth) / 2;
+				const targetY = -row * shelfHeight;
 				const targetZ = 0;
 
 				node.x = (node.x || 0) + (targetX - (node.x || 0)) * easing;
@@ -1429,9 +1473,9 @@
 <div bind:this={graphContainer} class="graph-container"></div>
 <Nav currentPage="library" />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" onclick={toggleMode}>{isGridModeActive ? '🕸️' : '📚'}</button>
+	<button id="modeToggle" onclick={toggleMode}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
 	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
-		>{sortIcons[sortIndex]}</button
+		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
 	>
 </div>
 
@@ -1544,7 +1588,7 @@
 		text-decoration: none;
 		display: block;
 		width: auto;
-		font-size: 2rem;
+		font-size: 1rem;
 		height: auto;
 		border-radius: 5px;
 		cursor: pointer;
