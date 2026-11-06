@@ -11,6 +11,7 @@
 </script>
 
 <svelte:head>
+	<meta name="publishing-revision" content={data.revision} />
 	<title>{data.post.title || data.post.type} - Casey Gollan</title>
 	<meta name="description" content={data.post.summary || data.post.content.slice(0, 160)} />
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />
@@ -44,11 +45,15 @@
 		{/if}
 
 		{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
-			<p class="bookmark-url"><small><a href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
+			<p class="bookmark-url"><small><a class="u-bookmark-of" href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 		{/if}
 
 		<PostMedia photos={data.post.photo} videos={data.post.video} />
-		<PostContent content={data.post.content} />
+		{#if data.post.inReplyTo}
+			<p>In reply to <a class="u-in-reply-to" href={data.post.inReplyTo}>{data.post.inReplyTo}</a></p>
+		{/if}
+
+		<PostContent content={data.post.content} format={data.post.contentFormat} />
 
 		<Webmentions url={permalink} />
 	</article>

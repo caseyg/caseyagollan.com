@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<title>h-entry - Microformats Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"cf9272e0e4d379f192ef4fa0","wgCSPNonce":false,"wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"h-entry","wgTitle":"h-entry","wgCurRevisionId":70830,"wgRevisionId":70830,"wgArticleId":9081,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Specifications"],"wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"h-entry","wgRelevantArticleId":9081,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":["sysop"]};RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready",
+"user.options":"loading","ext.pygments":"ready","skins.vector.styles.legacy":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.vector.legacy.js"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.implement("user.options@1i9g4",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});});});</script>
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=ext.pygments%7Cskins.vector.styles.legacy&amp;only=styles&amp;skin=vector"/>
+<script async="" src="/wiki/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+<meta name="generator" content="MediaWiki 1.38.4"/>
+<meta name="format-detection" content="telephone=no"/>
+<link rel="shortcut icon" href="/favicon.ico"/>
+<link rel="search" type="application/opensearchdescription+xml" href="/wiki/opensearch_desc.php" title="Microformats Wiki (en)"/>
+<link rel="EditURI" type="application/rsd+xml" href="//microformats.org/wiki/api.php?action=rsd"/>
+<link rel="alternate" type="application/atom+xml" title="Microformats Wiki Atom feed" href="/wiki/index.php?title=Special:RecentChanges&amp;feed=atom"/>
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-h-entry rootpage-h-entry skin-vector action-view skin-vector-legacy"><div id="mw-page-base" class="noprint"></div>
+<div id="mw-head-base" class="noprint"></div>
+<div id="content" class="mw-body" role="main">
+	<a id="top"></a>
+	<div id="siteNotice"></div>
+	<div class="mw-indicators">
+	</div>
+	<h1 id="firstHeading" class="firstHeading mw-first-heading">h-entry</h1>
+	<div id="bodyContent" class="vector-body">
+		<div id="siteSub" class="noprint">From Microformats Wiki</div>
+		<div id="contentSub"></div>
+		<div id="contentSub2"></div>
+		
+		<div id="jump-to-nav"></div>
+		<a class="mw-jump-link" href="#mw-head">Jump to navigation</a>
+		<a class="mw-jump-link" href="#searchInput">Jump to search</a>
+		<div id="mw-content-text" class="mw-body-content mw-content-ltr" lang="en" dir="ltr"><div class="mw-parser-output"><p><dfn style="font-style:normal;font-weight:bold">h-entry</dfn> is a simple, open format for content on the web. h-entry is often used with content intended to be syndicated, e.g. blog posts. h-entry is one of several open <a href="/wiki/microformats" title="microformats">microformat</a> standards suitable for embedding data in HTML.
+</p><p>h-entry is the <a href="/wiki/microformats2" title="microformats2">microformats2</a> update to <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a>, in particular its "hentry" root class which itself was based on <a href="/wiki/Atom" class="mw-redirect" title="Atom">Atom</a>'s "entry" element. For an update to "hfeed" see <a href="/wiki/h-feed" title="h-feed">h-feed</a>.
+</p>
+<dl><dt><span id="status">Status</span></dt>
+<dd>This is a <b>Living Specification</b> yet mature enough to encourage additional implementations and <a href="/wiki/h-entry-issues" title="h-entry-issues">feedback</a>. This specification has portions that are stable, draft, and proposed. Features are stable unless explicitly labeled draft or proposed, or in draft or proposed sections. Draft and proposed features are likely to change substantively. While substantive changes to stable features are unexpected, it is a living specification subject to substantive change by issues and errata filed in response to implementation experience, requiring consensus among participating implementers as part of an explicit <a href="#change_control">change control</a> process.</dd>
+<dt><span id="participate">Participate</span></dt>
+<dd><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues">Open Issues</a></dd>
+<dd><a href="/wiki/h-entry-issues" title="h-entry-issues">Resolved issues before 2012-246</a></dd>
+<dd><a href="/wiki/IRC" class="mw-redirect" title="IRC">IRC</a></dd>
+<dd>Advance the spec by following explicit <a href="#change_control">change control</a> process</dd></dl>
+<div class="p-author h-card vcard">
+<dl><dt><span class="p-role role">Editor</span></dt>
+<dd><span class="p-name fn"><a href="/wiki/User:Tantek" title="User:Tantek">Tantek Çelik</a></span></dd></dl>
+</div>
+<dl><dt>License</dt>
+<dd><small>Per <a rel="nofollow" class="external text" href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the <a rel="nofollow" class="external text" href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0">Open Web Foundation Agreement Version 1.0</a>.</small></dd></dl>
+<span style="float:right"><div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Example"><span class="tocnumber">1</span> <span class="toctext">Example</span></a></li>
+<li class="toclevel-1 tocsection-2"><a href="#Get_started"><span class="tocnumber">2</span> <span class="toctext">Get started</span></a></li>
+<li class="toclevel-1 tocsection-3"><a href="#Properties"><span class="tocnumber">3</span> <span class="toctext">Properties</span></a>
+<ul>
+<li class="toclevel-2 tocsection-4"><a href="#Core_Properties"><span class="tocnumber">3.1</span> <span class="toctext">Core Properties</span></a></li>
+<li class="toclevel-2 tocsection-5"><a href="#Draft_Properties"><span class="tocnumber">3.2</span> <span class="toctext">Draft Properties</span></a></li>
+<li class="toclevel-2 tocsection-6"><a href="#Proposed_Additions"><span class="tocnumber">3.3</span> <span class="toctext">Proposed Additions</span></a></li>
+<li class="toclevel-2 tocsection-7"><a href="#Proposing_and_upgrading"><span class="tocnumber">3.4</span> <span class="toctext">Proposing and upgrading</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-8"><a href="#Property_Details"><span class="tocnumber">4</span> <span class="toctext">Property Details</span></a>
+<ul>
+<li class="toclevel-2 tocsection-9"><a href="#p-location"><span class="tocnumber">4.1</span> <span class="toctext">p-location</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-10"><a href="#FAQ"><span class="tocnumber">5</span> <span class="toctext">FAQ</span></a>
+<ul>
+<li class="toclevel-2 tocsection-11"><a href="#p-name_of_a_note"><span class="tocnumber">5.1</span> <span class="toctext">p-name of a note</span></a></li>
+<li class="toclevel-2 tocsection-12"><a href="#venue_an_entry_was_posted_from"><span class="tocnumber">5.2</span> <span class="toctext">venue an entry was posted from</span></a></li>
+<li class="toclevel-2 tocsection-13"><a href="#address_an_entry_was_posted_from"><span class="tocnumber">5.3</span> <span class="toctext">address an entry was posted from</span></a></li>
+<li class="toclevel-2 tocsection-14"><a href="#lat_long_an_entry_was_posted_from"><span class="tocnumber">5.4</span> <span class="toctext">lat long an entry was posted from</span></a></li>
+<li class="toclevel-2 tocsection-15"><a href="#dt-published_property_and_HTML5_time_element"><span class="tocnumber">5.5</span> <span class="toctext">dt-published property and HTML5 time element</span></a></li>
+<li class="toclevel-2 tocsection-16"><a href="#what_is_the_bare_minimum_list_of_required_properties_on_an_h-entry"><span class="tocnumber">5.6</span> <span class="toctext">what is the bare minimum list of required properties on an h-entry</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-17"><a href="#Examples_in_the_wild"><span class="tocnumber">6</span> <span class="toctext">Examples in the wild</span></a>
+<ul>
+<li class="toclevel-2 tocsection-18"><a href="#offline"><span class="tocnumber">6.1</span> <span class="toctext">offline</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-19"><a href="#Validating"><span class="tocnumber">7</span> <span class="toctext">Validating</span></a></li>
+<li class="toclevel-1 tocsection-20"><a href="#Implementations"><span class="tocnumber">8</span> <span class="toctext">Implementations</span></a></li>
+<li class="toclevel-1 tocsection-21"><a href="#Backward_Compatibility"><span class="tocnumber">9</span> <span class="toctext">Backward Compatibility</span></a>
+<ul>
+<li class="toclevel-2 tocsection-22"><a href="#Publisher_Compatibility"><span class="tocnumber">9.1</span> <span class="toctext">Publisher Compatibility</span></a></li>
+<li class="toclevel-2 tocsection-23"><a href="#Parser_Compatibility"><span class="tocnumber">9.2</span> <span class="toctext">Parser Compatibility</span></a></li>
+<li class="toclevel-2 tocsection-24"><a href="#Compat_FAQ"><span class="tocnumber">9.3</span> <span class="toctext">Compat FAQ</span></a>
+<ul>
+<li class="toclevel-3 tocsection-25"><a href="#What_about_rel_bookmark"><span class="tocnumber">9.3.1</span> <span class="toctext">What about rel bookmark</span></a></li>
+<li class="toclevel-3 tocsection-26"><a href="#Why_rename_entry-title_entry-summary_entry-content"><span class="tocnumber">9.3.2</span> <span class="toctext">Why rename entry-title entry-summary entry-content</span></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-27"><a href="#Related_Work"><span class="tocnumber">10</span> <span class="toctext">Related Work</span></a></li>
+<li class="toclevel-1 tocsection-28"><a href="#Background"><span class="tocnumber">11</span> <span class="toctext">Background</span></a></li>
+<li class="toclevel-1 tocsection-29"><a href="#change_control"><span class="tocnumber">12</span> <span class="toctext">change control</span></a></li>
+<li class="toclevel-1 tocsection-30"><a href="#See_Also"><span class="tocnumber">13</span> <span class="toctext">See Also</span></a></li>
+</ul>
+</div>
+</span>
+<h2><span class="mw-headline" id="Example">Example</span></h2>
+<p>Here is a simple blog post example:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">article</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-entry&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h1</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name&quot;</span><span class="p">&gt;</span>Microformats are amazing<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Published by <span class="p">&lt;</span><span class="nt">a</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-author h-card&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;http://example.com&quot;</span><span class="p">&gt;</span>W. Developer<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+     on <span class="p">&lt;</span><span class="nt">time</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dt-published&quot;</span> <span class="na">datetime</span><span class="o">=</span><span class="s">&quot;2013-06-13 12:00:00&quot;</span><span class="p">&gt;</span>13<span class="p">&lt;</span><span class="nt">sup</span><span class="p">&gt;</span>th<span class="p">&lt;/</span><span class="nt">sup</span><span class="p">&gt;</span> June 2013<span class="p">&lt;/</span><span class="nt">time</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-summary&quot;</span><span class="p">&gt;</span>In which I extoll the virtues of using microformats.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;e-content&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Blah blah blah<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">article</span><span class="p">&gt;</span>
+</pre></div>
+<p>Parsed JSON:
+</p>
+<div class="mw-highlight mw-highlight-lang-json mw-content-ltr" dir="ltr"><pre><span></span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="nt">&quot;items&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">    </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">        </span><span class="s2">&quot;h-entry&quot;</span><span class="w"></span>
+<span class="w">      </span><span class="p">],</span><span class="w"></span>
+<span class="w">      </span><span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">          </span><span class="s2">&quot;Microformats are amazing&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="p">],</span><span class="w"></span>
+<span class="w">        </span><span class="nt">&quot;author&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">          </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;W. Developer&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">              </span><span class="s2">&quot;h-card&quot;</span><span class="w"></span>
+<span class="w">            </span><span class="p">],</span><span class="w"></span>
+<span class="w">            </span><span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">              </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">                </span><span class="s2">&quot;W. Developer&quot;</span><span class="w"></span>
+<span class="w">              </span><span class="p">],</span><span class="w"></span>
+<span class="w">              </span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">                </span><span class="s2">&quot;http://example.com&quot;</span><span class="w"></span>
+<span class="w">              </span><span class="p">]</span><span class="w"></span>
+<span class="w">            </span><span class="p">}</span><span class="w"></span>
+<span class="w">          </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">],</span><span class="w"></span>
+<span class="w">        </span><span class="nt">&quot;published&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">          </span><span class="s2">&quot;2013-06-13 12:00:00&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="p">],</span><span class="w"></span>
+<span class="w">        </span><span class="nt">&quot;summary&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">          </span><span class="s2">&quot;In which I extoll the virtues of using microformats.&quot;</span><span class="w"></span>
+<span class="w">        </span><span class="p">],</span><span class="w"></span>
+<span class="w">        </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"></span>
+<span class="w">          </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Blah blah blah&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">            </span><span class="nt">&quot;html&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;p&gt;Blah blah blah&lt;/p&gt;&quot;</span><span class="w"></span>
+<span class="w">          </span><span class="p">}</span><span class="w"></span>
+<span class="w">        </span><span class="p">]</span><span class="w"></span>
+<span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="p">]</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+<h2><span class="mw-headline" id="Get_started">Get started</span></h2>
+<p>The class <b><code>h-entry</code></b> is a <i>root class name</i> that indicates the presence of an h-entry.
+</p><p><b>p-name</b>, <b>p-author</b>, <b>dt-published</b> and the other h-entry property classnames listed below define properties of the h-entry.
+</p><p>Note: The purpose of an entry is to place it around both the explicitly written content (in the content property or in other specific properties for non-textual content or responses) and whatever else is the context for that content, including properties for when it was published and/or updated, who created it, tags or categorization, and links to what the content is a response to (perhaps with a quoted excerpt) and/or links to syndicated copies.
+</p>
+<h2><span class="mw-headline" id="Properties">Properties</span></h2>
+<p>h-entry properties, inside an element with class <b>h-entry</b>. All properties are both optional and may have multiple instances, e.g. multiple name, url, photo etc. properties.
+</p>
+<ul><li>See <a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a> to learn more about property classnames.</li></ul>
+<h3><span class="mw-headline" id="Core_Properties">Core Properties</span></h3>
+<p>The following <i>core</i> h-entry properties have broad consensus and are broadly interoperably published and consumed:
+</p>
+<ul><li><b><code>p-name</code></b> - entry name/title</li>
+<li><b><code>p-summary</code></b> - short entry summary</li>
+<li><b><code>e-content</code></b> - full content of the entry</li>
+<li><b><code>dt-published</code></b> - when the entry was published</li>
+<li><b><code>dt-updated</code></b> - when the entry was updated</li>
+<li><b><code>p-author</code></b> - who wrote the entry, optionally embedded <a href="/wiki/h-card" title="h-card">h-card</a>(s)</li>
+<li><b><code>p-category</code></b> - entry categories/tags</li>
+<li><b><code>u-url</code></b> - entry permalink URL</li>
+<li><b><code>u-uid</code></b> - universally unique identifier, typically canonical entry URL</li>
+<li><b><code>p-location</code></b> - location the entry was posted from, optionally embed <a href="/wiki/h-card" title="h-card">h-card</a>, <a href="/wiki/h-adr" title="h-adr">h-adr</a>, or <a href="/wiki/h-geo" title="h-geo">h-geo</a></li>
+<li><b><code id="u-syndication">u-syndication</code></b> - URL(s) of syndicated copies of this post. The property equivalent of <a href="/wiki/rel-syndication" title="rel-syndication">rel-syndication</a> (<a rel="nofollow" class="external text" href="https://web.archive.org/web/20141027120218/http://erinjo.is:80/2014/checked-into-rockit-colabs-23">archived example</a>)</li>
+<li><b><code>u-in-reply-to</code></b> - the URL which the h-entry is considered reply to (i.e. doesn’t make sense without context, could show up in comment thread), optionally an embedded <a href="/wiki/h-cite" title="h-cite">h-cite</a> (<a rel="nofollow" class="external text" href="http://indiewebcamp.com/reply-context">reply-context</a>) (<a rel="nofollow" class="external text" href="https://kartikprabhu.com/notes/re-citizen-of-indieweb">example</a>)</li>
+<li><b><code id="p-rsvp">p-rsvp</code></b> (enum, use &lt;data&gt; element or <a href="/wiki/value-class-pattern" title="value-class-pattern">value-class-pattern</a>)
+<ul><li>"yes", "no", "maybe", "interested". Case-insensitive values, normalized to lowercase. Examples:</li>
+<li><code>... &lt;data class="p-rsvp" value="YES"&gt;is going&lt;/data&gt; to ...</code>, or</li>
+<li><code>... &lt;data class="p-rsvp" value="Maybe"&gt;might go&lt;/data&gt; to ...</code></li>
+<li><code>... &lt;data class="p-rsvp" value="no"&gt;unable to go&lt;/data&gt; to ...</code></li>
+<li><code>... &lt;data class="p-rsvp" value="interested"&gt;am interested/tracking/watching&lt;/data&gt;  ...</code></li></ul></li>
+<li><b><code id="u-like-of">u-like-of</code></b> - the URL which the h-entry is considered a “like” (favorite, star) of. Optionally an embedded <a href="/wiki/h-cite" title="h-cite">h-cite</a></li>
+<li><b><code id="u-repost-of">u-repost-of</code></b> - the URL which the h-entry is considered a “repost” of. Optionally an embedded <a href="/wiki/h-cite" title="h-cite">h-cite</a>.</li></ul>
+<h3><span class="mw-headline" id="Draft_Properties">Draft Properties</span></h3>
+<p>The following draft properties are in use in the wild (published and consumed), and are under strong consideration, but are not yet part of the core:
+</p>
+<ul><li><b><code id="p-comment">p-comment</code></b> - optionally embedded (or nested?) <a href="/wiki/h-cite" title="h-cite">h-cite</a>(s), each of which is a comment on/reply to the parent h-entry. See <a href="/wiki/comment-brainstorming" title="comment-brainstorming">comment-brainstorming</a> (<a rel="nofollow" class="external text" href="http://waterpigs.co.uk/notes/4V2DjG/">example</a>)
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/20">Issue 20</a></li></ul></li>
+<li><b><code id="u-photo">u-photo</code></b> - one or more photos that is/are considered the primary content of the entry, unless there is a <code>p-location h-card</code>, which is still considered a "checkin" (i.e. with a photo). Otherwise the presence of a u-photo means the name of the entry should be interpreted as a caption on the photo, and the summary/content should be interpreted as a description of the photo.
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/4">Issue 4: u-photo draft-&gt;core bc way more than 3+ pub and consuming impls/sites</a>
+<ul><li>depends on: <a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/24">Issue 24: Update Definition of Draft Property u-photo</a></li>
+<li>depends on: <a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/23">Issue 23: E-Content Overlaps with u-photo and similar properties</a></li></ul></li>
+<li>Proposed (issue TBF): A <code>u-photo</code> property MUST be on an element that provides a text description for the image (e.g. <code>&lt;img alt=""&gt;</code>) UNLESS the image is already described inside the contents a text property such as <code>p-name</code>, <code>p-summary</code>, or <code>e-content</code></li></ul></li>
+<li><b><code id="u-video">u-video</code></b> - special u- parsing rules for <code>&lt;video src&gt; &amp; &lt;source src&gt;</code>
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/5">Issue 5</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="Proposed_Additions">Proposed Additions</span></h3>
+<p>The following properties are proposed additions based on various use-cases, such as existing <a href="/wiki/link-preview-brainstorming" title="link-preview-brainstorming">link preview</a> markup conventions, but are awaiting citations of use across multiple sites in the wild, and at least one reader / real world consuming code example:
+</p>
+<ul><li><b><code>u-audio</code></b> - special u- parsing rules for <code>&lt;audio src&gt; &amp; &lt;source src&gt;</code>. Examples: <a rel="nofollow" class="external text" href="http://transportini.com/">Transportini</a>,<a rel="nofollow" class="external text" href="https://indieweb.org/podcast#How_to_podcast_with_h-feed">possibly more</a>
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/6">Issue 6</a></li></ul></li>
+<li><b><code>u-like</code></b> - similar to p-comment, URL to a like post of the current post, e.g. in a responses list or facepile.
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/31">Issue 32</a></li></ul></li>
+<li><b><code>u-repost</code></b> - similar to u-like, URL to a repost of the current post, e.g. in a responses list or facepile.
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/30">Issue 30</a></li></ul></li>
+<li><b><code>u-bookmark-of</code></b> - indicates this h-entry is a bookmark of another URL. Optionally an <a href="/wiki/h-cite" title="h-cite">h-cite</a>. See <a rel="nofollow" class="external text" href="https://indieweb.org/bookmark">indieweb.org/bookmark</a> for examples in the wild.
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/12">Issue 12</a></li></ul></li>
+<li><b><code>u-featured</code></b> - a representative photo or image for the entry, e.g. primary photo for an article or subject-cropped photo, suitable for use in a <a href="/wiki/link-preview" title="link-preview">link-preview</a>.
+<ul><li>+1 sknebel: <a rel="nofollow" class="external free" href="https://github.com/microformats/h-entry/issues/14">https://github.com/microformats/h-entry/issues/14</a></li></ul></li>
+<li>Location Properties - <a rel="nofollow" class="external free" href="https://github.com/microformats/h-entry/issues/29">https://github.com/microformats/h-entry/issues/29</a>
+<ul><li><b><code>p-latitude</code></b> - latitude of the location of the entry</li>
+<li><b><code>p-longitude</code></b> - longitude of the location of the entry</li>
+<li><b><code>p-altitude</code></b> - altitude of the location of the entry</li></ul></li>
+<li><b><code>p-duration</code></b> - duration of an audio or video file in the entry. <a rel="nofollow" class="external free" href="https://indieweb.org/duration">https://indieweb.org/duration</a> Multiple publishers and consumers in the wild; <a rel="nofollow" class="external free" href="https://github.com/snarfed/granary/issues/169">https://github.com/snarfed/granary/issues/169</a> more background.
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/21">Issue 21</a></li></ul></li>
+<li><b><code>p-size</code></b> - size in bytes of an audio or video file in the entry. <a rel="nofollow" class="external free" href="https://indieweb.org/size">https://indieweb.org/size</a> Multiple publishers and consumers in the wild; <a rel="nofollow" class="external free" href="https://github.com/snarfed/granary/issues/169">https://github.com/snarfed/granary/issues/169</a> more background.</li>
+<li><b><code>u-listen-of</code></b> - also known as a 'scrobble', indicates this h-entry is a listen of another URL. Optionally an h-cite. <a rel="nofollow" class="external free" href="https://github.com/microformats/h-entry/issues/11">https://github.com/microformats/h-entry/issues/11</a></li>
+<li><b><code>u-watch-of</code></b> - indicates this h-entry is a watch of another URL, a visual version of the scrobble. Optionally an h-cite. <a rel="nofollow" class="external free" href="https://github.com/microformats/h-entry/issues/17">https://github.com/microformats/h-entry/issues/17</a></li>
+<li><b><code>p-read-of</code></b> - indicates this h-entry is a read post of some written work (book or other document). The value can be the title of the work or an h-cite. Proposal also mentions <code>u-read-of</code>, where the value would be a URL to the written work or a representative citation page. <a rel="nofollow" class="external free" href="https://github.com/microformats/h-entry/issues/10">https://github.com/microformats/h-entry/issues/10</a></li>
+<li><b><code>u-translation-of</code></b> - indicates this h-entry is a translation of the linked URL into another language. Can be used in the same way as the existing <code>u-like-of</code> and <code>u-repost-of</code> properties, with just the URL to the original h-entry, or (optionally) contain an embedded <code>h-cite</code>. <a rel="nofollow" class="external free" href="https://github.com/microformats/h-entry/issues/26">https://github.com/microformats/h-entry/issues/26</a></li>
+<li><b><code>u-checkin</code></b> - the URL of the venue/location h-card which the h-entry is considered a “checkin” of. Optionally an embedded h-card. <a rel="nofollow" class="external free" href="https://github.com/microformats/h-entry/issues/15">https://github.com/microformats/h-entry/issues/15</a></li>
+<li><b><code>u-review-of</code></b> - the URL which the h-entry is considered a review of, optionally an embedded h-cite, h-card, h-event, or h-item. This could allow retirement of the h-review as unnecessary, in theory.
+<ul><li><a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/32">Issue 32</a></li></ul></li></ul>
+<p>The following interpretation is also proposed addition:
+</p>
+<ul><li>if the <code>p-location</code> is also an embedded <a href="/wiki/h-card" title="h-card">h-card</a>, the entry is treated as a "checkin".
+<ul><li>-1 <a href="/wiki/User:Aaronpk" title="User:Aaronpk">Aaronpk</a> 14:22, 19 January 2017 (UTC) <a rel="nofollow" class="external text" href="https://aaronparecki.com/2017/01/13/21/">this post</a> is not a checkin, but has an h-card as the p-location property.</li></ul></li></ul>
+<p>Note: As <a class="mw-selflink selflink">h-entry</a> usage grows to express and consume different kinds of content, we expect additional properties may be proposed and iterated as demonstrated by real-world needs, usage, and interoperability.
+</p>
+<h3><span class="mw-headline" id="Proposing_and_upgrading">Proposing and upgrading</span></h3>
+<p>How do you add proposed properties and then upgrade them to draft and then core properties?
+</p><p>See: <a href="/wiki/h-entry#change_control" title="h-entry">change control</a>
+</p>
+<h2><span class="mw-headline" id="Property_Details">Property Details</span></h2>
+<p>This section is a stub.
+</p>
+<h3><span class="mw-headline" id="p-location">p-location</span></h3>
+<p><b><code>p-location</code></b> has been re-used from <a href="/wiki/h-event" title="h-event">h-event</a>.
+</p>
+<h2><span class="mw-headline" id="FAQ">FAQ</span></h2>
+<h3><span class="mw-headline" id="p-name_of_a_note">p-name of a note</span></h3>
+<div class="discussion">
+<ul><li><b>What is the <code>p-name</code> of a <a rel="nofollow" class="external text" href="https://indieweb.org/note">note</a>?</b>
+<ul><li>You probably should avoid adding <code>p-name</code> to notes. See <a rel="nofollow" class="external free" href="https://indieweb.org/note">https://indieweb.org/note</a> for more discussion of the topic.</li></ul></li></ul>
+</div>
+<h3><span class="mw-headline" id="venue_an_entry_was_posted_from">venue an entry was posted from</span></h3>
+<div class="discussion">
+<ul><li><b>How do you indicate a named venue where an entry was posted from? Like a restaurant or park.</b>
+<ul><li>Use an embedded <a href="/wiki/h-card" title="h-card">h-card</a> microformat on a <code>p-location</code> property value.</li></ul></li></ul>
+</div>
+<h3><span class="mw-headline" id="address_an_entry_was_posted_from">address an entry was posted from</span></h3>
+<div class="discussion">
+<ul><li><b>How do you indicate the address where an entry was posted from? Like a restaurant or park.</b>
+<ul><li>If the address is just part of a named venue, see above, use an <a href="/wiki/h-card" title="h-card">h-card</a></li>
+<li>Otherwise use an embedded <a href="/wiki/h-adr" title="h-adr">h-adr</a> microformat on a <code>p-location</code> property value.</li></ul></li></ul>
+</div>
+<h3><span class="mw-headline" id="lat_long_an_entry_was_posted_from">lat long an entry was posted from</span></h3>
+<div class="discussion">
+<ul><li><b>How do you indicate the latitude and longitude of where an entry was posted from?</b>
+<ul><li>If the location has a name in addition to latitude and longitude, see above, use an <a href="/wiki/h-card" title="h-card">h-card</a></li>
+<li>Otherwise if there is an address in addition to latitude and longitude, see above, use an <a href="/wiki/h-adr" title="h-adr">h-adr</a></li>
+<li>Otherwise use an embedded <a href="/wiki/h-geo" title="h-geo">h-geo</a> microformat on a <code>p-location</code> property value.</li></ul></li></ul>
+</div>
+<h3><span class="mw-headline" id="dt-published_property_and_HTML5_time_element">dt-published property and HTML5 time element</span></h3>
+<div class="discussion">
+<ul><li><b>Does the dt-published property need to be a time element?</b>
+<ul><li>The <code>dt-published</code> property should be a <code>&lt;time&gt;</code> element so that you can take advantage of HTML5's "datetime" property.</li>
+<li>This lets you specify a human-readable date in the value of the attribute, and the ISO8601 machine-readable date in the "datetime" property.</li></ul></li></ul>
+</div>
+<h3><span class="mw-headline" id="what_is_the_bare_minimum_list_of_required_properties_on_an_h-entry">what is the bare minimum list of required properties on an h-entry</span></h3>
+<dl><dt>What is the bare minimum list of required properties on an h-entry?</dt>
+<dd>No properties are explicitly required, but in practice a h-entry should have the following properties at a minimum for consumers:
+<ul><li><code>url</code></li>
+<li><code>published</code> — if there is no "published" date for the "entry", then reconsider whether it is correct (or worth) marking it up as an entry.</li></ul></dd></dl>
+<dl><dt>What properties should an h-entry have in addition to the bare minimum?</dt>
+<dd>Beyond the bare minimum, a typical h-entry should have the following as well:
+<ul><li><code>content</code> (or <code>summary</code> at least) - especially for structured content. For a plain text note, the content/summary (whichever is used) should be the same as the <code>name</code>, otherwise it will be implied from the text content of the root element.</li>
+<li><code>name</code> - for explicitly named/titled entries like blog posts and articles. Otherwise the entry is assumed to be a "title-less" <a rel="nofollow" class="external text" href="https://indieweb.org/note">note</a> (like a tweet).</li>
+<li><code>author</code> - including a nested <code><a href="/wiki/h-card" title="h-card">h-card</a></code> with author details like name, photo, url.</li></ul></dd></dl>
+<h2><span class="mw-headline" id="Examples_in_the_wild">Examples in the wild</span></h2>
+<p>Real world in the wild examples of sites and services that publish or consume h-entry:
+</p>
+<ul><li>... add uses of h-entry you see in the wild here.</li>
+<li>ind.ie mark up their <a rel="nofollow" class="external text" href="https://ind.ie/blog">blog</a> listing and <a rel="nofollow" class="external text" href="https://ind.ie/blog/autumn-events-2014/">permalink</a> pages with h-entry</li>
+<li>David John Mead marks up his profile, blog posts and comments with h-card, h-entry and h-cite on <a rel="nofollow" class="external text" href="http://davidjohnmead.com">davidjohnmead.com</a></li>
+<li><a href="/wiki/User:Brian" title="User:Brian">Brian Suda</a> marks up his blog posts up with h-entry and h-card on <a rel="nofollow" class="external text" href="http://optional.is/required/">optional.is</a></li>
+<li>Ashton McAllen marks up his blog posts, reposts, comments and likes with h-entry, h-card and h-cite on <a rel="nofollow" class="external text" href="http://acegiak.net/">acegiak.net</a></li>
+<li>Emma Kuo marks up her blog posts and notes with h-entry and h-card on <a rel="nofollow" class="external text" href="http://notenoughneon.com/">notenoughneon.com</a></li>
+<li>Scott Jenson marks up his blog posts with h-entry and h-card on <a rel="nofollow" class="external text" href="http://jenson.org/">jenson.org</a></li>
+<li>Emily McAllen marks up her blog posts with h-entry and h-card on <a rel="nofollow" class="external text" href="http://blackwoolholiday.com/">blackwoolholiday.com</a></li>
+<li>Ryan Barrett marks up his blog posts, notes, replies and likes with h-entry and h-card on <a rel="nofollow" class="external text" href="https://snarfed.org/">snarfed.org</a></li>
+<li>Barry Frost marks up his notes with h-entry, h-card and h-cite on <a rel="nofollow" class="external text" href="http://barryfrost.com/">barryfrost.com</a></li>
+<li>Amber Case marks up her profile, blog posts, replies and notes with h-entry and h-card on <a rel="nofollow" class="external text" href="http://caseorganic.com/">caseorganic.com</a></li>
+<li>Johannes Ernst marks up his blog posts with h-entry on <a rel="nofollow" class="external text" href="http://upon2020.com/blog/">upon2020.com</a></li>
+<li>Michiel de Jong marks up his profile and notes with h-entry and h-card on <a rel="nofollow" class="external text" href="https://michielbdejong.com/">michielbdejong.com</a></li>
+<li>Mike Taylor marks up his profile and blog posts with h-card and h-entry on <a rel="nofollow" class="external text" href="https://bear.im/bearlog/">bear.im</a></li></ul>
+<ul><li>Jeena Paradies marks up his profile, blog posts, notes and comments using h-card, h-entry and h-cite on <a rel="nofollow" class="external text" href="https://jeena.net/">jeena.net</a></li>
+<li>Andy Sylvester marks up his profile, blog posts and comments using h-card and h-entry on <a rel="nofollow" class="external text" href="http://andysylvester.com/2014/03/01/howto-setting-up-the-selfoss-feed-reader-with-microformats-support/">andysylvester.com</a> (note: as of 2014-03-13 using h-entry for comments instead of correct h-cite --<a href="/wiki/User:Barnabywalters" title="User:Barnabywalters">bw</a> 14:44, 13 March 2014 (UTC))</li>
+<li>Chloe Weil marks up her blog posts with h-entry on <a rel="nofollow" class="external text" href="http://chloeweil.com/blog">chloeweil.com</a></li>
+<li>Christophe Ducamp marks up his blog posts and profile with h-entry and h-card on <a rel="nofollow" class="external text" href="http://christopheducamp.com/">christopheducamp.com</a></li>
+<li>Glenn Jones marks up his blog posts, notes, replies, profile and comments with h-entry, h-card and h-cite on <a rel="nofollow" class="external text" href="http://glennjones.net/">glennjones.net</a></li>
+<li>Marcus Povey marks up his blog posts and profile with h-entry and h-card on <a rel="nofollow" class="external text" href="http://www.marcus-povey.co.uk/">marcus-povey.co.uk</a></li>
+<li>Matthias Pfefferle marks up his blog posts, comments and profile with h-card, h-cite and h-entry on <a rel="nofollow" class="external text" href="http://notizblog.org/">notizblog.org</a></li>
+<li>Okinawan-lyrics marks up his posts with h-entry and h-card (<a rel="nofollow" class="external text" href="http://www.okinawan-lyrics.com/">example</a>)</li>
+<li>App.net marks up profile pages and permalink pages with h-entry as of 2013-08-06 (<a rel="nofollow" class="external text" href="https://alpha.app.net/voidfiles">example</a>)</li>
+<li>The Twitter archive browser UI uses h-entry and h-card internally, unfortunately it’s not exposed as HTML in static files anywhere</li>
+<li>Brett Comnes marks up his posts with h-entry and h-card (<a rel="nofollow" class="external text" href="http://bret.io/2013/06/29/getting-started-with-bower/">example</a>)</li>
+<li>Ben Werdmuller marks up his posts with h-card and h-entry, u-in-reply-to and u-like (<a rel="nofollow" class="external text" href="http://werd.io/view/51d5097fbed7ded0633a5956">example</a>)</li>
+<li>Sandeep Shetty marks his posts up with h-card and h-entry, as well as draft u-in-reply-to and experimental u-like properties (<a rel="nofollow" class="external text" href="http://sandeep.io/101">example</a>)</li>
+<li>Laurent Eschenauer marks up his posts with h-entry (<a rel="nofollow" class="external text" href="http://eschnou.com/entry/first-autonomous-flight-of-my-nodecopter-62-24992.html">example</a>)</li>
+<li>Tom Morris marks up his posts using h-entry (<a rel="nofollow" class="external text" href="http://tommorris.org/posts/8417">example</a>)</li>
+<li>Numerous newer W3C specs, e.g.
+<ul><li><a rel="nofollow" class="external text" href="http://www.w3.org/TR/2013/CR-css3-values-20130404/">CSS Values and Units Module Level 3 - 2013-04-04</a></li>
+<li><a rel="nofollow" class="external text" href="http://www.w3.org/TR/2013/CR-css3-conditional-20130404/">CSS Conditional Rules Module Level 3 - 2013-04-04</a></li>
+<li><a rel="nofollow" class="external text" href="http://www.w3.org/TR/2013/WD-css3-page-20130314/">CSS Paged Media Module Level 3 - 2013-03-14</a></li>
+<li><a rel="nofollow" class="external text" href="http://www.w3.org/TR/2013/WD-css-counter-styles-3-20130221/">CSS Counter Styles Level 3 - 2013-02-21</a></li></ul></li>
+<li><a rel="nofollow" class="external text" href="http://wordpress.org/extend/themes/sempress">SemPress</a> is a WordPress theme that supports h-card, h-feed/h-entry.</li>
+<li><a rel="nofollow" class="external text" href="http://the-pastry-box-project.net/">The Pastry Box Project</a> use h-card and h-entry markup on their homepage and individual thoughts pages</li>
+<li>Aaron Parecki uses h-entry to mark up notes, e.g. <a rel="nofollow" class="external text" href="http://aaronparecki.com/2012/230/reply/1">2012/230/reply/1</a>.</li>
+<li><a rel="nofollow" class="external text" href="http://tantek.com/">Tantek Çelik</a> uses h-entry on his home page, as well as h-entry on all post permalinks, e.g. <a rel="nofollow" class="external text" href="http://tantek.com/2012/243/t1/name-beats-title-modern-use-dubline-core-wrong-uf2">2012-243 post</a>, with <a href="/wiki/rel-prev" title="rel-prev">rel-prev</a>/<a href="/wiki/rel-next" title="rel-next">rel-next</a> (if applicable) to indicate prev/next posts</li>
+<li><a rel="nofollow" class="external text" href="http://waterpigs.co.uk/">Barnaby Walters</a> uses h-entry on all notes and articles, as well as nested within notes as reply contexts <a rel="nofollow" class="external text" href="http://waterpigs.co.uk/notes/1468/">example</a> and comments <a rel="nofollow" class="external text" href="http://waterpigs.co.uk/notes/1482/">example</a>.</li></ul>
+<h3><span class="mw-headline" id="offline">offline</span></h3>
+<ul><li>Erin Jo Ritchey marked up her profile, posts and comments using h-card, h-entry and h-cite with idno on http://erinjo.is/</li>
+<li>Kyle Mahan marked up his profile and notes with h-card and h-entry on http://kylewm.com/</li>
+<li>spreadly marks up share permalink pages with h-entry, as well as minimal h-cards and experimental p-like properties</li></ul>
+<h2><span class="mw-headline" id="Validating">Validating</span></h2>
+<ul><li><b><a rel="nofollow" class="external text" href="http://indiewebify.me/validate-h-entry/">indiewebify.me h-entry validator</a></b> parses <a class="mw-selflink selflink">h-entry</a> markup, finds common errors and makes suggestions for things to add, with code samples</li>
+<li><b><a rel="nofollow" class="external text" href="http://shrewdness.waterpigs.co.uk/test/">Shrewdness h-entry/h-feed validator</a></b> shows how shrewdness interprets+displays h-entries, with original source and interim formats, works for single h-entries and feed pages</li></ul>
+<div style="text-indent:2em;font-style:italic">Main article: <a href="/wiki/validators" title="validators">validators</a></div>
+<p>Test and validate <a href="/wiki/microformats2" title="microformats2">microformats2</a> markup in general with: 
+</p>
+<ul><li><a rel="nofollow" class="external free" href="https://pin13.net/mf2/">https://pin13.net/mf2/</a> - enter your markup directly</li>
+<li><a rel="nofollow" class="external free" href="https://pin13.net/">https://pin13.net/</a> - enter a URL to a page to test where it says "Microformats Parser"</li></ul>
+<h2><span class="mw-headline" id="Implementations">Implementations</span></h2>
+<p>Software implementations that publish or consume h-entry, including themes, plugins, or extensions:
+</p><p>(This section is a stub that needs expansion! In practice, nearly every CMS on every <a rel="nofollow" class="external text" href="https://indieweb.org/">indie web</a> site supports publishing h-entry by default.)
+</p><p>When adding an implementation, please provide and link to its home page and open source repo if any.
+</p>
+<ul><li><a rel="nofollow" class="external text" href="https://gnu.io/social/">GNUsocial</a> <a rel="nofollow" class="external text" href="https://git.gnu.io/gnu/gnu-social/">source code</a></li>
+<li><a rel="nofollow" class="external text" href="https://hubzilla.org/hubzilla/">Hubzilla</a> <a rel="nofollow" class="external text" href="https://github.org/redmatrix/hubzilla">source code</a></li>
+<li><a rel="nofollow" class="external text" href="http://friendica.com/">Friendica</a> <a rel="nofollow" class="external text" href="https://github.org/friendica/friendica">source code</a></li>
+<li><a rel="nofollow" class="external text" href="http://github.com/dissolve/inkblot">InkBlot</a></li>
+<li>...</li></ul>
+<h2><span class="mw-headline" id="Backward_Compatibility">Backward Compatibility</span></h2>
+<h3><span class="mw-headline" id="Publisher_Compatibility">Publisher Compatibility</span></h3>
+<p>For backward compatibility with legacy <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> consuming implementations, use <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> classnames (or rel values) in addition to the more future-proof h-entry properties, for example:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">article</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-entry hentry&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h1</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name entry-title&quot;</span><span class="p">&gt;</span>A Tale Of Two Tags<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">address</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-author author h-card vcard&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://chandra.example.com/&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;u-url url p-name fn&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;author&quot;</span><span class="p">&gt;</span>Chandra<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">address</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">time</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dt-published published&quot;</span> <span class="na">datetime</span><span class="o">=</span><span class="s">&quot;2012-06-20T08:34:46-07:00&quot;</span><span class="p">&gt;</span>June 20, 2012<span class="p">&lt;/</span><span class="nt">time</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;e-content entry-content&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>It was the best of visible tags, it was the alternative invisible tags.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>The a tag is perhaps the best of HTML, yet its corresponding invisible link tag has uses too.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/category/uncategorized/&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;category tag&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-category&quot;</span><span class="p">&gt;</span>General<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">article</span><span class="p">&gt;</span>
+</pre></div>
+<div style="text-indent:2em;font-weight:bold;padding:1em;background:#FFFFCC">ℹ️ Note: Note: you may use any valid HTML5 elements. The <code>article h1 address time</code> elements are used in the example as semantically richer suggestions, however in general <code>div span</code> work fine too. The <code>time</code> element is special though in that its <code>datetime</code> attribute provides a more author/user friendly way of separating a machine readable ISO8601 datetime from a human readable summary.
+</div>
+<p>The list of equivalent <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> classnames and rel values is provided below.
+</p>
+<h3><span class="mw-headline" id="Parser_Compatibility">Parser Compatibility</span></h3>
+<p>Microformats parsers <em title="SHOULD in &#82;FC 2119 context" style="text-transform: lowercase; font-style: italic;" class="&#82;FC2119">SHOULD</em> detect classic properties only if a classic root class name is found and parse them as microformats2 properties. 
+</p><p>If an "h-entry" is found, don't look for an "hentry" on the same element.
+</p><p>Compat root class name: <code id="hentry">hentry</code><br />
+Properties: (parsed as <b>p-</b> plain text unless otherwise specified):
+</p>
+<ul><li><code>entry-title</code> - parse as <b><code>p-name</code></b></li>
+<li><code>entry-summary</code> - parse as <b><code>p-summary</code></b></li>
+<li><code>entry-content</code> - parse as <b><code>e-content</code></b></li>
+<li><code>published</code> - parse as <b>dt-</b></li>
+<li><code>updated</code> - parse as <b>dt-</b></li>
+<li><code>author</code> - including compat root <code>vcard</code> in the absence of <code>h-card</code></li>
+<li><code>category</code></li>
+<li><code>rel=bookmark</code> - parse as <b><code>u-url</code></b>. While not a class name nor typical microformats property, rel=bookmark was the only way to indicate an hentry permalink. Thus parsers should look for rel=bookmark hyperlinks inside an hentry, and take their "href" value as a value for a <b><code>u-url</code></b> property, including handling any relative URL resolution.</li>
+<li><code>rel=tag</code> - parse as <b><code>p-category</code></b>. While not a class name nor typical microformats property, rel=tag was the typical way to tag an hentry. Thus parsers should look for rel=tag hyperlinks inside an hentry, and take the last path segment of their "href" value as a value for a <b><code>p-category</code></b> property.</li></ul>
+<p>Proposed: (<a rel="nofollow" class="external text" href="https://github.com/microformats/h-entry/issues/7">follow-up in issue #7</a>)
+</p>
+<ul><li><code>time.entry-date[datetime]</code> - in the absence of <code>published</code>, parse as <b><code>dt-published</code></b>. parse for the first <code>&lt;time&gt;</code> element with class name of <code>entry-date</code> and non-empty <code>datetime</code> attribute inside an hentry, if there is no <code>published</code> property, use that time element's <code>datetime</code> attribute value for the <code>dt-published</code> property. Evidence: default WordPress themes 2011-2014(<a rel="nofollow" class="external autonumber" href="https://wp-themes.com/twentyeleven/">[1]</a><a rel="nofollow" class="external autonumber" href="https://wp-themes.com/twentytwelve/">[2]</a><a rel="nofollow" class="external autonumber" href="https://wp-themes.com/twentythirteen/">[3]</a><a rel="nofollow" class="external autonumber" href="https://wp-themes.com/twentyfourteen/">[4]</a>).</li>
+<li><code>rel=author</code> - in the absence of <code>author</code>, parse as <b><code>u-author</code></b>. While not a class name nor typical microformats property, rel=author was commonly used to link to an author's URL. Thus parsers should look for rel=author hyperlinks inside an hentry (or even on the same page, preceding the hentry), use the absolute version of it as a value for the <b><code>u-author</code></b> property if there is no "author" property. (citations to "hentry" examples in the wild that <em>depend</em> on rel=author needed to accepted this proposal. Note: default WordPress themes twentyeleven, twentytwelve, twentythirteen, twentyfourteen all use rel=author but only inside class="author vcard", and thus rel=author can be ignored since authorship is already picked up by existing <code>author</code> backcompat parsing.)</li></ul>
+<h3><span class="mw-headline" id="Compat_FAQ">Compat FAQ</span></h3>
+<h4><span class="mw-headline" id="What_about_rel_bookmark">What about rel bookmark</span></h4>
+<p>Also asked as: <i>Why use an h-entry u-url u-uid for permalinks when I have <a href="/wiki/rel-bookmark" class="mw-redirect" title="rel-bookmark">rel=bookmark</a>?</i>
+</p><p>A: tl;dr: use <code>class="u-url u-uid"</code> instead of <code>rel=bookmark</code> for post permalinks because it's simpler (fewer attributes), and works better across contexts (permalink page, recent posts on home page, collection of posts on archive pages).
+</p><p>rel=bookmark was the old <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> way of marking up permalinks. Since then two factors have contributed to reducing use of rel inside microformats:
+</p>
+<ul><li>rel by typically* document scoped in <a href="/wiki/HTML5" class="mw-redirect" title="HTML5">HTML5</a> - thus making it inappropriate for use in microformats that are aggregated, e.g. a collection of posts on a home page or in monthly archives.</li>
+<li>it is easier to always use class names for properties. When formats use two (or more!) attributes in HTML to specify properties, confusion results in lower data quality (of the markup and thus the stuff that is marked up). Thus per the microformats <a href="/wiki/principle" class="mw-redirect" title="principle">principle</a> of <a href="/wiki/simplicity" class="mw-redirect" title="simplicity">simplicity</a>, in <a href="/wiki/microformats2" title="microformats2">microformats2</a> we only use class names for properties.</li></ul>
+<p>* even though rel=bookmark in particular is article-element / sectioning scoped in HTML5<a rel="nofollow" class="external autonumber" href="http://www.whatwg.org/specs/web-apps/current-work/multipage/links.html#link-type-bookmark">[5]</a>, it's a detail that typical authors are not going to remember, and thus it's not good to depend on it for any kind of format.
+</p>
+<h4><span class="mw-headline" id="Why_rename_entry-title_entry-summary_entry-content">Why rename entry-title entry-summary entry-content</span></h4>
+<p>The <code>entry-*</code> classnames in classic <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> were prefixed as such due to concerns about vocabulary overlap with the title (as in job title, completely separate semantic) property in <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a> and the summary property in <a href="/wiki/hCalendar" class="mw-redirect" title="hCalendar">hCalendar</a> (see: <a href="/wiki/hatom-faq#Could_hAtom_instead_use_title_content_and_summary" title="hatom-faq">hAtom FAQ</a>).
+</p><p>Following the <a href="/wiki/simplicity" class="mw-redirect" title="simplicity">simplicity</a> principle, in microformats2, the aforementioned vagueness of <b>title</b> is dealt with by removing it. As <b>name</b> is now used consistently across all vocabularies as the property which “names” the microformat, it makes sense to use it to mark up the name of a post.
+</p><p>Likewise, adding entry- to <b>summary</b> doesn’t add any useful information, and in practice there have been no problems with blog post summaries overlapping with entry summaries, so it makes sense to simplify to <b>summary</b>. The same applies to <b>entry-content</b> simplified to <b>content</b>.
+</p><p>See also: <a rel="nofollow" class="external text" href="http://krijnhoetmer.nl/irc-logs/microformats/20120830#l-128">2012-08-30 IRC conversation</a>.
+</p>
+<h2><span class="mw-headline" id="Related_Work">Related Work</span></h2>
+<p>Work that re-uses or builds upon h-entry:
+</p>
+<ul><li><a rel="nofollow" class="external text" href="https://mailpile.pagekite.me:8080/p/Open_Message_Format">Mailpile Open Message Format</a> is using h-entry with structured properties, e.g. p-author h-card.</li></ul>
+<h2><span class="mw-headline" id="Background">Background</span></h2>
+<p>This work is based on the existing <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> microformat, and extensive selfdogfooding in the <a rel="nofollow" class="external text" href="http://indiewebcamp.com">indie web camp</a> community.
+</p>
+<h2><span class="mw-headline" id="change_control">change control</span></h2>
+<p>Minor editorial changes (e.g. fixing minor typos or punctuation) that do not change and preferably clarify the structure and existing intended meaning may be done by anyone without filing issues, requiring only a sufficient "Summary" description field entry for the edit. More than minor but still purely editorial changes may be made by an editor. Anyone may question such editorial changes by undoing corresponding edits without filing an issue. Any further reversion or iteration on such an editorial change must be done by filing an issue.
+</p><p>For the stable features of this document, substantive issue filing, resolution, and edits may be done by filing an <a href="/wiki/h-entry-issues" title="h-entry-issues">issue</a> and discussing them on the issue and on #microformats <a href="/wiki/IRC" class="mw-redirect" title="IRC">IRC</a> with a link to the issue.
+</p><p>Because this is primarily a vocabulary specification, very few issues beyond the list of vocabulary have been filed or required any lengthy discussion. If such a non-trivial issue arises in the future, use the <a href="/wiki/microformats2-parsing#change_control" title="microformats2-parsing">microformats2-parsing change control process</a> to resolve them.
+</p><p>In general, non-vocabulary related features or requirements should be avoided in this specification, e.g. changes to microformats2 syntax must be proposed as <a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a> changes using the <a href="/wiki/microformats2-parsing#change_control" title="microformats2-parsing">microformats2-parsing change control process</a>.
+</p><p>Beyond that, the following requirements must be met for adding or moving features (e.g. properties and values) to proposed, draft, or stable. File an issue to collect necessary citations for the requirements for each property being proposed or upgraded, explain how citations fulfill the requirements for the phase(s), get consensus on both (resolve any implementer objections) in the issue.
+</p>
+<dl><dt>Proposed</dt>
+<dd><a href="#Proposed_Additions">Proposed features</a> must provide documentation of what specific real world use-cases they are solving, preferably with a link to a step-by-step user scenario, e.g. demonstratable using existing non-standard / single-site / single-implementation tools.</dd>
+<dt>Draft</dt>
+<dd><a href="#Draft_Properties">Draft properties</a> must in addition be published and consumed in the wild on the public web, demonstrate solving the use case for which they were proposed, and should provide citations of real world public web sites publishing and (other sites) consuming them, interoperably.</dd>
+<dt>Stable</dt>
+<dd>Stable features (e.g. <a href="#Core_Properties">Core Properties</a>) must in addition be published and consumed in the wild on multiple sites by multiple implementations (3+ different sites and implementations for publishing and  consuming). When a draft property reaches a critical mass of deployment by numerous sites and implementations (far beyond 3+), due to network effects and backward compatibility considerations it effectively becomes stable, since it becomes increasingly difficult to change it in any way and have so many sites and implementations also change.</dd></dl>
+<p>For creating an entirely new vocabulary, and more details about how to research existing values, properties, document examples in the wild, etc., see the microformats <a href="/wiki/process" title="process">process</a>.
+</p>
+<h2><span class="mw-headline" id="See_Also">See Also</span></h2>
+<ul><li><a href="/wiki/h-feed" title="h-feed">h-feed</a></li>
+<li><a href="/wiki/microformats2" title="microformats2">microformats2</a></li>
+<li><a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a></li>
+<li><a href="/wiki/h-geo" title="h-geo">h-geo</a></li>
+<li><a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a></li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20261106140211
+Cache expiry: 3600
+Reduced expiry: true
+Complications: []
+CPU time usage: 0.071 seconds
+Real time usage: 1.672 seconds
+Preprocessor visited node count: 257/1000000
+Post‐expand include size: 1459/2097152 bytes
+Template argument size: 434/2097152 bytes
+Highest expansion depth: 4/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 11263/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00% 1480.362      1 -total
+  0.35%    5.232      1 Template:cc0-owfa-license
+  0.30%    4.472      1 Template:h-spec-section-validating
+  0.18%    2.643      1 Template:note
+  0.15%    2.205      1 Template:main
+  0.09%    1.270      1 Template:should
+-->
+
+<!-- Saved in parser cache with key wiki:pcache:idhash:9081-0!canonical and timestamp 20261106140210 and revision id 70830. Serialized with JSON.
+ -->
+</div>
+<div class="printfooter">Retrieved from "<a dir="ltr" href="http://microformats.org/wiki/index.php?title=h-entry&amp;oldid=70830">http://microformats.org/wiki/index.php?title=h-entry&amp;oldid=70830</a>"</div></div>
+		<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Specifications" title="Category:Specifications">Specifications</a></li></ul></div></div>
+	</div>
+</div>
+
+<div id="mw-navigation">
+	<h2>Navigation menu</h2>
+	<div id="mw-head">
+		
+<nav id="p-personal" class="mw-portlet mw-portlet-personal vector-user-menu-legacy vector-menu" aria-labelledby="p-personal-label" role="navigation" 
+	 >
+	<label id="p-personal-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Personal tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="pt-login" class="mw-list-item"><a href="/wiki/index.php?title=Special:UserLogin&amp;returnto=h-entry" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span>Log in</span></a></li></ul>
+		
+	</div>
+</nav>
+
+		<div id="left-navigation">
+			
+<nav id="p-namespaces" class="mw-portlet mw-portlet-namespaces vector-menu vector-menu-tabs" aria-labelledby="p-namespaces-label" role="navigation" 
+	 >
+	<label id="p-namespaces-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Namespaces</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/h-entry" title="View the content page [c]" accesskey="c"><span>Page</span></a></li><li id="ca-talk" class="new mw-list-item"><a href="/wiki/index.php?title=Talk:h-entry&amp;action=edit&amp;redlink=1" rel="discussion" title="Discussion about the content page (page does not exist) [t]" accesskey="t"><span>Discussion</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-variants" class="mw-portlet mw-portlet-variants emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-variants-label" role="navigation" 
+	 >
+	<input type="checkbox"
+		id="p-variants-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-variants"
+		class="vector-menu-checkbox" aria-labelledby="p-variants-label" />
+	<label id="p-variants-label" aria-label="Change language variant" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">English</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+		</div>
+		<div id="right-navigation">
+			
+<nav id="p-views" class="mw-portlet mw-portlet-views vector-menu vector-menu-tabs" aria-labelledby="p-views-label" role="navigation" 
+	 >
+	<label id="p-views-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Views</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-view" class="selected mw-list-item"><a href="/wiki/h-entry"><span>Read</span></a></li><li id="ca-viewsource" class="mw-list-item"><a href="/wiki/index.php?title=h-entry&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e"><span>View source</span></a></li><li id="ca-history" class="mw-list-item"><a href="/wiki/index.php?title=h-entry&amp;action=history" title="Past revisions of this page [h]" accesskey="h"><span>View history</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-cactions" class="mw-portlet mw-portlet-cactions emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-cactions-label" role="navigation"  title="More options"
+	 >
+	<input type="checkbox"
+		id="p-cactions-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-cactions"
+		class="vector-menu-checkbox" aria-labelledby="p-cactions-label" />
+	<label id="p-cactions-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">More</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+			
+<div id="p-search" role="search" class="vector-search-box-vue  vector-search-box-show-thumbnail vector-search-box-auto-expand-width vector-search-box">
+	<div>
+			<h3 >
+				<label for="searchInput">Search</label>
+			</h3>
+		<form action="/wiki/index.php" id="searchform"
+			class="vector-search-box-form">
+			<div id="simpleSearch"
+				class="vector-search-box-inner"
+				 data-search-loc="header-navigation">
+				<input class="vector-search-box-input"
+					 type="search" name="search" placeholder="Search Microformats Wiki" aria-label="Search Microformats Wiki" autocapitalize="none" title="Search Microformats Wiki [f]" accesskey="f" id="searchInput"
+				/>
+				<input type="hidden" name="title" value="Special:Search"/>
+				<input id="mw-searchButton"
+					 class="searchButton mw-fallbackSearchButton" type="submit" name="fulltext" title="Search the pages for this text" value="Search" />
+				<input id="searchButton"
+					 class="searchButton" type="submit" name="go" title="Go to a page with this exact name if it exists" value="Go" />
+			</div>
+		</form>
+	</div>
+</div>
+
+		</div>
+	</div>
+	
+
+<div id="mw-panel">
+	<div id="p-logo" role="banner">
+		<a class="mw-wiki-logo" href="/wiki/Main_Page"
+			title="Visit the main page"></a>
+	</div>
+	
+<nav id="p-Microformats_Wiki" class="mw-portlet mw-portlet-Microformats_Wiki vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats_Wiki-label" role="navigation" 
+	 >
+	<label id="p-Microformats_Wiki-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats Wiki</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Front-Page" class="mw-list-item"><a href="/wiki/Main_Page"><span>Front Page</span></a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" icon="recentChanges" title="A list of recent changes in the wiki [r]" accesskey="r"><span>Recent changes</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+<nav id="p-Microformats" class="mw-portlet mw-portlet-Microformats vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats-label" role="navigation" 
+	 >
+	<label id="p-Microformats-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Blog" class="mw-list-item"><a href="http://microformats.org" rel="nofollow"><span>Blog</span></a></li><li id="n-Events" class="mw-list-item"><a href="/wiki/Microformats_Wiki:Current_events"><span>Events</span></a></li><li id="n-About" class="mw-list-item"><a href="/wiki/About"><span>About</span></a></li></ul>
+		
+	</div>
+</nav>
+
+<nav id="p-tb" class="mw-portlet mw-portlet-tb vector-menu vector-menu-portal portal" aria-labelledby="p-tb-label" role="navigation" 
+	 >
+	<label id="p-tb-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/h-entry" title="A list of all wiki pages that link here [j]" accesskey="j"><span>What links here</span></a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/h-entry" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k"><span>Related changes</span></a></li><li id="t-specialpages" class="mw-list-item"><a href="/wiki/Special:SpecialPages" title="A list of all special pages [q]" accesskey="q"><span>Special pages</span></a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p"><span>Printable version</span></a></li><li id="t-permalink" class="mw-list-item"><a href="/wiki/index.php?title=h-entry&amp;oldid=70830" title="Permanent link to this revision of the page"><span>Permanent link</span></a></li><li id="t-info" class="mw-list-item"><a href="/wiki/index.php?title=h-entry&amp;action=info" title="More information about this page"><span>Page information</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+</div>
+
+</div>
+
+<footer id="footer" class="mw-footer" role="contentinfo" >
+	<ul id="footer-info">
+	<li id="footer-info-lastmod"> This page was last edited on 2 July 2025, at 23:12.</li>
+</ul>
+
+	<ul id="footer-places">
+	<li id="footer-places-privacy"><a href="/wiki/Microformats_Wiki:Privacy_policy" title="Microformats Wiki:Privacy policy">Privacy policy</a></li>
+	<li id="footer-places-about"><a href="/wiki/Microformats_Wiki:About" title="Microformats Wiki:About">About Microformats Wiki</a></li>
+	<li id="footer-places-disclaimer"><a href="/wiki/Microformats_Wiki:General_disclaimer" title="Microformats Wiki:General disclaimer">Disclaimers</a></li>
+</ul>
+
+	<ul id="footer-icons" class="noprint">
+	<li id="footer-poweredbyico"><a href="https://www.mediawiki.org/"><img src="/wiki/resources/assets/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" srcset="/wiki/resources/assets/poweredby_mediawiki_132x47.png 1.5x, /wiki/resources/assets/poweredby_mediawiki_176x62.png 2x" width="88" height="31" loading="lazy"/></a></li>
+</ul>
+
+</footer>
+
+<script src="https://www.googletagmanager.com/gtag/js?id=UA-1889385-1" async=""></script><script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'UA-1889385-1');
+</script>
+
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgPageParseReport":{"limitreport":{"cputime":"0.071","walltime":"1.672","ppvisitednodes":{"value":257,"limit":1000000},"postexpandincludesize":{"value":1459,"limit":2097152},"templateargumentsize":{"value":434,"limit":2097152},"expansiondepth":{"value":4,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":11263,"limit":5000000},"timingprofile":["100.00% 1480.362      1 -total","  0.35%    5.232      1 Template:cc0-owfa-license","  0.30%    4.472      1 Template:h-spec-section-validating","  0.18%    2.643      1 Template:note","  0.15%    2.205      1 Template:main","  0.09%    1.270      1 Template:should"]},"cachereport":{"timestamp":"20261106140211","ttl":3600,"transientcontent":true}}});mw.config.set({"wgBackendResponseTime":131});});</script>
+</body>
+</html>

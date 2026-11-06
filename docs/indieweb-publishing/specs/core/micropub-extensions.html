@@ -1,0 +1,2217 @@
+<!DOCTYPE html>
+<html class="client-nojs vector-feature-language-in-header-enabled vector-feature-language-in-main-page-header-disabled vector-feature-sticky-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-zebra-design-disabled vector-feature-custom-font-size-clientpref-disabled vector-feature-client-preferences-disabled vector-feature-typography-survey-disabled vector-toc-available" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>Micropub-extensions - IndieWeb</title>
+<script>(function(){var className="client-js vector-feature-language-in-header-enabled vector-feature-language-in-main-page-header-disabled vector-feature-sticky-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-zebra-design-disabled vector-feature-custom-font-size-clientpref-disabled vector-feature-client-preferences-disabled vector-feature-typography-survey-disabled vector-toc-available";var cookie=document.cookie.match(/(?:^|; )wikimwclientpreferences=([^;]+)/);if(cookie){cookie[1].split('%2C').forEach(function(pref){className=className.replace(new RegExp('(^| )'+pref.replace(/-clientpref-\w+$|[^\w-]+/g,'')+'-clientpref-\\w+( |$)'),'$1'+pref+'$2');});}document.documentElement.className=className;}());RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],
+"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"b87dd94c1739a5c3a3b4c2ce","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"Micropub-extensions","wgTitle":"Micropub-extensions","wgCurRevisionId":114406,"wgRevisionId":114406,"wgArticleId":6090,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Micropub"],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"Micropub-extensions","wgRelevantArticleId":6090,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[]};RLSTATE={"skins.vector.user.styles":"ready","site.styles":"ready","user.styles":"ready","skins.vector.user":"ready","user":"ready","user.options":"loading","codex-search-styles":"ready",
+"skins.vector.styles":"ready","skins.vector.icons":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.vector.js"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=codex-search-styles%7Cskins.vector.icons%2Cstyles&amp;only=styles&amp;skin=vector-2022">
+<script async="" src="/wiki/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector-2022"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=vector-2022">
+<meta name="generator" content="MediaWiki 1.41.0">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Micropub extensions are Micropub protocol-related features that are proposed, prototyped, or implemented in Micropub clients and servers beyond the official Micropub specification.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="icon" href="/favicon.ico">
+<link rel="search" type="application/opensearchdescription+xml" href="/wiki/opensearch_desc.php" title="IndieWeb (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://indieweb.org/wiki/api.php?action=rsd">
+<link rel="license" href="/IndieWebCamp:Copyrights">
+<link rel="alternate" type="application/atom+xml" title="IndieWeb Atom feed" href="/wiki/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="IndieWeb">
+
+	<meta property="og:title" content="Micropub-extensions">
+
+	<meta property="og:description" content="Micropub extensions are Micropub protocol-related features that are proposed, prototyped, or implemented in Micropub clients and servers beyond the official Micropub specification.">
+
+	<meta property="og:url" content="https://indieweb.org/Micropub-extensions">
+
+<link rel="webmention" href="https://webmention.io/indiewebcamp/webmention">
+
+<script src="https://cdn.usefathom.com/script.js" site="ZPHFRYAA" defer></script>
+</head>
+<body class="skin-vector skin-vector-search-vue mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-Micropub-extensions rootpage-Micropub-extensions skin-vector-2022 action-view skin--responsive"><a class="mw-jump-link" href="#bodyContent">Jump to content</a>
+<div class="vector-header-container">
+	<header class="vector-header mw-header">
+		<div class="vector-header-start">
+			<nav class="vector-main-menu-landmark" aria-label="Site" role="navigation">
+				
+<div id="vector-main-menu-dropdown" class="vector-dropdown vector-main-menu-dropdown vector-button-flush-left vector-button-flush-right"  >
+	<input type="checkbox" id="vector-main-menu-dropdown-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-main-menu-dropdown" class="vector-dropdown-checkbox "  aria-label="Main menu"  >
+	<label id="vector-main-menu-dropdown-label" for="vector-main-menu-dropdown-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only " aria-hidden="true"  ><span class="vector-icon mw-ui-icon-menu mw-ui-icon-wikimedia-menu"></span>
+
+<span class="vector-dropdown-label-text">Main menu</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+				<div id="vector-main-menu-unpinned-container" class="vector-unpinned-container">
+		
+<div id="vector-main-menu" class="vector-main-menu vector-pinnable-element">
+	<div
+	class="vector-pinnable-header vector-main-menu-pinnable-header vector-pinnable-header-unpinned"
+	data-feature-name="main-menu-pinned"
+	data-pinnable-element-id="vector-main-menu"
+	data-pinned-container-id="vector-main-menu-pinned-container"
+	data-unpinned-container-id="vector-main-menu-unpinned-container"
+>
+	<div class="vector-pinnable-header-label">Main menu</div>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-pin-button" data-event-name="pinnable-header.vector-main-menu.pin">move to sidebar</button>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-unpin-button" data-event-name="pinnable-header.vector-main-menu.unpin">hide</button>
+</div>
+
+	
+<div id="p-" class="vector-menu mw-portlet mw-portlet- emptyPortlet"  >
+	<div class="vector-menu-heading">
+		
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			
+		</ul>
+		
+	</div>
+</div>
+
+	
+	
+<div id="p-Explore_the_IndieWeb" class="vector-menu mw-portlet mw-portlet-Explore_the_IndieWeb"  >
+	<div class="vector-menu-heading">
+		Explore the IndieWeb
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🗽-Principles" class="mw-list-item"><a href="/principles"><span>🗽 Principles</span></a></li><li id="n-📜-Community-posts" class="mw-list-item"><a href="https://stream.indieweb.org/"><span>📜 Community posts</span></a></li><li id="n-🌐-Visit-a-random-site" class="mw-list-item"><a href="https://xn--sr8hvo.ws/random"><span>🌐 Visit a random site</span></a></li><li id="n-🌱-Get-a-personal-site" class="mw-list-item"><a href="/Getting_Started"><span>🌱 Get a personal site</span></a></li><li id="n-ℹ️-FAQ" class="mw-list-item"><a href="/FAQ"><span>ℹ️ FAQ</span></a></li><li id="n-📩-Subscribe-to-newsletter" class="mw-list-item"><a href="/this-week-in-the-indieweb"><span>📩 Subscribe to newsletter</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-New_and_coming_up_soon" class="vector-menu mw-portlet mw-portlet-New_and_coming_up_soon"  >
+	<div class="vector-menu-heading">
+		New and coming up soon
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🎁-IndieWeb-Gift-Calendar!" class="mw-list-item"><a href="/2026-12-indieweb-gift-calendar"><span>🎁 IndieWeb Gift Calendar!</span></a></li><li id="n-🎪-IWC-San-Diego-12/12…13" class="mw-list-item"><a href="/next-iwc"><span>🎪 IWC San Diego 12/12…13</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-Join_the_community" class="vector-menu mw-portlet mw-portlet-Join_the_community"  >
+	<div class="vector-menu-heading">
+		Join the community
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🌈-Code-of-conduct" class="mw-list-item"><a href="/code-of-conduct"><span>🌈 Code of conduct</span></a></li><li id="n-💬-Join-#indieweb-chat" class="mw-list-item"><a href="/discuss"><span>💬 Join #indieweb chat</span></a></li><li id="n-📜-Chat-log" class="mw-list-item"><a href="https://chat.indieweb.org/"><span>📜 Chat log</span></a></li><li id="n-📅-Events" class="mw-list-item"><a href="https://events.indieweb.org/"><span>📅 Events</span></a></li><li id="n-👥--Meetups:-2026-11-11" class="mw-list-item"><a href="https://events.indieweb.org/tag/hwc"><span>👥  Meetups: 2026-11-11</span></a></li><li id="n-👕☕️-IndieWeb-shirts-&amp;-mugs" class="mw-list-item"><a href="/T-shirt"><span>👕☕️ IndieWeb shirts &amp; mugs</span></a></li><li id="n-❤️-Sponsor" class="mw-list-item"><a href="/how-to-sponsor"><span>❤️ Sponsor</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-Developers" class="vector-menu mw-portlet mw-portlet-Developers"  >
+	<div class="vector-menu-heading">
+		Developers
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🔩-Building-Blocks" class="mw-list-item"><a href="/Category:building-blocks"><span>🔩 Building Blocks</span></a></li><li id="n-🛠-Tools" class="mw-list-item"><a href="/Tools"><span>🛠 Tools</span></a></li><li id="n-🧰-Projects" class="mw-list-item"><a href="/Projects"><span>🧰 Projects</span></a></li><li id="n-🔌-Standards" class="mw-list-item"><a href="https://spec.indieweb.org/"><span>🔌 Standards</span></a></li><li id="n-💬-Join-developer-chat" class="mw-list-item"><a href="/discuss#dev"><span>💬 Join developer chat</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-Wiki_resources" class="vector-menu mw-portlet mw-portlet-Wiki_resources"  >
+	<div class="vector-menu-heading">
+		Wiki resources
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-👤-Login" class="mw-list-item"><a href="https://sso.indieweb.org/login?url=https%3A%2F%2Findieweb.org%2F"><span>👤 Login</span></a></li><li id="n-✳️-Recent-changes" class="mw-list-item"><a href="/Special:RecentChanges"><span>✳️ Recent changes</span></a></li><li id="n-🖼-Recent-uploads" class="mw-list-item"><a href="/Special:ListFiles"><span>🖼 Recent uploads</span></a></li><li id="n-🎲-Random-page" class="mw-list-item"><a href="/Special:Random"><span>🎲 Random page</span></a></li><li id="n-📑-6,190-articles" class="mw-list-item"><a href="/Special:Statistics"><span>📑 6,190 articles</span></a></li><li id="n-©-Wiki-content-is-CC0" class="mw-list-item"><a href="/IndieWebCamp:Copyrights"><span>© Wiki content is CC0</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+	
+</div>
+
+				</div>
+
+	</div>
+</div>
+
+		</nav>
+			
+<a href="/Main_Page" class="mw-logo">
+	<span class="mw-logo-container">
+		<img class="mw-logo-wordmark" alt="IndieWeb" src="/img/indiewebcamp-logo-lockup-color@1x.png" style="width: 10.125em; height: 4.8125em;">
+	</span>
+</a>
+
+		</div>
+		<div class="vector-header-end">
+			
+<div id="p-search" role="search" class="vector-search-box-vue  vector-search-box-collapses vector-search-box-show-thumbnail vector-search-box-auto-expand-width vector-search-box">
+	<a href="/Special:Search" class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only search-toggle" id="" title="Search IndieWeb [f]" accesskey="f"><span class="vector-icon mw-ui-icon-search mw-ui-icon-wikimedia-search"></span>
+
+<span>Search</span>
+	</a>
+	<div class="vector-typeahead-search-container">
+		<div class="cdx-typeahead-search cdx-typeahead-search--show-thumbnail cdx-typeahead-search--auto-expand-width">
+			<form action="/wiki/index.php" id="searchform" class="cdx-search-input cdx-search-input--has-end-button">
+				<div id="simpleSearch" class="cdx-search-input__input-wrapper"  data-search-loc="header-moved">
+					<div class="cdx-text-input cdx-text-input--has-start-icon">
+						<input
+							class="cdx-text-input__input"
+							 type="search" name="search" placeholder="Search IndieWeb" aria-label="Search IndieWeb" autocapitalize="none" title="Search IndieWeb [f]" accesskey="f" id="searchInput"
+							>
+						<span class="cdx-text-input__icon cdx-text-input__start-icon"></span>
+					</div>
+					<input type="hidden" name="title" value="Special:Search">
+				</div>
+				<button class="cdx-button cdx-search-input__end-button">Search</button>
+			</form>
+		</div>
+	</div>
+</div>
+
+			<nav class="vector-user-links" aria-label="Personal tools" role="navigation" >
+	
+<div id="p-vector-user-menu-overflow" class="vector-menu mw-portlet mw-portlet-vector-user-menu-overflow"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="pt-login-2" class="user-links-collapsible-item mw-list-item"><a href="https://sso.indieweb.org/login?url=https%3A%2F%2Findieweb.org%2FMicropub-extensions" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span>Log in</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+	
+<div id="vector-user-links-dropdown" class="vector-dropdown vector-user-menu vector-button-flush-right vector-user-menu-logged-out"  title="More options" >
+	<input type="checkbox" id="vector-user-links-dropdown-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-user-links-dropdown" class="vector-dropdown-checkbox "  aria-label="Personal tools"  >
+	<label id="vector-user-links-dropdown-label" for="vector-user-links-dropdown-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only " aria-hidden="true"  ><span class="vector-icon mw-ui-icon-ellipsis mw-ui-icon-wikimedia-ellipsis"></span>
+
+<span class="vector-dropdown-label-text">Personal tools</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+		
+<div id="p-personal" class="vector-menu mw-portlet mw-portlet-personal"  title="User menu" >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="pt-login" class="user-links-collapsible-item mw-list-item"><a href="https://sso.indieweb.org/login?url=https%3A%2F%2Findieweb.org%2FMicropub-extensions" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span class="vector-icon mw-ui-icon-logIn mw-ui-icon-wikimedia-logIn"></span> <span>Log in</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+	
+	</div>
+</div>
+
+</nav>
+
+		</div>
+	</header>
+</div>
+<div class="mw-page-container">
+	<div class="mw-page-container-inner">
+		<div class="vector-sitenotice-container">
+			<div id="siteNotice"></div>
+		</div>
+		
+			<div class="vector-main-menu-container">
+		<div id="mw-navigation">
+			<nav id="mw-panel" class="vector-main-menu-landmark" aria-label="Site" role="navigation">
+				<div id="vector-main-menu-pinned-container" class="vector-pinned-container">
+				
+				</div>
+		</nav>
+		</div>
+	</div>
+	<input type="checkbox" id="vector-toc-collapsed-checkbox" class="vector-menu-checkbox">
+			<nav id="mw-panel-toc" role="navigation" aria-label="Contents" data-event-name="ui.sidebar-toc" class="mw-table-of-contents-container vector-toc-landmark vector-sticky-pinned-container">
+				<div id="vector-toc-pinned-container" class="vector-pinned-container">
+				<div id="vector-toc" class="vector-toc vector-pinnable-element">
+	<div
+	class="vector-pinnable-header vector-toc-pinnable-header vector-pinnable-header-pinned"
+	data-feature-name="toc-pinned"
+	data-pinnable-element-id="vector-toc"
+	
+	
+>
+	<h2 class="vector-pinnable-header-label">Contents</h2>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-pin-button" data-event-name="pinnable-header.vector-toc.pin">move to sidebar</button>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-unpin-button" data-event-name="pinnable-header.vector-toc.unpin">hide</button>
+</div>
+
+
+	<ul class="vector-toc-contents" id="mw-panel-toc-list">
+		<li id="toc-mw-content-text"
+			class="vector-toc-list-item vector-toc-level-1">
+			<a href="#" class="vector-toc-link">
+				<div class="vector-toc-text">Beginning</div>
+			</a>
+		</li>
+		<li id="toc-Why"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Why">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">1</span>Why</div>
+		</a>
+		
+		<ul id="toc-Why-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+	<li id="toc-How_to"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#How_to">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">2</span>How to</div>
+		</a>
+		
+			<button aria-controls="toc-How_to-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle How to subsection</span>
+			</button>
+		
+		<ul id="toc-How_to-sublist" class="vector-toc-list">
+			<li id="toc-How_to_propose_an_extension"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#How_to_propose_an_extension">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">2.1</span>How to propose an extension</div>
+			</a>
+			
+			<ul id="toc-How_to_propose_an_extension-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Approval_of_Extensions"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Approval_of_Extensions">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">3</span>Approval of Extensions</div>
+		</a>
+		
+			<button aria-controls="toc-Approval_of_Extensions-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Approval of Extensions subsection</span>
+			</button>
+		
+		<ul id="toc-Approval_of_Extensions-sublist" class="vector-toc-list">
+			<li id="toc-Proposed"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Proposed">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">3.1</span>Proposed</div>
+			</a>
+			
+			<ul id="toc-Proposed-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Stable"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Stable">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">3.2</span>Stable</div>
+			</a>
+			
+			<ul id="toc-Stable-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Official"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Official">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">3.3</span>Official</div>
+			</a>
+			
+			<ul id="toc-Official-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Official_Extensions"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Official_Extensions">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">4</span>Official Extensions</div>
+		</a>
+		
+		<ul id="toc-Official_Extensions-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+	<li id="toc-Stable_Extensions"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Stable_Extensions">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">5</span>Stable Extensions</div>
+		</a>
+		
+			<button aria-controls="toc-Stable_Extensions-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Stable Extensions subsection</span>
+			</button>
+		
+		<ul id="toc-Stable_Extensions-sublist" class="vector-toc-list">
+			<li id="toc-Server_Commands"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Server_Commands">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.1</span>Server Commands</div>
+			</a>
+			
+			<ul id="toc-Server_Commands-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Properties"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Properties">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.2</span>Properties</div>
+			</a>
+			
+			<ul id="toc-Properties-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Queries"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Queries">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.3</span>Queries</div>
+			</a>
+			
+			<ul id="toc-Queries-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Slug"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Slug">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.4</span>Slug</div>
+			</a>
+			
+			<ul id="toc-Slug-sublist" class="vector-toc-list">
+				<li id="toc-Implementations"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.4.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Post_Status"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Post_Status">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.5</span>Post Status</div>
+			</a>
+			
+			<ul id="toc-Post_Status-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_2"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations_2">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.5.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_2-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Visibility"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Visibility">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.6</span>Visibility</div>
+			</a>
+			
+			<ul id="toc-Visibility-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_3"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations_3">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.6.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_3-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Query_for_Supported_Vocabulary"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Query_for_Supported_Vocabulary">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.7</span>Query for Supported Vocabulary</div>
+			</a>
+			
+			<ul id="toc-Query_for_Supported_Vocabulary-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_4"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations_4">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.7.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_4-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Query_for_Post_List"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Query_for_Post_List">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.8</span>Query for Post List</div>
+			</a>
+			
+			<ul id="toc-Query_for_Post_List-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_5"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations_5">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.8.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_5-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Query_for_Category/Tag_List"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Query_for_Category/Tag_List">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9</span>Query for Category/Tag List</div>
+			</a>
+			
+			<ul id="toc-Query_for_Category/Tag_List-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_6"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations_6">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_6-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Limit_Parameter"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Limit_Parameter">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.10</span>Limit Parameter</div>
+			</a>
+			
+			<ul id="toc-Limit_Parameter-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_7"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations_7">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.10.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_7-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Destination"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Destination">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.11</span>Destination</div>
+			</a>
+			
+			<ul id="toc-Destination-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_8"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations_8">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.11.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_8-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Proposed_Extensions"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Proposed_Extensions">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">6</span>Proposed Extensions</div>
+		</a>
+		
+			<button aria-controls="toc-Proposed_Extensions-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Proposed Extensions subsection</span>
+			</button>
+		
+		<ul id="toc-Proposed_Extensions-sublist" class="vector-toc-list">
+			<li id="toc-Server_Commands_2"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Server_Commands_2">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.1</span>Server Commands</div>
+			</a>
+			
+			<ul id="toc-Server_Commands_2-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-New_Properties"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#New_Properties">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.2</span>New Properties</div>
+			</a>
+			
+			<ul id="toc-New_Properties-sublist" class="vector-toc-list">
+				<li id="toc-Location_Visibility"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Location_Visibility">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.2.1</span>Location Visibility</div>
+			</a>
+			
+			<ul id="toc-Location_Visibility-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_9"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_9">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.2.1.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_9-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Audience"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Audience">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.2.2</span>Audience</div>
+			</a>
+			
+			<ul id="toc-Audience-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_10"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_10">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.2.2.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_10-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Query"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Query">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3</span>Query</div>
+			</a>
+			
+			<ul id="toc-Query-sublist" class="vector-toc-list">
+				<li id="toc-Offset_Parameter"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Offset_Parameter">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.1</span>Offset Parameter</div>
+			</a>
+			
+			<ul id="toc-Offset_Parameter-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_11"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_11">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.1.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_11-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Filter_Parameter"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Filter_Parameter">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.2</span>Filter Parameter</div>
+			</a>
+			
+			<ul id="toc-Filter_Parameter-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_12"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_12">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.2.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_12-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Post-Type"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Post-Type">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.3</span>Post-Type</div>
+			</a>
+			
+			<ul id="toc-Post-Type-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_13"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_13">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.3.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_13-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Post-Status/Visibility_Parameters"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Post-Status/Visibility_Parameters">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.4</span>Post-Status/Visibility Parameters</div>
+			</a>
+			
+			<ul id="toc-Post-Status/Visibility_Parameters-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_14"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_14">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.4.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_14-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Supported_Properties/Queries"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Supported_Properties/Queries">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.5</span>Supported Properties/Queries</div>
+			</a>
+			
+			<ul id="toc-Supported_Properties/Queries-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_15"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_15">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.5.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_15-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Checked_Syndication_Property"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Checked_Syndication_Property">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.6</span>Checked Syndication Property</div>
+			</a>
+			
+			<ul id="toc-Checked_Syndication_Property-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_16"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_16">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.6.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_16-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Location/Venue"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Location/Venue">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.7</span>Location/Venue</div>
+			</a>
+			
+			<ul id="toc-Location/Venue-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_17"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_17">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.7.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_17-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Contacts"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Contacts">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.8</span>Contacts</div>
+			</a>
+			
+			<ul id="toc-Contacts-sublist" class="vector-toc-list">
+				<li id="toc-Example_response"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Example_response">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.8.1</span>Example response</div>
+			</a>
+			
+			<ul id="toc-Example_response-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Implementations_18"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_18">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.8.2</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_18-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Pagination"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Pagination">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.9</span>Pagination</div>
+			</a>
+			
+			<ul id="toc-Pagination-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_19"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_19">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.9.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_19-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Order"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Order">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.10</span>Order</div>
+			</a>
+			
+			<ul id="toc-Order-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_20"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_20">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.10.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_20-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Property_Exists/Not_Exists"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Property_Exists/Not_Exists">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.11</span>Property Exists/Not Exists</div>
+			</a>
+			
+			<ul id="toc-Property_Exists/Not_Exists-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_21"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_21">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.11.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_21-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Property_Value"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Property_Value">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.12</span>Property Value</div>
+			</a>
+			
+			<ul id="toc-Property_Value-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_22"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_22">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.12.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_22-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Brainstorming"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Brainstorming">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.13</span>Brainstorming</div>
+			</a>
+			
+			<ul id="toc-Brainstorming-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Ideas_for_other_types_of_queries"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Ideas_for_other_types_of_queries">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.14</span>Ideas for other types of queries</div>
+			</a>
+			
+			<ul id="toc-Ideas_for_other_types_of_queries-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Questions"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Questions">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.3.15</span>Questions</div>
+			</a>
+			
+			<ul id="toc-Questions-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Other"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Other">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4</span>Other</div>
+			</a>
+			
+			<ul id="toc-Other-sublist" class="vector-toc-list">
+				<li id="toc-Standalone_Pages"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Standalone_Pages">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4.1</span>Standalone Pages</div>
+			</a>
+			
+			<ul id="toc-Standalone_Pages-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Dealing_with_Expiring_Tokens"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Dealing_with_Expiring_Tokens">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4.2</span>Dealing with Expiring Tokens</div>
+			</a>
+			
+			<ul id="toc-Dealing_with_Expiring_Tokens-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Dealing_with_Expiring_Configuration"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Dealing_with_Expiring_Configuration">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4.3</span>Dealing with Expiring Configuration</div>
+			</a>
+			
+			<ul id="toc-Dealing_with_Expiring_Configuration-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Extended_GEO_URI"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Extended_GEO_URI">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4.4</span>Extended GEO URI</div>
+			</a>
+			
+			<ul id="toc-Extended_GEO_URI-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Post_contacts"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Post_contacts">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4.5</span>Post contacts</div>
+			</a>
+			
+			<ul id="toc-Post_contacts-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_23"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_23">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4.5.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_23-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Draft_Scope"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Draft_Scope">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">6.4.6</span>Draft Scope</div>
+			</a>
+			
+			<ul id="toc-Draft_Scope-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Media_Endpoint_Extensions"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Media_Endpoint_Extensions">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">7</span>Media Endpoint Extensions</div>
+		</a>
+		
+			<button aria-controls="toc-Media_Endpoint_Extensions-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Media Endpoint Extensions subsection</span>
+			</button>
+		
+		<ul id="toc-Media_Endpoint_Extensions-sublist" class="vector-toc-list">
+			<li id="toc-Proposed_Extensions_2"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Proposed_Extensions_2">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1</span>Proposed Extensions</div>
+			</a>
+			
+			<ul id="toc-Proposed_Extensions_2-sublist" class="vector-toc-list">
+				<li id="toc-Delete_from_Media_Endpoint"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Delete_from_Media_Endpoint">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.1</span>Delete from Media Endpoint</div>
+			</a>
+			
+			<ul id="toc-Delete_from_Media_Endpoint-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_24"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_24">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.1.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_24-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Response_from_Media_Endpoint"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Response_from_Media_Endpoint">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.2</span>Response from Media Endpoint</div>
+			</a>
+			
+			<ul id="toc-Response_from_Media_Endpoint-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_25"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_25">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.2.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_25-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Query_for_Media_from_Media_Endpoint"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Query_for_Media_from_Media_Endpoint">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.3</span>Query for Media from Media Endpoint</div>
+			</a>
+			
+			<ul id="toc-Query_for_Media_from_Media_Endpoint-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_26"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_26">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.3.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_26-sublist" class="vector-toc-list">
+				<li id="toc-Previous_Implementations"
+			class="vector-toc-list-item vector-toc-level-5">
+			<a class="vector-toc-link" href="#Previous_Implementations">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.3.1.1</span>Previous Implementations</div>
+			</a>
+			
+			<ul id="toc-Previous_Implementations-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Query_for_Media_by_URL"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Query_for_Media_by_URL">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.4</span>Query for Media by URL</div>
+			</a>
+			
+			<ul id="toc-Query_for_Media_by_URL-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_27"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_27">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.4.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_27-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Link_Rel_for_Media_Endpoint"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Link_Rel_for_Media_Endpoint">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.5</span>Link Rel for Media Endpoint</div>
+			</a>
+			
+			<ul id="toc-Link_Rel_for_Media_Endpoint-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_28"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Implementations_28">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.5.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_28-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-See_Also"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#See_Also">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">8</span>See Also</div>
+		</a>
+		
+		<ul id="toc-See_Also-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+</ul>
+</div>
+
+				</div>
+	</nav>
+		
+		<div class="mw-content-container">
+			<main id="content" class="mw-body h-entry" role="main">
+				<header class="mw-body-header vector-page-titlebar">
+					<label
+						id="vector-toc-collapsed-button"
+						class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet vector-button-flush-left cdx-button--icon-only"
+						for="vector-toc-collapsed-checkbox"
+						role="button"
+						aria-controls="vector-toc"
+						tabindex="0"
+						title="Table of Contents">
+						<span class="vector-icon mw-ui-icon-wikimedia-listBullet"></span>
+						<span>Toggle the table of contents</span>
+					</label>
+					<nav role="navigation" aria-label="Contents" class="vector-toc-landmark">
+						
+<div id="vector-page-titlebar-toc" class="vector-dropdown vector-page-titlebar-toc vector-button-flush-left"  >
+	<input type="checkbox" id="vector-page-titlebar-toc-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-page-titlebar-toc" class="vector-dropdown-checkbox "  aria-label="Toggle the table of contents"  >
+	<label id="vector-page-titlebar-toc-label" for="vector-page-titlebar-toc-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only " aria-hidden="true"  ><span class="vector-icon mw-ui-icon-listBullet mw-ui-icon-wikimedia-listBullet"></span>
+
+<span class="vector-dropdown-label-text">Toggle the table of contents</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+							<div id="vector-page-titlebar-toc-unpinned-container" class="vector-unpinned-container">
+			</div>
+		
+	</div>
+</div>
+
+					</nav>
+					<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">Micropub-extensions</span></h1>
+				</header>
+				<div class="vector-page-toolbar">
+					<div class="vector-page-toolbar-container">
+						<div id="left-navigation">
+							<nav aria-label="Namespaces">
+								
+<div id="p-associated-pages" class="vector-menu vector-menu-tabs mw-portlet mw-portlet-associated-pages"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="ca-nstab-main" class="selected vector-tab-noicon mw-list-item"><a href="/Micropub-extensions" title="View the content page [c]" accesskey="c"><span>Page</span></a></li><li id="ca-talk" class="new vector-tab-noicon mw-list-item"><a href="/wiki/index.php?title=Talk:Micropub-extensions&amp;action=edit&amp;redlink=1" rel="discussion" title="Discussion about the content page (page does not exist) [t]" accesskey="t"><span>Discussion</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+								
+<div id="p-variants" class="vector-dropdown emptyPortlet"  >
+	<input type="checkbox" id="p-variants-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-p-variants" class="vector-dropdown-checkbox " aria-label="Change language variant"   >
+	<label id="p-variants-label" for="p-variants-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet" aria-hidden="true"  ><span class="vector-dropdown-label-text">English</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+					
+<div id="p-variants" class="vector-menu mw-portlet mw-portlet-variants emptyPortlet"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			
+		</ul>
+		
+	</div>
+</div>
+
+				
+	</div>
+</div>
+
+							</nav>
+						</div>
+						<div id="right-navigation" class="vector-collapsible">
+							<nav aria-label="Views">
+								
+<div id="p-views" class="vector-menu vector-menu-tabs mw-portlet mw-portlet-views"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="ca-view" class="selected vector-tab-noicon mw-list-item"><a href="/Micropub-extensions"><span>Read</span></a></li><li id="ca-viewsource" class="vector-tab-noicon mw-list-item"><a href="/wiki/index.php?title=Micropub-extensions&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e"><span>View source</span></a></li><li id="ca-history" class="vector-tab-noicon mw-list-item"><a href="/wiki/index.php?title=Micropub-extensions&amp;action=history" title="Past revisions of this page [h]" accesskey="h"><span>View history</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+							</nav>
+				
+							<nav class="vector-page-tools-landmark" aria-label="Page tools">
+								
+<div id="vector-page-tools-dropdown" class="vector-dropdown vector-page-tools-dropdown"  >
+	<input type="checkbox" id="vector-page-tools-dropdown-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-page-tools-dropdown" class="vector-dropdown-checkbox "  aria-label="Tools"  >
+	<label id="vector-page-tools-dropdown-label" for="vector-page-tools-dropdown-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet" aria-hidden="true"  ><span class="vector-dropdown-label-text">Tools</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+									<div id="vector-page-tools-unpinned-container" class="vector-unpinned-container">
+						
+<div id="vector-page-tools" class="vector-page-tools vector-pinnable-element">
+	<div
+	class="vector-pinnable-header vector-page-tools-pinnable-header vector-pinnable-header-unpinned"
+	data-feature-name="page-tools-pinned"
+	data-pinnable-element-id="vector-page-tools"
+	data-pinned-container-id="vector-page-tools-pinned-container"
+	data-unpinned-container-id="vector-page-tools-unpinned-container"
+>
+	<div class="vector-pinnable-header-label">Tools</div>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-pin-button" data-event-name="pinnable-header.vector-page-tools.pin">move to sidebar</button>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-unpin-button" data-event-name="pinnable-header.vector-page-tools.unpin">hide</button>
+</div>
+
+	
+<div id="p-cactions" class="vector-menu mw-portlet mw-portlet-cactions emptyPortlet vector-has-collapsible-items"  title="More options" >
+	<div class="vector-menu-heading">
+		Actions
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="ca-more-view" class="selected vector-more-collapsible-item mw-list-item"><a href="/Micropub-extensions"><span>Read</span></a></li><li id="ca-more-viewsource" class="vector-more-collapsible-item mw-list-item"><a href="/wiki/index.php?title=Micropub-extensions&amp;action=edit"><span>View source</span></a></li><li id="ca-more-history" class="vector-more-collapsible-item mw-list-item"><a href="/wiki/index.php?title=Micropub-extensions&amp;action=history"><span>View history</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-tb" class="vector-menu mw-portlet mw-portlet-tb"  >
+	<div class="vector-menu-heading">
+		General
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="t-whatlinkshere" class="mw-list-item"><a href="/Special:WhatLinksHere/Micropub-extensions" title="A list of all wiki pages that link here [j]" accesskey="j"><span>What links here</span></a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/Special:RecentChangesLinked/Micropub-extensions" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k"><span>Related changes</span></a></li><li id="t-specialpages" class="mw-list-item"><a href="/Special:SpecialPages" title="A list of all special pages [q]" accesskey="q"><span>Special pages</span></a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p"><span>Printable version</span></a></li><li id="t-permalink" class="mw-list-item"><a href="/wiki/index.php?title=Micropub-extensions&amp;oldid=114406" title="Permanent link to this revision of this page"><span>Permanent link</span></a></li><li id="t-info" class="mw-list-item"><a href="/wiki/index.php?title=Micropub-extensions&amp;action=info" title="More information about this page"><span>Page information</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+</div>
+
+									</div>
+				
+	</div>
+</div>
+
+							</nav>
+						</div>
+					</div>
+				</div>
+				<div class="vector-column-end">
+					<nav class="vector-page-tools-landmark vector-sticky-pinned-container" aria-label="Page tools">
+						<div id="vector-page-tools-pinned-container" class="vector-pinned-container">
+			
+						</div>
+	</nav>
+				</div>
+				<div id="bodyContent" class="vector-body" aria-labelledby="firstHeading" data-mw-ve-target-container>
+					<div class="vector-body-before-content">
+							<div class="mw-indicators">
+		</div>
+
+						<div id="siteSub" class="noprint">From IndieWeb</div>
+					</div>
+					<div id="contentSub"><div id="mw-content-subtitle"></div></div>
+					
+					
+					<div id="mw-content-text" class="mw-body-content mw-content-ltr" lang="en" dir="ltr"><div class="mw-parser-output"><p><span class="p-summary"><b><dfn>Micropub extensions</dfn></b> are <a href="/Micropub" title="Micropub">Micropub</a> protocol-related features that are proposed, prototyped, or implemented in <a href="/Micropub_clients" class="mw-redirect" title="Micropub clients">Micropub clients</a> and <a href="/Micropub_servers" class="mw-redirect" title="Micropub servers">servers</a> beyond the official Micropub specification.</span>
+</p>
+<meta property="mw:PageProp/toc" />
+<h2><span class="mw-headline" id="Why">Why</span></h2>
+<p><a href="/Social_readers" class="mw-redirect" title="Social readers">Social readers</a> and other software &amp; services for <a href="/creating" class="mw-redirect" title="creating">creating</a> posts often want to implement a new user feature that requires coordinating with a server, beyond the capabilities in the Micropub specification, and thus need an extension for that coordination. 
+</p><p>This page is for documenting such extensions to <a href="/Micropub" title="Micropub">Micropub</a>. 
+</p>
+<h2><span class="mw-headline" id="How_to">How to</span></h2>
+<p>Please use this page to document the list of current and proposed extensions, as well as document implementations of them. Development and discussion of the extensions should happen in a GitHub issue. 
+</p>
+<h3><span class="mw-headline" id="How_to_propose_an_extension">How to propose an extension</span></h3>
+<p>Please open a new issue <a class="external text" href="https://github.com/indieweb/micropub-extensions/issues">here</a> if you would like to propose a new extension, then you can add a new section in the <a class="external text" href="https://indieweb.org/Micropub-extensions#Proposed_Extensions">Proposed Extensions section</a> to document your implementation of it here.
+</p>
+<h2><span class="mw-headline" id="Approval_of_Extensions">Approval of Extensions</span></h2>
+<p>The core Micropub spec isn't expected to change, however additional specifications built to extend the Micropub spec are possible. In order to ensure that extensions have diverse implementations there is a three stage process for extensions.
+</p>
+<h3><span class="mw-headline" id="Proposed">Proposed</span></h3>
+<p>Anyone can create a <b>proposed</b> extension. A proposed extension should have an issue <a class="external text" href="https://github.com/indieweb/micropub-extensions/issues">in the Micropub Extensions GitHub Repo</a> and a stub under the <a class="external text" href="https://indieweb.org/Micropub-extensions#Proposed_Extensions">Proposed Extensions section</a> on this page.
+</p>
+<h3><span class="mw-headline" id="Stable">Stable</span></h3>
+<p>A stable extension is when a proposed extension has gotten multiple implementations from various people and/or organizations and is considered complete in functionality. This ensures that Micropub extensions work for a variety of use-cases and not just for a single project or company. The general rule of thumb is that there should be a minimum of 3 server implementations and 3 client implementations. These implementations must be done by different individuals/groups, so one individual/group implementing two clients will only be counted once for this criteria.
+</p><p>When an extension becomes a <b>stable</b> extension, it should be moved under <a class="external text" href="https://indieweb.org/Micropub-extensions#Stable_Extensions">Stable Extensions section</a> and there should be clear technical specifications for how a client and server would utilize this extension.
+</p><p>All brainstorming under this extension should either be finished and the Github issue closed, or logged under a different proposed extension. For example, the use of a query parameter may be stable, but there may still be an experimental modifier/filter that has not met this criteria, and should be separated into its own proposal.
+</p>
+<h3><span class="mw-headline" id="Official">Official</span></h3>
+<p>An extension only becomes an official Micropub extension when it has been published as part of a broader ranged official Spec extension for Micropub. Currently there are no official extensions.
+</p>
+<h2><span class="mw-headline" id="Official_Extensions">Official Extensions</span></h2>
+<p>There are not currently any Official Extensions
+</p>
+<h2><span class="mw-headline" id="Stable_Extensions">Stable Extensions</span></h2>
+<h3><span class="mw-headline" id="Server_Commands">Server Commands</span></h3>
+<table class="wikitable">
+<tbody><tr>
+<th>Link
+</th>
+<th>Description
+</th></tr>
+<tr>
+<td><a href="#Destination">Destination</a>
+</td>
+<td>Specify a destination to create a new post on a web site other than the default
+</td></tr></tbody></table>
+<p><br />
+</p>
+<h3><span class="mw-headline" id="Properties">Properties</span></h3>
+<table class="wikitable">
+<tbody><tr>
+<th>Link
+</th>
+<th>Description
+</th></tr>
+<tr>
+<td><a href="#Slug">Slug</a>
+</td>
+<td>Allows a Micropub client to suggest a slug to the Micropub endpoint by passing through the proposed slug as mp-slug.
+</td></tr>
+<tr>
+<td><a href="#Post_Status">Post Status</a>
+</td>
+<td>Allows a Micropub client to set the status of a post
+</td></tr>
+<tr>
+<td><a href="#Visibility">Visibility</a>
+</td>
+<td>This extension adds a property for use in Micropub requests called visibility that informs a server whether a post should be public, private or unlisted.
+</td></tr></tbody></table>
+<h3><span class="mw-headline" id="Queries">Queries</span></h3>
+<table class="wikitable">
+<tbody><tr>
+<th>Link
+</th>
+<th>Description
+</th></tr>
+<tr>
+<td><a href="#Query_for_Supported_Vocabulary">Supported Vocabulary</a>
+</td>
+<td>Additional data is added to the Micropub Configuration query that allows the server to tell the client what types of posts it can receive as well as what those post types should be called in the UI.
+</td></tr>
+<tr>
+<td><a href="#Query_for_Post_List">Post List</a>
+</td>
+<td>Extends q=source that if no url provided, return will be a list of posts.
+</td></tr>
+<tr>
+<td><a href="#Query_for_Category.2FTag_List">Category/Tag List</a>
+</td>
+<td>Adds q=category to return a list of existing categories to choose from when creating a new post.
+</td></tr>
+<tr>
+<td><a href="#Limit_Parameter">Limit Parameter</a>
+</td>
+<td>Adds the parameter limit to any query to limit the number of returned results.
+</td></tr></tbody></table>
+<h3><span class="mw-headline" id="Slug">Slug</span></h3>
+<p>Many posting UIs provide an option for the user to choose a slug for the post that will be created. This extension allows a Micropub client to suggest a slug to the Micropub endpoint by passing through the proposed slug as mp-slug.
+</p><p><span class="mw-default-size" typeof="mw:File"><a href="/File:wordpress-customize-slug.png" class="mw-file-description"><img src="/images/a/ab/wordpress-customize-slug.png" decoding="async" width="567" height="139" class="mw-file-element" /></a></span>
+</p>
+<ul><li><code>mp-slug=</code></li></ul>
+<p>The server MAY or MAY NOT decide to respect the requested slug, based on whether it would cause conflicts with other URLs on the site. For example, some URL structures are <code>{year}/{slug}</code>, so the server may decide to modify the slug to avoid conflicting with an existing one.
+</p><p>One thing to note is that this property, like all Micropub properties, work for all <a href="/posts#Types_of_Posts" title="posts">posts#Types_of_Posts</a> unless stated otherwise. For example, you may have both a title and a slug for an <a href="/article" title="article">article</a>.
+</p>
+<h4><span class="mw-headline" id="Implementations">Implementations</span></h4>
+<ul><li>Clients
+<ul><li><a href="/Quill" title="Quill">Quill</a></li>
+<li><a href="/Micropublish" title="Micropublish">Micropublish</a></li>
+<li><a href="/Koype/Publish" title="Koype/Publish">Koype/Publish</a></li>
+<li><a href="/Together" title="Together">Together</a></li>
+<li><a href="/Celestial" title="Celestial">Celestial</a></li>
+<li><a href="/Omnibear" title="Omnibear">Omnibear</a></li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/p3k" title="p3k">p3k</a></li>
+<li><a href="/Transformative" title="Transformative">Transformative</a></li>
+<li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/Postr" title="Postr">Postr</a></li>
+<li><a href="/abode" title="abode">abode</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a href="/Koype" title="Koype">Koype</a></li>
+<li><a class="external text" href="https://github.com/skpy/micropub">Skippy's micropub</a></li>
+<li><a class="external text" href="https://github.com/benjifs/serverless-micropub">Serverless micropub</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="Post_Status">Post Status</span></h3>
+<ul><li><code>post-status=published</code> (or no post-status set) - The post is published, or when the published date is in the future, the post is scheduled. In most implementations, not passing a post-status is assumed to be published.</li>
+<li><code>post-status=draft</code> - The post is a draft, and should not be shown in lists.
+<ul><li>It is up to the implementation whether it wishes to use a capability URL for draft posts or actually restrict it to logged-in users.</li>
+<li>There is a separate proposal for a <a class="external text" href="https://github.com/indieweb/micropub-extensions/issues/24">draft scope</a> as an alternative to create that would only allow draft posts to be created.</li></ul></li></ul>
+<dl><dt><b>Original Discussion</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/19">https://github.com/indieweb/micropub-extensions/issues/19</a></dd></dl>
+<h5><span class="mw-headline" id="Implementations_2">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/iA_Writer" title="iA Writer">iA Writer</a></li>
+<li><a href="/indiebookclub" title="indiebookclub">indiebookclub</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li>
+<li><a href="/Micro.blog" title="Micro.blog">Micro.blog</a></li>
+<li><a href="/Quill" title="Quill">Quill</a></li>
+<li><a href="/Shock" title="Shock">Shock</a></li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a></li>
+<li><a href="/Together" title="Together">Together</a></li>
+<li><a href="/Wrimini" title="Wrimini">Wrimini</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/abode" title="abode">abode</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li>
+<li><a href="/Koype" title="Koype">Koype</a></li>
+<li><a href="/Micro.blog" title="Micro.blog">Micro.blog</a></li>
+<li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/p3k" title="p3k">p3k</a></li>
+<li><a href="/Postr" title="Postr">Postr</a> - also uses <code>post-status=deleted</code></li>
+<li><a class="external text" href="https://github.com/benjifs/serverless-micropub">Serverless micropub</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="Visibility">Visibility</span></h3>
+<p>This extension adds a property for use in Micropub requests called <code>visibility</code> that informs a server whether a post should be public, private or unlisted. If no visibility is set, a server <b>SHOULD</b> assume the visibility is meant to be public. If the visibility is set to unlisted, a server has flexibility to treat that how it wants, however this typically means the post wouldn't appear in feeds such as galleries, timelines or streams. If the visibility is set to private, that means this post should not be accessible unless viewed by an authenticated user. (See <a class="mw-selflink-fragment" href="#Audience">audience</a> for more details.)
+</p>
+<ul><li><code>visibility=public</code> (or no visibility set)</li>
+<li><code>visibility=unlisted</code></li>
+<li><code>visibility=private</code></li></ul>
+<p>This extension does not address how a user authenticates for a private post, and if they are authenticated how the access control is managed for said post. Depending on the server a private post could be viewable by a single person, or it could allow a group of authorized people to view it as long as they are authenticated. Discussion continues on authentication.
+</p>
+<dl><dt><b>Original discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/11">https://github.com/indieweb/micropub-extensions/issues/11</a></dd></dl>
+<h4><span class="mw-headline" id="Implementations_3">Implementations</span></h4>
+<ul><li>Clients
+<ul><li><a href="/indiebookclub" title="indiebookclub">indiebookclub</a></li>
+<li><a href="/OwnYourSwarm" title="OwnYourSwarm">OwnYourSwarm</a></li>
+<li><a href="/Quill" title="Quill">Quill</a></li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a></li>
+<li><a href="/Together" title="Together">Together</a></li>
+<li><a href="/Wrimini" title="Wrimini">Wrimini</a></li>
+<li>...</li></ul></li>
+<li>Servers
+<ul><li><a href="/abode" title="abode">abode</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/p3k" title="p3k">p3k</a></li>
+<li><a href="/Postr" title="Postr">Postr</a></li>
+<li><a class="external text" href="https://github.com/benjifs/serverless-micropub">Serverless micropub</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="Query_for_Supported_Vocabulary">Query for Supported Vocabulary</span></h3>
+<p>This extension returns what properties a Micropub server supports, so that a client like <a href="/Quill" title="Quill">Quill</a> or <a href="/IndiePass" title="IndiePass">IndiePass</a> can chose to hide or rename the common choices in the UI. This is essentially using reverse <a href="/Post_Type_Discovery" class="mw-redirect" title="Post Type Discovery">Post Type Discovery</a>.
+</p><p>Additional data is added to the <a class="external text" href="https://www.w3.org/TR/micropub/#configuration">Micropub Configuration query</a> that allows the server to tell the client what types of posts it can receive as well as what those post types should be called in the UI.
+</p><p>When a Micropub client retrieves the <a class="external text" href="https://www.w3.org/TR/micropub/#configuration">Micropub Configuration query</a>, a server supporting this extension MAY return an array of objects inside the <code>post-types</code> attribute. Each object MUST represent a post type and MUST have a <code>type</code> attribute that matches the <a href="/PTD" class="mw-redirect" title="PTD">PTD</a> post type and SHOULD have a <code>name</code> that is a string that represents the post type in the UI.
+</p><p>An example response is below:
+</p>
+<pre>  "post-types": [
+    {
+      "type": "note",
+      "name": "Note"
+    },
+    {
+      "type": "article",
+      "name": "Blog Post"
+    },
+    {
+      "type": "photo",
+      "name": "Photo"
+    },
+    {
+      "type": "reply",
+      "name": "Reply"
+    },
+    {
+      "type": "bookmark",
+      "name": "Bookmark"
+    }
+  ]
+</pre>
+<p>If a Micropub client checks the Micropub Configuration query for a <code>post-types</code> array and it doesn't exist or it is empty, the client MUST assume the server does not support this extension and default to its regular post types and names. However, if at least one object exists in the <code>post-types</code> array, the Micropub client <b>SHOULD</b> only display features related to the post types found in the array, and any text in the UI SHOULD reflect the name presented in the post-types array.
+</p>
+<dl><dt><b>Additional Discussion</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/1">https://github.com/indieweb/micropub-extensions/issues/1</a></dd></dl>
+<h4><span class="mw-headline" id="Implementations_4">Implementations</span></h4>
+<ul><li>Clients
+<ul><li><a href="/Celestial" title="Celestial">Celestial</a></li>
+<li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li>
+<li><a href="/Monocle" title="Monocle">Monocle</a></li>
+<li><a href="/Quill" title="Quill">Quill</a></li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/abode" title="abode">abode</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li>
+<li><a href="/Micro.blog" title="Micro.blog">Micro.blog</a></li>
+<li><a href="/Postr" title="Postr">Postr</a></li>
+<li><a class="external text" href="https://github.com/benjifs/serverless-micropub">Serverless micropub</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="Query_for_Post_List">Query for Post List</span></h3>
+<p>This is a primarily extension to the <a class="external text" href="https://micropub.spec.indieweb.org/#source-content">q=source</a> query.
+</p><p>If no URL is provided, a query SHOULD return a list. Specifically for q=source, this is a list of posts wrapped in an `items` property.
+</p><p>Being as many possible query extensions will return lists, the discussion of what <i>additional query modifiers</i>  continues as experimental and ideally modifiers will be scoped to any query when appropriate.
+</p><p>Servers, consistent with the spec use of q=source, SHOULD return a full Microformats2 JSON representation, but this is not a requirement. Proposed properties for filtering appear in the proposal section.
+</p><p>Another advantage of this extension is that your Micropub server can solely be responsible for storing and listing posts as Microformats. Rendering posts can be done elsewhere. An example response follows:
+</p>
+<pre>GET ?q=source
+{
+ "items": [
+  {
+    "type": [
+      "h-entry"
+    ],
+    "properties": {
+      "like-of": [
+        "https:\/\/en.m.wikipedia.org\/wiki\/Poka-yoke"
+      ],
+      "uid": [
+        "20170820131258_59998adae54d0"
+      ],
+      "published": [
+        "2017-08-20T13:12:58+00:00"
+      ]
+    }
+  },
+  {
+    "type": [
+      "h-entry"
+    ],
+    "properties": {
+      "photo": [
+        "https:\/\/media.j4y.co\/2017\/cfd007ec-c819-47da-99a2-daec2e91a41e.jpg"
+      ],
+      "published": [
+        "2017-08-19T18:30:40+00:00"
+      ],
+      "content": [
+        ""
+      ],
+      "category": [
+        ""
+      ],
+      "uid": [
+        "20170819175715_59987bfb72c4f"
+      ]
+    }
+  }
+}
+</pre>
+<dl><dt><b>Original discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/4">https://github.com/indieweb/micropub-extensions/issues/4</a></dd></dl>
+<p><br />
+</p>
+<h5><span class="mw-headline" id="Implementations_5">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li>
+<li><a href="/Micro.blog" title="Micro.blog">Micro.blog</a></li>
+<li><a href="/Together" title="Together">Together</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/abode" title="abode">abode</a></li>
+<li><a href="/User:J4y.co" title="User:J4y.co">j4y_funabashi</a></li>
+<li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li>
+<li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/Postr" title="Postr">Postr</a></li>
+<li><a href="/Micro.blog" title="Micro.blog">Micro.blog</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li></ul></li></ul>
+<h3><span id="Query_for_Category.2FTag_List"></span><span class="mw-headline" id="Query_for_Category/Tag_List">Query for Category/Tag List</span></h3>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/5">https://github.com/indieweb/micropub-extensions/issues/5</a></dd></dl>
+<p>This is an extension for returning categories that a Micropub server has received in the past, so that a client like <a href="/Quill" title="Quill">Quill</a> or <a href="/IndiePass" title="IndiePass">IndiePass</a> could present a list of existing categories to choose from when creating a new post. This usage is stable, though there are proposed modifiers to limit returns.
+</p><p>The following example would be returned as part of the <code>?q=category</code> query.
+</p>
+<pre>{
+  "categories": [
+    "tag1",
+    "tag2",
+    "tag3",
+    "tag4",
+    "tag5",
+  ]
+}
+</pre>
+<h5><span class="mw-headline" id="Implementations_6">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li>
+<li><a href="/Koype/Publish" title="Koype/Publish">Koype Publish</a></li>
+<li><a href="/Celestial" title="Celestial">Celestial</a> (if not found in <code>?q=config</code>)</li></ul></li>
+<li>Servers
+<ul><li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li>
+<li><a href="/abode" title="abode">abode</a> (<span class="h-card" style="white-space:nowrap"><img src="http&#58;//eddiehinkle.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Eddiehinkle.com" title="User:Eddiehinkle.com">Eddie Hinkle</a></span>)</li>
+<li><a href="/Micro.blog" title="Micro.blog">Micro.blog</a></li>
+<li><a href="/Postr" title="Postr">Postr</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a href="/Koype" title="Koype">Koype</a></li>
+<li><a href="/Kittybox" title="Kittybox">Kittybox</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="Limit_Parameter">Limit Parameter</span></h3>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/35">https://github.com/indieweb/micropub-extensions/issues/35</a></dd></dl>
+<p>This is an extension to extend any query that returns a list of items to be limited to a specific number of returns. The logic behind how to fulfill to be handled by the server, but may optionally be paired with offset.
+</p><p>For example...
+</p><p>The following example would be returned as part of the <code>?q=category&amp;limit=1</code> query.
+</p>
+<pre>{
+  "categories": [
+    "indieweb",
+  ]
+}
+</pre>
+<h4><span class="mw-headline" id="Implementations_7">Implementations</span></h4>
+<ul><li>Clients
+<ul><li><a href="/Quill" title="Quill">Quill</a> - uses limit=1 to retrieve the last item from the media endpoint</li>
+<li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li>
+<li><a href="/Shock" title="Shock">Shock</a></li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a> - uses limit and offset to paginate items from the media endpoint</li></ul></li>
+<li>Servers
+<ul><li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/wiki/index.php?title=Indieweb_for_Drupal&amp;action=edit&amp;redlink=1" class="new" title="Indieweb for Drupal (page does not exist)">Indieweb for Drupal</a></li>
+<li><a href="/Koype" title="Koype">Koype</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a class="external text" href="https://github.com/benjifs/serverless-micropub">Serverless micropub</a> - uses limit and offset to paginate items from the media endpoint</li></ul></li></ul>
+<h3><span class="mw-headline" id="Destination">Destination</span></h3>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/3">https://github.com/indieweb/micropub-extensions/issues/3</a></dd></dl>
+<ul><li><code>mp-destination=<a class="external free" href="https://mysite.example.com/">https://mysite.example.com/</a></code></li></ul>
+<p>Specify a destination to create a new post on a web site other than the default. The value of <code>mp-destination</code> should be a uid from the array of destinations returned from q=config. See <a class="external text" href="https://gist.github.com/manton/52e0015f87fcf50c687a0c64e392fc37">an example query response here</a>.
+</p>
+<h4><span class="mw-headline" id="Implementations_8">Implementations</span></h4>
+<ul><li>Clients
+<ul><li><a href="/Monocle" title="Monocle">Monocle</a> - Monocle will check if your Micropub server returns a list of destinations and will then provide an account chooser UI in the footer when viewing a timeline. Selecting an account will cause any of the response buttons to be sent with the corresponding <code>mp-destination</code> value.</li>
+<li><a href="/Ekster" title="Ekster">Ekster</a> - Ekster supports destination in the create post field. You can select on destination and that one post will go there instead of the default.</li>
+<li><a href="/Wrimini" title="Wrimini">Wrimini</a> - Wrimini has a choice of destinations at the bottom of the main screen. The destinations are fetched and displayed. The chosen destination will be sent with that <code>mp-destination</code> value.</li>
+<li>TODO: there are probably some micro.blog clients to add to this list</li>
+<li><a href="/Shock" title="Shock">Shock</a> - This is used to both help build URLs for contents and to query what should be looked up when rendering content</li></ul></li>
+<li>Servers
+<ul><li><a href="/p3k" title="p3k">p3k</a></li>
+<li><a href="/micro.blog" class="mw-redirect" title="micro.blog">micro.blog</a></li>
+<li><a href="/Koype" title="Koype">Koype</a></li></ul></li></ul>
+<h2><span class="mw-headline" id="Proposed_Extensions">Proposed Extensions</span></h2>
+<h3><span class="mw-headline" id="Server_Commands_2">Server Commands</span></h3>
+<p>The Micropub spec reserves the <code>mp-</code> prefix in the form-encoded syntax as a mechanism for clients to give commands to servers. This section is for brainstorming additional uses of the <code>mp-</code> functionality.
+</p>
+<h3><span class="mw-headline" id="New_Properties">New Properties</span></h3>
+<h4><span class="mw-headline" id="Location_Visibility">Location Visibility</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/16">https://github.com/indieweb/micropub-extensions/issues/16</a></dd></dl>
+<p>This is based on <span class="h-card" style="white-space:nowrap"><img src="https&#58;//david.shanske.com/avatar/dshanske" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:David.shanske.com" title="User:David.shanske.com">David Shanske</a></span>'s implementation in Simple Location, an Indieweb friendly location plugin, of the WordPress Geodata unofficial guidelines. It states a single property which can be set to public or private, with the absence of the property being considered to be public. Proposing the third property, which will allow for a less specific text only display, but no actual coordinates.
+</p>
+<h5><span class="mw-headline" id="Implementations_9">Implementations</span></h5>
+<ul><li>Clients
+<ul><li>IndiePass for Android</li></ul></li>
+<li>Servers
+<ul><li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li></ul></li></ul>
+<h4><span class="mw-headline" id="Audience">Audience</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/12">https://github.com/indieweb/micropub-extensions/issues/12</a></dd></dl>
+<p>This is a proposed extension that allows a Micropub client to tell a server who should be able to access a private post. This is specifically useful with the draft of <a href="/AutoAuth" title="AutoAuth">AutoAuth</a> and <a href="/IndieAuth_Ticket_Auth" class="mw-redirect" title="IndieAuth Ticket Auth">Ticket Auth</a> and the idea of sending private webmentions or creating posts that can be read by only a small group of people.
+</p>
+<h5><span class="mw-headline" id="Implementations_10">Implementations</span></h5>
+<ul><li>Clients
+<ul><li>...</li></ul></li>
+<li>Servers
+<ul><li><a href="/abode" title="abode">abode</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="Query">Query</span></h3>
+<p>Micropub supports making a GET request to a Micropub endpoint with a <code>q=</code> parameter, in order to query aspects of the endpoint or for retrieving the original source content of posts. This section is for brainstorming additional uses of the query functionality. See also <a href="/Micropub-brainstorming#Query_for_other_information" title="Micropub-brainstorming">Micropub-brainstorming#Query_for_other_information</a>
+</p><p>If a query parameter acts as a filter on a query, such as 'limit', 'offset', etc...if feasible this should be proposed as vocabulary for all queries, as opposed to just a specific one.
+</p>
+<h4><span class="mw-headline" id="Offset_Parameter">Offset Parameter</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/36">https://github.com/indieweb/micropub-extensions/issues/36</a></dd></dl>
+<p>This is an extension to extend any query that returns a list of items to be offset by n. The logic behind how to fulfill to be handled by the server, but MUST be paired with limit. 
+</p><p>For example...
+</p><p>The following example would be returned as part of the <code>?q=category&amp;limit=1&amp;offset=1</code> query.
+</p>
+<pre>{
+  "categories": [
+    "indieweb",
+  ]
+}
+</pre>
+<h5><span class="mw-headline" id="Implementations_11">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/Shock" title="Shock">Shock</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/Koype" title="Koype">Koype</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li></ul></li></ul>
+<h4><span class="mw-headline" id="Filter_Parameter">Filter Parameter</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/34">https://github.com/indieweb/micropub-extensions/issues/34</a></dd></dl>
+<p>This is an extension to extend any query to allow autocomplete matching using a string. Prior discussion suggested 'search', but search was deemed to have other meanings.
+</p><p>For example...
+</p><p>The following example would be returned as part of the <code>?q=category&amp;filter=indie</code> query.
+</p>
+<pre>{
+  "categories": [
+    "indieweb",
+    "indieweb-goals",
+    "indienews"
+  ]
+}
+</pre>
+<h5><span class="mw-headline" id="Implementations_12">Implementations</span></h5>
+<ul><li>Clients</li>
+<li>Servers
+<ul><li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a></li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a></li></ul></li></ul>
+<h4><span class="mw-headline" id="Post-Type">Post-Type</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/42">https://github.com/indieweb/micropub-extensions/issues/42</a></dd></dl>
+<p>This is an extension to extend any query that returns a list of items to be limited by post-type as defined by post type discovery. The logic behind how to fulfill to be handled by the server. It has been proposed specifically to apply to q=source and q=syndicate-to but may be applied to other situations with the same usage/intent.
+</p>
+<h5><span class="mw-headline" id="Implementations_13">Implementations</span></h5>
+<p>For the source query:
+</p>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li></ul></li></ul>
+<h4><span id="Post-Status.2FVisibility_Parameters"></span><span class="mw-headline" id="Post-Status/Visibility_Parameters">Post-Status/Visibility Parameters</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/43">https://github.com/indieweb/micropub-extensions/issues/43</a></dd></dl>
+<p>As visibility and post-status are now stable parameters for posting, this is an extension to extend any query that returns a list of items to be limited by these parameters. The logic behind how to fulfill to be handled by the server. It has been proposed specifically to apply to q=source but may be applied to other situations with the same usage/intent.
+</p>
+<h5><span class="mw-headline" id="Implementations_14">Implementations</span></h5>
+<p>For the source query:
+</p>
+<ul><li>Clients</li>
+<li>Servers</li></ul>
+<h4><span id="Supported_Properties.2FQueries"></span><span class="mw-headline" id="Supported_Properties/Queries">Supported Properties/Queries</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd>Queries - <a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/7">https://github.com/indieweb/micropub-extensions/issues/7</a></dd>
+<dd>Supported Properties - <a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/8">https://github.com/indieweb/micropub-extensions/issues/8</a></dd>
+<dd>Unsupported Properties - <a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/21">https://github.com/indieweb/micropub-extensions/issues/21</a></dd></dl>
+<p>These are two extensions for returning queries that a Micropub server will respond to and properties that a server knows about, so that a client like <a href="/Quill" title="Quill">Quill</a> or <a href="/IndiePass" title="IndiePass">IndiePass</a> could present only options appropriate to that server. It is similar to the idea about querying for supported vocabulary, except that proposal only covers properties that are part of post-type discovery. Like with the stable supported vocabulary extension, the absence of this instruction would show everything.
+</p><p><br />
+</p>
+<h5><span class="mw-headline" id="Implementations_15">Implementations</span></h5>
+<ul><li>Clients
+<ul><li>Quill (<a class="external text" href="https://github.com/indieweb/micropub-extensions/issues/8#issuecomment-536301952">more info</a>)</li>
+<li><a href="/Micropublish" title="Micropublish">Micropublish</a> (<a class="external autonumber" href="https://github.com/barryf/micropublish/commit/1d47c0d662cc0e26cac2e4f9ed72aa4e34329556">[1]</a>)</li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a> (<a class="external autonumber" href="https://github.com/benjifs/sparkles/commit/9c5837f4f025795de93e4b5b7b2442e99d5d8dfb">[2]</a>)</li></ul></li>
+<li>Servers
+<ul><li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a> - returns a simple list of query parameters supported.</li>
+<li><a href="/Indiekit" title="Indiekit">Indiekit</a> - returns a simple list of query parameters supported.</li>
+<li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li></ul></li></ul>
+<h4><span class="mw-headline" id="Checked_Syndication_Property">Checked Syndication Property</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/23">https://github.com/indieweb/micropub-extensions/issues/23</a></dd></dl>
+<p>Proposes an optional checked property to the syndicate-to query that, if present/true, would instruct clients to pre-check the syndication target. 
+</p><p>It further proposes, to allow for customized responses, to allow post-type to be passed to the syndicate-to query to return a list of options appropriate to that specific type of post. This is referenced more generally in a sepatate <a class="external text" href="https://github.com/indieweb/micropub-extensions/issues/42">issue</a>.
+</p>
+<h5><span class="mw-headline" id="Implementations_16">Implementations</span></h5>
+<p>Implements the checked property
+</p>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/Indiekit" title="Indiekit">Indiekit</a></li>
+<li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li></ul></li></ul>
+<p>Implements the post-type query
+</p>
+<ul><li>Clients</li>
+<li>Servers</li></ul>
+<h4><span id="Location.2FVenue"></span><span class="mw-headline" id="Location/Venue">Location/Venue</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/6">https://github.com/indieweb/micropub-extensions/issues/6</a></dd></dl>
+<p><span class="h-card" style="white-space:nowrap"><img src="https&#58;//jonnybarnes.uk/assets/img/jmb-bw.png" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Jonnybarnes.uk" title="User:Jonnybarnes.uk">Jonny Barnes</a></span> originally added Query for Places in 2015. His implementation was for /micopub?q=geo=lat.lng;u=XX, returning a JSON response for each place containing a display name, lat/lng value, and a URL that could be used as the location value in a subsequent request. 
+</p><p><span class="h-card" style="white-space:nowrap"><img src="https&#58;//david.shanske.com/avatar/dshanske" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:David.shanske.com" title="User:David.shanske.com">David Shanske</a></span> expanded on that to be consistent with the current thinking that returns should be inside a property and to allow for a geo URI or the individual parameters. The geo=lat.lng;u=xx is close to the geo URI format of <a class="external free" href="geo:37.786971,-122.399677;u=35">geo:37.786971,-122.399677;u=35</a> but in the interest of consistency should actually be a GEO URI and a separate property. Therefore, the query for a request with a Geo URI should be ?q=geo&amp;uri=<a class="external free" href="geo:37.786971,-122.399677;u=35">geo:37.786971,-122.399677;u=35</a>  or optionally, each variable individually... q=geo&amp;lat=x&amp;lon=y&amp;u=z 
+</p><p>The following example would be returned as part of the <code>?q=geo&amp;lat=x&amp;lon=y</code> query. Return would contain two properties, 'venues' and 'geo'. Geo would be a suggestion for the queried location perhaps returned using reverse geolocation, and venues would be one or more venues. The lack of either property assumes nothing could be found about the location.
+</p><p>All geo returns would follow the common properties of an h-adr object with only label and latitude/longitude being mandatory, All places returns would follow the properties of an h-card object. There is one optional extra parameter, following the proposed <a class="external text" href="https://indieweb.org/Micropub-extensions#Location_Visibility">Location Visibility</a> property which would allow the query to suggest whether this location should be publicly displayed, allowing for private venues. 
+</p>
+<pre>{
+  "geo": [
+    "label"&#160;: "123 Main Street",
+    "latitude": "18.1123",
+    "longitude": "-72.1933",
+    "visibility": "public",
+  ],
+  "places": [
+   { 
+     "name"&#160;: "Main Street Apothecary",
+     "latitude": "18.1123",
+     "longitude": "-72.1931",
+     "url": "https://example.com/venues/apothecary",
+   },
+   { 
+     "name"&#160;: "Main Street Market",
+     "latitude": "18.1123",
+     "longitude": "-72.1931",
+     "url": "https://example.com/venues/market",
+   },
+  ]
+}
+</pre>
+<p><span class="h-card" style="white-space:nowrap"><img src="https&#58;//david.shanske.com/avatar/dshanske" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:David.shanske.com" title="User:David.shanske.com">David Shanske</a></span> went back to the drawing board on above in 2026-10 with a new query parameter, q=places, that still allow for a geo URI or the individual parameters. The geo=lat.lng;u=xx is close to the geo URI format of <a class="external free" href="geo:37.786971,-122.399677;u=35">geo:37.786971,-122.399677;u=35</a> but in the interest of consistency should actually be a GEO URI and a separate property. Therefore, the query for a request with a Geo URI should be ?q=places&amp;uri=<a class="external free" href="geo:37.786971,-122.399677;u=35">geo:37.786971,-122.399677;u=35</a>  or optionally, each variable individually... q=places&amp;lat=x&amp;lon=y&amp;u=z 
+</p><p>Arguments
+</p>
+<ul><li><code>q=places</code></li>
+<li><code>lat=37.786971</code> - Latitude</li>
+<li><code>lon=-122.399677</code> - Longitude</li>
+<li><code>geo=lat,lon</code> - Geo URI</li>
+<li><code>limit=10</code> (Optional) - Limit the results</li>
+<li><code>local=1</code> - (Optional) - Limits returns to locally stored venues. This allows you to keep previously used ones on your endpoint, but use an external option for others.</li></ul>
+<p>The following example would be returned as part of the <code>?q=places&amp;lat=x&amp;lon=y</code> query. Return would contain a single property, places, which would be the returned list of venues. 
+</p><p>All places returns would follow the properties of an h-card object. There are two optional extra properties, following the proposed <a class="external text" href="https://indieweb.org/Micropub-extensions#Location_Visibility">Location Visibility</a> property which would allow the query to suggest whether this location should be publicly displayed, allowing for private venues, and the local property.
+</p>
+<h5><span class="mw-headline" id="Implementations_17">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a> - uses the geo property, places as suggestions</li></ul></li>
+<li>Servers
+<ul><li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a> + <a href="/Simple_Location" title="Simple Location">Simple Location</a> - supports the places query.</li>
+<li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a> - uses the geo property, can return places</li></ul></li></ul>
+<h4><span class="mw-headline" id="Contacts">Contacts</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/39">https://github.com/indieweb/micropub-extensions/issues/39</a></dd></dl>
+<p>For apps to be able to autocomplete by known contacts we need some way to query these values. This would be very useful for <a href="/person-tag" title="person-tag">person-tag</a> 
+</p>
+<ul><li>Discovery of the endpoint (as in, it exists), happens through the query for supported queries, see <a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/7">https://github.com/indieweb/micropub-extensions/issues/7</a></li>
+<li><code>q=contact&amp;filter=aaron</code> would do a search for any field which matches .<code>*aaron.*</code> thereby allowing the client application to <a href="/autosuggest" title="autosuggest">autosuggest</a> and insert links.</li>
+<li><code>q=contact</code> would return the complete list, which should only be so that clients (e.g. <a href="/IndiePass" title="IndiePass">IndiePass</a>) can cache all contacts locally.</li></ul>
+<ul><li>The response in JSON is a list of <a href="/h-card" title="h-card">h-cards</a> using the h-card vocabulary.</li></ul>
+<h5><span class="mw-headline" id="Example_response">Example response</span></h5>
+<p><b>GET ?q=contact</b>
+</p>
+<pre>  "contacts": [
+    {
+      "name": "Kevin Marks",
+      "photo": "http://known.kevinmarks.com/file/9255656669173b7867ab839ee6556f9e",
+      "url": "http://known.kevinmarks.com/profile/kevinmarks",
+      "nickname": "kevinmarks",
+    },
+    {
+      "name": "Kristof De Jaeger",
+      "photo": "https://realize.be/vue/images/swentel-200.png",
+      "url": "https://realize.be",
+      "nickname": "swentel",
+    },
+  ]
+</pre>
+<p>Note: The IndiePass for Android/IndieWeb for Drupal implementation add a property to the h-card called _internal_url which can be used for updating the contacts via micropub. This is included as a note as there is wider consensus on the h-card vocabulary.
+</p>
+<h5><span class="mw-headline" id="Implementations_18">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a> - see <a class="external free" href="https://realize.be/notes/1970">https://realize.be/notes/1970</a> - it fetches the full list, filtering happens in the client. Create, update and delete are also possible using micropub so you can manage your contacts using the _internal_url property. Supports using `search` as opposed to filter.</li></ul></li>
+<li>Servers
+<ul><li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a> - Supports using `search` as opposed to filter.</li>
+<li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span>'s Micropub endpoint supports querying and filtering contacts, intended to be used for typeahead nickname suggestions in micropub clients</li></ul></li></ul>
+<h4><span class="mw-headline" id="Pagination">Pagination</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/48">https://github.com/indieweb/micropub-extensions/issues/48</a></dd></dl>
+<ul><li><code>after</code>, <code>before</code> - leaning on a <a href="/Microsub-spec#Paging" title="Microsub-spec">cursor-based pagination</a> approach. Problem being how does the client know what arbitrary options to use here, unless in this implementation it is set to date string or such.
+<ul><li>As far as the client is concerned, the <code>before</code> and <code>after</code> values are arbitrary strings. This allows the server to internally use whatever specific implementation is most appropriate for its backend technology. (Often this will be either a timestamp or a unique ID identifying the first and last items in the returned list.)</li></ul></li></ul>
+<h5><span class="mw-headline" id="Implementations_19">Implementations</span></h5>
+<ul><li>Clients</li>
+<li>Servers</li></ul>
+<h4><span class="mw-headline" id="Order">Order</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/49">https://github.com/indieweb/micropub-extensions/issues/49</a></dd></dl>
+<ul><li><code>order</code> - Proposes a means of setting the order of the  returned list. Common options for this might be <code>ascending</code>/<code>descending</code></li></ul>
+<h5><span class="mw-headline" id="Implementations_20">Implementations</span></h5>
+<ul><li>Clients</li>
+<li>Servers</li></ul>
+<h4><span id="Property_Exists.2FNot_Exists"></span><span class="mw-headline" id="Property_Exists/Not_Exists">Property Exists/Not Exists</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/51">https://github.com/indieweb/micropub-extensions/issues/51</a></dd></dl>
+<ul><li><code>exists[]</code> - Matches one or more property names (for example, <code>exists[]=like-of</code>)</li>
+<li><code>not-exists[]</code> = Inverse of <code>exists</code></li></ul>
+<h5><span class="mw-headline" id="Implementations_21">Implementations</span></h5>
+<ul><li>Clients</li>
+<li>Servers</li></ul>
+<h4><span class="mw-headline" id="Property_Value">Property Value</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/50">https://github.com/indieweb/micropub-extensions/issues/50</a></dd></dl>
+<ul><li><code>property-property-name</code> (Example: <code>property-rsvp=yes</code>) - Allows filtering by a specific property value</li></ul>
+<h5><span class="mw-headline" id="Implementations_22">Implementations</span></h5>
+<ul><li>Clients</li>
+<li>Servers</li></ul>
+<h4><span class="mw-headline" id="Brainstorming">Brainstorming</span></h4>
+<h4><span class="mw-headline" id="Ideas_for_other_types_of_queries">Ideas for other types of queries</span></h4>
+<ul><li><a href="/mp-config" title="mp-config">mp-config</a></li>
+<li>extended markup formats – right now it is relatively dependent on the server implementation how text content is treated (1:1, basic processing like linking URLs, Markdown, ...). A query could expose information about this (and maybe even be part of a way to choose for the user)</li></ul>
+<h4><span class="mw-headline" id="Questions">Questions</span></h4>
+<ul><li>According to the current spec (2017-01), a <code>GET ?q=config</code> should also include the <code>syndicate-to</code> property. If the collection of supported properties grows, is this still a thing to hold on to? Venues and tags can make the response potentially large. <span class="h-card" style="white-space:nowrap"><img src="https&#58;//seblog.nl/photo.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Seblog.nl" title="User:Seblog.nl">Sebastiaan Andeweg</a></span>
+<ul><li>Agreed, I think the empty <code>GET ?q=config</code> should be very limited, and clients should request things with potentially large responses separately. <span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/photo.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span> 11:40, 11 April 2018 (PDT)</li>
+<li>What would those requests look like? We have <code>q=contact</code> and <code>q=category</code> currently but what would it look like for fetching venues? Do we fall back on using the <code>h-*</code> value for the query?
+<ul><li>I think it's safe to lean on returning either a Microformats2 JSON or JF2 formatted response (defaulting to Microformats2 JSON as that's the expected format for entries)</li></ul></li></ul></li></ul>
+<h3><span class="mw-headline" id="Other">Other</span></h3>
+<h4><span class="mw-headline" id="Standalone_Pages">Standalone Pages</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/25">https://github.com/indieweb/micropub-extensions/issues/25</a></dd></dl>
+<p>This proposal deals with how to create standalone pages, as opposed to posts.
+</p><p>Options include using a '/' in the mp-slug parameter, or overloading the h property with h=page. 
+</p><p>Consensus after the Microformats Pop-Up 2020 session was that h=page was the most clear solution to this issue.
+</p>
+<h4><span class="mw-headline" id="Dealing_with_Expiring_Tokens">Dealing with Expiring Tokens</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/17">https://github.com/indieweb/micropub-extensions/issues/17</a></dd></dl>
+<p>Currently IndieAuth and Micropub don't talk about how to deal with expired tokens, whether auto-expiring tokens or revoked tokens. To get a new token, most Micropub clients will make you log out and back in. However in the new Micropub client era with native apps and Reader web apps, you might not want to have to log out and back in just to refresh your token. (more details for brainstorming available in GitHub issue)
+</p>
+<h4><span class="mw-headline" id="Dealing_with_Expiring_Configuration">Dealing with Expiring Configuration</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/18">https://github.com/indieweb/micropub-extensions/issues/18</a></dd></dl>
+<p>There are instances where the configuration of a Micropub endpoint can change. Currently both the Media Endpont url and the syndication values are in the Micropub's config query. Because the Media Endpoint is an external service it makes sense that at times this url may change, and the user shouldn't have to log out and back in to update that value. (more details for brainstorming available in GitHub issue)
+</p>
+<h4><span class="mw-headline" id="Extended_GEO_URI">Extended GEO URI</span></h4>
+<p><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/32">https://github.com/indieweb/micropub-extensions/issues/32</a>
+</p><p>IndiePass for Android has a checkin post type which passes the checkin information as additional parameters in the Geo URI in order to allow more parameters in a form-encoded request. The payload property is 'geo'. It's not doing a JSON post, so you can also immediately upload pictures as well. Additional properties for the venue/location can be added later. The same technique is used to post geocache logs, see <a class="external free" href="https://indieweb.org/geocaching">https://indieweb.org/geocaching</a>
+</p>
+<pre>geo:51.5258325,-0.1359825,0.0;name=london;url=https://hwclondon.co.uk
+</pre>
+<p>Implementations:
+</p>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a></li></ul></li>
+<li>Servers
+<ul><li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a>. An example can be found here: <a class="external free" href="https://realize.be/checkin/1762">https://realize.be/checkin/1762</a></li>
+<li><a href="/WordPress_Micropub_Plugin" class="mw-redirect" title="WordPress Micropub Plugin">WordPress Micropub Plugin</a></li></ul></li></ul>
+<h4><span class="mw-headline" id="Post_contacts">Post contacts</span></h4>
+<p>Clients should be able to add or update h-cards.
+</p><p>Adding or updating also happens on the q=contact endpoint, but with a POST request.
+</p><p>Properties: h=card&amp;name=Contact name&amp;nickname=Nick&amp;photo=photo&amp;url=url
+</p>
+<h5><span class="mw-headline" id="Implementations_23">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/IndiePass_for_Android" title="IndiePass for Android">IndiePass for Android</a> - can create, update and delete</li></ul></li>
+<li>Servers
+<ul><li><a href="/IndieWeb_for_Drupal" title="IndieWeb for Drupal">IndieWeb for Drupal</a></li></ul></li></ul>
+<p><br />
+</p>
+<h4><span class="mw-headline" id="Draft_Scope">Draft Scope</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/24">https://github.com/indieweb/micropub-extensions/issues/24</a></dd></dl>
+<p>Proposal to implement a draft scope. Draft by itself, without (create/update) scope, would only allow draft posts to be created regardless of what post-status is sent by the client.
+</p>
+<ul><li>Clients
+<ul><li>Micropublish supports an optional draft scope when logging in. If used, all posts will have post-status=draft.</li></ul></li>
+<li>Servers
+<ul><li><a href="/WordPress_Micropub_Plugin" class="mw-redirect" title="WordPress Micropub Plugin">WordPress Micropub Plugin</a>
+<ul><li>Consent screen allows the server to change a request for create into draft.</li></ul></li>
+<li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span> supports the draft scope
+<ul><li>His consent screen allows the server to change a request for create into draft so that clients who do not know about draft can still use it.</li></ul></li>
+<li><span class="h-card"><img src="https&#58;//www.jvt.me/img/profile.png" class="" style="height:1.1em;vertical-align:-.1em" alt="" />&#160; <a href="/User:Www.jvt.me" title="User:Www.jvt.me">Jamie Tanna</a></span> has implemented this.
+<ul><li>when creating a post, and the draft scope is present, the post-status is forced to draft (even if it's set otherwise in the post)</li>
+<li>when updating a post, and the draft scope is present, the update is only allowed when updating a draft post, otherwise returns insufficient_scope</li>
+<li>delete/undelete returns insufficient_scope when the draft scope is present</li></ul></li></ul></li></ul>
+<h2><span class="mw-headline" id="Media_Endpoint_Extensions">Media Endpoint Extensions</span></h2>
+<h3><span class="mw-headline" id="Proposed_Extensions_2">Proposed Extensions</span></h3>
+<h4><span class="mw-headline" id="Delete_from_Media_Endpoint">Delete from Media Endpoint</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/30">https://github.com/indieweb/micropub-extensions/issues/30</a></dd></dl>
+<p>This is a proposed extension to the <a class="external text" href="https://www.w3.org/TR/micropub/#media-endpoint">Media Endpoint</a> section of the Micropub spec to allow deletes using the Micropub syntax of <code>POST action=delete&amp;url=https://example.com/filename.jpg</code>
+</p><p>Proposal is that to allow this, the client must have both the delete and the media scopes. 
+</p><p><br />
+</p>
+<h5><span class="mw-headline" id="Implementations_24">Implementations</span></h5>
+<ul><li>Clients
+<ul><li>...</li></ul></li>
+<li>Servers
+<ul><li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span>'s media endpoint supports this requiring <code>media delete</code> scope</li>
+<li><a href="/micro.blog" class="mw-redirect" title="micro.blog">micro.blog</a> supports this as of <a class="external text" href="https://github.com/indieweb/micropub-extensions/issues/30#issuecomment-665092174">28 Jul 2020</a>, though without scope enforcement</li>
+<li><a href="/Micropub_for_WordPress" title="Micropub for WordPress">Micropub for WordPress</a> supports this as of <a class="external text" href="https://github.com/indieweb/micropub-extensions/issues/30#issuecomment-991681457">11 Dec 2021</a></li></ul></li></ul>
+<h4><span class="mw-headline" id="Response_from_Media_Endpoint">Response from Media Endpoint</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/13">https://github.com/indieweb/micropub-extensions/issues/13</a></dd></dl>
+<p>This is a proposed extension to the <a class="external text" href="https://www.w3.org/TR/micropub/#media-endpoint">Media Endpoint</a> section of the Micropub spec to define the response body used by a media endpoint on successful upload and to be used if the media endpoint responds to q=source, which is defined for the micropub endpoint.
+</p><p>Initial Consensus is to implement a response with a minimum required property of "url". Enhancement to be done later with possible other properties.
+</p>
+<h5><span class="mw-headline" id="Implementations_25">Implementations</span></h5>
+<ul><li>Servers
+<ul><li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span> in his media endpoint on media.aaronpk.com</li>
+<li><span class="h-card"><a href="/User:Unrelenting.technology" title="User:Unrelenting.technology">unrelentingtech</a></span> in <a href="/sweetroll" title="sweetroll">sweetroll</a> — instead of "url" there's a JSON structure with a bunch of stuff. For photos: "width", "height", "meta" (metadata extracted by exiv2), "palette" (prominent colors via <a class="external text" href="https://github.com/akfish/node-vibrant">vibrant</a>), "tiny_preview" (<a href="/data_uri" title="data uri">data uri</a> of a <a class="external text" href="https://jmperezperez.com/webp-placeholder-images/">tiny WebP preview</a>) and most importantly "source" (links to the actual image in different formats).</li>
+<li>WordPress Micropub currently returns the published date, URL, and mime-type</li>
+<li><span class="h-card"><img src="https&#58;//indieweb.org/images/8/8d/jonathan-lacour.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Cleverdevil.io" title="User:Cleverdevil.io">Jonathan LaCour</a></span> added support for this response in <a href="/Known" title="Known">Known</a> in <a class="external text" href="https://github.com/idno/known/pull/2266">November 2018</a>.</li></ul></li>
+<li>Clients
+<ul><li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span> - a iOS Workflow that I created to upload to my media endpoint requests a text/plain response and uses the body as the URL, copying it to the clipboard. that was easier than adding a JSON parser to the Workflow.</li>
+<li><span class="h-card"><a href="/User:Unrelenting.technology" title="User:Unrelenting.technology">unrelentingtech</a></span> - <a href="/sweetroll" title="sweetroll">sweetroll</a> does rich photo display based on the data generated by the endpoint.</li></ul></li></ul>
+<h4><span class="mw-headline" id="Query_for_Media_from_Media_Endpoint">Query for Media from Media Endpoint</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/14">https://github.com/indieweb/micropub-extensions/issues/14</a></dd></dl>
+<p>This is a proposed extension to the <a class="external text" href="https://www.w3.org/TR/micropub/#media-endpoint">Media Endpoint</a> section of the Micropub spec to respond to the stable extension, q=source, which is defined for the micropub endpoint. 
+</p><p>The response would be an array of the data elements being discussed as the response body being proposed as a separate extension.
+</p><p>Note: This has superseded the previous suggestion of q=last.
+</p><p>Example:
+</p>
+<pre>GET /media-endpoint?q=source
+Authorization: Bearer XYZ123
+</pre>
+<pre>{
+    "items": [
+        {
+            "url": "http://mpserver/media/2018/d45f435b2ce3ea97cf35054122736751.jpg",
+        }
+    ]
+}
+</pre>
+<p><br />
+</p>
+<h5><span class="mw-headline" id="Implementations_26">Implementations</span></h5>
+<ul><li>Clients
+<ul><li><a href="/Quill" title="Quill">Quill</a> queries <code>?q=source&amp;limit=1</code> for recently uploaded files to prepopulate the photo on the new post interface. It requires the "url" property to exist, and if a "published" property exists, will only show the file if it has been created within the last 5 minutes.</li>
+<li><a href="/Sparkles" title="Sparkles">Sparkles</a> (<a class="external autonumber" href="https://github.com/benjifs/sparkles/commit/93f8a9404eaebf795379e86901fbfcbd751ddf09">[3]</a>)</li>
+<li>...</li></ul></li>
+<li>Servers
+<ul><li><a href="/WordPress_Micropub_Plugin" class="mw-redirect" title="WordPress Micropub Plugin">WordPress Micropub Plugin</a> implements q=source as well as limit to specify the number of things to return. It returns WordPress media metadata until there is a discussion of what to return to consume.</li>
+<li><a href="/inari" title="inari">inari</a> by <span class="h-card"><img src="https&#58;//j4y.co/profile_pic.jpeg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Jay.funabashi.co.uk" title="User:Jay.funabashi.co.uk">j4y_funabashi</a></span> allows you to query for a media list. Currently this shows the latest 30 media files uploaded, pagination is to follow.</li></ul></li></ul>
+<pre>GET /media-endpoint?q=source
+Authorization: Bearer XYZ123
+</pre>
+<pre>{
+    "items": [
+        {
+            "uid": "8535f86b-3a4a-4d50-8a33-ed71050b2f12",
+            "url": "http://mpserver/media/2018/d45f435b2ce3ea97cf35054122736751.jpg",
+            "file_key": "2018/d45f435b2ce3ea97cf35054122736751.jpg",
+            "file_hash": "d45f435b2ce3ea97cf35054122736751",
+            "mime_type": "image/jpeg",
+            "date_time": "2018-10-03T16:26:24Z",
+            "lat": 48.14296338888889,
+            "lng": 17.115262972222222
+        }
+    ]
+}
+</pre>
+<ul><li><ul><li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span>'s media endpoint returns up to 10 recent files, ordered by newest first. Properties returned include url, published, and mime_type.</li></ul></li></ul>
+<pre>{
+  "items": [
+    {
+      "url": "https://media.aaronpk.com/2020/07/file-20200726XXX.jpg",
+      "published": "2020-07-26T09:51:11-07:00",
+      "mime_type": "image/jpeg"
+    },
+    {
+      "url": "https://media.aaronpk.com/2020/07/file-20200726XXX.jpg",
+      "published": "2020-07-26T08:49:24-07:00",
+      "mime_type": "image/jpeg"
+    }
+  ]
+}</pre>
+<p><br />
+</p>
+<h6><span class="mw-headline" id="Previous_Implementations">Previous Implementations</span></h6>
+<p>The previous proposal q=last is currently implemented by:
+</p>
+<ul><li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span> on his media endpoint media.aaronpk.com</li>
+<li><a href="/WordPress_Micropub_Plugin" class="mw-redirect" title="WordPress Micropub Plugin">WordPress Micropub Plugin</a></li></ul>
+<p>And consumed by:
+</p>
+<ul><li><a href="/Quill" title="Quill">Quill</a> - queries the media endpoint to find the last uploaded image and pre-populates the photo in the note interface. this has been replaced with q=source as of 2020-07-26</li></ul>
+<h4><span class="mw-headline" id="Query_for_Media_by_URL">Query for Media by URL</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/37">https://github.com/indieweb/micropub-extensions/issues/37</a></dd></dl>
+<h5><span class="mw-headline" id="Implementations_27">Implementations</span></h5>
+<ul><li>Servers
+<ul><li><a href="/inari" title="inari">inari</a> allows you to query for media by URL</li>
+<li><a href="/WordPress_Micropub_Plugin" class="mw-redirect" title="WordPress Micropub Plugin">WordPress Micropub Plugin</a> implements q=source and url= for the media endpoint. It returns the WordPress media metadata and will likely change this when there is a clearer return standard.</li></ul></li></ul>
+<p><br />
+</p>
+<h4><span class="mw-headline" id="Link_Rel_for_Media_Endpoint">Link Rel for Media Endpoint</span></h4>
+<dl><dt><b>Issues and discussion:</b></dt>
+<dd><a class="external free" href="https://github.com/indieweb/micropub-extensions/issues/15">https://github.com/indieweb/micropub-extensions/issues/15</a></dd></dl>
+<p>This is a proposed extension to the <a class="external text" href="https://www.w3.org/TR/micropub/#media-endpoint">Media Endpoint</a> section of the Micropub spec, where the Media Endpoint will advertise itself separately instead of requiring you to query the micropub endpoint.
+</p>
+<h5><span class="mw-headline" id="Implementations_28">Implementations</span></h5>
+<ul><li>Clients
+<ul><li>...</li></ul></li>
+<li>Servers
+<ul><li><span class="h-card" style="white-space:nowrap"><img src="https&#58;//martymcgui.re/img/logo.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Martymcgui.re" title="User:Martymcgui.re">Marty McGuire</a></span> on his site.</li>
+<li><a href="/WordPress_Micropub_Plugin" class="mw-redirect" title="WordPress Micropub Plugin">WordPress Micropub Plugin</a></li></ul></li></ul>
+<h2><span class="mw-headline" id="See_Also">See Also</span></h2>
+<ul><li><a class="external text" href="https://micropub.net/draft/">Latest Editor's Draft</a></li>
+<li><a href="/Micropub" title="Micropub">Micropub</a></li>
+<li><a href="/Micropub-brainstorming" title="Micropub-brainstorming">Micropub-brainstorming</a></li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20261106143222
+Cache expiry: 86400
+Reduced expiry: false
+Complications: [show‐toc]
+CPU time usage: 0.095 seconds
+Real time usage: 0.107 seconds
+Preprocessor visited node count: 665/1000000
+Post‐expand include size: 4699/2097152 bytes
+Template argument size: 384/2097152 bytes
+Highest expansion depth: 4/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 3531/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%   30.727      1 -total
+ 22.92%    7.044      1 Template:eddiehinkle.com
+ 12.35%    3.794      3 Template:gwg
+  9.47%    2.909     10 Template:sparkline
+  9.41%    2.892      1 Template:Sebsel
+  8.71%    2.677      1 Template:j4y_funabashi
+  5.91%    1.815      1 Template:jay.funabashi
+  5.90%    1.814      1 Template:jonnybarnes
+  5.74%    1.765      7 Template:aaronpk
+  5.67%    1.741      1 Template:jamietanna
+-->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://indieweb.org/wiki/index.php?title=Micropub-extensions&amp;oldid=114406">https://indieweb.org/wiki/index.php?title=Micropub-extensions&amp;oldid=114406</a>"</div></div>
+					<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/Category:Micropub" title="Category:Micropub">Micropub</a></li></ul></div></div>
+				</div>
+			</main>
+			
+		</div>
+		<div class="mw-footer-container">
+			
+<footer id="footer" class="mw-footer" role="contentinfo" >
+	<ul id="footer-info">
+	<li id="footer-info-lastmod"> This page was last edited on 31 October 2026, at 02:23.</li>
+	<li id="footer-info-copyright">Content is available under <a href="/IndieWebCamp:Copyrights" class="mw-redirect" title="IndieWebCamp:Copyrights">a CC0 public domain dedication</a> unless otherwise noted.</li>
+</ul>
+
+	<ul id="footer-places">
+	<li id="footer-places-privacy"><a href="/IndieWeb:Privacy_policy">Privacy policy</a></li>
+	<li id="footer-places-about"><a href="/IndieWeb:About">About IndieWeb</a></li>
+	<li id="footer-places-disclaimers"><a href="/IndieWeb:General_disclaimer">Code of Conduct</a></li>
+</ul>
+
+	<ul id="footer-icons" class="noprint">
+	<li id="footer-copyrightico"><a href="http://creativecommons.org/publicdomain/zero/1.0/"><img src="https://i.creativecommons.org/p/zero/1.0/88x31.png" alt="a CC0 public domain dedication" width="88" height="31" loading="lazy"></a></li>
+	<li id="footer-poweredbyico"><a href="https://www.mediawiki.org/"><img src="/wiki/resources/assets/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" srcset="/wiki/resources/assets/poweredby_mediawiki_132x47.png 1.5x, /wiki/resources/assets/poweredby_mediawiki_176x62.png 2x" width="88" height="31" loading="lazy"></a></li>
+</ul>
+
+</footer>
+
+		</div>
+	</div> 
+</div> 
+<div class="vector-settings" id="p-dock-bottom">
+	<ul>
+		<li>
+		
+		<button class="cdx-button cdx-button--icon-only vector-limited-width-toggle" id=""><span class="vector-icon mw-ui-icon-fullScreen mw-ui-icon-wikimedia-fullScreen"></span>
+
+<span>Toggle limited content width</span>
+</button>
+</li>
+	</ul>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":366,"wgPageParseReport":{"limitreport":{"cputime":"0.095","walltime":"0.107","ppvisitednodes":{"value":665,"limit":1000000},"postexpandincludesize":{"value":4699,"limit":2097152},"templateargumentsize":{"value":384,"limit":2097152},"expansiondepth":{"value":4,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":3531,"limit":5000000},"timingprofile":["100.00%   30.727      1 -total"," 22.92%    7.044      1 Template:eddiehinkle.com"," 12.35%    3.794      3 Template:gwg","  9.47%    2.909     10 Template:sparkline","  9.41%    2.892      1 Template:Sebsel","  8.71%    2.677      1 Template:j4y_funabashi","  5.91%    1.815      1 Template:jay.funabashi","  5.90%    1.814      1 Template:jonnybarnes","  5.74%    1.765      7 Template:aaronpk","  5.67%    1.741      1 Template:jamietanna"]},"cachereport":{"timestamp":"20261106143222","ttl":86400,"transientcontent":false}}});});</script>
+</body>
+</html>

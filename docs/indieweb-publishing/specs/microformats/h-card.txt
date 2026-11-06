@@ -1,0 +1,577 @@
+h-card
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+h-card is a simple, open format for publishing people and organisations on the web. h-card is often used on home pages and individual blog posts. h-card is one of several open microformat draft standards suitable for embedding data in HTML.
+
+h-card is the microformats2 update to hCard.
+
+Status
+This is a Living Specification yet mature enough to encourage additional implementations and feedback.
+Participate
+Open Issues
+IRC
+
+Editor
+Tantek Çelik
+
+License
+Per CC0, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the Open Web Foundation Agreement Version 1.0.
+
+Contents
+
+1 Example
+
+1.1 Get started
+
+2 Properties
+
+3 Status
+
+4 Property Details
+
+4.1 p-adr
+
+4.2 p-tel
+
+4.3 dt-bday
+
+4.4 Reserved properties
+
+5 Examples in the wild
+
+5.1 offline
+
+6 Validating
+
+7 Implementations
+
+8 Backward Compatibility
+
+8.1 Publisher Compatibility
+
+8.2 Parser Compatibility
+
+9 Background
+
+10 Design Principles
+
+11 Additions
+
+12 See Also
+
+Example
+
+Here are a couple of minimal examples:
+
+&lt;a class=&quot;h-card&quot; href=&quot;https://tantek.com/&quot;&gt;Tantek Çelik&lt;/a&gt;,
+
+&lt;span class=&quot;h-card&quot;&gt;
+  &lt;a class=&quot;p-name p-org u-url&quot; href=&quot;https://microformats.org/&quot;&gt;microformats.org&lt;/a&gt;
+&lt;/span&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [
+    {
+      &quot;type&quot;: [&quot;h-card&quot;],
+      &quot;properties&quot;: {
+        &quot;name&quot;: [&quot;Tantek Çelik&quot;],
+        &quot;url&quot;: [&quot;https://tantek.com/&quot;]
+      }
+    },
+    {
+      &quot;type&quot;: [&quot;h-card&quot;],
+      &quot;properties&quot;: {
+        &quot;name&quot;: [&quot;microformats.org&quot;],
+        &quot;org&quot;: [&quot;microformats.org&quot;],
+        &quot;url&quot;: [&quot;https://microformats.org/&quot;]
+      }
+    }
+  ]
+}
+
+Note a single element was sufficient for the simple person example with implied name and URL properties, while for an organization, which requires a name and org, it needed explicit markup for the h-card and all properties, though still with only two elements.
+
+Nested h-card example:
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;a class=&quot;p-name u-url&quot;
+     href=&quot;https://blog.lizardwrangler.com/&quot;
+    &gt;Mitchell Baker&lt;/a&gt;
+  (&lt;a class=&quot;p-org h-card&quot;
+      href=&quot;https://mozilla.org/&quot;
+     &gt;Mozilla Foundation&lt;/a&gt;)
+&lt;/div&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Mitchell Baker&quot;],
+      &quot;url&quot;: [&quot;https://blog.lizardwrangler.com/&quot;],
+      &quot;org&quot;: [{
+        &quot;value&quot;: &quot;Mozilla Foundation&quot;,
+        &quot;type&quot;: [&quot;h-card&quot;],
+        &quot;properties&quot;: {
+          &quot;name&quot;: [&quot;Mozilla Foundation&quot;],
+          &quot;url&quot;: [&quot;https://mozilla.org/&quot;]
+        }
+      }]
+    }
+  }]
+}
+
+Note: the nested h-card has implied 'name' and 'url' properties, just like any other root-class-name-only h-card on an &lt;a href&gt; would.
+
+Get started
+
+The class h-card is a root class name that indicates the presence of an h-card.
+
+For minimal examples where at most p-name, u-url and u-photo are required (such as the first given above), only the root class name is needed — see implied properties.
+
+When more than those three minimal properties are needed, the root class name must be placed on an element which encloses all the desired properties, and then the properties themselves marked up using the classnames given below.
+
+See microformats2-parsing to learn more about property classnames.
+
+Properties
+
+h-card properties, inside an element with class h-card. All properties are both optional and may have multiple instances, e.g. multiple name, url, photo etc. properties.
+
+See microformats2-parsing to learn more about property classnames.
+
+Example h-card with common properties:
+
+&lt;div class="h-card"&gt;
+
+&lt;span class="p-name"&gt;Sally Ride&lt;/span&gt;
+
+&lt;span class="p-honorific-prefix"&gt;Dr.&lt;/span&gt;
+
+&lt;span class="p-given-name"&gt;Sally&lt;/span&gt;
+
+&lt;abbr class="p-additional-name"&gt;K.&lt;/abbr&gt;
+
+&lt;span class="p-family-name"&gt;Ride&lt;/span&gt;
+
+&lt;span class="p-honorific-suffix"&gt;Ph.D.&lt;/span&gt;,
+
+&lt;span class="p-nickname"&gt;sallykride&lt;/span&gt; (IRC)
+
+&lt;div class="p-org"&gt;Sally Ride Science&lt;/div&gt;
+
+&lt;img class="u-photo" src="http://example.com/sk.jpg"/&gt;
+
+&lt;a class="u-url" href="http://sally.example.com"&gt;w&lt;/a&gt;,
+
+&lt;a class="u-email" href="mailto:sally@example.com"&gt;e&lt;/a&gt;
+
+&lt;div class="p-tel"&gt;+1.818.555.1212&lt;/div&gt;
+
+&lt;div class="p-street-address"&gt;123 Main st.&lt;/div&gt;
+
+&lt;span class="p-locality"&gt;Los Angeles&lt;/span&gt;,
+
+&lt;abbr class="p-region" title="California"&gt;CA&lt;/abbr&gt;,
+
+&lt;span class="p-postal-code"&gt;91316&lt;/span&gt;
+
+&lt;div class="p-country-name"&gt;U.S.A&lt;/div&gt;
+
+&lt;time class="dt-bday"&gt;1951-05-26&lt;/time&gt; birthday
+
+&lt;div class="p-category"&gt;physicist&lt;/div&gt;
+
+&lt;div class="p-note"&gt;First American woman in space.&lt;/div&gt;
+
+&lt;/div&gt;
+
+Core properties:
+
+p-name - The full/formatted name of the person or organization
+
+p-honorific-prefix - e.g. Mrs., Mr. or Dr.
+
+p-given-name - given (often first) name
+
+p-additional-name - other (e.g. middle) name
+
+p-family-name - family (often last) name
+
+p-sort-string - string to sort by
+
+p-honorific-suffix - e.g. Ph.D, Esq.
+
+p-nickname - nickname/alias/handle
+
+u-email - email address
+
+u-logo - a logo representing the person or organization (e.g. a face icon)
+
+u-photo - a photo of the person or organization
+
+u-url - home page or other URL representing the person or organization
+
+u-uid - universally unique identifier, preferably canonical URL
+
+p-category - category/tag
+
+p-adr - postal address, optionally embed an h-adr
+Main article: h-adr
+
+p-post-office-box - post office box description if any
+
+p-extended-address - apartment/suite/room name/number if any
+
+p-street-address - street number + name
+
+p-locality - city/town/village
+
+p-region - state/county/province
+
+p-postal-code - postal code, e.g. US ZIP
+
+p-country-name - country name
+
+p-label
+
+p-geo or u-geo, optionally embed an h-geo
+Main article: h-geo
+
+p-latitude - decimal latitude
+
+p-longitude - decimal longitude
+
+p-altitude - decimal altitude
+
+p-tel - telephone number
+
+p-note - additional notes
+
+dt-bday - birth date
+
+u-key - cryptographic public key e.g. SSH or GPG
+
+p-org - affiliated organization, optionally embed an h-card
+
+p-job-title - job title, previously 'title' in hCard, disambiguated.
+
+p-role - description of role
+
+u-impp per RFC4770, new in vCard4 (RFC 6350)
+
+p-sex - biological sex, new in vCard4 (RFC 6350)
+
+p-gender-identity - gender identity, new in vCard4 (RFC 6350)
+
+dt-anniversary
+
+Experimental properties currently in use in the wild but not (yet) part of the official h-card spec.
+
+u-sound - sound file containing the proper pronunciation of the name property, per vCard (RFC 6350).
+
+Used by Martijn van der Ven with a clip of his given name.
+
+Needs a GitHub issue to track.
+
+Status
+
+h-card is a microformats.org draft specification. Public discussion on h-card takes place on the #microformats channel on irc.freenode.net (view recent discussions), and specific issues may be filed on GitHub.
+
+h-card is ready to use and implemented in the wild. For backwards compatibility you should also mark up top-level h-cards as classic hCards.
+
+Property Details
+
+(stub, to be expanded)
+
+p-adr
+
+p-adr can optionally embed an h-adr to cluster associated structured address properties. E.g. adding "p-adr" to the example earlier:
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;p class=&quot;p-name&quot;&gt;Joe Bloggs&lt;/p&gt;
+  &lt;p class=&quot;p-adr h-adr&quot;&gt;
+    &lt;span class=&quot;p-street-address&quot;&gt;17 Austerstræti&lt;/span&gt;
+    &lt;span class=&quot;p-locality&quot;&gt;Reykjavík&lt;/span&gt;
+    &lt;span class=&quot;p-country-name&quot;&gt;Iceland&lt;/span&gt;
+  &lt;/p&gt;
+&lt;/div&gt;
+
+Q: Why would you use "p-adr" to cluster associated structured address properties?
+
+A: Because if you have more than one structured address, clustering which properties go with which address keeps them deterministically together, instead of depending on array indices or other heuristics.
+
+p-tel
+
+Note: use of 'value' within 'p-tel' should be automatically handled by the support of the value-class-pattern. And for now, the former hCard 'type' subproperty of 'tel' is dropped/ignored. If there is demonstrable documented need for additional tel types (e.g. fax), we can introduce new flat properties as needed (e.g. p-tel-fax).
+
+dt-bday
+
+Using truncated representations of dates for birth date is often good practice as noted in the vcard spec eg
+
+1985-04 for April 1985
+
+1985 for the year 1985
+
+--04-12 for April 12th with no specified year
+
+Reserved properties
+
+The following properties were supported by the legacy hCard format, but were not carried over to h-card due to lack of real-world usage, or other problems. They are not part of h-card and should not be published, consumed, or proposed.
+
+p-organization-name
+
+p-organization-unit
+
+p-tz — timezone offset
+
+it's going to be a hard one to "get right", as the way timezones work in vcard/ical is very weird, and timezones as a whole are an iffy thing to denote (quite the disconnect between complexity, automated processing ability, actually representing what a user would want to show/display or already does on their homepage, and actually representing something useful to parse and do something with)
+
+there's certainly no ecosystem of publishers &amp; consumers supporting p-tz in any meaningful interoperable way — tantek in #microformats
+
+dt-rev
+
+Examples in the wild
+
+See also: h-card Examples on indieweb.org
+
+Real world in the wild examples of sites and services that publish or consume h-card:
+
+... add uses of h-card you see in the wild here.
+
+Security Jobs London uses h-card with legacy hCard fallback markup (to satisfy Google's Structured Data Testing Tool) in the footer of each page
+
+Brett Comnes marks up his posts with h-card (example)
+
+Ben Werdmuller marks up his homepage and posts with h-card example)
+
+Joel Purra uses a hidden h-card with legacy hCard fallback markup (to satisfy Google's Structured Data Testing Tool) on the front page
+
+Laurent Eschenauer marks his homepage profile up using h-card
+
+Tom Morris marks himself up with h-card as well as venues he’s checked into (example)
+
+W3Conf 2013 uses h-card for all the event speakers and notable attendees. The h-cards make particularly good use of implied name, url, and photo properties.
+
+SemPress is a WordPress theme that supports h-card, h-feed/h-entry and h-as-*
+
+The Pastry Box Project use h-card markup on their homepage and individual thoughts pages
+
+Tom Morris uses h-card and XFN to markup his blogroll.
+
+Aaron Parecki uses h-card to markup both authorship and references to people in his notes permalinks, e.g. 2012/230/reply/1.
+
+Tantek Çelik uses h-card  on his home page as well as within h-entrys on permalink pages to indicate authorship.
+
+Barnaby Walters uses h-card on his home page, as well as within h-entries for notes and articles, both to indicate authorship and also when mentioning people within the body of the notes.
+
+microformats.org at 7 years presentation with and h-card markup for people and organizations.
+
+Rise of the Indie Web hCards (from Personal Democracy Forum 2012 #pdf12 #pdf2012) has microformats2 h-card markup
+
+WebMaker by Mozilla has microformats2 h-card on event search (e.g. search near Portland Oregon) and event pages (e.g. IndieWebCamp 2012).[1]
+
+WebFWD by Mozilla has microformats2 h-card markup on experts and team pages
+
+IndieWebCamp has microformats2 h-event markup with embedded h-cards for the organizers and the location.
+
+Mozilla Events page has microformats2 h-event markup with attendees marked up with h-card.
+
+Tristan Thomas uses h-card on his home page
+
+Cold32.com uses h-card (and h-geo) on its about-the-author-and-contact page
+
+Workfrom.co renders h-cards for venues (e.g. [2])
+
+PCWDLD.com renders h-cards for download pages(e.g. Download page example)
+
+offline
+
+spreadly marks up share permalink pages with minimal h-cards inside h-entry
+
+App.net rolled out support for h-card and h-entry on all profile pages and permalink pages as of 2013-08-06 (example)
+
+Sandeep Shetty marks his homepage and posts up with h-card and h-entry (example)
+
+Validating
+
+indiewebify.me h-card validator parses h-card markup and makes suggestions for things to add, with code samples
+
+Main article: validators
+
+Test and validate microformats2 markup in general with:
+
+https://pin13.net/mf2/ - enter your markup directly
+
+https://pin13.net/ - enter a URL to a page to test where it says "Microformats Parser"
+
+Implementations
+
+Software implementations that publish or consume h-card, including themes, plugins, or extensions:
+
+(This section is a stub that needs expansion! In practice, nearly every CMS on every indie web site supports publishing h-card by default, and most sites which support receiving webmentions parse h-card for authorship data.)
+
+When adding an implementation, please provide and link to its home page and open source repo if any.
+
+GNUsocial source code
+
+Hubzilla source code
+
+Friendica source code
+
+InkBlot
+
+Aperture consumes h-card to show authorship information of feed posts (source code)
+
+XRay consumes h-card and flattens it into a more minimal format (source code)
+
+Known publishes and consumes h-card to show authorship of posts and responses
+
+Bridgy publishes microformats-2 versions of siloed content (including h-card for authorship) for consumption by mf2-consumers
+
+webmention.io consumes h-card for authorship data of incoming webmentions which it accepts on behalf of other sites
+
+...
+
+...
+
+Backward Compatibility
+
+Publisher Compatibility
+
+For backward compatibility, you may wish to use classic hCard classnames in addition to the more future-proof h-card properties, for example:
+
+&lt;p class=&quot;h-card vcard&quot;&gt;
+  &lt;span class=&quot;p-name fn&quot;&gt;Joe Bloggs&lt;/span&gt;,
+  &lt;span class=&quot;p-org org&quot;&gt;Awesome Nonprofit&lt;/span&gt;
+  ...
+&lt;/p&gt;
+
+The class vcard is a backward compatible root class name that indicates the presence of an hCard.
+
+fn, org, and all the other backward compatibility hCard property class names are listed below.
+
+Parser Compatibility
+
+Microformats parsers SHOULD detect classic properties only if a classic root class name is found and parse them as microformats2 properties.
+
+If an "h-card" is found, don't look for a "vcard" on the same element.
+
+Compat. root class name: vcard
+
+Properties: (parsed as p- plain text unless otherwise specified)
+
+fn - parse as p-name
+
+honorific-prefix
+
+given-name
+
+additional-name
+
+family-name
+
+honorific-suffix
+
+nickname
+
+email - parse as u-
+
+logo - parse as u-
+
+photo - parse as u-
+
+url - parse as u-
+
+uid - parse as u-
+
+category
+
+adr - parse as p-adr h-adr including compat root class adr
+
+extended-address
+
+street-address
+
+locality
+
+region
+
+postal-code
+
+country-name
+
+label
+
+geo - parse as p-geo h-geo including compat root class geo
+
+latitude
+
+longitude
+
+tel
+
+note
+
+bday - parse as dt-
+
+key - parse as u-
+
+org
+
+organization-name
+
+organization-unit
+
+title - parse as p-job-title
+
+role
+
+Reserved: (backward compat properties that parsers MAY implement, if they do, they MUST implement in this way:
+
+tz
+
+rev - parse as dt-
+
+Background
+
+This work is based on the existing hCard and vcard specifications.
+
+Design Principles
+
+(stub, expand)
+
+Additions
+
+We've tried very hard with h-card to stay compatible with the vCard4 vocabulary, and thus additions should be proposed on the vCard4 mailing list.
+
+However, you may still use this wiki to capture additions for h-card here:
+
+h-card-brainstorming
+
+See Also
+
+microformats2
+
+microformats2-parsing
+
+h-adr
+
+h-geo
+
+hCard
+
+Retrieved from "http://microformats.org/wiki/index.php?title=h-card&amp;oldid=70686"
+
+Category:
+Draft Specifications
+
+Navigation menu
+
+				Search

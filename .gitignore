@@ -39,3 +39,6 @@ vite.config.ts.timestamp-*
 # Local agent workspaces and browser artifacts
 .conductor/
 .playwright-mcp/
+
+# Downloaded research repository snapshots (keep local)
+/docs/indieweb-publishing/research/repos/

@@ -1,0 +1,813 @@
+Value Class Pattern
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+The value class pattern is a standard set of techniques to markup the value of a microformats property in part of an element, a title attribute, or across multiple elements, and how to parse &amp; normalize those markup techniques.
+
+Editors
+Ben Ward
+Tantek Çelik
+Short URL
+http://ufs.cc/w/vcp
+
+Contents
+
+1 Introduction
+
+2 Status
+
+3 Simple Examples
+
+4 Basic Parsing
+
+5 Date and time values
+
+5.1 Summary
+
+5.2 Date and time parsing
+
+5.2.1 Date and time parsing issues
+
+5.3 format specific details
+
+5.3.1 hCalendar dtend implied date
+
+5.3.2 iCalendar generators
+
+5.3.3 hAtom updated implied date
+
+5.3.4 Atom generators
+
+5.3.5 microformats2 parsers implied date
+
+5.4 derivation and tests
+
+6 Parsing value from a title attribute
+
+6.1 Using value-title to publish machine-data
+
+6.2 Parsing machine-data value-title
+
+6.3 limited use of value-title
+
+6.4 H2VX workaround
+
+7 Test cases
+
+8 FAQ
+
+9 Examples in the wild
+
+10 Implementations
+
+10.1 consuming and parsing tools
+
+10.2 publishing tools
+
+11 Background
+
+12 Articles
+
+13 References
+
+14 Related Pages
+
+15 Translations
+
+Introduction
+
+This section is informative.
+
+Use the value class pattern when you need to markup:
+
+Only part of an element's content as the value of a property
+
+The displayed value written a certain way for design reasons, and a more universal value in the title attribute of an element
+
+Multiple elements that need to be combined to set the value of a property
+
+For these purposes, the special class name value is used to mark-up the relevant data excerpt from larger element content.
+
+Status
+
+This section is informative.
+
+The value-class-pattern is feature complete, ready for use in markup, and supported in implementations such as search engines, parsers, and Firefox Operator. H2VX supports parsing date and time separation but not value-title. See also the blog announcement.
+
+The microformats2-parsing specification normatively references the value-class-pattern, and microformats2 parsers implement it.
+
+Simple Examples
+
+This section is informative.
+
+Here is markup for a home phone number:
+
+vCard fragment:
+
+TEL;TYPE=HOME:+1.415.555.1212
+
+hCard fragment:
+
+&lt;span class=&quot;tel&quot;&gt;
+  &lt;span class=&quot;type&quot;&gt;Home&lt;/span&gt;:
+  &lt;span class=&quot;value&quot;&gt;+1.415.555.1212&lt;/span&gt;
+&lt;/span&gt;
+
+In this case, the value of tel is +1.415.555.1212, not Home: +1.415.555.1212.
+
+Sometimes the value for a microformats property must be split into multiple pieces in the content of the element representing that property. Multiple elements with a class name of "value" (value elements) can be used to extract and concatenate these pieces into a single value for microformats properties which expect simple strings or tel values.
+
+Another example, this time using a localized (British) telephone number:
+
+&lt;span class=&quot;tel&quot;&gt;
+  &lt;span class=&quot;type&quot;&gt;Home&lt;/span&gt;:
+  &lt;span class=&quot;value&quot;&gt;+44&lt;/span&gt; (0) &lt;span class=&quot;value&quot;&gt;1223 123 123&lt;/span&gt;
+&lt;/span&gt;
+
+In this case, the valid data for the telephone number is +441223123123, but the way in which phone number is presented in Britain will include the (0), for local dialling. That is, from anywhere in the world you may dial +441223123123, or from within Britain you may dial 01223123123. Common local publishing interferes with the data, since dialling +4401223123123 is an invalid number.
+
+In the mark-up, two value classes target the part of the telephone number string that makes an international, valid number, whilst allowing conventional presentation.
+
+Another example, adding a place name to a geo co-ordinate:
+
+&lt;p&gt;I&#39;m loitering outside The Bricklayer&#39;s Arms
+  &lt;span class=&quot;geo&quot;&gt;
+    51° 30&#39; 48.45&quot;, -0° 8&#39; 53.23&quot;
+    (&lt;span class=&quot;value&quot;&gt;51.513458;-0.14812&lt;/span&gt;)
+  &lt;/span&gt;
+&lt;/p&gt;
+
+Whilst the entire string is a geo point, it's only the decimal encoded co-ordinates which must be consumed by a microformats parser, so the value class isolates it from the degrees form, which the publisher includes for completeness.
+
+Basic Parsing
+
+The value class pattern only applies to properties which are simple strings, enumerated values, telephone numbers, and datetimes. The value class pattern does not affect parsing of properties of type email, URL, URI, UID.
+
+Where an element with such a microformat property class name has a descendant with class name value (a "value element") not inside some other property element, parsers should use the following portion of that value element:
+
+if the value element is an img or area element, then use the element's alt attribute value.
+
+if the value element is a data element, then use the element's value attribute value if present, otherwise its inner-text.
+
+if the value element is an abbr element, then use the element's title attribute value if present, otherwise its inner-text.
+
+for any other element, use its inner-text.
+
+Where there are multiple descendants of a property with class name of value (multiple value elements)
+
+if the microformats property expects a simple string, enumerated value, or telephone number, then the values extracted from the value elements should be concatenated without inserting additional characters or white-space.
+
+if the microformats property expects a datetime value, see the Date Time Parsing section.
+
+Descendants with class of value must not be parsed deeper than one level. That is, where an element foo with class value has a descendant bar with class value, the content of foo is taken as the value. Nesting additional elements with class of value cannot be used to further isolate a property's value.
+
+e.g.
+
+ &lt;p class=&quot;description&quot;&gt;
+  &lt;span class=&quot;value&quot;&gt;
+    &lt;em class=&quot;value&quot;&gt;Puppies Rule!&lt;/em&gt;
+    &lt;strong&gt;But kittens are better!&lt;/strong&gt;
+ &lt;/span&gt;
+&lt;/p&gt;
+
+In this example, description has a child ‘value’, and that child has a grandchild ‘value’. However, the parsing of value classes stops at the first level, so the data for description is: &lt;em class="value"&gt;Puppies Rule!&lt;/em&gt;&lt;strong&gt;But kittens are better!&lt;/strong&gt;, not just Puppies Rule!.
+
+Date and time values
+
+Summary
+
+Some microformats properties expect an ISO8601 datetime value, e.g.  hCalendar dtstart and dtend, hAtom published and updated, and all microformats2 dt-* properties.
+
+Authors may use the value class pattern to separately specify the date and the time, which are then combined to specify a single datetime value.
+
+Example, this hCalendar 'dtstart' property with 'value' elements:
+
+&lt;p&gt;The weekly dinner will be on
+    &lt;span class=&quot;dtstart&quot;&gt;
+        &lt;time class=&quot;value&quot; datetime=&quot;2008-06-24&quot;&gt;this Tuesday&lt;/time&gt;
+     at &lt;time class=&quot;value&quot;&gt;18:30&lt;/time&gt;
+    &lt;/span&gt;
+&lt;/p&gt;
+
+Alternatively, if you're not able to use the HTML5 &lt;time&gt; element:
+
+&lt;p&gt;The weekly dinner will be on
+    &lt;span class=&quot;dtstart&quot;&gt;
+        &lt;abbr class=&quot;value&quot; title=&quot;2008-06-24&quot;&gt;this Tuesday&lt;/abbr&gt;
+     at &lt;span class=&quot;value&quot;&gt;18:30&lt;/span&gt;
+    &lt;/span&gt;
+&lt;/p&gt;
+
+both produce the following 'dtstart' value:
+
+2008-06-24 18:30
+
+and iCalendar converters produce the following DTSTART:
+
+DTSTART:20080624T183000
+
+Note: The lack of a timezone indicates a "floating" datetime, that is a datetime independent of any particular timezone. Examples of floating datetimes could be an alarm clock you set to ring at 7am, or the common 9am-5pm workday.
+
+Note for iCalendar DTSTART: The implied "00" seconds here is only due to iCalendar syntax requirements, and not actually meaningful.
+
+Date and time parsing
+
+For all date time properties (as defined in their respective microformats specifications), the following rules apply in addition to (and in some cases replacing) the above value class pattern parsing rules.
+
+When a "value element" is found, parse a value from the element as follows:
+
+if the element is an img or area element, then use the element's alt attribute value.
+
+if the element is a data element, then use the element's value attribute value if present, otherwise its inner-text.
+
+if the element is an abbr element, then use the element's title attribute value if present, otherwise its inner-text.
+
+if the element is a del, ins, or time element, then use the element's datetime attribute value if present, otherwise its inner-text.
+
+for any other element, use its inner-text.
+
+if the value has a specific ISO8601 date, time, and timezone, use those and stop looking for "value" elements.
+
+if the value has both a specific ISO8601 date and time, use those
+
+ignore any further "value" elements that specify the date or time.
+
+if the value has *only* a specific date, specifically, fits the following ISO8601 date patterns (i.e. as documented in the Wikipedia summary of ISO8601)
+
+YYYY-MM-DD
+
+YYYY-DDD
+
+then use that as the date value.  For the purposes of the value class pattern, the hyphens "-" separating the year, month, day and/or ordinal day are required.
+
+ignore any further "value" elements that specify the date.
+
+if the value has *only* a specific time (with or without timezone), parse it for a time value that can match any of the following:
+
+HH:MM:SS-XX:YY
+
+HH:MM:SS+XX:YY
+
+HH:MM:SS-XXYY
+
+HH:MM:SS+XXYY
+
+HH:MM:SSZ
+
+HH:MM:SS
+
+HH:MM-XX:YY
+
+HH:MM+XX:YY
+
+HH:MM-XXYY
+
+HH:MM+XXYY
+
+HH:MMZ
+
+HH:MM
+
+HH is the 24 hour "hours" in the time, from 00 to 24, with optional leading 0 for values less than 10.
+
+MM are the minutes from 00 to 59
+
+SS are the optional seconds from 00 to 59 (60 for a leap second). If seconds are NOT provided, DO NOT imply 00 seconds, and instead keep the authored level of specificity.
+
+XX is the time zone hours offset, from 00 to 12 with optional leading 0 for values less than 10.
+
+YY is the time zone minutes offset, from 00 to 59, though in practice only 00, 15, 30, 45 minute offsets are used in global timezones.
+
+Z is the literal 'Z' to indicate GMT.
+
+For the purposes of the value class pattern, the colons ":" separating the hour, minutes, seconds are required.
+
+However the colons ":" separating the hours and minutes of any timezone offset are optional and discouraged. If the offset uses XX:YY format, remove the colon so it is XXYY format. Omitting the colon makes it less likely that a timezone offset will be confused for a time.
+
+Case insensitive { }"am"|{ }"a.m." suffix to treat an HH value of 12 as 00, or a case-insensitive { }"pm"|{ }"p.m." suffix to add 12 to HH value less than 12 - per Wikipedia article on the 12 hour clock. Note: X2V has implemented this.
+
+HH:MM:SSam
+
+HH:MM:SSpm
+
+HH:MMam
+
+HH:MMpm
+
+HHam
+
+HHpm
+
+where "am" and "pm" mean "am or a.m." and "pm or p.m."
+
+when MM is omitted, infer 00 minutes.
+
+when SS is omitted, DO NOT infer 00 seconds. Instead, keep the authored level of specificity.
+
+ignore any further "value" elements that specify the time.
+
+if the value has *only* a specific timezone, parse it for a time zone value that can match any of the following:
+
+-XX:YY
+
++XX:YY
+
+-XXYY
+
++XXYY
+
+-XX
+
++XX
+
+Z
+
+XX is the time zone hours offset, from 00 to 12 with optional leading 0 for values less than 10.
+
+YY is the time zone minutes offset, from 00 to 59, though in practice only 00, 15, 30, 45 minute offsets are used in global timezones.
+
+Z is the literal 'Z' to indicate GMT.
+
+ignore any further "value" elements that specify the timezone.
+
+If by parsing the "value" element(s), at least a specific date has been found, then the "value" is overall valid, and the parser assembles the overall datetime value by concatenating the specific date (PROPOSED: normalized to YYYY-MM-DD), " " (space character) and specific time (if time was specified, with 00 minutes implied if no minutes are provided), and specific timezone (if timezone and a specific time was specified).
+
+YYYY-MM-DD - no time specified
+
+YYYY-MM-DD HH:MM or YYYY-MM-DD HH:MM:SS - time specified but no timezone.  This is a floating time.
+
+YYYY-MM-DD HH:MMZ or YYYY-MM-DD HH:MM:SSZ or
+
+YYYY-MM-DD HH:MM-XXYY or YYYY-MM-DD HH:MM:SS-XXYY or
+
+YYYY-MM-DD HH:MM+XXYY or YYYY-MM-DD HH:MM:SS+XXYY - both time and timezone offset were specified.
+
+Date and time parsing issues
+
+2026-02-03: What should a parser do if the value is not “overall valid”?
+
+Raised by jkingweb in chat: https://chat.indieweb.org/microformats/2026-02-03#t1770133542875900
+
+format specific details
+
+The following are format specific details and optimizations that make use of the value-class-pattern.
+
+short URL for this section
+http://ufs.cc/w/vcpfso
+
+hCalendar dtend implied date
+
+Typically events that start and end the same day only display the date of the event once (makes sense per the DRY principle) (real world examples: Upcoming, ... more examples with URLs would help for thoroughness).
+
+Thus it would be convenient if we could imply an hCalendar event "dtend" date from its "dtstart" date when only the time (and optionally timezone) was specified for its "dtend", e.g.:
+
+&lt;span class=&quot;vevent&quot;&gt;
+ The &lt;span class=&quot;summary&quot;&gt;party&lt;/span&gt; will be on
+ &lt;span class=&quot;dtstart&quot;&gt;
+  &lt;time class=&quot;value&quot;&gt;2009-06-26&lt;/time&gt;, from
+  &lt;time class=&quot;value&quot;&gt;19:00&lt;/time&gt;&lt;/span&gt; to
+ &lt;span class=&quot;dtend&quot;&gt;&lt;time class=&quot;value&quot;&gt;22:00&lt;/time&gt;&lt;/span&gt;.
+&lt;/span&gt;
+
+and in HTML4/XHTML1:
+
+&lt;span class=&quot;vevent&quot;&gt;
+ The &lt;span class=&quot;summary&quot;&gt;party&lt;/span&gt; will be on
+ &lt;span class=&quot;dtstart&quot;&gt;
+  &lt;span class=&quot;value&quot;&gt;2009-06-26&lt;/span&gt;, from
+  &lt;span class=&quot;value&quot;&gt;19:00&lt;/span&gt;&lt;/span&gt; to
+ &lt;span class=&quot;dtend&quot;&gt;&lt;span class=&quot;value&quot;&gt;22:00&lt;/span&gt;&lt;/span&gt;.
+&lt;/span&gt;
+
+To simplify this further for authors, hCalendar processors could treat the specifying of just the time per the value-class-pattern date and time value rules, and thus eliminate the need for the "value" span inside the "dtend" span:
+
+&lt;span class=&quot;vevent&quot;&gt;
+ The &lt;span class=&quot;summary&quot;&gt;party&lt;/span&gt; will be on
+ &lt;span class=&quot;dtstart&quot;&gt;
+  &lt;time class=&quot;value&quot;&gt;2009-06-26&lt;/time&gt;, from
+  &lt;time class=&quot;value&quot;&gt;19:00&lt;/time&gt;&lt;/span&gt; to
+ &lt;time class=&quot;dtend&quot;&gt;22:00&lt;/time&gt;.
+&lt;/span&gt;
+
+and in HTML4/XHTML1:
+
+&lt;span class=&quot;vevent&quot;&gt;
+ The &lt;span class=&quot;summary&quot;&gt;party&lt;/span&gt; will be on
+ &lt;span class=&quot;dtstart&quot;&gt;
+  &lt;span class=&quot;value&quot;&gt;2009-06-26&lt;/span&gt;, from
+  &lt;span class=&quot;value&quot;&gt;19:00&lt;/span&gt;&lt;/span&gt; to
+ &lt;span class=&quot;dtend&quot;&gt;22:00&lt;/span&gt;.
+&lt;/span&gt;
+
+hCalendar to iCalendar converters should produce the following iCalendar fragment (as part of a valid .ics file) from all of the above four examples:
+
+BEGIN:VEVENT
+SUMMARY:party
+DTSTART:20090626T190000
+DTEND:20090626T220000
+END:VEVENT
+
+Note that the implied "00" seconds here is only due to iCalendar syntax requirements, and not actually meaningful.
+
+Implementations:
+
+X2V has implemented dtend implied date from dtstart.
+
+Examples "in the wild":
+
+http://microformats.org/wiki/events/2009-08-12-nyc-workshop (real world example, but on this wiki).
+
+iCalendar generators
+
+microformats implementations which consume hCalendar and generate iCalendar MUST in addition:
+
+remove any dash "-" separators in the date.
+
+remove any colon ":" separators in the time.
+
+add a whole day to any date-only (lacking a specified time) (date inclusive) hCalendar dtend property values in order to generate an (date exclusive) iCalendar DTEND property value with the same meaning, per the resolution to the dtend-issue.
+
+imply 00 seconds if seconds are omitted due to iCalendar artificial precision syntax requirements
+
+perform datetime math on any +/- relative timezone value, and produce an effective UTC value ending with "Z".
+
+hAtom updated implied date
+
+Similarly, in blog posts that indicate both when they were "published" and "updated", the date is usually only displayed once, typically when "published" (real world examples with URLs would help for thoroughness).
+
+Thus it would be convenient if we could imply an hAtom entry "updated" date from its "published" date when only the time (and optionally timezone) was specified for its "updated", e.g. for a blog post that was updated the same day:
+
+&lt;span class=&quot;hentry&quot;&gt;
+ &lt;span class=&quot;entry-summary&quot;&gt;short blog post example&lt;/span&gt;
+ was published on &lt;span class=&quot;published&quot;&gt;
+  &lt;time class=&quot;value&quot;&gt;2009-08-01&lt;/time&gt; at &lt;time class=&quot;value&quot;&gt;12:06&lt;/time&gt;&lt;/span&gt;
+ and updated at &lt;span class=&quot;updated&quot;&gt;&lt;time class=&quot;value&quot;&gt;12:10&lt;/time&gt;&lt;/span&gt;.
+&lt;/span&gt;
+
+and in HTML4/XHTML1:
+
+&lt;span class=&quot;hentry&quot;&gt;
+ &lt;span class=&quot;entry-summary&quot;&gt;short blog post example&lt;/span&gt;
+ was published on &lt;span class=&quot;published&quot;&gt;
+  &lt;span class=&quot;value&quot;&gt;2009-08-01&lt;/span&gt; at &lt;span class=&quot;value&quot;&gt;12:06&lt;/span&gt;&lt;/span&gt;
+ and updated at &lt;span class=&quot;updated&quot;&gt;&lt;span class=&quot;value&quot;&gt;12:10&lt;/span&gt;&lt;/span&gt;.
+&lt;/span&gt;
+
+To simplify this further for authors, hAtom processors could treat the specifying of just the time per the value-class-pattern date and time value rules, and thus eliminate the need for the "value" span inside the "updated" span:
+
+&lt;span class=&quot;hentry&quot;&gt;
+ &lt;span class=&quot;entry-summary&quot;&gt;short blog post example&lt;/span&gt;
+ was published on &lt;span class=&quot;published&quot;&gt;
+  &lt;time class=&quot;value&quot;&gt;2009-08-01&lt;/time&gt; at &lt;time class=&quot;value&quot;&gt;12:06&lt;/time&gt;&lt;/span&gt;
+ and updated at &lt;time class=&quot;updated&quot;&gt;12:10&lt;/time&gt;.
+&lt;/span&gt;
+
+and in HTML4/XHTML1:
+
+&lt;span class=&quot;hentry&quot;&gt;
+ &lt;span class=&quot;entry-summary&quot;&gt;short blog post example&lt;/span&gt;
+ was published on &lt;span class=&quot;published&quot;&gt;
+  &lt;span class=&quot;value&quot;&gt;2009-08-01&lt;/span&gt; at &lt;span class=&quot;value&quot;&gt;12:06&lt;/span&gt;&lt;/span&gt;
+ and updated at &lt;span class=&quot;updated&quot;&gt;12:10&lt;/span&gt;.
+&lt;/span&gt;
+
+Atom generators
+
+microformats implementations which consume hAtom and generate
+Atom MUST in addition:
+
+normalize all date and datetime values to RFC3339, including:
+
+imply 00 seconds if seconds are omitted due to Atom artificial precision syntax requirements
+
+microformats2 parsers implied date
+
+Since microformats2 parsers are generic, instead of checking for specific properties (as above for hAtom and hCalendar), they must perform the following algorithm to imply dates for dt-* properties:
+
+if a dt-* property has a time but lacks a date
+
+then it adopts the date of the most recently seen dt-* property with a date in that microformat.
+
+if no previous dt-* properties have a date,
+
+then it adopts its date from the next dt-* property with a date seen in that microformat.
+
+otherwise it simply has a time (and no date).
+
+Note: This results in a similar enough implementation/interpretation as the previous vocabulary dependent heuristics for hAtom and hCalendar that a microformats2 parser can produce similar results for h-entry and h-event without having to know about their specific dt-* properties.
+
+derivation and tests
+
+This section is informative.
+
+The handling of date and time values in the value class pattern was originally brainstormed on the value-excerption-pattern-brainstorming page and derived from that analysis and feedback. For the curious, historical details may be found there, along with additional thoughts for extension.
+
+See value-class-date-time-tests for test cases.
+
+Parsing value from a title attribute
+
+⚠️ Warning: you should use the HTML5 &lt;data&gt; element instead of the value-title class name, in particular, use:
+
+&lt;data class=&#39;dt-start&#39; value=&#39;2008&#39;&gt;last year&lt;/data&gt;
+
+ instead of
+
+&lt;span class=&#39;dt-start&#39;&gt;&lt;span class=&#39;value-title&#39; title=&#39;2008&#39;&gt;last year&lt;/span&gt;&lt;/span&gt;
+
+ The value-title feature is under consideration for deprecation.
+
+The value-title class name allows the publisher to indicate the data value for a parent property is contained in the title attribute of an element, rather than the inner-text.
+
+This can be used to provide a synonym within content, or used to quietly publish alternate forms of information for microformats parsing, without affecting the consumption of content.
+
+For example, you can use casual localization with dates:
+
+&lt;p&gt;It was
+ &lt;span class=&#39;dtstart&#39;&gt;
+  &lt;span class=&#39;value-title&#39; title=&#39;2008&#39;&gt;last year&lt;/span&gt;
+ &lt;/span&gt;
+  that I realised my addiction to cashew nuts would cost this country so dear.
+&lt;/p&gt;
+
+Parsing rules for value-title are the same as for value above, with the following change:
+
+Where a microformats property has a child element with class name of value-title, the content of the title attribute of that element must be parsed, rather than the portion of the element that would be parsed for a class name of value.
+
+Using value-title to publish machine-data
+
+The initial usage of value-title is used to publish alternate, parsable forms of property values in a visible context without the use of the abbr element whose semantics already support interpretation of the 'title' attribute as an expanded, more precise form of the content.
+
+Experience has found that there are some cases in microformats where a number of publishers want to include a precisely accurate and parsable value for a property but do not want it to be visible in their page, even as a tooltip.
+
+For example, full ISO8601 datetimes may be confusing to readers of the page (as a tooltip or when read aloud by a screen reader), and enumerated values such as the type subproperty of hCard's tel property use US-English terms, which are not part of pages in any other language.
+
+Since both of those scenarios have shown to be obstacles for a number of publishers, for these cases, and these alone, there exists a further extension of value-excerption. This extension allows the parsable form of the property to be published ‘silently’ in an empty element immediately adjacent with the respective local visible content.
+
+Here is an example, with the required use of a first child element with class name value-title:
+
+&lt;p class=&#39;tel&#39; lang=&#39;en-gb&#39;&gt;
+  &lt;span class=&#39;type&#39;&gt;
+    &lt;span class=&#39;value-title&#39; title=&#39;cell&#39;&gt; &lt;/span&gt;
+    mobile
+  &lt;/span&gt;
+  &lt;span class=&#39;value&#39;&gt;+44 7773 000 000&lt;/span&gt;
+&lt;/p&gt;
+
+Note: the &lt;span class='value-title' title='cell'&gt; &lt;/span&gt; span is deliberately empty (just has a space between the open and close tags) so that it doesn't take up any space and therefore can't show a tooltip.
+
+The cell value is parsed for the 'type' subproperty, but mobile is presented to the user.
+
+In the case of dates:
+
+&lt;p class=&#39;dtstart&#39;&gt;
+  &lt;span class=&#39;value-title&#39; title=&#39;2009-03-14T16:28-0600&#39;&gt; &lt;/span&gt;
+  March 14th 2009, around half-past four
+&lt;/p&gt;
+
+A microformats parser will read the ISO8601 format datetime 2009-03-14T16:28-0600, but users will only see March 14th 2009, around half-past four. Testing has shown that the ISO8601 datetime above does not get exposed to any user at all.
+
+Parsing machine-data value-title
+
+Browsers collapse the value-title span down to a width of 0, effectively providing no visual rendering, whilst keeping the element in the DOM. With no physical dimensions, there is no ‘hover’ state, so no tooltip is revealed. Furthermore, the empty element is not passed to assistive technology layers such as VoiceOver.  Screen readers do not read the contents of the title attribute of an empty span element.
+
+We conducted thorough testing of these parsing behaviors to ensure accessibility.
+
+Note: Whilst the value-title element is more gracefully written without whitespace inner-text (or as self-closing &lt;foo /&gt; element in XHTML), some tools such as WYSIWYG editors and HTML-Tidy will erroneously discard such elements, resulting in parsable data being thrown away by some tools. As such, &lt;span class='value-title'&gt; &lt;/span&gt;, including a single whitespace character between the opening and closing tag, may also be used. In some situations, this whitespace may be rendered by the browser, and authors should test their output.
+
+Parsing this final value-title extension imposes some stricter restrictions on usage. These restrictions exist to reduce the impact of DRY violations, reduce the opportunity for sites to spoof data, and encourage best practice for maintaining both forms of data accurately.
+
+Where an element with class value-title is to be parsed as data for a property, and that element also contains no non-whitespace content (hereafter referred to as ‘empty’), the following rules apply:
+
+The ‘empty’ value-title element must be the first, non-whitespace child of the property element. That is, it should follow immediately after the property is declared, before the human-readable form, and without any additional nesting.
+
+The ‘empty’ value-title element can only be used for specific properties. Future microformat specifications (and updates to existing microformats) must explicitly state which properties may be used with this extension of the value-class-pattern. (Retroactive property support for existing microformats is documented below.)
+
+Where an ‘empty’ value-title element is to be used as the single property value, it must be the only such value content. That is, the first instance of a conforming value-title element overrides all other value and value-title siblings and/or cousins.
+
+Tools written to perform Conformance Testing and/or Validation of microformats should attempt to compare the machine-data and human-legible forms of the property data, and warn authors if the forms do not match.
+
+limited use of value-title
+
+⚠️ Warning: This issue applies to the preferred &lt;data&gt; element too.
+
+Due to the fact that the value-title pattern hides some amount of data which tends to be a machine-specific duplicate of data that is provided in the human readable content, there are two microformats principles being compromised: visibility and DRY. Thus the applicability of this pattern is deliberately restricted to properties that have demonstrated through experience a need for it, with no known better alternative.
+
+In general authors should:
+
+First, try to directly specify microformats property values inline (the most visible, no duplication),
+
+Then consider using the value-class pattern
+
+Including multiple value elements for date and time properties
+
+and then only if those methods are insufficient, consider the value-title pattern (or rather, the &lt;data&gt; element).
+
+This document post-dates other microformat specifications, such that they may not yet indicate which properties permit use of this pattern. In the interim, only the following types of properties should allow the value-title pattern.
+
+ISO8601 date, datetime, timezone, and duration values
+
+Enumerated values (such as the hCard tel/email/adr 'type' subproperties)
+
+Co-ordinates (such as the geo 'latitude' and 'longitude' properties)
+
+Telephone number properties (e.g. the hCard 'tel' property)
+
+The machine-data page has documentation of some of the properties of some specs which experience has shown need a solution like the value-title pattern.
+
+There are some simple reference examples and tests for this pattern on value-class-pattern-tests.
+
+Note: to do value-title test pages
+
+In future use, specification authors may inherit use of value-title by use of ISO8601 date and time formats, or reuse of other microformats, but specifications should _avoid_ introducing new data structures that depend on or encourage this pattern. New specifications are themselves expected to adhere to the principals of visible data and DRY.
+
+H2VX workaround
+
+H2VX does not yet support the 'value-title' feature of the value class pattern (still waiting for proper value-title tests on separate live pages). Thus if your page depends on H2VX, you should use the following techniques instead (from pbworks documentation)
+
+E.g. if the value to be placed in the value-title is both human and machine readable, instead of:
+
+&lt;span class=&quot;p-rsvp&quot;&gt;&lt;span class=&quot;value-title&quot; title=&quot;yes&quot;&gt;going&lt;/span&gt;&lt;/span&gt;
+
+Use an abbr (ok only if the value is human readable/listenable)
+
+&lt;abbr class=&quot;p-rsvp&quot; title=&quot;yes&quot;&gt;going&lt;/abbr&gt;
+
+Otherwise if the value is only machine readable, or human-unfriendly, instead of the empty span technique:
+
+&lt;span class=&quot;p-rsvp&quot;&gt;&lt;span class=&quot;value-title&quot; title=&quot;yes&quot;&gt; &lt;/span&gt; going&lt;/span&gt;
+
+Use an empty abbr:
+
+&lt;abbr class=&quot;p-rsvp&quot; title=&quot;yes&quot;&gt;&lt;/abbr&gt; going
+
+Test cases
+
+See value-class-pattern-tests.
+
+FAQ
+
+This section is informative.
+
+Frequently asked questions about the value-class-pattern. Once this section grows too big, we'll make a separate wiki page (like value-class-faq).
+
+Is the value-class pattern supported by any of the microformats tools?
+
+A: Yes. See the implementations section.
+
+Why use an 'empty' element? Why not embed data in the class attribute?
+
+A: 'class' is for field names, not data. The class attribute is inappropriate for embedded data values, as per the HTML4 specification, which states class is for ‘general purposing processing’, which is defined as ‘e.g. for identifying fields when extracting data from HTML pages into a database, translating HTML documents into other formats, etc.’. ‘General purpose processing’ does not extend to data itself. Furthermore, this method avoids inventing a new string pattern for embedding data.
+
+Why use an 'empty' element? Why not make up a new attribute, like ‘data’?
+
+A: New attributes are invalid. Microformats exist and function in valid HTML. Those are the current standards for web development, and microformats exist for use now. In the future, perhaps revisions of HTML will offer up another solution. For now, this method has been tested against browsers, and creates a consistent document structure (where machine-form and human-form data are siblings).
+
+Shouldn't the title attribute only be used for content?
+
+A: 'title' is used for content, machine readable content. The title attribute is used for content and is read by microformats parsers. This exists for cases where data cannot be parsed with sufficient precision from just the commonly published, visible information. This pattern allows both forms of content to be included, whilst keeping it invisible to human consumers.
+
+How should microformats2 parsers handle improperly nested value-class-patterns inside p- properties? *:Consider the following markup.
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;div class=&quot;p-tel&quot;&gt;
+    &lt;span class=&quot;value&quot;&gt;0123456789&lt;/span&gt;
+    &lt;div class=&quot;h-card&quot;&gt;
+      &lt;div cass=&quot;p-tel&quot;&gt;
+        &lt;span class=&quot;value&quot;&gt;9876543210&lt;span&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+Why might someone write some markup like this? Ask a consulting psychologist. WordPress template authors, the sort of people enamoured with trendy CSS frameworks and so on—there's plenty of scope for crappy markup. The value-class-pattern spec as currently written (specficially §4 of Basic parsing) instructs implementers to not handle nested elements with class value, but in the context of a microformats2 parser, it would seem reasonable for an implementer to assume that the author here did not intend to make the text content of the second microformats2 object instance part of the value of the first. The question then is what to do with this kind of markup (other than find the author and ask him or her to kindly rewrite it). —Tom Morris 20:02, 7 November 2013 (UTC)
+
+You can also refer to the general Microformats FAQ and principles.
+
+Examples in the wild
+
+This section is informative.
+
+The following sites and pages have started marking up content with the value-class-pattern, and are thus good places to go for examples with real world content to test with implementations (i.e. parsers). If you use the value-class-pattern in your content, feel free to add it to the top of this list. Once the list grows too big, we'll make a separate wiki page (like value-class-examples-in-wild).
+
+Tantek's site uses date and time value separation with nested HTML5 &lt;time&gt; elements for the separate date and time values in his hAtom "dtpublished" properties.
+
+Test Harness For Oomph This pages uses a whole range of different patterns for both hCard and hCalendar, using both value and value-title, mostly derived from the specification above
+
+George Brocklehurst's activity stream and blog use "value-title" for hAtom published property
+
+Ben Ward's home page uses:
+
+"value-title" for hCard bday property
+
+"value-title" for hAtom updated property
+
+microformats.org uses:
+
+"value-title" for hAtom updated property in microformats.org blog posts
+
+date and time value separation for hCalendar dtstart property in microformats.org recent and upcoming events wiki page
+
+Add your site/page(s) that use the value-class-pattern here, along with a brief description of what value-class-pattern features you use, with which microformat(s) and which of its/their properties.
+
+Implementations
+
+This section is informative.
+
+The following implementations have been developed which either generate or parse value-class-pattern property values. If you have an value-class-pattern implementation, feel free to add it to the top of this list. Once the list grows too big, we'll make a separate wiki page (like value-class-implementations).
+
+consuming and parsing tools
+
+Google parses value-title as part of their support for hCalendar rich snippets, as documented specifically in the microformats example for rich snippet events.
+
+Oomph Version 2 passes Date and time values test cases and is a thorough implementation of the value class pattern.
+
+X2V v0.9.3 and later:
+
+implements Date and time values parsing, including am/pm time values
+
+thus passes Date and time values test cases.
+
+implements hCalendar implied dtend date
+
+Operator has *some* implementation of the value-class-pattern according to Michael Kaply, but precisely how much is implemented, for which properties (property types) and which microformats is not currently known.
+
+Optimus v0.8 and later implements value-title as announced by Dmitry Baranovskiy.
+
+HTML::Microformats and its predecessors support value excerpting. HTML::Microformats (though not its predecessors) supports value-title.
+
+publishing tools
+
+K2 (WordPress Theme) is using "value-title" for the hAtom published property. [1]
+
+Background
+
+This section is informative.
+
+The value class pattern is derived from value-excerpting in hCard.
+
+Sometimes, only a part of an element's content is to be used as the value of a microformat property. This may occur when a property has optional subproperties, such as tel: type and tel: value in hCard. Other times, the most appropriate structure for a property may include other content.
+
+Articles
+
+This section is informative.
+
+Articles and blog posts  discussing the value class pattern, most recent first.
+When this section gets too big, create a separate page like: value-class-pattern-articles
+
+2009-08-25 MIX Online: The Value Class Pattern by Jeremy Keith
+
+Getting Semantic With Microformats, Part 8: Value Class Pattern -- A very thorough writeup by Emily Lewis on the value class pattern
+
+2009-05-17 Adactio: Microformation
+
+For A Beautiful Web: Value Class Pattern
+
+2009-05-12 notizblog.org: Microformats: Value Class Pattern by Matthias Pfefferle (german)
+
+2009-05-12 microformats.org: Value Class Pattern
+
+References
+
+This section is informative.
+
+Jakob Nielsen: International Web Usability
+
+Related Pages
+
+This section is informative.
+
+value-class-pattern-tests
+
+value-excerption-pattern-issues
+
+hCard: Value Excepting
+
+value-class-pattern-brainstorming
+
+value-excerption-pattern-brainstorming
+
+Machine Data in Microformats
+
+Translations
+
+This section is informative.
+
+Read the value-class-pattern specification in additional languages:
+
+français
+
+日本語
+
+Retrieved from "http://microformats.org/wiki/index.php?title=value-class-pattern&amp;oldid=70879"
+
+Categories:
+Pages using deprecated source tags
+
+Draft Specifications
+
+Navigation menu
+
+				Search

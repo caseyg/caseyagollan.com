@@ -10,11 +10,17 @@ export interface Post {
 	slug: string;
 	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media';
 	date: string;
+	updated?: string;
+	syndicationTargets?: string[];
 	title?: string;
 	bookmarkOf?: string;
+	inReplyTo?: string;
 	summary?: string;
 	category?: string | string[];
 	content: string;
+	contentFormat?: 'text' | 'html' | 'markdown';
+	postStatus?: string;
+	deleted?: boolean;
 	visibility?: string;
 	draft?: boolean;
 	syndication?: string[];

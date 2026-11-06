@@ -1,8 +1,11 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 /// <reference types="@cloudflare/workers-types" />
+import type { PublishingEnvironment } from './lib/server/publishing/config';
 
 declare global {
+	const __MICROPUB_ENDPOINT__: string;
+	const __INDIEAUTH_ISSUER__: string;
 	interface Window {
 		telescopicText?: { createTelescopicTextFromBulletedList: (content: string) => HTMLElement };
 		createTelescopicTextFromBulletedList: (content: string) => HTMLElement;
@@ -13,7 +16,7 @@ declare global {
 		// interface PageData {}
 		// interface PageState {}
 		interface Platform {
-			env?: {
+			env?: PublishingEnvironment & {
 				INSIGHT_CACHE: KVNamespace;
 				SCREENSHOTS?: R2Bucket;
 				CLOUDFLARE_ACCOUNT_ID?: string;

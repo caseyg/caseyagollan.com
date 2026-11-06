@@ -1,0 +1,509 @@
+microformats2 parsing specification
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+microformats2 is a simple, open format for marking up data in HTML. The microformats2 parsing specification describes how to implement a microformats2 parser, independent of any specific vocabularies.
+
+Status
+This is a Living Specification with several interoperable implementations. This specification is stable, subject to editorial changes only for improving clarity of existing meaning. While substantive changes are unexpected, it is a living specification subject to substantive change by issues and errata filed in response to implementation experience, requiring consensus among participating implementers (since 2015-01-21) as part of an explicit change control process. There are currently no draft or proposed new features in this specification, and if any were to be added, they would be explicitly labeled as such.
+
+Note: This specification is only marked as a "Draft Specification" because of pending edits from resolved issues before 2016-06-20. Once those edits have been completed, the link to [[Category:Draft Specifications]] at the bottom of this document should be changed to [[Category:Specifications]].
+Participate
+Open Issues
+Resolved issues before 2016-06-20
+IRC: #microformats on Libera
+
+Editor
+Tantek Çelik
+
+License
+Per CC0, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the Open Web Foundation Agreement Version 1.0.
+
+Contents
+
+1 algorithm
+
+1.1 parse a document for microformats
+
+1.2 parse an element for class microformats
+
+1.3 parse an element for properties
+
+1.3.1 parsing a p- property
+
+1.3.2 parsing a u- property
+
+1.3.3 parsing a dt- property
+
+1.3.4 parsing an e- property
+
+1.3.5 parsing for implied properties
+
+1.4 parse a hyperlink element for rel microformats
+
+1.4.1 rel parse examples
+
+1.5 parse an img element for src and alt
+
+2 what do the CSS selector expressions mean
+
+3 note HTML parsing rules
+
+4 note backward compatibility details
+
+4.1 backward compatibility mappings
+
+5 questions
+
+6 implementations
+
+7 test suite
+
+8 change control
+
+9 see also
+
+algorithm
+
+parse a document for microformats
+
+To parse a document for microformats, follow the HTML parsing rules and do the following:
+
+start with an empty JSON "items" array and "rels" &amp; "rel-urls" hashes:
+
+{
+ &quot;items&quot;: [],
+ &quot;rels&quot;: {},
+ &quot;rel-urls&quot;: {}
+}
+
+parse the root element for class microformats, adding to the JSON items array accordingly
+
+parse all hyperlink (&lt;a&gt; &lt;area&gt; &lt;link&gt;) elements for rel microformats, adding to the JSON rels &amp; rel-urls hashes accordingly
+
+return the resulting JSON
+
+Parsers may simultaneously parse the document for both class and rel microformats (e.g. in a single tree traversal).
+
+parse an element for class microformats
+
+To parse an element for class microformats:
+
+parse element class for root class name(s) "h-*" and if none, backcompat root classes
+
+if none found, parse child elements for microformats (depth first, doc order)
+
+else if found, start parsing a new microformat
+
+keep track of whether the root class name(s) was from backcompat
+
+create a new { } structure with:
+
+type: [array of unique microformat "h-*" type(s) on the element sorted alphabetically],
+
+properties: { }  - to be filled in when that element itself is parsed for microformats properties
+
+if the element has a non-empty id attribute:
+
+id: string value of element's id attribute
+
+parse child elements (document order) by:
+
+if parsing a backcompat root, parse child element class name(s) for backcompat properties
+
+else parse a child element class for property class name(s) "p-*,u-*,dt-*,e-*"
+
+if such class(es) are found, it is a property element
+
+add properties found to current microformat's properties: { }  structure
+
+parse a child element for microformats (recurse)
+
+if that child element itself has a microformat ("h-*" or backcompat roots) and is a property element, add it into the array of values for that property as a { } structure, add to that { } structure:
+
+value:
+
+if it's a p-* property element, use the first p-name of the h-* child
+
+else if it's an e-* property element, re-use its { } structure with existing value: inside.
+
+else if it's a u-* property element and the h-* child has a u-url, use the first such u-url
+
+else use the parsed property value per p-*,u-*,dt-* parsing respectively
+
+else add found elements that are microformats to the "children" array
+
+imply properties for the found microformat (see below)
+
+The "*" for root (and property) class names consists of an optional vendor prefix (series of 1+ number or lowercase a-z characters i.e. [0-9a-z]+, followed by '-'), then one or more '-' separated lowercase a-z words.
+
+parse an element for properties
+
+parsing a p- property
+
+To parse an element for a p-x property value (whether explicit p-* or backcompat equivalent):
+
+Parse the element for the value-class-pattern. If a value is found, return it.
+
+If abbr.p-x[title] or link.p-x[title], return the title attribute.
+
+else if data.p-x[value] or input.p-x[value], then return the value attribute
+
+else if img.p-x[alt] or area.p-x[alt], then return the alt attribute
+
+else return the textContent of the element after:
+
+dropping any nested &lt;script&gt; &amp; &lt;style&gt; elements;
+
+replacing any nested &lt;img&gt; elements with their alt attribute, if present; otherwise their src attribute, if present, adding a space at the beginning and end, resolving the URL if it’s relative;
+
+removing all leading/trailing spaces
+
+parsing a u- property
+
+To parse an element for a u-x property value (whether explicit u-* or backcompat equivalent):
+
+if a.u-x[href] or area.u-x[href] or link.u-x[href], then get the href attribute
+
+else if img.u-x[src] return the result of "parse an img element for src and alt" (see Sec.1.5)
+
+else if audio.u-x[src] or video.u-x[src] or source.u-x[src] or iframe.u-x[src], then get the src attribute
+
+else if video.u-x[poster], then get the poster attribute
+
+else if object.u-x[data], then get the data attribute
+
+else parse the element for the value-class-pattern. If a value is found, get it
+
+else if abbr.u-x[title], then get the title attribute
+
+else if data.u-x[value] or input.u-x[value], then get the value attribute
+
+else get the textContent of the element after removing all leading/trailing spaces and nested &lt;script&gt; &amp; &lt;style&gt; elements
+
+return the normalized absolute URL of the gotten value, following the containing document's language's rules for resolving relative URLs (e.g. in HTML, use the current URL context as determined by the page, and first &lt;base&gt; element, if any).
+
+parsing a dt- property
+
+To parse an element for a dt-x property value (whether explicit dt-* or backcompat equivalent):
+
+parse the element for the value-class-pattern, including the date and time parsing rules. If a value is found, then return it.
+
+if time.dt-x[datetime] or ins.dt-x[datetime] or del.dt-x[datetime], then return the datetime attribute
+
+else if abbr.dt-x[title], then return the title attribute
+
+else if data.dt-x[value] or input.dt-x[value], then return the value attribute
+
+else return the textContent of the element after removing all leading/trailing spaces and nested &lt;script&gt; &amp; &lt;style&gt; elements.
+
+parsing an e- property
+
+To parse an element for a e-x property value (whether explicit "e-*" or backcompat equivalent):
+
+return a dictionary with two keys:
+
+html: the innerHTML of the element by using the HTML spec: Serializing HTML Fragments algorithm, with leading/trailing spaces removed. Proposed: and normalized absolute URLs in all URL attributes except those that are fragment-only, e.g. start with '#'.(issue 38)
+
+value: the textContent of the element after:
+
+dropping any nested &lt;script&gt; &amp; &lt;style&gt; elements;
+
+replacing any nested &lt;img&gt; elements with their alt attribute, if present; otherwise their src attribute, if present, adding a space at the beginning and end, resolving the URL if it’s relative;
+
+removing all leading/trailing spaces
+
+parsing for implied properties
+
+Imply properties only on explicit h-x class name root microformat element (no backcompat roots):
+
+if no explicit "name" property, and no other p-* or e-* properties, and no nested microformats,
+
+then imply by:
+
+if img.h-x or area.h-x, then use its alt attribute for name
+
+else if abbr.h-x[title] then use its title attribute for name
+
+else if .h-x&gt;img:only-child[alt]:not([alt=""]):not[.h-*] then use that img’s alt for name
+
+else if .h-x&gt;area:only-child[alt]:not([alt=""]):not[.h-*] then use that area’s alt for name
+
+else if .h-x&gt;abbr:only-child[title]:not([title=""]):not[.h-*] then use that abbr title for name
+
+else if .h-x&gt;:only-child:not[.h-*]&gt;img:only-child[alt]:not([alt=""]):not[.h-*] then use that img’s alt for name
+
+else if .h-x&gt;:only-child:not[.h-*]&gt;area:only-child[alt]:not([alt=""]):not[.h-*] then use that area’s alt for name
+
+else if .h-x&gt;:only-child:not[.h-*]&gt;abbr:only-child[title]:not([title=""]):not[.h-*] use that abbr’s title for name
+
+else use the textContent of the .h-x for name after:
+
+dropping any nested &lt;script&gt; &amp; &lt;style&gt; elements;
+
+replacing any nested &lt;img&gt; elements with their alt attribute, if present;
+
+remove all leading/trailing spaces
+
+if no explicit "photo" property, and no other explicit u-* (Proposed: change to: u-* or e-*) properties, and no nested microformats,
+
+then imply by:
+
+if img.h-x[src], then use the result of "parse an img element for src and alt" (see Sec.1.5) for photo
+
+else if object.h-x[data] then use data for photo
+
+else if .h-x&gt;img[src]:only-of-type:not[.h-*] then use the result of "parse an img element for src and alt" (see Sec.1.5) for photo
+
+else if .h-x&gt;object[data]:only-of-type:not[.h-*] then use that object’s data for photo
+
+else if .h-x&gt;:only-child:not[.h-*]&gt;img[src]:only-of-type:not[.h-*], then use the result of "parse an img element for src and alt" (see Sec.1.5) for photo
+
+else if .h-x&gt;:only-child:not[.h-*]&gt;object[data]:only-of-type:not[.h-*], then use that object’s data for photo
+
+if there is a gotten photo value, return the normalized absolute URL of it, following the containing document's language's rules for resolving relative URLs (e.g. in HTML, use the current URL context as determined by the page, and first &lt;base&gt; element, if any).
+
+if no explicit "url" property, and no other explicit u-* (Proposed: change to: u-* or e-*) properties, and no nested microformats,
+
+then imply by:
+
+if a.h-x[href] or area.h-x[href] then use that [href] for url
+
+else if .h-x&gt;a[href]:only-of-type:not[.h-*], then use that [href] for url
+
+else if .h-x&gt;area[href]:only-of-type:not[.h-*], then use that [href] for url
+
+else if .h-x&gt;:only-child:not[.h-*]&gt;a[href]:only-of-type:not[.h-*], then use that [href] for url
+
+else if .h-x&gt;:only-child:not[.h-*]&gt;area[href]:only-of-type:not[.h-*], then use that [href] for url
+
+if there is a gotten url value, return the normalized absolute URL of it, following the containing document's language's rules for resolving relative URLs (e.g. in HTML, use the current URL context as determined by the page, and first &lt;base&gt; element, if any).
+
+Note: The same markup for a property should not be causing that property to occur in both a microformat and one embedded inside - such a property should only be showing up on one of them. The parsing algorithm has details to prevent that, such as the :not[.h-*] tests above.
+
+parse a hyperlink element for rel microformats
+
+To parse a hyperlink element (e.g. a or link) for rel microformats: use the following algorithm or an algorithm that produces equivalent results:
+
+if the "rel" attribute of the element is empty then exit
+
+set url to the value of the "href" attribute of the element, normalized to be an absolute URL following the containing document's language's rules for resolving relative URLs (e.g. in HTML, use the current URL context as determined by the page, and first &lt;base&gt; element if any).
+
+treat the "rel" attribute of the element as a space separate set of rel values
+
+for each rel value (rel-value)
+
+if there is no key rel-value in the rels hash then create it with an empty array as its value
+
+if url is not in the array of the key rel-value in the rels hash then add url to the array
+
+end for
+
+if there is no key with name url in the top-level "rel-urls" hash then add a key with name url there, with an empty hash value
+
+add keys to the hash of the key with name url for each of these attributes (if present) and key not already set:
+
+"hreflang": the value of the "hreflang" attribute
+
+"media": the value of the "media" attribute
+
+"title": the value of the "title" attribute
+
+"type": the value of the "type" attribute
+
+"text": the text content of the element if any
+
+if there is no "rels" key in that hash, add it with an empty array value
+
+set the value of that "rels" key to an array of all unique items in the set of rel values unioned with the current array value of the "rels" key, sorted alphabetically.
+
+rel parse examples
+
+Here are some examples to show how parsed rels may be reflected into the JSON (empty items key).
+
+E.g. parsing this markup:
+
+&lt;a rel=&quot;author&quot; href=&quot;http://example.com/a&quot;&gt;author a&lt;/a&gt;
+&lt;a rel=&quot;author&quot; href=&quot;http://example.com/b&quot;&gt;author b&lt;/a&gt;
+&lt;a rel=&quot;in-reply-to&quot; href=&quot;http://example.com/1&quot;&gt;post 1&lt;/a&gt;
+&lt;a rel=&quot;in-reply-to&quot; href=&quot;http://example.com/2&quot;&gt;post 2&lt;/a&gt;
+&lt;a rel=&quot;alternate home&quot;
+   href=&quot;http://example.com/fr&quot;
+   media=&quot;handheld&quot;
+   hreflang=&quot;fr&quot;&gt;French mobile homepage&lt;/a&gt;
+
+Would generate this JSON:
+
+{
+  &quot;items&quot;: [],
+  &quot;rels&quot;: {
+    &quot;author&quot;: [ &quot;http://example.com/a&quot;, &quot;http://example.com/b&quot; ],
+    &quot;in-reply-to&quot;: [ &quot;http://example.com/1&quot;, &quot;http://example.com/2&quot; ],
+    &quot;alternate&quot;: [ &quot;http://example.com/fr&quot; ],
+    &quot;home&quot;: [ &quot;http://example.com/fr&quot; ]
+  },
+  &quot;rel-urls&quot;: {
+    &quot;http://example.com/a&quot;: {
+      &quot;rels&quot;: [&quot;author&quot;],
+      &quot;text&quot;: &quot;author a&quot;
+    },
+    &quot;http://example.com/b&quot;: {
+      &quot;rels&quot;: [&quot;author&quot;],
+      &quot;text&quot;: &quot;author b&quot;
+    },
+    &quot;http://example.com/1&quot;: {
+      &quot;rels&quot;: [&quot;in-reply-to&quot;],
+      &quot;text&quot;: &quot;post 1&quot;
+    },
+    &quot;http://example.com/2&quot;: {
+      &quot;rels&quot;: [&quot;in-reply-to&quot;],
+      &quot;text&quot;: &quot;post 2&quot;
+    },
+    &quot;http://example.com/fr&quot;: {
+      &quot;rels&quot;: [&quot;alternate&quot;, &quot;home&quot;],
+      &quot;media&quot;: &quot;handheld&quot;,
+      &quot;hreflang&quot;: &quot;fr&quot;,
+      &quot;text&quot;: &quot;French mobile homepage&quot;
+    }
+  }
+}
+
+parse an img element for src and alt
+
+To parse an img element for src and alt attributes:
+
+if img[alt]
+
+return a new {} structure with
+
+value: the element's src attribute as a normalized absolute URL, following the containing document's language's rules for resolving relative URLs (e.g. in HTML, use the current URL context as determined by the page, and first &lt;base&gt; element, if any).
+
+alt: the element's alt attribute
+
+else
+
+return the element's src attribute as a normalized absolute URL, following the containing document's language's rules for resolving relative URLs (e.g. in HTML, use the current URL context as determined by the page, and first &lt;base&gt; element, if any).
+
+what do the CSS selector expressions mean
+
+This section is non-normative.
+
+Use SelectORacle to expand any of the above CSS selector expressions into longform English prose.
+
+Exception:
+
+:not[.h-*] is not a valid CSS selector but is used here to mean:
+
+does not have any class names that start with "h-"
+
+note HTML parsing rules
+
+This section is non-normative.
+
+microformats2 parsers are expected to follow HTML parsing rules, which includes for example:
+
+ignore &lt;template&gt; elements - stuff between &lt;template&gt; tags don't end up in the DOM
+
+test-case in the wild: http://sixtwothree.org/blog/now-accepting-webmentions/
+
+'spaces' in the algorithm refers to HTML collapsible blank spaces of any kind, whether ' ' or linefeed, carriage return, etc.
+
+note backward compatibility details
+
+The parsing algorithm and details refer to "backcompat root classes" (backcompat roots for short) and "backcompat properties". These conditions and steps in the algorithm document how to parse pre-microformats2 microformats which all defined their own specific root class names and explicit sets of properties.
+
+Some details to be aware of (which are explicitly in the algorithm, this is just an informal summary)
+
+If an element has one or more microformats2 root class name(s) (h-*)
+
+all backcompat root class names are ignored on that element.
+
+all backcompat properties, without an intervening root class name, are ignored inside that element
+
+If an element has only a backcompat root class name (or names)
+
+all microformats2 property class names (p-* u-* dt-* e-*), without an intervening element with root class name, are ignored inside that element
+
+there is no implied property value parsing (p-name, u-url, u-photo) for that element
+
+backward compatibility mappings
+
+Note: several parser implementations have encoded backward compatible mappings into source and data files. Implementers of parsers may find these useful:
+
+search for "modules.maps[" in https://github.com/glennjones/microformat-shiv/blob/master/microformat-shiv.js
+
+search for "$classicPropertyMap" in https://github.com/indieweb/php-mf2/blob/master/Mf2/Parser.php
+
+https://github.com/tommorris/mf2py/blob/master/mf2py/backcompat.py
+
+questions
+
+See the FAQ:
+
+microformats2-parsing-faq
+
+implementations
+
+Main article: microformats2#Implementations
+
+There are open source microformats2 parsers available for Javascript, node.js, PHP, Ruby and Python.
+
+test suite
+
+See:
+
+https://github.com/microformats/tests
+
+https://github.com/indieweb/php-mf2/tree/master/tests/Mf2
+
+Ports to/for other languages encouraged.
+
+change control
+
+Minor editorial changes (e.g. fixing minor typos or punctuation) that do not change and preferably clarify the structure and existing intended meaning may be done by anyone without filing issues, requiring only a sufficient "Summary" description field entry for the edit. More than minor but still purely editorial changes may be made by an editor. Anyone may question such editorial changes by undoing corresponding edits without filing an issue. Any further reversion or iteration on such an editorial change must be done by filing an issue.
+
+Per the stable status of this document, substantive issue filing, resolution, and edits are done with the following change control steps, which may nearly all be done asynchronously once an issue is filed to reach the required state of "Resolve by implementation verified rough consensus". All steps should be openly documented (e.g. on this wiki or GitHub issues) such that others may later verify the history of an issue, and all steps are encouraged to be announced on #microformats IRC with a link to the issue.
+
+File an issue. Anyone may file a new issue and is encouraged to do so, with the caveat that per the stable status, only issues originating as a result of implementation experience are likely to have a substantive impact on this specification.
+
+Propose a resolution. Anyone may propose resolutions to existing issues, and should encourage others in the community, especially implementers, to provide feedback. Proposed resolutions should include what specific text of the spec needs changing, preferably with replacement text, and test cases if applicable (e.g. a resolution could just document the current state more precisely without needing to provide any new test cases).
+
+Provide feedback on proposed resolution(s). Anyone may provide feedback on proposed resolutions with their name attached, in summary (e.g. +1/0/-1 opinions), and additionally with reasoning (required for objections, optional otherwise), or optionally with suggested improvements, or counter-proposals (per "Propose a resolution" above).
+
+Iterate to resolve objections if any. If there are any objections to a proposed resolution, proposer(s) and anyone agreeing should work to iterate on the proposal to resolve objections to the satisfaction (or at least withdrawal of objection) of anyone objecting. The more objections resolved the better, and incremental progress is forward progress.
+
+Broaden implementer consensus. Proposer(s) and anyone agreeing should reach out (e.g. via #microformats IRC) to multiple implementers of the specification to get their opinions and feedback on proposal(s). The more implementers providing feedback the better. Iterate to resolve any new objections per "Iterate to resolve objections if any" above.
+
+Encourage and get 1+ implementation(s). Encourage, get, and document 1+ implementation(s) of implementation affecting aspects of a proposed resolution, preferably with a test case if applicable.
+
+Resolve by implementation verified rough consensus. Once there is rough consensus on a proposal (where rough consensus means either no objections, or at a minimum no objections by implementers, and explicit positive opinions by 2+ implementers) and a proposal's feasibility is verified by at least 1 implementation of aspects of the proposal that affect implementations (none needed if there are none, e.g. purely editorial), cite those in a "Resolution:" statement on the issue (e.g. in a comment), and explicitly share this resolution statement and link to issue in the #microformats IRC channel.
+
+Edit specification. Normally the spec editor(s) will make edits per implementation verified rough consensus resolutions, however anyone (though especially issue discussion participants) may make a specification edit per a resolution if they are able to verify the citations that the resolution has achieve rough consensus, and has 1+ implementation(s) per "Encourage and get 1+ implementation(s)" above. Edits must contain a "Summary" field entry that at a minimum mention the issue by name, should provide a URL to the issue resolution, and preferably be done by a spec editor or an implementer. Once the edit is made, the issue should be closed, or at least a comment made on the issue requesting that the opener of the issue close the issue.
+
+These change control steps are inspired by the tradition of "Rough consensus and running code" as exhibited by example by IETF and W3C processes, and in that regard, seek to be a philosophically compatible approach to specification iteration. They have been in rough practice since 2015-01-21, increasingly strictly applied since then with consensus of issue discussion participants, and explicitly documented based on issue resolving and spec editing experience.
+
+see also
+
+microformats2
+
+microformats2-parsing-faq
+
+microformats2-parsing-issues
+
+microformats2-parsing-brainstorming - for background, thinking, exploring possibilities
+
+microformats2-parsing-rdf
+
+microformats2-implied-properties
+
+Retrieved from "http://microformats.org/wiki/index.php?title=microformats2-parsing&amp;oldid=70607"
+
+Category:
+Draft Specifications
+
+Navigation menu
+
+				Search

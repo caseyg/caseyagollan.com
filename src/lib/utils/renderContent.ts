@@ -1,6 +1,7 @@
 import { marked } from 'marked';
+import { sanitizePublishingHtml } from './sanitizeHtml';
 
-// Configure marked for safe HTML rendering
+// Configure Markdown formatting; the final HTML is sanitized below.
 marked.setOptions({
 	gfm: true,
 	breaks: true
@@ -115,14 +116,44 @@ function autoLinkUrls(content: string): string {
 	});
 }
 
+function escapeText(value: string): string {
+ return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** Autolink original text segments, never interpreting escaped HTML as markup. */
+function renderPlainText(content: string): string {
+ let html = '';
+ let offset = 0;
+ for (const match of content.matchAll(/https?:\/\/[^\s<>"']+/g)) {
+  const index = match.index!;
+  html += escapeText(content.slice(offset, index));
+  let url = match[0].replace(/[.,!?;:]+$/, '');
+  // A closing bracket belongs to the URL only when balanced within it.
+  while (/[)\]}]$/.test(url)) {
+   const close = url.at(-1)!;
+   const open = close === ')' ? '(' : close === ']' ? '[' : '{';
+   if (url.split(close).length <= url.split(open).length) break;
+   url = url.slice(0, -1).replace(/[.,!?;:]+$/, '');
+  }
+  let valid = false;
+  try { const parsed = new URL(url); valid = (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname; } catch { /* Leave malformed URLs literal. */ }
+  html += valid ? `<a href="${escapeText(url)}">${escapeText(url)}</a>${escapeText(match[0].slice(url.length))}` : escapeText(match[0]);
+  offset = index + match[0].length;
+ }
+ html += escapeText(content.slice(offset));
+ return sanitizePublishingHtml(html.replace(/\r?\n/g, '<br>'));
+}
+
 /**
  * Render content with markdown, auto-linking, and oEmbed support
  *
  * @param content - Raw content string (may contain markdown, URLs, etc.)
  * @returns HTML string ready for rendering with {@html}
  */
-export function renderContent(content: string): string {
+export function renderContent(content: string, format: 'text' | 'html' | 'markdown' = 'markdown'): string {
 	if (!content) return '';
+	if (format === 'html') return sanitizePublishingHtml(content);
+	if (format === 'text') return renderPlainText(content);
 
 	// Step 1: Process oEmbeds first (before markdown to avoid interference)
 	let processed = processOembeds(content);
@@ -137,12 +168,12 @@ export function renderContent(content: string): string {
 	// Step 4: Run through marked for markdown processing
 	const html = marked.parse(processed, { async: false }) as string;
 
-	return html;
+	return sanitizePublishingHtml(html);
 }
 
 /**
  * Render content synchronously (for use in components)
  */
-export function renderContentSync(content: string): string {
-	return renderContent(content);
+export function renderContentSync(content: string, format: 'text' | 'html' | 'markdown' = 'markdown'): string {
+	return renderContent(content, format);
 }
