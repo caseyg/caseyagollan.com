@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
+	import { pushState, replaceState } from '$app/navigation';
+	import { librarySortModes, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
 
 	interface PageData {
@@ -83,7 +85,7 @@
 	let loadingProgress = $state('Loading library...');
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
-	const sortModes = ['dateacquired', 'publicationYear', 'ddc', 'color'];
+	const sortModes = librarySortModes;
 	const sortLabels = ['Recently acquired', 'Publication year', 'Subject shelves', 'Color'];
 	const sortIcons = ['📅', '⏳', '📖', '🌈'];
 	let lastClickedNode: Node | null = null;
@@ -468,7 +470,9 @@
 
 		// Update URL with ISBN
 		if (updateUrl && browser && node.isbn) {
-			window.history.replaceState({}, '', `/library/${node.isbn}`);
+			const url = new URL(window.location.href);
+			url.pathname = `/library/${encodeURIComponent(node.isbn)}`;
+			replaceState(url, {});
 		}
 
 		// Fade other books to 25% opacity
@@ -724,7 +728,9 @@
 
 		// Remove ISBN from URL
 		if (browser) {
-			window.history.replaceState({}, '', '/library/');
+			const url = new URL(window.location.href);
+			url.pathname = '/library/';
+			replaceState(url, {});
 		}
 
 		selectedBook = null;
@@ -934,6 +940,10 @@
 		// Store original data for mode switching
 		originalGraphData = { ...Graph.graphData() };
 
+		// Restore shared view options before selecting a deep-linked book.
+		restoreLibraryView();
+		window.addEventListener('popstate', restoreLibraryView);
+
 		// Mark loading complete after a short delay to ensure render is visible
 		requestAnimationFrame(() => {
 			isLoading = false;
@@ -959,6 +969,7 @@
 
 		// Remove keyboard event listener
 		window.removeEventListener('keydown', handleKeydown);
+		window.removeEventListener('popstate', restoreLibraryView);
 
 		// Set destroyed flag to stop any ongoing animations
 		isDestroyed = true;
@@ -1043,6 +1054,21 @@
 		console.log('Library page cleanup complete');
 	});
 
+	function updateLibraryUrl() {
+		const url = writeLibraryView(new URL(window.location.href), isGridModeActive, sortModes[sortIndex]);
+		if (url.href !== window.location.href) pushState(url, {});
+	}
+
+	function restoreLibraryView() {
+		if (!Graph) return;
+		const view = readLibraryView(new URL(window.location.href));
+		const nextSortIndex = sortModes.indexOf(view.sort);
+		const sortChanged = sortIndex !== nextSortIndex;
+		sortIndex = nextSortIndex;
+		if (isGridModeActive !== view.shelves) toggleMode(false);
+		else if (isGridModeActive && sortChanged) applyShelfSort();
+	}
+
 	function frameShelves(duration = 700) {
 		if (!Graph) return;
 		const nodes = Graph.graphData().nodes as Node[];
@@ -1066,7 +1092,7 @@
 		Graph.d3ReheatSimulation();
 	}
 
-	function toggleMode() {
+	function toggleMode(updateUrl = true) {
 		if (!Graph) return;
 
 		deselectBook();
@@ -1232,6 +1258,7 @@
 				}
 			}
 		}
+		if (updateUrl) updateLibraryUrl();
 	}
 
 	function toggleSort() {
@@ -1239,7 +1266,11 @@
 
 		deselectBook();
 		sortIndex = (sortIndex + 1) % sortModes.length;
+		applyShelfSort();
+		updateLibraryUrl();
+	}
 
+	function applyShelfSort() {
 		let filteredNodes: Node[];
 		if (sortModes[sortIndex] === 'ddc') {
 			// In DDC mode, only include books and top-level DDC categories
@@ -1473,7 +1504,7 @@
 <div bind:this={graphContainer} class="graph-container"></div>
 <Nav currentPage="library" />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" onclick={toggleMode}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
+	<button id="modeToggle" onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
 	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
 	>
