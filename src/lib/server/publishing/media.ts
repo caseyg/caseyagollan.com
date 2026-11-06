@@ -55,6 +55,13 @@ export function createMediaHandler(config: PublishingConfig | undefined, bucket:
 	return async (request: Request): Promise<Response> => {
 		try {
 			if (!config || !bucket) throw error(503, 'Media publishing is not configured');
+			let publicOrigin: URL | undefined;
+			if (config.mediaBaseUrl) {
+				try {
+					publicOrigin = new URL(config.mediaBaseUrl);
+					if (publicOrigin.protocol !== 'https:' || publicOrigin.username || publicOrigin.password || publicOrigin.port || publicOrigin.pathname !== '/' || publicOrigin.search || publicOrigin.hash) throw new Error();
+				} catch { throw error(503, 'Invalid public media origin'); }
+			}
 			if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 			if (request.method !== 'POST') return new Response(null, { status: 405, headers: { ...cors, Allow: 'POST, OPTIONS' } });
 			await authorize(request, 'media', config, dependencies.fetcher);
@@ -79,7 +86,7 @@ export function createMediaHandler(config: PublishingConfig | undefined, bucket:
 				const result = await bucket.put(`publishing/${key}`, await file.arrayBuffer(), { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } });
 				if (!result) throw new Error('Key collision');
 			} catch { throw error(503, 'Media storage unavailable; check before retrying'); }
-			return new Response(null, { status: 201, headers: { ...cors, Location: new URL(`/media/${key}`, request.url).href } });
+			return new Response(null, { status: 201, headers: { ...cors, Location: publicOrigin ? new URL(`publishing/${key}`, publicOrigin).href : new URL(`/media/${key}`, request.url).href } });
 		} catch (cause) {
 			const failure = cause instanceof ProtocolError ? cause : error(400, 'Invalid upload request');
 			return Response.json({ error: failure.code, error_description: failure.message }, { status: failure.status, headers: { ...cors, ...(failure.status === 401 ? { 'WWW-Authenticate': 'Bearer' } : {}) } });
