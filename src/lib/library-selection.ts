@@ -12,3 +12,10 @@ export function shelfCoverCamera(book: { x: number; y: number; z: number; width:
 	};
 	return { position: { ...target, z: target.z + distance }, target };
 }
+
+export function adjacentShelfBook<T extends { id: string; x?: number; y?: number }>(books: readonly T[], currentId: string, direction: 'left' | 'right'): T | undefined {
+	const ordered = [...books].sort((a, b) => (b.y || 0) - (a.y || 0) || (a.x || 0) - (b.x || 0) || a.id.localeCompare(b.id));
+	const index = ordered.findIndex((book) => book.id === currentId);
+	if (index < 0 || ordered.length < 2) return undefined;
+	return ordered[(index + (direction === 'right' ? 1 : -1) + ordered.length) % ordered.length];
+}

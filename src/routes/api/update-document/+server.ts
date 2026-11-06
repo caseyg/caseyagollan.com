@@ -4,7 +4,7 @@ import OpenAI from 'openai';
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	try {
-		const { topic, insight, currentDocument, clickedTopics } = await request.json();
+		const { topic, insight, currentDocument, clickedTopics } = await request.json() as { topic?: string; insight?: string; currentDocument?: string; clickedTopics?: string[] };
 
 		if (!topic || !insight) {
 			return json({ error: 'Topic and insight are required' }, { status: 400 });

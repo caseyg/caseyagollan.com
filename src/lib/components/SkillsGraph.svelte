@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import type { InsightResponse } from '$lib/insight-types';
 	import { browser } from '$app/environment';
 	import { select } from 'd3-selection';
 	import { drag } from 'd3-drag';
@@ -16,7 +17,7 @@
 	}: {
 		onTopicClick?: (topic: string | null) => void;
 		focusNodeId?: string | null;
-		insightsData?: Map<string, any>;
+		insightsData?: Map<string, InsightResponse>;
 		loadingTopics?: string[];
 	} = $props();
 
@@ -46,7 +47,7 @@
 
 		// Get all category nodes
 		const categoryNodes: string[] = [];
-		nodeSelection.each(function(d: Node) {
+		nodeSelection.each(function(this: SVGGElement, d: Node) {
 			if (d.type === 'category') {
 				categoryNodes.push(d.id);
 			}
@@ -67,7 +68,7 @@
 
 			const targetNodeId = categoryNodes[currentIndex];
 
-			nodeSelection.each(function(d: Node) {
+			nodeSelection.each(function(this: SVGGElement, d: Node) {
 				if (d.id === targetNodeId) {
 					const node = select(this);
 					const ring = node.append('circle')
@@ -510,7 +511,7 @@
 				}
 			}
 
-			linkSelection.each(function(d: any) {
+			linkSelection.each(function(this: SVGLineElement, d: any) {
 				const sourceId = typeof d.source === 'string' ? d.source : d.source.id;
 				const targetId = typeof d.target === 'string' ? d.target : d.target.id;
 
@@ -557,7 +558,7 @@
 			);
 
 		// Add circles or favicons - all white by default
-		nodeEnter.each(function(d: Node) {
+		nodeEnter.each(function(this: SVGGElement, d: Node) {
 			if (d.type === 'loading') {
 				// Loading placeholder nodes: cycling shapes with shimmer label
 				const node = select(this);
@@ -643,7 +644,7 @@
 		});
 
 		// Add text labels (skip citation and loading nodes)
-		nodeEnter.each(function(d: Node) {
+		nodeEnter.each(function(this: SVGGElement, d: Node) {
 			if (d.type !== 'citation' && d.type !== 'loading') {
 				select(this)
 					.append('text')
@@ -668,7 +669,7 @@
 		});
 
 		// Add label backgrounds - transparent by default (skip citation and loading nodes)
-		nodeEnter.each(function (d: Node) {
+		nodeEnter.each(function (this: SVGGElement, d: Node) {
 			if (d.type !== 'citation' && d.type !== 'loading') {
 				const textNode = select(this).select('text');
 				if (!textNode.empty()) {
@@ -701,7 +702,7 @@
 		nodeSelection.classed('focused', focusedNode !== null);
 
 		// Add/remove coachmark rings for active nodes
-		nodeSelection.each(function(d: Node) {
+		nodeSelection.each(function(this: SVGGElement, d: Node) {
 			const node = select(this);
 			node.selectAll('.coachmark-ring').remove();
 		});
@@ -911,7 +912,7 @@
 					// Pick a random category node
 					const randomNode = categoryNodes[Math.floor(Math.random() * categoryNodes.length)];
 					// Find the node element and add ping rings
-					nodeSelection.each(function(d: Node) {
+					nodeSelection.each(function(this: SVGGElement, d: Node) {
 						if (d.id === randomNode.id) {
 							const node = select(this);
 							// Create multiple expanding rings

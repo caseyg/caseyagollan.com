@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import type * as Three from 'three';
 	import { browser } from '$app/environment';
 	import { pushState, replaceState } from '$app/navigation';
 	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
+	import { spineTextureSize } from '$lib/library/textures';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
 	import { libraryText } from '$lib/library-text';
-	import { shelfCoverCamera } from '$lib/library-selection';
+	import { shelfCoverCamera, adjacentShelfBook } from '$lib/library-selection';
 	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
 
 	interface PageData {
@@ -39,7 +41,7 @@
 		fx?: number;
 		fy?: number;
 		fz?: number;
-		__threeObj?: THREE.Mesh;
+		__threeObj?: Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]>;
 	}
 
 	interface Link {
@@ -108,12 +110,15 @@
 	const shelfDraggedPositions = new Map<string, { x: number; y: number }>();
 
 	// Book detail overlay state
-	let selectedBook: Node | null = $state(null);
+	let selectedBook: Node | null = $state.raw(null);
 	let bookDetails: GoogleBookVolumeInfo | null = $state(null);
 	let isLoadingBookDetails = $state(false);
 	let detailsRequest: AbortController | null = null;
 	let orbitAnimationId: number | null = null;
 	let orbitPaused = false;
+	let removeOrbitListener: (() => void) | undefined;
+	let orbitStartTimeoutId: ReturnType<typeof setTimeout> | undefined;
+	let initialSelectionTimeoutId: ReturnType<typeof setTimeout> | undefined;
 	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	let orbitDirection = 1; // 1 or -1 for clockwise/counter-clockwise
 
@@ -132,19 +137,30 @@
 	]);
 
 	// Performance: Cached materials
-	let paperWhiteMaterial: THREE.MeshBasicMaterial;
-	const textureCache = new Map<string, THREE.Texture>();
-	const materialCache = new Map<string, THREE.MeshBasicMaterial>();
-	const geometryCache = new Map<string, THREE.BoxGeometry>();
+	let paperWhiteMaterial: Three.MeshBasicMaterial;
+	const textureCache = new Map<string, Three.Texture>();
+	const materialCache = new Map<string, Three.MeshBasicMaterial>();
+	const geometryCache = new Map<string, Three.BoxGeometry>();
 
 	// Cleanup tracking
 	const animationFrameIds = new Set<number>();
+	function scheduleFrame(callback: FrameRequestCallback) {
+		const id = requestAnimationFrame((time) => {
+			animationFrameIds.delete(id);
+			if (!isDestroyed) callback(time);
+		});
+		animationFrameIds.add(id);
+		return id;
+	}
 	let isDestroyed = false;
 
 	// Mobile detection and limits
 	const isMobile = browser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-	const maxTexturesOnMobile = 100; // Limit textures on mobile to prevent crashes
+	// Reserve capacity for real covers even when placeholders appear first.
+	const maxCoverTexturesOnMobile = 64;
+	const maxGeneratedTexturesOnMobile = 36;
 	let textureCount = 0;
+	let coverTextureCount = 0;
 
 	// Performance: Reusable canvas for texture generation
 	let spineCanvas: HTMLCanvasElement;
@@ -165,7 +181,7 @@
 		depth: number,
 		averageColor: string,
 		bookHeight?: number
-	): THREE.MeshBasicMaterial {
+	): Three.MeshBasicMaterial {
 		const cacheKey = `spine_${node.id}_${node.authorLastName || ""}_${depth}_${averageColor}_${bookHeight}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
@@ -175,9 +191,9 @@
 		// A fixed 14px font became microscopic on a canvas thousands of pixels tall.
 		const spineWidth = Math.max(depth / 10, 0.1);
 		const spineHeight = bookHeight || 25;
-		const pixelsPerUnit = Math.min(40, 2048 / spineHeight);
-		spineCanvas.width = Math.max(8, Math.round(spineWidth * pixelsPerUnit));
-		spineCanvas.height = Math.max(8, Math.round(spineHeight * pixelsPerUnit));
+		const size = spineTextureSize(spineWidth, spineHeight);
+		spineCanvas.width = size.width;
+		spineCanvas.height = size.height;
 		spineCtx.fillStyle = averageColor;
 		spineCtx.fillRect(0, 0, spineCanvas.width, spineCanvas.height);
 
@@ -227,43 +243,21 @@
 		return material;
 	}
 
-	// Performance: Create back cover with cached canvas
-	function createBackCoverMaterial(averageColor: string): THREE.MeshBasicMaterial {
+	// Reuse plain materials for solid-color book backs
+	function createBackCoverMaterial(averageColor: string): Three.MeshBasicMaterial {
 		const cacheKey = `back_${averageColor}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
 
-		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
-			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
-			materialCache.set(cacheKey, simpleMaterial);
-			return simpleMaterial;
-		}
-
-		coverCanvas.width = 256;
-		coverCanvas.height = 384;
-		coverCtx.fillStyle = averageColor;
-		coverCtx.fillRect(0, 0, coverCanvas.width, coverCanvas.height);
-
-		const imageData = coverCtx.getImageData(0, 0, coverCanvas.width, coverCanvas.height);
-		const texture = new THREE.DataTexture(
-			imageData.data,
-			coverCanvas.width,
-			coverCanvas.height,
-			THREE.RGBAFormat
-		);
-		texture.needsUpdate = true;
-		texture.flipY = true;
-
-		const material = new THREE.MeshBasicMaterial({ map: texture });
+		// A solid-color back needs no canvas, pixel buffer, or GPU texture.
+		const material = new THREE.MeshBasicMaterial({ color: averageColor });
 		materialCache.set(cacheKey, material);
-		textureCount++;
 		return material;
 	}
 
 	// Performance: Load texture with caching
-	function loadTexture(url: string): THREE.Texture {
+	function loadTexture(url: string): Three.Texture {
 		if (textureCache.has(url)) {
 			return textureCache.get(url)!;
 		}
@@ -271,13 +265,13 @@
 		const loader = new THREE.TextureLoader();
 		const texture = loader.load(url);
 		textureCache.set(url, texture);
-		textureCount++;
+		coverTextureCount++;
 		return texture;
 	}
 
 	// Performance: Create placeholder cover for books without images
 	function createPlaceholderCover(node: Node): {
-		material: THREE.MeshBasicMaterial;
+		material: Three.MeshBasicMaterial;
 		width: number;
 		height: number;
 		averageColor: string;
@@ -302,7 +296,7 @@
 		}
 
 		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
+		if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) {
 			const simpleMaterial = new THREE.MeshBasicMaterial({ color: bgColor });
 			materialCache.set(cacheKey, simpleMaterial);
 			return {
@@ -371,17 +365,25 @@
 	}
 
 	// Create book 3D object
-	function createBookObject(node: Node): THREE.Mesh {
+	function createBookObject(node: Node): Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]> {
 		const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20;
-		let frontMaterial: THREE.MeshBasicMaterial;
-		let spineMaterial: THREE.MeshBasicMaterial;
+		let frontMaterial: Three.MeshBasicMaterial;
+		let spineMaterial: Three.MeshBasicMaterial;
 		let width: number;
 		let height: number;
 		let averageColor = spineColor(node);
 
 		if (node.img && node.w && node.h && !isNaN(node.w) && !isNaN(node.h)) {
-			const imgTexture = loadTexture('/library/' + node.img);
-			frontMaterial = new THREE.MeshBasicMaterial({ map: imgTexture });
+			const cacheKey = `front_${node.img}`;
+			if (!materialCache.has(cacheKey)) {
+				const map = !isMobile || coverTextureCount < maxCoverTexturesOnMobile
+					? loadTexture('/library/' + node.img)
+					: null;
+				materialCache.set(cacheKey, new THREE.MeshBasicMaterial(
+					map ? { map } : { color: averageColor }
+				));
+			}
+			frontMaterial = materialCache.get(cacheKey)!;
 			width = Math.max(0.1, node.w / 10);
 			height = Math.max(0.1, node.h / 10);
 			spineMaterial = createSpineTexture(node, depth, averageColor, height);
@@ -398,7 +400,7 @@
 
 		// Cache geometries to reduce memory usage
 		const geometryKey = `${width}_${height}_${depthVal}`;
-		let geometry: THREE.BoxGeometry;
+		let geometry: Three.BoxGeometry;
 		if (geometryCache.has(geometryKey)) {
 			geometry = geometryCache.get(geometryKey)!;
 		} else {
@@ -523,7 +525,7 @@
 		shelfBookPresentations.set(node.id, state);
 		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
 		const started = performance.now();
-		function step(now: number) {
+		const step = (now: number) => {
 			if (state.frame !== null) animationFrameIds.delete(state.frame);
 			if (isDestroyed) return;
 			const progress = duration ? Math.min((now - started) / duration, 1) : 1;
@@ -535,7 +537,7 @@
 			state.frame = progress < 1 ? requestAnimationFrame(step) : null;
 			if (state.frame !== null) animationFrameIds.add(state.frame);
 			else if (!open) shelfBookPresentations.delete(node.id);
-		}
+		};
 		state.frame = requestAnimationFrame(step);
 		animationFrameIds.add(state.frame);
 		if (open) {
@@ -586,7 +588,7 @@
 				const materials = Array.isArray(n.__threeObj.material)
 					? n.__threeObj.material
 					: [n.__threeObj.material];
-				materials.forEach((mat: THREE.Material) => {
+				materials.forEach((mat: Three.Material) => {
 					if ('opacity' in mat) {
 						mat.transparent = true;
 						mat.opacity = isSelected ? 1.0 : 0.25;
@@ -619,8 +621,7 @@
 
 				// Skip position update if paused, but keep animation frame running
 				if (orbitPaused) {
-					orbitAnimationId = requestAnimationFrame(orbitCamera);
-					animationFrameIds.add(orbitAnimationId);
+					orbitAnimationId = scheduleFrame(orbitCamera);
 					return;
 				}
 
@@ -640,8 +641,7 @@
 					0 // Instant update for smooth orbit
 				);
 
-				orbitAnimationId = requestAnimationFrame(orbitCamera);
-				animationFrameIds.add(orbitAnimationId);
+				orbitAnimationId = scheduleFrame(orbitCamera);
 			}
 
 			// Start the orbit with a zoom-in first
@@ -672,13 +672,15 @@
 			};
 
 			// Listen for user interaction
+			removeOrbitListener?.();
 			controls.addEventListener('start', pauseOrbit);
+			removeOrbitListener = () => controls.removeEventListener('start', pauseOrbit);
 
 			// Start orbiting after zoom completes
-			setTimeout(() => {
-				if (selectedBook && selectedBook.id === node.id) {
-					orbitAnimationId = requestAnimationFrame(orbitCamera);
-					animationFrameIds.add(orbitAnimationId);
+			clearTimeout(orbitStartTimeoutId);
+			orbitStartTimeoutId = setTimeout(() => {
+				if (!isDestroyed && selectedBook === node) {
+					orbitAnimationId = scheduleFrame(orbitCamera);
 				}
 			}, 1000);
 
@@ -702,9 +704,14 @@
 		if (!Graph || !selectedBook) return;
 
 		const graphData = Graph.graphData();
-		const books = graphData.nodes.filter((n: Node) => n.group === 'book');
+		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book');
 
 		if (books.length === 0) return;
+		if (isGridModeActive) {
+			const nextBook = adjacentShelfBook(books, selectedBook.id, direction);
+			if (nextBook) selectBook(nextBook);
+			return;
+		}
 
 		// Get camera position to determine which books are visible
 		const camera = Graph.camera();
@@ -755,7 +762,7 @@
 					const materials = Array.isArray(n.__threeObj.material)
 						? n.__threeObj.material
 						: [n.__threeObj.material];
-					materials.forEach((mat: THREE.Material) => {
+					materials.forEach((mat: Three.Material) => {
 						if ('opacity' in mat) {
 							mat.opacity = 1.0;
 						}
@@ -804,6 +811,10 @@
 		detailsRequest = null;
 		isLoadingBookDetails = false;
 
+		removeOrbitListener?.();
+		removeOrbitListener = undefined;
+		clearTimeout(orbitStartTimeoutId);
+
 		// Stop orbit animation
 		if (orbitAnimationId !== null) {
 			cancelAnimationFrame(orbitAnimationId);
@@ -825,7 +836,7 @@
 				const materials = Array.isArray(n.__threeObj.material)
 					? n.__threeObj.material
 					: [n.__threeObj.material];
-				materials.forEach((mat: THREE.Material) => {
+				materials.forEach((mat: Three.Material) => {
 					if ('opacity' in mat) {
 						mat.opacity = 1.0;
 					}
@@ -970,6 +981,7 @@
 			import('three-spritetext')
 		]);
 
+		if (isDestroyed) return;
 		const ForceGraph3D = ForceGraph3DModule.default;
 		THREE = THREEModule;
 		const SpriteText = SpriteTextModule.default;
@@ -989,20 +1001,24 @@
 			graphData = expandGraphData(rawData);
 		}
 
+		if (isDestroyed) return;
 		const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
 		loadingProgress = `Organizing ${bookCount} books…`;
 
 		// Allow UI to update before heavy graph creation
 		await new Promise((resolve) => requestAnimationFrame(resolve));
 
-		Graph = ForceGraph3D()(graphContainer)
+		if (isDestroyed) return;
+		Graph = new ForceGraph3D(graphContainer)
 			.graphData(graphData)
-			.nodeLabel((node: Node) => {
+			.nodeLabel((graphNode) => {
+				const node = graphNode as Node;
 				const label = document.createElement('span');
 				label.textContent = libraryText(node.id);
 				return label;
 			})
-			.nodePositionUpdate((object: NonNullable<Node['__threeObj']>, _position: unknown, node: Node) => {
+			.nodePositionUpdate((object, _position, graphNode) => {
+				const node = graphNode as Node;
 				const state = shelfBookPresentations.get(node.id);
 				if (!state || !isGridModeActive) return false;
 				object.position.set(state.pose.x, state.pose.y, state.pose.z);
@@ -1015,7 +1031,8 @@
 					frameShelves();
 				}
 			})
-			.onNodeDrag((node: Node) => {
+			.onNodeDrag((graphNode) => {
+				const node = graphNode as Node;
 				if (isGridModeActive && node.group === 'book') {
 					const presentation = shelfBookPresentations.get(node.id);
 					if (presentation?.open) {
@@ -1030,7 +1047,8 @@
 			.onNodeDragEnd(() => {
 				if (isGridModeActive) shelfBounds = getShelfBounds();
 			})
-			.onNodeClick((node: Node) => {
+			.onNodeClick((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					// If a book is already selected
 					if (selectedBook) {
@@ -1057,12 +1075,14 @@
 					lastClickedNode = null;
 				}
 			})
-			.onNodeRightClick((node: Node) => {
+			.onNodeRightClick((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					window.open(`https://librarything.com/work/${node.workcode}`, '_blank');
 				}
 			})
-			.nodeThreeObject((node: Node) => {
+			.nodeThreeObject((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					return createBookObject(node);
 				} else if (node.group === 'ddc' || node.group === 'shelf-label') {
@@ -1111,7 +1131,7 @@
 		window.addEventListener('popstate', restoreLibraryView);
 
 		// Mark loading complete after a short delay to ensure render is visible
-		requestAnimationFrame(() => {
+		scheduleFrame(() => {
 			isLoading = false;
 
 			// Check for ISBN from route params and select that book
@@ -1121,7 +1141,9 @@
 				);
 				if (bookNode) {
 					// Small delay to let the graph render first
-					setTimeout(() => selectBook(bookNode, false), 100);
+					initialSelectionTimeoutId = setTimeout(() => {
+						if (!isDestroyed) selectBook(bookNode, false);
+					}, 100);
 				}
 			}
 		});
@@ -1143,6 +1165,10 @@
 
 		// Set destroyed flag to stop any ongoing animations
 		isDestroyed = true;
+		removeOrbitListener?.();
+		clearTimeout(orbitStartTimeoutId);
+		clearTimeout(initialSelectionTimeoutId);
+		if (orbitResumeTimeoutId) clearTimeout(orbitResumeTimeoutId);
 
 		// Cancel all pending animation frames
 		animationFrameIds.forEach((id) => cancelAnimationFrame(id));
@@ -1188,7 +1214,7 @@
 						}
 						// Dispose materials
 						if (Array.isArray(node.__threeObj.material)) {
-							node.__threeObj.material.forEach((mat: THREE.Material) => {
+							node.__threeObj.material.forEach((mat: Three.MeshBasicMaterial) => {
 								if ('map' in mat && mat.map) {
 									mat.map.dispose();
 								}
@@ -1442,13 +1468,11 @@
 								startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
 
 							if (progress < 1) {
-								const frameId = requestAnimationFrame(animateRotation);
-								animationFrameIds.add(frameId);
+								scheduleFrame(animateRotation);
 							}
 						}
 
-						const initialFrameId = requestAnimationFrame(animateRotation);
-						animationFrameIds.add(initialFrameId);
+						scheduleFrame(animateRotation);
 					}
 				}
 			} else {
@@ -1682,7 +1706,7 @@
 <svelte:head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+	<meta http-equiv="x-ua-compatible" content="ie=edge" />
 	<meta property="og:title" content="Casey's Library" />
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://caseyagollan.com/library/" />
@@ -1715,8 +1739,8 @@
 <div bind:this={graphContainer} class="graph-container"></div>
 <Nav currentPage="library" />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
-	<button id="sortToggle" title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
+	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
+	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
 	>
 </div>
