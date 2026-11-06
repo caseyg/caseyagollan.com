@@ -95,9 +95,9 @@ EXAMPLES OF BAD RESPONSES (DO NOT DO THIS):
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	try {
-		const { topic } = await request.json();
+		const { topic } = await request.json() as { topic?: string };
 
-		if (!topic) {
+		if (typeof topic !== 'string' || !topic) {
 			return new Response(JSON.stringify({ error: 'Topic is required' }), {
 				status: 400,
 				headers: { 'Content-Type': 'application/json' }

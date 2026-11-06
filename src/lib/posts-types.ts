@@ -16,6 +16,7 @@ export interface Post {
 	category?: string | string[];
 	content: string;
 	visibility?: string;
+	draft?: boolean;
 	syndication?: string[];
 	photo?: MediaItem[];
 	video?: MediaItem[];

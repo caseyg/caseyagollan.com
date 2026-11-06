@@ -9,7 +9,10 @@ export function createPostReader(markdownFiles: Record<string, string>, cache: b
 		const posts: Post[] = [];
 		for (const [path, markdown] of Object.entries(markdownFiles)) {
 			const [, , type, file] = path.split('/');
-			if (Object.hasOwn(PLURAL_TO_SINGULAR, type)) posts.push(parsePost(markdown, type, file));
+			if (!Object.hasOwn(PLURAL_TO_SINGULAR, type)) continue;
+			const post = parsePost(markdown, type, file);
+			// Indexes and prerender discovery share this list. Draft URLs use the GitHub fallback.
+			if (!post.draft) posts.push(post);
 		}
 		posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 		if (cache) cached = posts;
