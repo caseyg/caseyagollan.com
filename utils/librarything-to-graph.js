@@ -85,6 +85,8 @@ fs.readFile(filename, 'utf8', async (err, data) => {
         };
         const node = {
             id: book.title,
+            authorLastName: book.primaryauthor?.split(",")[0]?.trim(),
+            authorName: book.primaryauthor?.split(",").reverse().map(part => part.trim()).join(" "),
             workcode: book.workcode,
             bookid: parseInt(book.books_id),
             isbn: book.originalisbn,
@@ -92,6 +94,7 @@ fs.readFile(filename, 'utf8', async (err, data) => {
             group: "book",
             // Additional metadata used for sorting in grid mode
             dateacquired: book.dateacquired,
+            entrydate: book.entrydate,
             publicationYear: parseInt(book.date),
             ddcCode: Array.isArray(book.ddc.code) ? book.ddc.code[0] : book.ddc.code
         };
@@ -168,11 +171,14 @@ fs.readFile(filename, 'utf8', async (err, data) => {
     // dateacquired->d, publicationYear->y, ddcCode->c, img->m, w->x, h->z, averageColor->a, points->t
     const minifyNode = (node) => {
       const minified = { i: node.id, g: node.group };
+      if (node.authorLastName) minified.au = node.authorLastName;
+      if (node.authorName) minified.af = node.authorName;
       if (node.workcode) minified.w = node.workcode;
       if (node.bookid) minified.b = node.bookid;
       if (node.isbn) minified.n = node.isbn;
       if (node.pages) minified.p = node.pages;
       if (node.dateacquired) minified.d = node.dateacquired;
+      if (node.entrydate) minified.e = node.entrydate;
       if (node.publicationYear) minified.y = node.publicationYear;
       if (node.ddcCode) minified.c = node.ddcCode;
       if (node.img) minified.m = node.img;
