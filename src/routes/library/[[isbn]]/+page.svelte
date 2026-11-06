@@ -86,7 +86,7 @@
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
 	const sortModes = librarySortModes;
-	const sortLabels = ['Recently acquired', 'Publication year', 'Subject shelves', 'Color'];
+	const sortLabels = ['Recently acquired', 'Publication year', 'Subject', 'Color'];
 	const sortIcons = ['📅', '⏳', '📖', '🌈'];
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
