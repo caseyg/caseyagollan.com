@@ -1,6 +1,7 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 /// <reference types="@cloudflare/workers-types" />
+import type { PublishingEnvironment } from './lib/server/publishing/config';
 
 declare global {
 	namespace App {
@@ -9,7 +10,7 @@ declare global {
 		// interface PageData {}
 		// interface PageState {}
 		interface Platform {
-			env?: {
+			env?: PublishingEnvironment & {
 				INSIGHT_CACHE: KVNamespace;
 				GITHUB_CONTENT_TOKEN?: string;
 				INFERENCE_COOP_API_KEY: string;

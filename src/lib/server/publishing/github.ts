@@ -64,6 +64,16 @@ export function createGitHubStore(config: Config, fetcher: Fetcher = fetch) {
 	}
 
 	return {
+		async head(): Promise<string> {
+			const response = await request(`https://api.github.com/repos/${config.owner}/${config.repo}/git/ref/heads/${config.branch.split('/').map(encodeURIComponent).join('/')}`, { method: 'GET' });
+			if (!response.ok) throw new GitHubStoreError('unavailable', response.status);
+			try {
+				const ref = object(await response.json());
+				const target = object(ref.object);
+				if (typeof target.sha !== 'string' || !target.sha) throw new Error();
+				return target.sha;
+			} catch { throw new GitHubStoreError('unavailable'); }
+		},
 		async read(path: string): Promise<{ path: string; sha: string; content: string } | null> {
 			validatePath(path);
 			const response = await request(`${fileUrl(path)}?ref=${encodeURIComponent(config.branch)}`, { method: 'GET' });
@@ -77,9 +87,39 @@ export function createGitHubStore(config: Config, fetcher: Fetcher = fetch) {
 				return { path, sha: file.sha, content: decode(file.content) };
 			} catch { throw new GitHubStoreError('unavailable', response.status); }
 		},
-		async write(path: string, content: string, options: { sha?: string; message: string }): Promise<{ sha: string; commit: string }> {
+		async write(path: string, content: string, options: { sha?: string; expectedHead?: string; message: string }): Promise<{ sha: string; commit: string }> {
 			validatePath(path);
 			if (!options.message.trim() || (options.sha !== undefined && !options.sha.trim())) throw new Error('Commit message and supplied revision must not be empty');
+			if (options.expectedHead !== undefined) {
+				if (!options.expectedHead.trim()) throw new Error('Expected head must not be empty');
+				const response = await request('https://api.github.com/graphql', {
+					method: 'POST', body: JSON.stringify({
+						query: 'mutation Publish($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }',
+						variables: { input: {
+							branch: { repositoryNameWithOwner: `${config.owner}/${config.repo}`, branchName: config.branch },
+							expectedHeadOid: options.expectedHead, message: { headline: options.message },
+							fileChanges: { additions: [{ path, contents: encode(content) }] }
+						} }
+					})
+				}, true);
+				if (!response.ok) throw new GitHubStoreError(response.status >= 500 ? 'unknown' : 'rejected', response.status);
+				let result: Record<string, unknown>;
+				try { result = object(await response.json()); } catch { throw new GitHubStoreError('unknown'); }
+				if (Array.isArray(result.errors) && result.errors.length) {
+					const stale = result.errors.some(error => error?.type === 'STALE_DATA' || /expected.*(branch|head)|branch.*(moved|point)/i.test(String(error?.message)));
+					throw new GitHubStoreError(stale ? 'conflict' : 'rejected');
+				}
+				try {
+					const commit = object(object(object(result.data).createCommitOnBranch).commit).oid;
+					if (typeof commit !== 'string' || !commit) throw new Error();
+					const bytes = new TextEncoder().encode(content);
+					const prefix = new TextEncoder().encode(`blob ${bytes.length}\0`);
+					const blob = new Uint8Array(prefix.length + bytes.length);
+					blob.set(prefix); blob.set(bytes, prefix.length);
+					const sha = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-1', blob)), byte => byte.toString(16).padStart(2, '0')).join('');
+					return { sha, commit };
+				} catch { throw new GitHubStoreError('unknown'); }
+			}
 			const response = await request(fileUrl(path), {
 				method: 'PUT',
 				body: JSON.stringify({ message: options.message, branch: config.branch, content: encode(content), ...(options.sha !== undefined ? { sha: options.sha } : {}) })

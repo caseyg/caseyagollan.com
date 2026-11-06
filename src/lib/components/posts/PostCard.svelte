@@ -61,7 +61,7 @@
 	{/if}
 
 	{#if post.type === 'bookmark' && post.bookmarkOf}
-		<p class="bookmark-url"><small><a href={post.bookmarkOf}>{post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
+		<p class="bookmark-url"><small><a class="u-bookmark-of" href={post.bookmarkOf}>{post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 	{/if}
 
 	{#if isArticle}
@@ -71,7 +71,7 @@
 		<a href={permalink} class="read-more">Read more</a>
 	{:else}
 		<PostMedia photos={post.photo} videos={post.video} />
-		<PostContent content={post.content} />
+		<PostContent content={post.content} format={post.contentFormat} />
 	{/if}
 </article>
 

@@ -14,10 +14,10 @@ function normalizeMedia(
 			if (typeof item === 'string') {
 				return { url: item, alt: typeof altList[i] === 'string' ? altList[i] : undefined };
 			}
-			if (item && typeof item === 'object' && typeof (item as any).url === 'string') {
+			if (item && typeof item === 'object' && (typeof (item as any).url === 'string' || typeof (item as any).value === 'string')) {
 				const m = item as Record<string, unknown>;
 				return {
-					url: m.url as string,
+					url: (m.url ?? m.value) as string,
 					alt:
 						typeof m.alt === 'string'
 							? m.alt
@@ -55,6 +55,7 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 
 	// YAML's core schema preserves ISO timestamps as strings, including their local timezone.
 	const dateStr = typeof data.date === 'string' ? data.date : '';
+	const first = (value: unknown) => Array.isArray(value) ? value[0] : value;
 
 	return {
 		slug,
@@ -62,13 +63,22 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		date: dateStr,
 		title: data.title,
 		bookmarkOf: data.bookmarkOf,
+		inReplyTo: data.inReplyTo,
 		summary: data.summary,
 		category: data.category,
 		content,
-		visibility: data.visibility,
+		contentFormat: data._micropubContentFormat ?? 'markdown',
+		postStatus: data['post-status'] === undefined ? undefined : String(first(data['post-status'])),
+		deleted: data.deleted === undefined ? false : ![false, 'false'].includes(first(data.deleted) as boolean | string),
+		visibility: data.visibility === undefined ? undefined : String(first(data.visibility)),
 		syndication: data.syndication,
 		photo: normalizeMedia(data.photo, data['mp-photo-alt']),
 		video: normalizeMedia(data.video),
 		filePath: `${type}/${file}`
 	};
+}
+
+export function isPublicPost(post: Post): boolean {
+	return !post.deleted && (post.postStatus === undefined || post.postStatus === 'published') &&
+		(post.visibility === undefined || post.visibility === 'public');
 }

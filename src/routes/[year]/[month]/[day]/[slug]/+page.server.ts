@@ -2,6 +2,8 @@ import type { PageServerLoad } from './$types';
 import { getAllPosts } from '$lib/posts';
 import { building } from '$app/environment';
 import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
+import { isPublicPost } from '$lib/server/parse-post';
+import { publishingConfig } from '$lib/server/publishing/config';
 import { error } from '@sveltejs/kit';
 
 // Keep generated posts static, but retain this route in the Worker for new URLs.
@@ -17,7 +19,8 @@ export const load: PageServerLoad = async (event) => {
 	let post = (await getAllPosts()).find(p => p.date.startsWith(dateKey) && p.slug === slug);
 	if (!post && !building) {
 		try {
-			post = (await getGitHubPost(params, fetch, event.platform?.env?.GITHUB_CONTENT_TOKEN)) ?? undefined;
+			const publishing = publishingConfig(event.platform?.env);
+			post = (await getGitHubPost(params, fetch, publishing?.token ?? event.platform?.env?.GITHUB_CONTENT_TOKEN, publishing)) ?? undefined;
 		} catch (cause) {
 			console.error('Could not load post from GitHub', cause);
 			error(503, 'Post temporarily unavailable. Please try again shortly.');
@@ -25,5 +28,6 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	if (!post) error(404, 'Post not found');
+	if (!isPublicPost(post)) error(post.deleted ? 410 : 404, post.deleted ? 'Post deleted' : 'Post not found');
 	return { year, month, day, post };
 };

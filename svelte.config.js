@@ -9,6 +9,8 @@ const config = {
 
 	kit: {
 		adapter: adapter(),
+		// The hook retains form-origin checks everywhere except the token-only Micropub API.
+		csrf: { checkOrigin: false },
 		prerender: {
 			handleHttpError: ({ path, referrer, message }) => {
 				// Ignore 404s for pages we haven't migrated yet

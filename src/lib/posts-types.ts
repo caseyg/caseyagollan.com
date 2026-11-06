@@ -12,9 +12,13 @@ export interface Post {
 	date: string;
 	title?: string;
 	bookmarkOf?: string;
+	inReplyTo?: string;
 	summary?: string;
 	category?: string | string[];
 	content: string;
+	contentFormat?: 'text' | 'html' | 'markdown';
+	postStatus?: string;
+	deleted?: boolean;
 	visibility?: string;
 	syndication?: string[];
 	photo?: MediaItem[];

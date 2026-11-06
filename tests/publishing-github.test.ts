@@ -6,6 +6,27 @@ const path = 'notes/2026-11-06-月.md';
 const base64 = (text: string) => btoa(Array.from(new TextEncoder().encode(text), b => String.fromCharCode(b)).join(''));
 
 describe('publishing GitHub store', () => {
+  test('uses an expected branch head for atomic cross-file publication', async () => {
+    const store = createGitHubStore(config, async (url, init) => {
+      if (init.method === 'GET') return Response.json({ object: { sha: 'branch-before' } });
+      expect(url).toBe('https://api.github.com/graphql');
+      const input = JSON.parse(init.body as string).variables.input;
+      expect(input.expectedHeadOid).toBe('branch-before');
+      expect(input.branch).toEqual({ repositoryNameWithOwner: 'caseyg/content-test', branchName: 'feature/posts' });
+      expect(input.fileChanges.additions).toEqual([{ path, contents: base64('Atomic') }]);
+      return Response.json({ data: { createCommitOnBranch: { commit: { oid: 'branch-after' } } } });
+    });
+    const head = await store.head();
+    const result = await store.write(path, 'Atomic', { expectedHead: head, message: 'Publish' });
+    expect(result.commit).toBe('branch-after');
+    expect(result.sha).toMatch(/^[a-f0-9]{40}$/);
+  });
+
+  test('reports a moved branch as a conflict without retrying', async () => {
+    const store = createGitHubStore(config, async () => Response.json({ errors: [{ type: 'STALE_DATA', message: 'Expected branch to point to another revision' }] }));
+    await expect(store.write(path, 'x', { expectedHead: 'old-head', message: 'Publish' })).rejects.toMatchObject({ outcome: 'conflict' });
+  });
+
   test('reads the configured branch and UTF-8 file with a revision and no caching', async () => {
     const store = createGitHubStore(config, async (url, init) => {
       expect(url).toBe('https://api.github.com/repos/caseyg/content-test/contents/notes/2026-11-06-%E6%9C%88.md?ref=feature%2Fposts');

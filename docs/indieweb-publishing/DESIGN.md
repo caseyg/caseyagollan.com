@@ -31,6 +31,6 @@ Keep microformats in rendered HTML. Send Webmentions only after the intended rev
 
 Open choices: IndieAuth provider, content serialization, repository privacy, and build-trigger permissions. Check conflicts, failed builds, timezone boundaries, and actual public output. Follow the repository's test/build checks for code changes.
 
-The document editor and GitHub storage adapter are implemented and tested locally. They aren't connected to public routes yet. Authorization, uploads, publication filtering, and build automation come next.
+The disabled-by-default `/micropub` route now supports token verification, Git-backed create/edit/delete/restore, and source/config queries. Public readers filter unpublished records and render new plain-text content literally. [Preview setup](SETUP.md) needs a compatible provider and isolated Git credentials before real-client testing. Uploads, rich HTML writes, confidential drafts, outgoing interactions, and build automation remain unfinished.
 
 [CMS notes](GIT-CMS.md) · [Source findings](PROJECTS.md) · [Specs](specs/README.md)

@@ -121,8 +121,9 @@ function autoLinkUrls(content: string): string {
  * @param content - Raw content string (may contain markdown, URLs, etc.)
  * @returns HTML string ready for rendering with {@html}
  */
-export function renderContent(content: string): string {
+export function renderContent(content: string, format: 'text' | 'html' | 'markdown' = 'markdown'): string {
 	if (!content) return '';
+	if (format === 'text') return content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/\r?\n/g, '<br>');
 
 	// Step 1: Process oEmbeds first (before markdown to avoid interference)
 	let processed = processOembeds(content);
@@ -143,6 +144,6 @@ export function renderContent(content: string): string {
 /**
  * Render content synchronously (for use in components)
  */
-export function renderContentSync(content: string): string {
-	return renderContent(content);
+export function renderContentSync(content: string, format: 'text' | 'html' | 'markdown' = 'markdown'): string {
+	return renderContent(content, format);
 }

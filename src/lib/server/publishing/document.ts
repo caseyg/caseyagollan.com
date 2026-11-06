@@ -9,7 +9,7 @@ export interface UpdateOperations {
 }
 
 const fields: Record<string, string> = {
-	name: 'title', published: 'date', updated: 'updated',
+	name: 'title', published: 'date', updated: 'updated', summary: 'summary',
 	'bookmark-of': 'bookmarkOf', 'in-reply-to': 'inReplyTo'
 };
 const reverseFields = Object.fromEntries(Object.entries(fields).map(([property, field]) => [field, property]));
