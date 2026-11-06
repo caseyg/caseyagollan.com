@@ -11,6 +11,7 @@
 </script>
 
 <svelte:head>
+	<meta name="publishing-revision" content={data.revision} />
 	<title>{data.post.title || data.post.type} - Casey Gollan</title>
 	<meta name="description" content={data.post.summary || data.post.content.slice(0, 160)} />
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />

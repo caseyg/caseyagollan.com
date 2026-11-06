@@ -7,10 +7,10 @@ Markdown in Git, media in R2, Micropub on the existing Cloudflare Worker. No D1.
 - [CMS notes](GIT-CMS.md)
 - [Detailed research](PROJECTS.md)
 - [30 specifications](specs/README.md)
-- [19 repository snapshots](research/INVENTORY.md)
+- [19 researched repositories](research/INVENTORY.md)
 - [Source URLs and hashes](manifest.json)
 
-Research captured November 6, 2026. Snapshots contain selected files, not full clones. Runtime compatibility remains untested.
+Research captured November 6, 2026. Snapshots contain selected files, not full clones. Selected publishing paths have unit, local Cloudflare-runtime, and isolated live-preview checks; the research snapshots themselves are references, not a claim of full compatibility.
 
 Refresh from the repository root:
 
@@ -21,3 +21,5 @@ bun docs/indieweb-publishing/scripts/verify.mjs
 ```
 
 Review findings after refreshing; upstream code may have changed.
+
+Downloaded repository snapshots under `research/repos/` are local-only and ignored. The inventory and manifest retain provenance; research notes link to commit-pinned upstream source.

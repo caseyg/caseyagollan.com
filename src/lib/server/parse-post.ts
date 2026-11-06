@@ -61,6 +61,8 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		slug,
 		type: PLURAL_TO_SINGULAR[type],
 		date: dateStr,
+		updated: typeof first(data.updated) === 'string' ? first(data.updated) : undefined,
+		syndicationTargets: data.syndicationTargets === undefined ? undefined : [...new Set((Array.isArray(data.syndicationTargets) ? data.syndicationTargets : [data.syndicationTargets]).filter((value: unknown): value is string => typeof value === 'string' && value.length > 0))] as string[],
 		title: data.title,
 		bookmarkOf: data.bookmarkOf,
 		inReplyTo: data.inReplyTo,
@@ -80,6 +82,6 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 }
 
 export function isPublicPost(post: Post): boolean {
-	return !post.deleted && (post.postStatus === undefined || post.postStatus === 'published') &&
+	return !post.draft && !post.deleted && (post.postStatus === undefined || post.postStatus === 'published') &&
 		(post.visibility === undefined || post.visibility === 'public');
 }

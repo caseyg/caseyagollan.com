@@ -4,6 +4,8 @@
 import type { PublishingEnvironment } from './lib/server/publishing/config';
 
 declare global {
+	const __MICROPUB_ENDPOINT__: string;
+	const __INDIEAUTH_ISSUER__: string;
 	interface Window {
 		telescopicText?: { createTelescopicTextFromBulletedList: (content: string) => HTMLElement };
 		createTelescopicTextFromBulletedList: (content: string) => HTMLElement;

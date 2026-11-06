@@ -10,7 +10,7 @@ describe('Micropub authorization', () => {
     const identity = await authorize(request(), 'create', config, async (url, init) => {
       expect(url).toBe(config.introspectionEndpoint);
       expect(init.method).toBe('POST');
-      expect(init.redirect).toBe('error');
+      expect(init.redirect).toBe('manual');
       expect(init.cache).toBe('no-store');
       expect(new Headers(init.headers).get('Authorization')).toBe('Bearer server-credential');
       expect(String(init.body)).toBe('token=client-token');
@@ -19,13 +19,36 @@ describe('Micropub authorization', () => {
     expect(identity.clientId).toBe('https://quill.example/');
   });
 
+  test('supports IndieKit introspection without a separate server credential', async () => {
+    const { introspectionToken, ...indiekit } = config;
+    const identity = await authorize(request(), 'create', indiekit, async (url, init) => {
+      expect(new Headers(init.headers).has('Authorization')).toBe(false);
+      expect(String(init.body)).toBe('token=client-token');
+      return Response.json(valid);
+    });
+    expect(identity.me).toBe('https://example.com/');
+    await expect(authorize(request(), 'create', indiekit, async () => Response.json({ active: false }))).rejects.toMatchObject({ status: 401 });
+    await expect(authorize(request(), 'create', indiekit, async () => Response.json({ ...valid, scope: 'update' }))).rejects.toMatchObject({ status: 403 });
+  });
+
+  test('accepts verified IndieKit tokens without client_id', async () => {
+    const { client_id, ...indiekitToken } = valid;
+    const identity = await authorize(request(), 'create', config, async () => Response.json(indiekitToken));
+    expect(identity.me).toBe('https://example.com/');
+    expect(identity.clientId).toBeUndefined();
+  });
+
+  test('rejects provider redirects without following them', async () => {
+    await expect(authorize(request(), 'create', config, async () => new Response(null, { status: 302, headers: { Location: 'https://other.example/' } }))).rejects.toMatchObject({ status: 401 });
+  });
+
   test('requires a token and scopes before any write', async () => {
     await expect(authorize(new Request('https://example.com/micropub'), 'create', config)).rejects.toMatchObject({ status: 401 });
     await expect(authorize(request(), 'create', config, async () => Response.json({ ...valid, scope: 'update' }))).rejects.toMatchObject({ status: 403, code: 'insufficient_scope' });
   });
 
   test('rejects inactive, expired, malformed and different-profile tokens', async () => {
-    for (const changes of [{ active: false }, { active: 'true' }, { exp: 1 }, { exp: '9999999999' }, { me: 'https://example.com/someone-else' }, { me: 'https://evil.example/' }, { scope: null }, { client_id: '' }]) {
+    for (const changes of [{ active: false }, { active: 'true' }, { exp: 1 }, { exp: '9999999999' }, { me: 'https://example.com/someone-else' }, { me: 'https://evil.example/' }, { scope: null }, { client_id: '' }, { client_id: null }, { client_id: 'javascript:bad' }]) {
       await expect(authorize(request(), 'create', config, async () => Response.json({ ...valid, ...changes }))).rejects.toBeInstanceOf(ProtocolError);
     }
   });

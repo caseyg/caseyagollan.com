@@ -2,7 +2,7 @@
 
 Keep Markdown in Git, media in R2, and Micropub endpoints in the existing Cloudflare Worker. We don't need D1.
 
-Quill or another Micropub client sends a post to the Worker. It checks the IndieAuth token, commits Markdown through GitHub's API, and returns the post URL. The existing fallback serves new URLs before the next build. Edits, deletions, archives, and feeds catch up after deployment.
+Quill or another Micropub client sends a post to the Worker. It checks the IndieAuth token, commits Markdown through GitHub's API, and returns the post URL. The existing fallback serves new URLs before the next build. Edits, deletions, and archives catch up after deployment. RSS, Atom and JSON Feed are generated from that same bundled snapshot.
 
 ## What to build
 
@@ -31,6 +31,8 @@ Keep microformats in rendered HTML. Send Webmentions only after the intended rev
 
 Open choices: IndieAuth provider, content serialization, repository privacy, and build-trigger permissions. Check conflicts, failed builds, timezone boundaries, and actual public output. Follow the repository's test/build checks for code changes.
 
-The disabled-by-default `/micropub` route now supports token verification, Git-backed create/edit/delete/restore, and source/config queries. Public readers filter unpublished records and render new plain-text content literally. [Preview setup](SETUP.md) needs a compatible provider and isolated Git credentials before real-client testing. Uploads, rich HTML writes, confidential drafts, outgoing interactions, and build automation remain unfinished.
+The disabled-by-default publishing route supports authenticated Git-backed create/edit/delete/restore, source/config queries, source ETags and conditional edits, plain text and sanitized HTML, Git-backed drafts, photo/video posts, and R2 uploads. Private posts remain rejected by design. RSS, Atom and JSON Feed share public-post filtering and modification dates. Native scheduled delivery uses a private R2 outbox with conditional-write leases, retries, transition identities, and source-revision proof before sending Webmentions or requested Mastodon/Bluesky syndication. Public manifests bring direct Git changes into the same delivery path. Receiving remains on webmention.io.
+
+The site-side content-sync workflow and content notifier template are implemented. Production activation and real-client/social-send validation are rollout work; the CMS is explicitly excluded. See [setup and verification](SETUP.md) for configured resources, tested paths, and remaining activation steps.
 
 [CMS notes](GIT-CMS.md) · [Source findings](PROJECTS.md) · [Specs](specs/README.md)

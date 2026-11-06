@@ -9,10 +9,10 @@ const config: PublishingConfig = {
 const b64 = (value: string) => btoa(Array.from(new TextEncoder().encode(value), x => String.fromCharCode(x)).join(''));
 const unb64 = (value: string) => new TextDecoder().decode(Uint8Array.from(atob(value), x => x.charCodeAt(0)));
 
-function setup(scope = 'create update delete undelete') {
+function setup(scope = 'create update delete undelete', options: Partial<PublishingConfig> = {}) {
   const files = new Map<string, { content: string; sha: string }>();
   let writes = 0;
-  const handler = createMicropubHandler(config, {
+  const handler = createMicropubHandler({ ...config, ...options }, {
     now: () => new Date('2026-11-06T17:00:00Z'), id: () => 'abc123',
     fetcher: async (url, init) => {
       if (url === config.introspectionEndpoint) return Response.json({ active: true, me: config.me, client_id: 'https://quill.example/', scope });
@@ -98,6 +98,98 @@ describe('Micropub HTTP flow', () => {
     expect(readDocument(app.files.get('notes/2026-11-06-restore.md')!.content).properties.deleted).toBeUndefined();
   });
 
+  test('restores with IndieKit delete scope but not create/update alone', async () => {
+    const app = setup('create update delete');
+    await app.send({ properties: { content: ['Restore'], 'mp-slug': ['restore-delete-scope'] } });
+    const url = 'https://example.com/2026/11/06/restore-delete-scope/';
+    expect((await app.send({ action: 'delete', url })).status).toBe(204);
+    expect((await app.send({ action: 'undelete', url })).status).toBe(204);
+    expect(readDocument(app.files.get('notes/2026-11-06-restore-delete-scope.md')!.content).properties.deleted).toBeUndefined();
+    for (const scope of ['create', 'update', 'undelete']) {
+      const denied = setup(scope);
+      expect((await denied.send({ action: 'undelete', url })).status).toBe(403);
+      expect(denied.writes()).toBe(0);
+    }
+  });
+
+  test('advertises configured media and saves photos/video with alt text', async () => {
+    const fetcher = async () => Response.json({ active: true, me: config.me, scope: 'create' });
+    const handler = createMicropubHandler({ ...config, mediaEnabled: true }, { fetcher });
+    const response = await handler(new Request('https://preview.example/micropub?q=config', { headers: { Authorization: 'Bearer client' } }));
+    expect((await response.json() as any)['media-endpoint']).toBe('https://preview.example/micropub/media');
+    for (const property of ['photo', 'video']) {
+      const app = setup();
+      const value = { value: `https://example.com/media/test.${property === 'photo' ? 'png' : 'mp4'}`, alt: 'A moon' };
+      const created = await app.send({ properties: { [property]: [value], 'mp-slug': [property] } });
+      expect(created.status).toBe(202);
+      expect(readDocument(app.files.get(`${property === 'photo' ? 'photos' : 'videos'}/2026-11-06-${property}.md`)!.content).properties[property]).toEqual([value]);
+    }
+  });
+
+  test('preserves Quill form photo alt text', async () => {
+    const app = setup();
+    const response = await app.handler(new Request('https://example.com/micropub', { method: 'POST', headers: { Authorization: 'Bearer client', 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'h=entry&photo[]=https%3A%2F%2Fexample.com%2Fmedia%2Fa.png&mp-photo-alt[]=Moon&mp-slug=quill-photo' }));
+    expect(response.status).toBe(202);
+    expect(readDocument(app.files.get('photos/2026-11-06-quill-photo.md')!.content).properties.photo).toEqual([{ value: 'https://example.com/media/a.png', alt: 'Moon' }]);
+  });
+
+  test('stores sanitized HTML as HTML and nonconfidential drafts outside public readers', async () => {
+    const app = setup('draft create update delete');
+    const draft = await app.send({ properties: { content: [{ html: '<p class="e-content">Hello <strong>moon</strong><script>bad()</script></p>' }], 'post-status': ['draft'], 'mp-slug': ['html-draft'] } });
+    expect(draft.status).toBe(202);
+    const url = 'https://example.com/2026/11/06/html-draft/';
+    const doc = readDocument(app.files.get('notes/2026-11-06-html-draft.md')!.content);
+    expect(doc.bodyFormat).toBe('html'); expect(doc.body).toContain('<strong>moon</strong>'); expect(doc.body).not.toContain('<script');
+    expect(doc.properties['post-status']).toEqual(['draft']);
+    expect((await app.send({ action: 'update', url, replace: { 'post-status': ['published'] } })).status).toBe(204);
+    expect(readDocument(app.files.get('notes/2026-11-06-html-draft.md')!.content).properties['post-status']).toEqual(['published']);
+    const denied = setup('create update');
+    expect((await denied.send({ properties: { content: ['Draft'], 'post-status': ['draft'] } })).status).toBe(403);
+  });
+
+  test('returns source revision and rejects stale If-Match updates', async () => {
+    const app = setup();
+    await app.send({ properties: { content: ['Original'], 'mp-slug': ['revision'] } });
+    const url = 'https://example.com/2026/11/06/revision/';
+    const source = await app.query(`q=source&url=${encodeURIComponent(url)}`);
+    expect(source.headers.get('ETag')).toBe('"revision-1"');
+    const response = await app.handler(new Request('https://example.com/micropub', { method: 'POST', headers: { Authorization: 'Bearer client', 'Content-Type': 'application/json', 'If-Match': '"old-revision"' }, body: JSON.stringify({ action: 'update', url, replace: { content: ['Lost edit'] } }) }));
+    expect(response.status).toBe(412); expect(app.writes()).toBe(1);
+  });
+
+  test('cannot publish a draft by deleting its status with update scope alone', async () => {
+    const app = setup('update');
+    app.files.set('notes/2026-11-06-draft.md', { sha: 'draft', content: '---\ndate: 2026-11-06T12:00:00-05:00\npost-status: draft\n---\nDraft' });
+    expect((await app.send({ action: 'update', url: 'https://example.com/2026/11/06/draft/', delete: ['post-status'] })).status).toBe(403);
+    expect(app.writes()).toBe(0);
+  });
+
+  test('advertises configured destinations and durably queues requested syndication after a Git save', async () => {
+    const jobs: any[] = [];
+    const state = { get: async () => null, put: async (key: string, value: string) => { if (key.startsWith('private/outbox/')) jobs.push(JSON.parse(value)); return { etag: 'one' }; } } as unknown as R2Bucket;
+    const app = setup('create update', { state, syndication: { mastodon: { instance: 'https://social.example.org', token: 'test' }, bluesky: { service: 'https://bsky.social', identifier: 'casey.test', password: 'test' } } });
+    const targets = (await (await app.query('q=syndicate-to')).json() as any)['syndicate-to'];
+    expect(targets).toHaveLength(2);
+    expect((await app.send({ properties: { content: ['Hello'], 'mp-slug': ['syndicate'] }, 'mp-syndicate-to': [targets[0].uid] })).status).toBe(202);
+    expect(app.writes()).toBe(1); expect(jobs).toHaveLength(1); expect(jobs[0].event.syndicateTo).toEqual(['mastodon']);
+    const url = 'https://example.com/2026/11/06/syndicate/';
+    expect((await app.send({ action: 'update', url, 'mp-syndicate-to': [targets[1].uid] })).status).toBe(204);
+    expect(jobs.at(-1).event.syndicateTo).toEqual(['mastodon', 'bluesky']);
+    expect((await (await app.query(`q=source&url=${encodeURIComponent(url)}`)).json() as any).properties).not.toHaveProperty('syndicationTargets');
+  });
+
+  test('restoration creates a fresh Webmention transition despite matching public content', async () => {
+    const jobs: any[] = [];
+    const state = { get: async () => null, put: async (key: string, value: string) => { if (key.startsWith('private/outbox/')) jobs.push(JSON.parse(value)); return { etag: 'one' }; } } as unknown as R2Bucket;
+    const app = setup('create update delete', { state });
+    await app.send({ properties: { content: ['https://target.example.org/post'], 'mp-slug': ['transition'] } });
+    const url = 'https://example.com/2026/11/06/transition/';
+    await app.send({ action: 'delete', url }); await app.send({ action: 'undelete', url });
+    expect(jobs).toHaveLength(3);
+    expect(jobs[0].event.revision).toBe(jobs[2].event.revision);
+    expect(jobs[0].event.generation).not.toBe(jobs[2].event.generation);
+  });
+
   test('finds legacy UTC filenames and returns rendered source for Markdown', async () => {
     const app = setup();
     app.files.set('articles/2026-11-07-old.md', { sha: 'legacy', content: '---\ndate: 2026-11-06T23:30:00-05:00\ntitle: Old\n---\n**Markdown**' });
@@ -118,7 +210,7 @@ describe('Micropub HTTP flow', () => {
 
   test('rejects unsupported input and scopes rather than dropping data', async () => {
     const app = setup('create');
-    const properties = [ { 'post-status': ['draft'], content: ['Draft'] }, { visibility: ['private'], content: ['Private'] }, { content: [{ html: '<script>bad()</script>' }] }, { content: ['x'], 'mp-syndicate-to': ['https://social.example/'] }, { content: ['x'], 'mp-slug': ['../bad'] }, { published: ['2026-02-30T12:00:00Z'], content: ['x'] } ];
+    const properties = [ { visibility: ['private'], content: ['Private'] }, { content: [{ html: '<p>x</p>', unexpected: 'bad' }] }, { content: ['x'], 'mp-syndicate-to': ['https://social.example/'] }, { content: ['x'], 'mp-slug': ['../bad'] }, { published: ['2026-02-30T12:00:00Z'], content: ['x'] } ];
     for (const p of properties) expect((await app.send({ properties: p })).status).toBe(400);
     expect((await app.send({ type: ['h-event'], properties: { name: ['Event'] } })).status).toBe(400);
     expect((await app.send({ action: 'delete', url: 'https://example.com/2026/11/06/x/' })).status).toBe(403);

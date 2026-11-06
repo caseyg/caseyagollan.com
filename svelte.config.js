@@ -8,7 +8,7 @@ const config = {
 	preprocess: [vitePreprocess(), mdsvex({ extensions: ['.md'] })],
 
 	kit: {
-		adapter: adapter(),
+		adapter: adapter({ config: 'wrangler.sveltekit.jsonc', platformProxy: { configPath: 'wrangler.jsonc' } }),
 		// The hook retains form-origin checks everywhere except the token-only Micropub API.
 		csrf: { checkOrigin: false },
 		prerender: {

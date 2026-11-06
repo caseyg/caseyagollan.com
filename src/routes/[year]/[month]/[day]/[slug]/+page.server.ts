@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getAllPosts } from '$lib/posts';
 import { building } from '$app/environment';
 import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
+import { publicationRevision } from '$lib/server/publishing/publication';
 import { isPublicPost } from '$lib/server/parse-post';
 import { publishingConfig } from '$lib/server/publishing/config';
 import { error } from '@sveltejs/kit';
@@ -29,5 +30,5 @@ export const load: PageServerLoad = async (event) => {
 
 	if (!post) error(404, 'Post not found');
 	if (!isPublicPost(post)) error(post.deleted ? 410 : 404, post.deleted ? 'Post deleted' : 'Post not found');
-	return { year, month, day, post };
+	return { year, month, day, post, revision: await publicationRevision(post) };
 };

@@ -1,6 +1,6 @@
 # Reusable projects and adaptation findings
 
-2026-11-06. Primary evidence is the commit-pinned repository snapshot in `research/repos/`; exact SHAs and upstream commit links are in [the inventory](research/INVENTORY.md). Findings below distinguish inspected code from README descriptions. A recent push or permissive license does not establish correctness, maintenance quality, or production readiness.
+2026-11-06. Primary evidence is commit-pinned upstream source, with local-only snapshots in `research/repos/`; exact SHAs and upstream commit links are in [the inventory](research/INVENTORY.md). Findings below distinguish inspected code from README descriptions. A recent push or permissive license does not establish correctness, maintenance quality, or production readiness.
 
 ## Closest matches
 
@@ -18,7 +18,7 @@ Concrete adaptation work:
 - Auth validation does not explicitly check `res.ok`/`active` before trusting returned identity; review against the selected provider's verification contract.
 - `q=source` requires a URL; post-list queries need additional support if desired. Media uploads currently pass through the same store abstraction. Adapt R2 delivery URLs, dated permalinks, metadata round-tripping, and public draft/deletion filtering.
 
-Evidence: [handler](research/repos/benjifs--micropub/files/src/index.js.txt), [content operations](research/repos/benjifs--micropub/files/src/content.js.txt), [auth](research/repos/benjifs--micropub/files/src/auth.js.txt), [multipart parser](research/repos/benjifs--micropub/files/src/parseBody.js.txt).
+Evidence: [handler](https://github.com/benjifs/micropub/blob/d4c357f31460f2389ed6377951d4ad7df0128feb/src/index.js), [content operations](https://github.com/benjifs/micropub/blob/d4c357f31460f2389ed6377951d4ad7df0128feb/src/content.js), [auth](https://github.com/benjifs/micropub/blob/d4c357f31460f2389ed6377951d4ad7df0128feb/src/auth.js), [multipart parser](https://github.com/benjifs/micropub/blob/d4c357f31460f2389ed6377951d4ad7df0128feb/src/parseBody.js).
 
 ### benjifs/github-store — companion Git adapter
 
@@ -26,7 +26,7 @@ Evidence: [handler](research/repos/benjifs--micropub/files/src/index.js.txt), [c
 
 README and package inspection: dependency-free adapter for GitHub Contents API, used by the Micropub package. Useful for a narrow repository-writing layer rather than adopting a complete CMS. Review implementation, SHA conflict handling, retries, file-size limits, and commit permissions before adoption. A repository Contents API is not a durable job queue, and media should use a separate R2 strategy if we keep binaries out of Git.
 
-Evidence: [README](research/repos/benjifs--github-store/files/README.md), [package](research/repos/benjifs--github-store/files/package.json). Runtime implementation has not been reviewed here.
+Evidence: [README](https://github.com/benjifs/github-store/blob/84d7f2a66e04793206e482508eac1f1b34afa628/README.md), [package](https://github.com/benjifs/github-store/blob/84d7f2a66e04793206e482508eac1f1b34afa628/package.json). Runtime implementation has not been reviewed here.
 
 ### davidwkeith/workers — strongest native Workers package candidate
 
@@ -38,7 +38,7 @@ Important fit constraints: the Micropub handler constructs its D1 store directly
 
 Prefer evaluating it if D1 becomes canonical. For Git, selectively reuse pure parsing/update helpers or assess an upstream storage seam. Avoid importing its unrelated protocol surface by default.
 
-Evidence: [Micropub README](research/repos/davidwkeith--workers/files/packages/micropub/README.md), [handler](research/repos/davidwkeith--workers/files/packages/micropub/src/handler.ts.txt), [store](research/repos/davidwkeith--workers/files/packages/micropub/src/store.ts.txt), [auth configuration](research/repos/davidwkeith--workers/files/packages/indieauth/src/config.ts.txt).
+Evidence: [Micropub README](https://github.com/davidwkeith/workers/blob/12925dbe072126327336e9102010bb78198c9c66/packages/micropub/README.md), [handler](https://github.com/davidwkeith/workers/blob/12925dbe072126327336e9102010bb78198c9c66/packages/micropub/src/handler.ts), [store](https://github.com/davidwkeith/workers/blob/12925dbe072126327336e9102010bb78198c9c66/packages/micropub/src/store.ts), [auth configuration](https://github.com/davidwkeith/workers/blob/12925dbe072126327336e9102010bb78198c9c66/packages/indieauth/src/config.ts).
 
 ### dumaurier/ElevindieWeb — concrete Cloudflare/Git reference
 
@@ -50,7 +50,7 @@ The small footprint has limits: auth codes are consumed through separate KV `get
 
 Useful as an example, not a security-reviewed auth foundation.
 
-Evidence: [token exchange](research/repos/dumaurier--ElevindieWeb/files/functions/_lib/indieauth/token.ts.txt), [auth checks](research/repos/dumaurier--ElevindieWeb/files/functions/_lib/auth.ts.txt), [body parser](research/repos/dumaurier--ElevindieWeb/files/functions/_lib/utils/parse-body.ts.txt), [frontmatter mapping](research/repos/dumaurier--ElevindieWeb/files/functions/_lib/mapping/micropub-to-fm.ts.txt).
+Evidence: [token exchange](https://github.com/dumaurier/ElevindieWeb/blob/e9d252816435c2c8bc56787cd767945e2b875ad2/functions/_lib/indieauth/token.ts), [auth checks](https://github.com/dumaurier/ElevindieWeb/blob/e9d252816435c2c8bc56787cd767945e2b875ad2/functions/_lib/auth.ts), [body parser](https://github.com/dumaurier/ElevindieWeb/blob/e9d252816435c2c8bc56787cd767945e2b875ad2/functions/_lib/utils/parse-body.ts), [frontmatter mapping](https://github.com/dumaurier/ElevindieWeb/blob/e9d252816435c2c8bc56787cd767945e2b875ad2/functions/_lib/mapping/micropub-to-fm.ts).
 
 ## Building blocks and interoperability references
 

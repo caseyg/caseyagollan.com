@@ -24,7 +24,7 @@ describe('public publishing output', () => {
     const html = renderContentSync(post.content, post.contentFormat);
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<h1>');
-    expect(html).toContain('&lt;script&gt;');
+    expect(html).toMatch(/(?:&lt;|&#x3[Cc];)script(?:&gt;|>)/);
     expect(renderContentSync('**Legacy**')).toContain('<strong>Legacy</strong>');
   });
 

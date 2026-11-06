@@ -10,6 +10,8 @@ export interface Post {
 	slug: string;
 	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media';
 	date: string;
+	updated?: string;
+	syndicationTargets?: string[];
 	title?: string;
 	bookmarkOf?: string;
 	inReplyTo?: string;

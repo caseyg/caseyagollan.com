@@ -10,4 +10,4 @@ Test disposable files for dated paths, timezone offsets, unknown/nested metadata
 
 We reviewed source and documentation; we haven't tested these editors with this site.
 
-[Captured sources and commits](research/INVENTORY.md) · [Sveltia conflict code](research/repos/sveltia--sveltia-cms/files/src/lib/services/contents/draft/save/conflict.js.txt) · [R2 docs](https://sveltiacms.app/en/docs/media/cloudflare-r2)
+[Captured sources and commits](research/INVENTORY.md) · [Sveltia conflict code](https://github.com/sveltia/sveltia-cms/blob/4f8984cca19d687783e5db5333805ff0f099a0a1/src/lib/services/contents/draft/save/conflict.js) · [R2 docs](https://sveltiacms.app/en/docs/media/cloudflare-r2)
