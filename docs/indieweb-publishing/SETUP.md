@@ -35,7 +35,7 @@ Preview publishing is enabled on the deployed test Worker, but `PUBLISHING_DELIV
 
 ## Credentials and provider
 
-The preview Worker now uses its own passkey-based IndieAuth server and native Durable Object token verification (`PUBLISHING_AUTH_MODE=internal`). See [Auth setup and cutover](AUTH.md). Production discovery still points to IndieKit until the production rollout is verified. Tokens issued by IndieKit do not work in internal mode; reconnect clients after cutover.
+The preview Worker now uses its own passkey-based IndieAuth server and native Durable Object token verification (`PUBLISHING_AUTH_MODE=internal`). See [Auth setup and cutover](AUTH.md). Production discovery and publishing now use canonical native endpoints. Tokens issued by IndieKit do not work in internal mode; reconnect clients after cutover.
 
 The preview Worker has these secrets configured:
 
@@ -102,11 +102,11 @@ This checks actual latest content without changing the pin. The notifier templat
 
 1. Review/commit/merge the code and activate the content-sync workflow. Install the content notifier for immediate builds, or initially use scheduled/manual sync.
 2. Set production GitHub/Mastodon/Bluesky secrets using the production config. Existing preview credentials do not automatically transfer to production.
-3. Persist `PUBLISHING_ENABLED=true` and keep delivery false in `wrangler.jsonc`. Configure the Cloudflare build variable `PUBLIC_MICROPUB_ENDPOINT=https://caseyagollan.com/micropub`. This changes only Micropub discovery; retain IndieKit auth/token discovery. Without that build variable the site deliberately retains IndieKit's Micropub endpoint.
+3. Persist `PUBLISHING_ENABLED=true` and keep delivery false in `wrangler.jsonc`. Canonical Micropub and IndieAuth discovery are the checked-in build defaults. `PUBLIC_MICROPUB_ENDPOINT` and `PUBLIC_INDIEAUTH_ISSUER` can override them for isolated builds.
 4. Build/deploy the production revision, then test Quill/Micropublish, scopes, media, drafts, edits, delete/restore and the ensuing archive/feed update. A manual build must use the same `PUBLIC_MICROPUB_ENDPOINT` value. Temporary CLI overrides alone are insufficient: later automatic builds use the checked-in settings.
 5. Persist `PUBLISHING_DELIVERY_ENABLED=true` only when ready for real outgoing Webmentions/social posts, deploy, and verify one explicitly authorized social test plus its returned links. Production remains on content `main`, never `preview/indieweb`.
 
-The preview has live HTML/source/render/edit/delete/restore and R2 read/range verification. Full-size uploads and competing outbox leases passed the real local Cloudflare/R2 runtime. Draft/media positive authorization and provider posts have automated fake-network coverage; successful live draft/upload tests still require a fresh token with those scopes, and live social sends have deliberately not been performed.
+The preview has live HTML/source/render/edit/delete/restore and R2 read/range verification. Full-size uploads and competing outbox leases passed the real local Cloudflare/R2 runtime. Live preview and production draft/upload checks have passed; live social sends have deliberately not been performed.
 
 ## Local checks
 
