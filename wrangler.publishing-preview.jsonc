@@ -1,0 +1,20 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "caseyagollan-publishing-preview",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2025-01-19",
+	"compatibility_flags": ["nodejs_als"],
+	"workers_dev": true,
+	"preview_urls": true,
+	"routes": [],
+	"assets": { "binding": "ASSETS", "directory": ".svelte-kit/cloudflare" },
+	// Separate Worker; no production KV/R2 bindings. Publishing stays off until configured.
+	"vars": {
+		"PUBLISHING_ENABLED": "false",
+		"PUBLISHING_ME": "https://caseyagollan.com/",
+		"PUBLISHING_GITHUB_OWNER": "caseyg",
+		"PUBLISHING_GITHUB_REPO": "caseyagollan-content",
+		"PUBLISHING_GITHUB_BRANCH": "preview/indieweb",
+		"PUBLISHING_TIMEZONE": "America/New_York"
+	}
+}
