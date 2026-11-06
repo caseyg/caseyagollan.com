@@ -6,6 +6,7 @@
 	import Nav from '$lib/components/Nav.svelte';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
+	import { libraryText } from '$lib/library-text';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -19,6 +20,7 @@
 		bookid?: number;
 		isbn?: string;
 		authorLastName?: string;
+		authorName?: string;
 		pages?: number;
 		dateacquired?: string;
 		publicationYear?: number;
@@ -100,7 +102,7 @@
 	let selectedBook: Node | null = $state(null);
 	let bookDetails: GoogleBookVolumeInfo | null = $state(null);
 	let isLoadingBookDetails = $state(false);
-	let bookDetailError: string | null = $state(null);
+	let detailsRequest: AbortController | null = null;
 	let orbitAnimationId: number | null = null;
 	let orbitPaused = false;
 	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -173,7 +175,7 @@
 		const color = new THREE.Color(averageColor);
 		const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 		spineCtx.fillStyle = luminance > 0.18 ? '#111111' : '#ffffff';
-		const layout = layoutSpine(node.id, node.authorLastName || '', spineCanvas.height, spineCanvas.width,
+		const layout = layoutSpine(libraryText(node.id), libraryText(node.authorLastName || ''), spineCanvas.height, spineCanvas.width,
 			(text, size) => {
 				spineCtx.font = `600 ${size}px Arial`;
 				return spineCtx.measureText(text).width;
@@ -315,7 +317,7 @@
 		coverCtx.textAlign = 'center';
 		coverCtx.textBaseline = 'middle';
 
-		const words = node.id.split(' ');
+		const words = libraryText(node.id).split(' ');
 		const lines: string[] = [];
 		let currentLine = '';
 
@@ -418,14 +420,16 @@
 	// Fetch book details from Google Books API
 	async function fetchBookDetails(
 		isbn: string | undefined,
-		title: string
+		title: string,
+		signal: AbortSignal
 	): Promise<GoogleBookVolumeInfo | null> {
 		try {
 			// Try ISBN first if available
 			if (isbn) {
 				const response = await fetch(
-					`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+					`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`, { signal }
 				);
+				if (response.status === 429 || response.status === 403) return null;
 				if (response.ok) {
 					const data: GoogleBookData = await response.json();
 					if (data.items && data.items.length > 0) {
@@ -437,7 +441,7 @@
 			// Fall back to title search (quoted for exact match)
 			const titleQuery = encodeURIComponent(`"${title}"`);
 			const titleResponse = await fetch(
-				`https://www.googleapis.com/books/v1/volumes?q=${titleQuery}`
+				`https://www.googleapis.com/books/v1/volumes?q=${titleQuery}`, { signal }
 			);
 			if (titleResponse.ok) {
 				const titleData: GoogleBookData = await titleResponse.json();
@@ -448,7 +452,7 @@
 
 			return null;
 		} catch (error) {
-			console.error('Error fetching book details:', error);
+			if (!signal.aborted) console.warn('Book enrichment unavailable');
 			return null;
 		}
 	}
@@ -457,9 +461,17 @@
 	async function selectBook(node: Node, updateUrl = true) {
 		if (!Graph) return;
 
+		detailsRequest?.abort();
+		const request = new AbortController();
+		detailsRequest = request;
 		selectedBook = node;
-		bookDetails = null;
-		bookDetailError = null;
+		const catalogDetails: GoogleBookVolumeInfo = {
+			title: libraryText(node.id),
+			authors: node.authorName ? [libraryText(node.authorName)] : undefined,
+			publishedDate: node.publicationYear ? String(node.publicationYear) : undefined,
+			pageCount: node.pages
+		};
+		bookDetails = catalogDetails;
 
 		// Update URL with ISBN
 		if (updateUrl && browser && node.isbn) {
@@ -571,14 +583,16 @@
 			}
 		}, 1000);
 
-		// Fetch book details (tries ISBN first, then falls back to title)
+		// Catalog metadata is available immediately; Google Books only enriches it.
 		isLoadingBookDetails = true;
-		const details = await fetchBookDetails(node.isbn, node.id);
-		if (details) {
-			bookDetails = details;
-		} else {
-			bookDetailError = 'Could not find book details';
-		}
+		const timeout = setTimeout(() => request.abort(), 6000);
+		const details = await fetchBookDetails(node.isbn, libraryText(node.id), request.signal);
+		clearTimeout(timeout);
+		if (detailsRequest !== request || selectedBook?.id !== node.id) return;
+		if (details) bookDetails = { ...details, ...catalogDetails,
+			authors: catalogDetails.authors || details.authors,
+			publishedDate: catalogDetails.publishedDate || details.publishedDate,
+			pageCount: catalogDetails.pageCount || details.pageCount };
 		isLoadingBookDetails = false;
 	}
 
@@ -685,6 +699,9 @@
 	// Deselect book and restore view
 	function deselectBook() {
 		if (!Graph || !selectedBook) return;
+		detailsRequest?.abort();
+		detailsRequest = null;
+		isLoadingBookDetails = false;
 
 		// Stop orbit animation
 		if (orbitAnimationId !== null) {
@@ -728,7 +745,6 @@
 
 		selectedBook = null;
 		bookDetails = null;
-		bookDetailError = null;
 		lastClickedNode = null;
 	}
 
@@ -746,6 +762,8 @@
 				bookid?: number;
 				au?: string;
 				authorLastName?: string;
+				af?: string;
+				authorName?: string;
 				n?: string;
 				isbn?: string;
 				p?: number;
@@ -778,6 +796,7 @@
 					workcode: n.w,
 					bookid: n.b,
 					authorLastName: n.au,
+					authorName: n.af,
 					isbn: n.n,
 					pages: n.p,
 					dateacquired: n.d,
@@ -804,6 +823,7 @@
 				workcode: n.workcode || n.w,
 				bookid: n.bookid || n.b,
 				authorLastName: n.authorLastName || n.au,
+				authorName: n.authorName || n.af,
 				isbn: n.isbn || n.n,
 				pages: n.pages || n.p,
 				dateacquired: n.dateacquired || n.d,
@@ -866,7 +886,7 @@
 			.graphData(graphData)
 			.nodeLabel((node: Node) => {
 				const label = document.createElement('span');
-				label.textContent = node.id;
+				label.textContent = libraryText(node.id);
 				return label;
 			})
 			.onEngineTick(() => {
@@ -981,6 +1001,7 @@
 		if (!browser) return;
 
 		// Remove keyboard event listener
+		detailsRequest?.abort();
 		window.removeEventListener('keydown', handleKeydown);
 		window.removeEventListener('popstate', restoreLibraryView);
 
@@ -1524,37 +1545,16 @@
 	<aside class="book-sidebar" role="complementary" aria-label="Book details">
 		<button class="close-button" onclick={deselectBook} aria-label="Close">×</button>
 
-		<h2 class="book-title">{selectedBook.id}</h2>
+		<h2 class="book-title">{libraryText(selectedBook.id)}</h2>
 
-		{#if isLoadingBookDetails}
-			<div class="loading-details">
-				<span class="loading-shapes">
-					<svg width="24" height="24" viewBox="-6 -6 12 12">
-						<circle r="4" fill="currentColor" class="shape shape-circle" />
-						<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="currentColor" class="shape shape-star" />
-						<polygon points="0,-5 5,4 -5,4" fill="currentColor" class="shape shape-triangle" />
-						<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="currentColor" class="shape shape-square" />
-					</svg>
-				</span>
-				<p>Loading book details…</p>
-			</div>
-		{:else if bookDetailError}
-			<div class="error-details">
-				<p>{bookDetailError}</p>
-				{#if selectedBook.workcode}
-					<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer">
-						View on LibraryThing →
-					</a>
-				{/if}
-			</div>
-		{:else if bookDetails}
+		{#if bookDetails}
 			<div class="book-details">
 				{#if bookDetails.subtitle}
-					<p class="book-subtitle">{bookDetails.subtitle}</p>
+					<p class="book-subtitle">{libraryText(bookDetails.subtitle)}</p>
 				{/if}
 
 				{#if bookDetails.authors && bookDetails.authors.length > 0}
-					<p class="book-authors">{bookDetails.authors.join(', ')}</p>
+					<p class="book-authors">{bookDetails.authors.map(libraryText).join(', ')}</p>
 				{/if}
 
 				<div class="book-meta">
@@ -1572,15 +1572,16 @@
 				{#if bookDetails.categories && bookDetails.categories.length > 0}
 					<div class="book-categories">
 						{#each bookDetails.categories as category}
-							<span class="category-tag">{category}</span>
+							<span class="category-tag">{libraryText(category)}</span>
 						{/each}
 					</div>
 				{/if}
 
 				{#if bookDetails.description}
-					<p class="book-description">{@html bookDetails.description}</p>
+					<p class="book-description">{libraryText(bookDetails.description.replace(/<[^>]*>/g, ' '))}</p>
 				{/if}
 
+				{#if isLoadingBookDetails}<p class="enrichment-status">Loading additional details…</p>{/if}
 				<div class="book-links">
 					{#if bookDetails.previewLink}
 						<a href={bookDetails.previewLink} target="_blank" rel="noopener noreferrer" class="book-link">
@@ -1745,6 +1746,9 @@
 		box-sizing: border-box;
 		overflow-y: auto;
 		font-family: system-ui, -apple-system, sans-serif;
+		font-size: 0.9rem;
+		font-weight: 400;
+		line-height: 1.5;
 		color: white;
 		animation: slideIn 0.3s ease-out;
 	}
@@ -1879,29 +1883,9 @@
 		background: rgb(73, 73, 255);
 	}
 
-	.loading-details,
-	.error-details {
-		text-align: center;
-		padding: 24px 0;
-		color: rgba(255, 255, 255, 0.8);
-	}
-
-	.loading-details .loading-shapes {
-		color: white;
-	}
-
-	.error-details a {
-		color: white;
-		background: blue;
-		text-decoration: none;
-		padding: 6px 12px;
-		border-radius: 5px;
-		display: inline-block;
-		margin-top: 8px;
-	}
-
-	.error-details a:hover {
-		background: rgb(73, 73, 255);
+	.enrichment-status {
+		font-size: 0.8rem;
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	/* Mobile adjustments for sidebar */

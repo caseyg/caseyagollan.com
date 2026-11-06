@@ -6,6 +6,7 @@ interface MinifiedNode {
 	i: string; // id
 	g: string; // group
 	au?: string; // author surname
+	af?: string; // full author name
 	w?: string; // workcode
 	b?: number; // bookid
 	n?: string; // isbn
@@ -34,6 +35,7 @@ interface Node {
 	id: string;
 	group: string;
 	authorLastName?: string;
+	authorName?: string;
 	workcode?: string;
 	bookid?: number;
 	isbn?: string;
@@ -62,6 +64,7 @@ interface GraphData {
 function expandNode(n: MinifiedNode): Node {
 	const node: Node = { id: n.i, group: n.g };
 	if (n.au) node.authorLastName = n.au;
+	if (n.af) node.authorName = n.af;
 	if (n.w) node.workcode = n.w;
 	if (n.b) node.bookid = n.b;
 	if (n.n) node.isbn = n.n;

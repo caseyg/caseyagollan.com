@@ -37,3 +37,12 @@ test('wide spines wrap full titles and retain the author instead of making one o
 	const noAuthor = layoutSpine('Title', '', 1000, 100, measure);
 	expect(noAuthor.authorWidth).toBe(0);
 });
+
+test('catalog entities decode for display without turning text into markup', async () => {
+	const { libraryText } = await import('../src/lib/library-text');
+	expect(libraryText('Maangchi&#039;s Real Korean Cooking')).toBe("Maangchi's Real Korean Cooking");
+	expect(libraryText('Caf&eacute; &amp; the author&rsquo;s book')).toBe('Café & the author’s book');
+	expect(libraryText('A &#x2014; B &#128214;')).toBe('A — B 📖');
+	expect(libraryText('&lt;script&gt;alert(1)&lt;/script&gt;')).toBe('<script>alert(1)</script>');
+	expect(libraryText('&#999999999; &unknown;')).toBe('&#999999999; &unknown;');
+});
