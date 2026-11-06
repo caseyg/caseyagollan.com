@@ -1,6 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import libraryData from '../../../../static/library/graph.json';
 
 // Keep the library index prerendered while serving arbitrary ISBN deep links.
 export const prerender = 'auto';
@@ -99,9 +98,7 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 		}
 
 		// Development/build - read from static folder
-		const filePath = join(process.cwd(), 'static', 'library', 'graph.json');
-		const rawData = readFileSync(filePath, 'utf-8');
-		const minified: MinifiedGraphData = JSON.parse(rawData);
+		const minified: MinifiedGraphData = libraryData;
 
 		graphData = {
 			nodes: minified.nodes.map(expandNode),
