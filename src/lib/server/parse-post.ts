@@ -71,6 +71,7 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		postStatus: data['post-status'] === undefined ? undefined : String(first(data['post-status'])),
 		deleted: data.deleted === undefined ? false : ![false, 'false'].includes(first(data.deleted) as boolean | string),
 		visibility: data.visibility === undefined ? undefined : String(first(data.visibility)),
+		draft: data.draft === true,
 		syndication: data.syndication,
 		photo: normalizeMedia(data.photo, data['mp-photo-alt']),
 		video: normalizeMedia(data.video),

@@ -58,7 +58,7 @@ export const GET: RequestHandler = async ({ url, platform }) => {
 				metadata: k.metadata
 			})),
 			list_complete: result.list_complete,
-			cursor: result.cursor
+			cursor: result.list_complete ? undefined : result.cursor
 		});
 	} catch (e: any) {
 		throw error(500, `Failed to list keys: ${e.message}`);
@@ -74,7 +74,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	}
 
 	try {
-		const { key, value, expirationTtl, metadata } = await request.json();
+		const { key, value, expirationTtl, metadata } = await request.json() as { key?: string; value?: unknown; expirationTtl?: string | number; metadata?: unknown };
 
 		if (!key) {
 			throw error(400, 'Key is required');
@@ -89,7 +89,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 		// Prepare put options
 		const options: any = {};
-		if (expirationTtl) options.expirationTtl = parseInt(expirationTtl);
+		if (expirationTtl) options.expirationTtl = parseInt(String(expirationTtl));
 		if (metadata) options.metadata = metadata;
 
 		await kv.put(key, stringValue, options);

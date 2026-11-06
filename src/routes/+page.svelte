@@ -6,6 +6,8 @@
     import PersistentDocument from "$lib/components/PersistentDocument.svelte";
     import InsightCard from "$lib/components/InsightCard.svelte";
 
+    import type { InsightResponse } from "$lib/insight-types";
+
     interface Insight {
         topic: string;
         insight: string;
@@ -316,7 +318,6 @@
             script.src = "https://unpkg.com/telescopic-text@1.2.4/lib/index.js";
             script.onload = () => {
                 try {
-                    // @ts-ignore - accessing global telescopic text library
                     const { createTelescopicTextFromBulletedList } =
                         window.telescopicText || window;
                     // Clear any SSR fallback content
@@ -398,7 +399,7 @@
                     insightResponse.statusText,
                 );
                 try {
-                    const errorData = await insightResponse.json();
+                    const errorData = await insightResponse.json() as { error?: string };
                     console.error("Error data:", errorData);
                     if (errorData.error === "AI inference API key not configured" || errorData.error === "Search API key not configured") {
                         // Show helpful message about the topic without AI
@@ -418,7 +419,7 @@
             }
 
             // Parse JSON response
-            const data = await insightResponse.json();
+            const data = await insightResponse.json() as InsightResponse;
             console.log('📦 Received insight data:', data);
 
             // Update insight with the results

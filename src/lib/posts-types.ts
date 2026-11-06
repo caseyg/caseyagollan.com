@@ -20,6 +20,7 @@ export interface Post {
 	postStatus?: string;
 	deleted?: boolean;
 	visibility?: string;
+	draft?: boolean;
 	syndication?: string[];
 	photo?: MediaItem[];
 	video?: MediaItem[];
