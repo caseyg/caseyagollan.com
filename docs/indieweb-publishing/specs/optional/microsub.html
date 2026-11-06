@@ -1,0 +1,1880 @@
+<!DOCTYPE html>
+<html class="client-nojs vector-feature-language-in-header-enabled vector-feature-language-in-main-page-header-disabled vector-feature-sticky-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-zebra-design-disabled vector-feature-custom-font-size-clientpref-disabled vector-feature-client-preferences-disabled vector-feature-typography-survey-disabled vector-toc-available" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<title>Microsub-spec - IndieWeb</title>
+<script>(function(){var className="client-js vector-feature-language-in-header-enabled vector-feature-language-in-main-page-header-disabled vector-feature-sticky-header-disabled vector-feature-page-tools-pinned-disabled vector-feature-toc-pinned-clientpref-1 vector-feature-main-menu-pinned-disabled vector-feature-limited-width-clientpref-1 vector-feature-limited-width-content-enabled vector-feature-zebra-design-disabled vector-feature-custom-font-size-clientpref-disabled vector-feature-client-preferences-disabled vector-feature-typography-survey-disabled vector-toc-available";var cookie=document.cookie.match(/(?:^|; )wikimwclientpreferences=([^;]+)/);if(cookie){cookie[1].split('%2C').forEach(function(pref){className=className.replace(new RegExp('(^| )'+pref.replace(/-clientpref-\w+$|[^\w-]+/g,'')+'-clientpref-\\w+( |$)'),'$1'+pref+'$2');});}document.documentElement.className=className;}());RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],
+"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"5f73e51fcac63479811192b1","wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"Microsub-spec","wgTitle":"Microsub-spec","wgCurRevisionId":109628,"wgRevisionId":109628,"wgArticleId":6938,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":[],"wgPageViewLanguage":"en","wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"Microsub-spec","wgRelevantArticleId":6938,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[]};RLSTATE={"skins.vector.user.styles":"ready","site.styles":"ready","user.styles":"ready","skins.vector.user":"ready","user":"ready","user.options":"loading","codex-search-styles":"ready","skins.vector.styles":
+"ready","skins.vector.icons":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.vector.js"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.impl(function(){return["user.options@12s5i",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});
+}];});});</script>
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=codex-search-styles%7Cskins.vector.icons%2Cstyles&amp;only=styles&amp;skin=vector-2022">
+<script async="" src="/wiki/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector-2022"></script>
+<meta name="ResourceLoaderDynamicStyles" content="">
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=site.styles&amp;only=styles&amp;skin=vector-2022">
+<meta name="generator" content="MediaWiki 1.41.0">
+<meta name="robots" content="max-image-preview:standard">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="The Microsub specification provides a standardized way for clients to consume and interact with feeds collected by a server.">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.25, maximum-scale=5.0">
+<link rel="icon" href="/favicon.ico">
+<link rel="search" type="application/opensearchdescription+xml" href="/wiki/opensearch_desc.php" title="IndieWeb (en)">
+<link rel="EditURI" type="application/rsd+xml" href="https://indieweb.org/wiki/api.php?action=rsd">
+<link rel="license" href="/IndieWebCamp:Copyrights">
+<link rel="alternate" type="application/atom+xml" title="IndieWeb Atom feed" href="/wiki/index.php?title=Special:RecentChanges&amp;feed=atom">
+	<meta property="og:type" content="article">
+
+	<meta property="og:site_name" content="IndieWeb">
+
+	<meta property="og:title" content="Microsub-spec">
+
+	<meta property="og:description" content="The Microsub specification provides a standardized way for clients to consume and interact with feeds collected by a server.">
+
+	<meta property="og:url" content="https://indieweb.org/Microsub-spec">
+
+<link rel="webmention" href="https://webmention.io/indiewebcamp/webmention">
+
+<script src="https://cdn.usefathom.com/script.js" site="ZPHFRYAA" defer></script>
+</head>
+<body class="skin-vector skin-vector-search-vue mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-Microsub-spec rootpage-Microsub-spec skin-vector-2022 action-view skin--responsive"><a class="mw-jump-link" href="#bodyContent">Jump to content</a>
+<div class="vector-header-container">
+	<header class="vector-header mw-header">
+		<div class="vector-header-start">
+			<nav class="vector-main-menu-landmark" aria-label="Site" role="navigation">
+				
+<div id="vector-main-menu-dropdown" class="vector-dropdown vector-main-menu-dropdown vector-button-flush-left vector-button-flush-right"  >
+	<input type="checkbox" id="vector-main-menu-dropdown-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-main-menu-dropdown" class="vector-dropdown-checkbox "  aria-label="Main menu"  >
+	<label id="vector-main-menu-dropdown-label" for="vector-main-menu-dropdown-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only " aria-hidden="true"  ><span class="vector-icon mw-ui-icon-menu mw-ui-icon-wikimedia-menu"></span>
+
+<span class="vector-dropdown-label-text">Main menu</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+				<div id="vector-main-menu-unpinned-container" class="vector-unpinned-container">
+		
+<div id="vector-main-menu" class="vector-main-menu vector-pinnable-element">
+	<div
+	class="vector-pinnable-header vector-main-menu-pinnable-header vector-pinnable-header-unpinned"
+	data-feature-name="main-menu-pinned"
+	data-pinnable-element-id="vector-main-menu"
+	data-pinned-container-id="vector-main-menu-pinned-container"
+	data-unpinned-container-id="vector-main-menu-unpinned-container"
+>
+	<div class="vector-pinnable-header-label">Main menu</div>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-pin-button" data-event-name="pinnable-header.vector-main-menu.pin">move to sidebar</button>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-unpin-button" data-event-name="pinnable-header.vector-main-menu.unpin">hide</button>
+</div>
+
+	
+<div id="p-" class="vector-menu mw-portlet mw-portlet- emptyPortlet"  >
+	<div class="vector-menu-heading">
+		
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			
+		</ul>
+		
+	</div>
+</div>
+
+	
+	
+<div id="p-Explore_the_IndieWeb" class="vector-menu mw-portlet mw-portlet-Explore_the_IndieWeb"  >
+	<div class="vector-menu-heading">
+		Explore the IndieWeb
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🗽-Principles" class="mw-list-item"><a href="/principles"><span>🗽 Principles</span></a></li><li id="n-📜-Community-posts" class="mw-list-item"><a href="https://stream.indieweb.org/"><span>📜 Community posts</span></a></li><li id="n-🌐-Visit-a-random-site" class="mw-list-item"><a href="https://xn--sr8hvo.ws/random"><span>🌐 Visit a random site</span></a></li><li id="n-🌱-Get-a-personal-site" class="mw-list-item"><a href="/Getting_Started"><span>🌱 Get a personal site</span></a></li><li id="n-ℹ️-FAQ" class="mw-list-item"><a href="/FAQ"><span>ℹ️ FAQ</span></a></li><li id="n-📩-Subscribe-to-newsletter" class="mw-list-item"><a href="/this-week-in-the-indieweb"><span>📩 Subscribe to newsletter</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-New_and_coming_up_soon" class="vector-menu mw-portlet mw-portlet-New_and_coming_up_soon"  >
+	<div class="vector-menu-heading">
+		New and coming up soon
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🎁-IndieWeb-Gift-Calendar!" class="mw-list-item"><a href="/2026-12-indieweb-gift-calendar"><span>🎁 IndieWeb Gift Calendar!</span></a></li><li id="n-🎪-IWC-San-Diego-12/12…13" class="mw-list-item"><a href="/next-iwc"><span>🎪 IWC San Diego 12/12…13</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-Join_the_community" class="vector-menu mw-portlet mw-portlet-Join_the_community"  >
+	<div class="vector-menu-heading">
+		Join the community
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🌈-Code-of-conduct" class="mw-list-item"><a href="/code-of-conduct"><span>🌈 Code of conduct</span></a></li><li id="n-💬-Join-#indieweb-chat" class="mw-list-item"><a href="/discuss"><span>💬 Join #indieweb chat</span></a></li><li id="n-📜-Chat-log" class="mw-list-item"><a href="https://chat.indieweb.org/"><span>📜 Chat log</span></a></li><li id="n-📅-Events" class="mw-list-item"><a href="https://events.indieweb.org/"><span>📅 Events</span></a></li><li id="n-👥--Meetups:-2026-11-11" class="mw-list-item"><a href="https://events.indieweb.org/tag/hwc"><span>👥  Meetups: 2026-11-11</span></a></li><li id="n-👕☕️-IndieWeb-shirts-&amp;-mugs" class="mw-list-item"><a href="/T-shirt"><span>👕☕️ IndieWeb shirts &amp; mugs</span></a></li><li id="n-❤️-Sponsor" class="mw-list-item"><a href="/how-to-sponsor"><span>❤️ Sponsor</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-Developers" class="vector-menu mw-portlet mw-portlet-Developers"  >
+	<div class="vector-menu-heading">
+		Developers
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-🔩-Building-Blocks" class="mw-list-item"><a href="/Category:building-blocks"><span>🔩 Building Blocks</span></a></li><li id="n-🛠-Tools" class="mw-list-item"><a href="/Tools"><span>🛠 Tools</span></a></li><li id="n-🧰-Projects" class="mw-list-item"><a href="/Projects"><span>🧰 Projects</span></a></li><li id="n-🔌-Standards" class="mw-list-item"><a href="https://spec.indieweb.org/"><span>🔌 Standards</span></a></li><li id="n-💬-Join-developer-chat" class="mw-list-item"><a href="/discuss#dev"><span>💬 Join developer chat</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-Wiki_resources" class="vector-menu mw-portlet mw-portlet-Wiki_resources"  >
+	<div class="vector-menu-heading">
+		Wiki resources
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="n-👤-Login" class="mw-list-item"><a href="https://sso.indieweb.org/login?url=https%3A%2F%2Findieweb.org%2F"><span>👤 Login</span></a></li><li id="n-✳️-Recent-changes" class="mw-list-item"><a href="/Special:RecentChanges"><span>✳️ Recent changes</span></a></li><li id="n-🖼-Recent-uploads" class="mw-list-item"><a href="/Special:ListFiles"><span>🖼 Recent uploads</span></a></li><li id="n-🎲-Random-page" class="mw-list-item"><a href="/Special:Random"><span>🎲 Random page</span></a></li><li id="n-📑-6,190-articles" class="mw-list-item"><a href="/Special:Statistics"><span>📑 6,190 articles</span></a></li><li id="n-©-Wiki-content-is-CC0" class="mw-list-item"><a href="/IndieWebCamp:Copyrights"><span>© Wiki content is CC0</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+	
+</div>
+
+				</div>
+
+	</div>
+</div>
+
+		</nav>
+			
+<a href="/Main_Page" class="mw-logo">
+	<span class="mw-logo-container">
+		<img class="mw-logo-wordmark" alt="IndieWeb" src="/img/indiewebcamp-logo-lockup-color@1x.png" style="width: 10.125em; height: 4.8125em;">
+	</span>
+</a>
+
+		</div>
+		<div class="vector-header-end">
+			
+<div id="p-search" role="search" class="vector-search-box-vue  vector-search-box-collapses vector-search-box-show-thumbnail vector-search-box-auto-expand-width vector-search-box">
+	<a href="/Special:Search" class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only search-toggle" id="" title="Search IndieWeb [f]" accesskey="f"><span class="vector-icon mw-ui-icon-search mw-ui-icon-wikimedia-search"></span>
+
+<span>Search</span>
+	</a>
+	<div class="vector-typeahead-search-container">
+		<div class="cdx-typeahead-search cdx-typeahead-search--show-thumbnail cdx-typeahead-search--auto-expand-width">
+			<form action="/wiki/index.php" id="searchform" class="cdx-search-input cdx-search-input--has-end-button">
+				<div id="simpleSearch" class="cdx-search-input__input-wrapper"  data-search-loc="header-moved">
+					<div class="cdx-text-input cdx-text-input--has-start-icon">
+						<input
+							class="cdx-text-input__input"
+							 type="search" name="search" placeholder="Search IndieWeb" aria-label="Search IndieWeb" autocapitalize="none" title="Search IndieWeb [f]" accesskey="f" id="searchInput"
+							>
+						<span class="cdx-text-input__icon cdx-text-input__start-icon"></span>
+					</div>
+					<input type="hidden" name="title" value="Special:Search">
+				</div>
+				<button class="cdx-button cdx-search-input__end-button">Search</button>
+			</form>
+		</div>
+	</div>
+</div>
+
+			<nav class="vector-user-links" aria-label="Personal tools" role="navigation" >
+	
+<div id="p-vector-user-menu-overflow" class="vector-menu mw-portlet mw-portlet-vector-user-menu-overflow"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="pt-login-2" class="user-links-collapsible-item mw-list-item"><a href="https://sso.indieweb.org/login?url=https%3A%2F%2Findieweb.org%2FMicrosub-spec" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span>Log in</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+	
+<div id="vector-user-links-dropdown" class="vector-dropdown vector-user-menu vector-button-flush-right vector-user-menu-logged-out"  title="More options" >
+	<input type="checkbox" id="vector-user-links-dropdown-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-user-links-dropdown" class="vector-dropdown-checkbox "  aria-label="Personal tools"  >
+	<label id="vector-user-links-dropdown-label" for="vector-user-links-dropdown-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only " aria-hidden="true"  ><span class="vector-icon mw-ui-icon-ellipsis mw-ui-icon-wikimedia-ellipsis"></span>
+
+<span class="vector-dropdown-label-text">Personal tools</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+		
+<div id="p-personal" class="vector-menu mw-portlet mw-portlet-personal"  title="User menu" >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="pt-login" class="user-links-collapsible-item mw-list-item"><a href="https://sso.indieweb.org/login?url=https%3A%2F%2Findieweb.org%2FMicrosub-spec" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span class="vector-icon mw-ui-icon-logIn mw-ui-icon-wikimedia-logIn"></span> <span>Log in</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+	
+	</div>
+</div>
+
+</nav>
+
+		</div>
+	</header>
+</div>
+<div class="mw-page-container">
+	<div class="mw-page-container-inner">
+		<div class="vector-sitenotice-container">
+			<div id="siteNotice"></div>
+		</div>
+		
+			<div class="vector-main-menu-container">
+		<div id="mw-navigation">
+			<nav id="mw-panel" class="vector-main-menu-landmark" aria-label="Site" role="navigation">
+				<div id="vector-main-menu-pinned-container" class="vector-pinned-container">
+				
+				</div>
+		</nav>
+		</div>
+	</div>
+	<input type="checkbox" id="vector-toc-collapsed-checkbox" class="vector-menu-checkbox">
+			<nav id="mw-panel-toc" role="navigation" aria-label="Contents" data-event-name="ui.sidebar-toc" class="mw-table-of-contents-container vector-toc-landmark vector-sticky-pinned-container">
+				<div id="vector-toc-pinned-container" class="vector-pinned-container">
+				<div id="vector-toc" class="vector-toc vector-pinnable-element">
+	<div
+	class="vector-pinnable-header vector-toc-pinnable-header vector-pinnable-header-pinned"
+	data-feature-name="toc-pinned"
+	data-pinnable-element-id="vector-toc"
+	
+	
+>
+	<h2 class="vector-pinnable-header-label">Contents</h2>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-pin-button" data-event-name="pinnable-header.vector-toc.pin">move to sidebar</button>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-unpin-button" data-event-name="pinnable-header.vector-toc.unpin">hide</button>
+</div>
+
+
+	<ul class="vector-toc-contents" id="mw-panel-toc-list">
+		<li id="toc-mw-content-text"
+			class="vector-toc-list-item vector-toc-level-1">
+			<a href="#" class="vector-toc-link">
+				<div class="vector-toc-text">Beginning</div>
+			</a>
+		</li>
+		<li id="toc-Design_Goals"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Design_Goals">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">1</span>Design Goals</div>
+		</a>
+		
+		<ul id="toc-Design_Goals-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+	<li id="toc-Endpoints"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Endpoints">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">2</span>Endpoints</div>
+		</a>
+		
+			<button aria-controls="toc-Endpoints-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Endpoints subsection</span>
+			</button>
+		
+		<ul id="toc-Endpoints-sublist" class="vector-toc-list">
+			<li id="toc-Discovery"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Discovery">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">2.1</span>Discovery</div>
+			</a>
+			
+			<ul id="toc-Discovery-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Authentication_and_Authorization"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Authentication_and_Authorization">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">2.2</span>Authentication and Authorization</div>
+			</a>
+			
+			<ul id="toc-Authentication_and_Authorization-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Error_Responses"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Error_Responses">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">2.3</span>Error Responses</div>
+			</a>
+			
+			<ul id="toc-Error_Responses-sublist" class="vector-toc-list">
+				<li id="toc-Implementations"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Implementations">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">2.3.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Channels"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Channels">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">3</span>Channels</div>
+		</a>
+		
+		<ul id="toc-Channels-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+	<li id="toc-Users"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Users">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">4</span>Users</div>
+		</a>
+		
+		<ul id="toc-Users-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+	<li id="toc-Actions"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Actions">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">5</span>Actions</div>
+		</a>
+		
+			<button aria-controls="toc-Actions-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Actions subsection</span>
+			</button>
+		
+		<ul id="toc-Actions-sublist" class="vector-toc-list">
+			<li id="toc-Timelines"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Timelines">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.1</span>Timelines</div>
+			</a>
+			
+			<ul id="toc-Timelines-sublist" class="vector-toc-list">
+				<li id="toc-Retrieve_Entries_in_a_Channel"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Retrieve_Entries_in_a_Channel">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.1.1</span>Retrieve Entries in a Channel</div>
+			</a>
+			
+			<ul id="toc-Retrieve_Entries_in_a_Channel-sublist" class="vector-toc-list">
+				<li id="toc-Source_Parameter"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Source_Parameter">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.1.1.1</span>Source Parameter</div>
+			</a>
+			
+			<ul id="toc-Source_Parameter-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_2"
+			class="vector-toc-list-item vector-toc-level-5">
+			<a class="vector-toc-link" href="#Implementations_2">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.1.1.1.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_2-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Mark_Entries_Read"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Mark_Entries_Read">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.1.2</span>Mark Entries Read</div>
+			</a>
+			
+			<ul id="toc-Mark_Entries_Read-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Remove_Entry_from_a_Channel"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Remove_Entry_from_a_Channel">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.1.3</span>Remove Entry from a Channel</div>
+			</a>
+			
+			<ul id="toc-Remove_Entry_from_a_Channel-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Search"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Search">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.2</span>Search</div>
+			</a>
+			
+			<ul id="toc-Search-sublist" class="vector-toc-list">
+				<li id="toc-Searching_for_Content"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Searching_for_Content">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.2.1</span>Searching for Content</div>
+			</a>
+			
+			<ul id="toc-Searching_for_Content-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Preview"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Preview">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.3</span>Preview</div>
+			</a>
+			
+			<ul id="toc-Preview-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Following"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Following">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.4</span>Following</div>
+			</a>
+			
+			<ul id="toc-Following-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Unfollowing"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Unfollowing">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.5</span>Unfollowing</div>
+			</a>
+			
+			<ul id="toc-Unfollowing-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Muting"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Muting">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.6</span>Muting</div>
+			</a>
+			
+			<ul id="toc-Muting-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Unmuting"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Unmuting">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.7</span>Unmuting</div>
+			</a>
+			
+			<ul id="toc-Unmuting-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Blocking"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Blocking">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.8</span>Blocking</div>
+			</a>
+			
+			<ul id="toc-Blocking-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Channels_2"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Channels_2">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9</span>Channels</div>
+			</a>
+			
+			<ul id="toc-Channels_2-sublist" class="vector-toc-list">
+				<li id="toc-Create_a_Channel"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Create_a_Channel">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9.1</span>Create a Channel</div>
+			</a>
+			
+			<ul id="toc-Create_a_Channel-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Update_a_Channel"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Update_a_Channel">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9.2</span>Update a Channel</div>
+			</a>
+			
+			<ul id="toc-Update_a_Channel-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Delete_a_Channel"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Delete_a_Channel">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9.3</span>Delete a Channel</div>
+			</a>
+			
+			<ul id="toc-Delete_a_Channel-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Set_Channel_Order"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#Set_Channel_Order">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9.4</span>Set Channel Order</div>
+			</a>
+			
+			<ul id="toc-Set_Channel_Order-sublist" class="vector-toc-list">
+				<li id="toc-Order_Algorithm"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Order_Algorithm">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">5.9.4.1</span>Order Algorithm</div>
+			</a>
+			
+			<ul id="toc-Order_Algorithm-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Types_of_Feeds"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Types_of_Feeds">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">6</span>Types of Feeds</div>
+		</a>
+		
+		<ul id="toc-Types_of_Feeds-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+	<li id="toc-Objects"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Objects">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">7</span>Objects</div>
+		</a>
+		
+			<button aria-controls="toc-Objects-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Objects subsection</span>
+			</button>
+		
+		<ul id="toc-Objects-sublist" class="vector-toc-list">
+			<li id="toc-Posts"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Posts">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1</span>Posts</div>
+			</a>
+			
+			<ul id="toc-Posts-sublist" class="vector-toc-list">
+				<li id="toc-entry"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#entry">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.1</span>entry</div>
+			</a>
+			
+			<ul id="toc-entry-sublist" class="vector-toc-list">
+				<li id="toc-Indicating_Item_Source_Proposal"
+			class="vector-toc-list-item vector-toc-level-4">
+			<a class="vector-toc-link" href="#Indicating_Item_Source_Proposal">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.1.1</span>Indicating Item Source Proposal</div>
+			</a>
+			
+			<ul id="toc-Indicating_Item_Source_Proposal-sublist" class="vector-toc-list">
+				<li id="toc-Implementations_3"
+			class="vector-toc-list-item vector-toc-level-5">
+			<a class="vector-toc-link" href="#Implementations_3">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.1.1.1</span>Implementations</div>
+			</a>
+			
+			<ul id="toc-Implementations_3-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-card"
+			class="vector-toc-list-item vector-toc-level-3">
+			<a class="vector-toc-link" href="#card">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.1.2</span>card</div>
+			</a>
+			
+			<ul id="toc-card-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+		</li>
+		<li id="toc-Channels_3"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Channels_3">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.2</span>Channels</div>
+			</a>
+			
+			<ul id="toc-Channels_3-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Feeds"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Feeds">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">7.3</span>Feeds</div>
+			</a>
+			
+			<ul id="toc-Feeds-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Paging"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Paging">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">8</span>Paging</div>
+		</a>
+		
+			<button aria-controls="toc-Paging-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Paging subsection</span>
+			</button>
+		
+		<ul id="toc-Paging-sublist" class="vector-toc-list">
+			<li id="toc-Example_Paging_Workflow"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Example_Paging_Workflow">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">8.1</span>Example Paging Workflow</div>
+			</a>
+			
+			<ul id="toc-Example_Paging_Workflow-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+		<li id="toc-Limiting_Results"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Limiting_Results">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">8.2</span>Limiting Results</div>
+			</a>
+			
+			<ul id="toc-Limiting_Results-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Authentication_and_Authorization_Details"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Authentication_and_Authorization_Details">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">9</span>Authentication and Authorization Details</div>
+		</a>
+		
+			<button aria-controls="toc-Authentication_and_Authorization_Details-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Authentication and Authorization Details subsection</span>
+			</button>
+		
+		<ul id="toc-Authentication_and_Authorization_Details-sublist" class="vector-toc-list">
+			<li id="toc-Scopes"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Scopes">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">9.1</span>Scopes</div>
+			</a>
+			
+			<ul id="toc-Scopes-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Design_Considerations"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Design_Considerations">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">10</span>Design Considerations</div>
+		</a>
+		
+			<button aria-controls="toc-Design_Considerations-sublist" class="cdx-button cdx-button--weight-quiet cdx-button--icon-only vector-toc-toggle">
+				<span class="vector-icon vector-icon--x-small mw-ui-icon-wikimedia-expand"></span>
+				<span>Toggle Design Considerations subsection</span>
+			</button>
+		
+		<ul id="toc-Design_Considerations-sublist" class="vector-toc-list">
+			<li id="toc-Why_a_single_endpoint_instead_of_individual_endpoints_for_each_operation"
+			class="vector-toc-list-item vector-toc-level-2">
+			<a class="vector-toc-link" href="#Why_a_single_endpoint_instead_of_individual_endpoints_for_each_operation">
+				<div class="vector-toc-text">
+				<span class="vector-toc-numb">10.1</span>Why a single endpoint instead of individual endpoints for each operation</div>
+			</a>
+			
+			<ul id="toc-Why_a_single_endpoint_instead_of_individual_endpoints_for_each_operation-sublist" class="vector-toc-list">
+			</ul>
+		</li>
+	</ul>
+	</li>
+	<li id="toc-Feedback"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Feedback">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">11</span>Feedback</div>
+		</a>
+		
+		<ul id="toc-Feedback-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+	<li id="toc-Brainstorming"
+		class="vector-toc-list-item vector-toc-level-1">
+		<a class="vector-toc-link" href="#Brainstorming">
+			<div class="vector-toc-text">
+			<span class="vector-toc-numb">12</span>Brainstorming</div>
+		</a>
+		
+		<ul id="toc-Brainstorming-sublist" class="vector-toc-list">
+		</ul>
+	</li>
+</ul>
+</div>
+
+				</div>
+	</nav>
+		
+		<div class="mw-content-container">
+			<main id="content" class="mw-body h-entry" role="main">
+				<header class="mw-body-header vector-page-titlebar">
+					<label
+						id="vector-toc-collapsed-button"
+						class="cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet vector-button-flush-left cdx-button--icon-only"
+						for="vector-toc-collapsed-checkbox"
+						role="button"
+						aria-controls="vector-toc"
+						tabindex="0"
+						title="Table of Contents">
+						<span class="vector-icon mw-ui-icon-wikimedia-listBullet"></span>
+						<span>Toggle the table of contents</span>
+					</label>
+					<nav role="navigation" aria-label="Contents" class="vector-toc-landmark">
+						
+<div id="vector-page-titlebar-toc" class="vector-dropdown vector-page-titlebar-toc vector-button-flush-left"  >
+	<input type="checkbox" id="vector-page-titlebar-toc-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-page-titlebar-toc" class="vector-dropdown-checkbox "  aria-label="Toggle the table of contents"  >
+	<label id="vector-page-titlebar-toc-label" for="vector-page-titlebar-toc-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet cdx-button--icon-only " aria-hidden="true"  ><span class="vector-icon mw-ui-icon-listBullet mw-ui-icon-wikimedia-listBullet"></span>
+
+<span class="vector-dropdown-label-text">Toggle the table of contents</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+							<div id="vector-page-titlebar-toc-unpinned-container" class="vector-unpinned-container">
+			</div>
+		
+	</div>
+</div>
+
+					</nav>
+					<h1 id="firstHeading" class="firstHeading mw-first-heading"><span class="mw-page-title-main">Microsub-spec</span></h1>
+				</header>
+				<div class="vector-page-toolbar">
+					<div class="vector-page-toolbar-container">
+						<div id="left-navigation">
+							<nav aria-label="Namespaces">
+								
+<div id="p-associated-pages" class="vector-menu vector-menu-tabs mw-portlet mw-portlet-associated-pages"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="ca-nstab-main" class="selected vector-tab-noicon mw-list-item"><a href="/Microsub-spec" title="View the content page [c]" accesskey="c"><span>Page</span></a></li><li id="ca-talk" class="new vector-tab-noicon mw-list-item"><a href="/wiki/index.php?title=Talk:Microsub-spec&amp;action=edit&amp;redlink=1" rel="discussion" title="Discussion about the content page (page does not exist) [t]" accesskey="t"><span>Discussion</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+								
+<div id="p-variants" class="vector-dropdown emptyPortlet"  >
+	<input type="checkbox" id="p-variants-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-p-variants" class="vector-dropdown-checkbox " aria-label="Change language variant"   >
+	<label id="p-variants-label" for="p-variants-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet" aria-hidden="true"  ><span class="vector-dropdown-label-text">English</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+					
+<div id="p-variants" class="vector-menu mw-portlet mw-portlet-variants emptyPortlet"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			
+		</ul>
+		
+	</div>
+</div>
+
+				
+	</div>
+</div>
+
+							</nav>
+						</div>
+						<div id="right-navigation" class="vector-collapsible">
+							<nav aria-label="Views">
+								
+<div id="p-views" class="vector-menu vector-menu-tabs mw-portlet mw-portlet-views"  >
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="ca-view" class="selected vector-tab-noicon mw-list-item"><a href="/Microsub-spec"><span>Read</span></a></li><li id="ca-viewsource" class="vector-tab-noicon mw-list-item"><a href="/wiki/index.php?title=Microsub-spec&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e"><span>View source</span></a></li><li id="ca-history" class="vector-tab-noicon mw-list-item"><a href="/wiki/index.php?title=Microsub-spec&amp;action=history" title="Past revisions of this page [h]" accesskey="h"><span>View history</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+							</nav>
+				
+							<nav class="vector-page-tools-landmark" aria-label="Page tools">
+								
+<div id="vector-page-tools-dropdown" class="vector-dropdown vector-page-tools-dropdown"  >
+	<input type="checkbox" id="vector-page-tools-dropdown-checkbox" role="button" aria-haspopup="true" data-event-name="ui.dropdown-vector-page-tools-dropdown" class="vector-dropdown-checkbox "  aria-label="Tools"  >
+	<label id="vector-page-tools-dropdown-label" for="vector-page-tools-dropdown-checkbox" class="vector-dropdown-label cdx-button cdx-button--fake-button cdx-button--fake-button--enabled cdx-button--weight-quiet" aria-hidden="true"  ><span class="vector-dropdown-label-text">Tools</span>
+	</label>
+	<div class="vector-dropdown-content">
+
+
+									<div id="vector-page-tools-unpinned-container" class="vector-unpinned-container">
+						
+<div id="vector-page-tools" class="vector-page-tools vector-pinnable-element">
+	<div
+	class="vector-pinnable-header vector-page-tools-pinnable-header vector-pinnable-header-unpinned"
+	data-feature-name="page-tools-pinned"
+	data-pinnable-element-id="vector-page-tools"
+	data-pinned-container-id="vector-page-tools-pinned-container"
+	data-unpinned-container-id="vector-page-tools-unpinned-container"
+>
+	<div class="vector-pinnable-header-label">Tools</div>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-pin-button" data-event-name="pinnable-header.vector-page-tools.pin">move to sidebar</button>
+	<button class="vector-pinnable-header-toggle-button vector-pinnable-header-unpin-button" data-event-name="pinnable-header.vector-page-tools.unpin">hide</button>
+</div>
+
+	
+<div id="p-cactions" class="vector-menu mw-portlet mw-portlet-cactions emptyPortlet vector-has-collapsible-items"  title="More options" >
+	<div class="vector-menu-heading">
+		Actions
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="ca-more-view" class="selected vector-more-collapsible-item mw-list-item"><a href="/Microsub-spec"><span>Read</span></a></li><li id="ca-more-viewsource" class="vector-more-collapsible-item mw-list-item"><a href="/wiki/index.php?title=Microsub-spec&amp;action=edit"><span>View source</span></a></li><li id="ca-more-history" class="vector-more-collapsible-item mw-list-item"><a href="/wiki/index.php?title=Microsub-spec&amp;action=history"><span>View history</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+<div id="p-tb" class="vector-menu mw-portlet mw-portlet-tb"  >
+	<div class="vector-menu-heading">
+		General
+	</div>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list">
+			
+			<li id="t-whatlinkshere" class="mw-list-item"><a href="/Special:WhatLinksHere/Microsub-spec" title="A list of all wiki pages that link here [j]" accesskey="j"><span>What links here</span></a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/Special:RecentChangesLinked/Microsub-spec" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k"><span>Related changes</span></a></li><li id="t-specialpages" class="mw-list-item"><a href="/Special:SpecialPages" title="A list of all special pages [q]" accesskey="q"><span>Special pages</span></a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p"><span>Printable version</span></a></li><li id="t-permalink" class="mw-list-item"><a href="/wiki/index.php?title=Microsub-spec&amp;oldid=109628" title="Permanent link to this revision of this page"><span>Permanent link</span></a></li><li id="t-info" class="mw-list-item"><a href="/wiki/index.php?title=Microsub-spec&amp;action=info" title="More information about this page"><span>Page information</span></a></li>
+		</ul>
+		
+	</div>
+</div>
+
+</div>
+
+									</div>
+				
+	</div>
+</div>
+
+							</nav>
+						</div>
+					</div>
+				</div>
+				<div class="vector-column-end">
+					<nav class="vector-page-tools-landmark vector-sticky-pinned-container" aria-label="Page tools">
+						<div id="vector-page-tools-pinned-container" class="vector-pinned-container">
+			
+						</div>
+	</nav>
+				</div>
+				<div id="bodyContent" class="vector-body" aria-labelledby="firstHeading" data-mw-ve-target-container>
+					<div class="vector-body-before-content">
+							<div class="mw-indicators">
+		</div>
+
+						<div id="siteSub" class="noprint">From IndieWeb</div>
+					</div>
+					<div id="contentSub"><div id="mw-content-subtitle"></div></div>
+					
+					
+					<div id="mw-content-text" class="mw-body-content mw-content-ltr" lang="en" dir="ltr"><div class="mw-parser-output"><figure class="mw-halign-right" typeof="mw:File/Frameless"><a href="/File:microsub.svg" class="mw-file-description" title="Microsub icon"><img alt="Microsub icon" src="/images/thumb/0/08/microsub.svg/128px-microsub.svg.png" decoding="async" width="128" height="128" class="mw-file-element" srcset="/images/thumb/0/08/microsub.svg/192px-microsub.svg.png 1.5x, /images/thumb/0/08/microsub.svg/256px-microsub.svg.png 2x" /></a><figcaption>Microsub icon</figcaption></figure>
+<p><span class="p-summary">The <b><dfn>Microsub specification</dfn></b> provides a standardized way for clients to consume and interact with feeds collected by a server.</span>
+</p>
+<ul><li>See the <b><a href="/Microsub" title="Microsub">main Microsub page</a></b> for current clients (web, iOS, Android) to start using Microsub today!</li></ul>
+<p>The Microsub server is responsible for managing the accounts you follow, retrieving updates from them, and the Microsub endpoint provides the feed entries in a normalized format for easy consumption by clients.
+</p>
+<dl><dt>Status</dt>
+<dd>This is an early <b>Editor's Draft</b>, and feedback is encouraged.</dd>
+<dt>Participate</dt>
+<dd>Wiki (<a href="#Feedback">Feedback</a>)</dd>
+<dd>GitHub: <a class="external text" href="https://github.com/indieweb/microsub/issues">issues and brainstorming</a></dd>
+<dd><a href="/discuss" title="discuss">discuss</a></dd>
+<dt>Editor</dt>
+<dd><span class="h-card" style="white-space:nowrap"><img src="https&#58;//aaronparecki.com/images/profile.jpg" class="" style="height:1.1em;vertical-align:-.1em" alt="" /> <a href="/User:Aaronparecki.com" title="User:Aaronparecki.com">Aaron Parecki</a></span></dd>
+<dt>License</dt>
+<dd><small>Per <a class="external text" href="https://creativecommons.org/publicdomain/zero/1.0/">CC0</a>, to the extent possible under law, the editor(s) and contributors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editor(s) and contributors (2017-04-09 onward) have made this specification available under the <a class="external text" href="http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0">Open Web Foundation Agreement Version 1.0</a>.</small></dd></dl>
+<div style="float:left"><meta property="mw:PageProp/toc" /></div>
+<div style="clear:both;"></div>
+<h2><span class="mw-headline" id="Design_Goals">Design Goals</span></h2>
+<p>The goal of Microsub is to simplify the process of building a <a href="/reader" title="reader">reader</a>, since there are many moving parts when consuming external content. 
+</p><p>In general, when subscribing to a feed, a reader should use <a href="/WebSub" title="WebSub">WebSub</a> if the feed is enabled with it, but may need to fall back to polling if not. Depending on the format of the feed, there can be many variations in the actual data available at the feed. For example, there are several different ways an <a href="/h-entry" title="h-entry">h-entry</a> can represent the author of the entry, described at <a href="/authorship" title="authorship">authorship</a>. There are also multiple ways a list of <a href="/h-entry" title="h-entry">h-entrys</a> can appear in an <a href="/h-feed" title="h-feed">h-feed</a>.
+</p><p>The role of the Microsub server is to normalize the data in the wild and turn it into a simpler format for displaying in clients. Clients should never have to second guess or doubt any data they receive from the Microsub server. The assumption is that the server has done all the verification and normalizing of the data, and it is ready to display to the user. The fewer checks and conditionals that clients have to write the better.
+</p><p>Where HTML or Microformats may provide multiple ways of representing content, Microsub instead has just one way of representing data. For example, in Microformats the "author" property may be a string URL or an <code>h-card</code>, but in Microsub it will always be a jf2 card.
+</p>
+<h2><span class="mw-headline" id="Endpoints">Endpoints</span></h2>
+<p>The Microsub endpoint is where the client will make all API requests. All API requests require authentication with a Bearer access token that the client needs to obtain. If the client does not have a preexisting relationship with the server, then the following method of discovery and authorization should be used to obtain an access token and discover the Microsub endpoint.
+</p><p>It is possible for a client to be pre-configured with a Microsub endpoint, or to use other methods of obtaining an access token if there is a preexisting relationship between the client and the server providing the Microsub endpoint.
+</p>
+<h3><span class="mw-headline" id="Discovery">Discovery</span></h3>
+<p>The client first performs discovery on the user's profile URL to find the Microsub endpoint and authorization endpoint. Given a user's profile URL, perform an HTTP GET request and look for either a <code>&lt;link rel="microsub"&gt;</code> or HTTP <code>Link</code> header with a <code>rel</code> value of <code>microsub</code>. Additionally, look for links with rel values <code>authorization_endpoint</code> and <code>token_endpoint</code>.
+</p>
+<pre>Link: &lt;https://aaronpk.example/auth&gt;; rel="authorization_endpoint"
+Link: &lt;https://aaronpk.example/token&gt;; rel="token_endpoint"
+Link: &lt;https://aaronpk.example/microsub&gt;; rel="microsub"
+</pre>
+<pre>&lt;link rel="authorization_endpoint" href="https://aaronpk.example/auth"&gt;
+&lt;link rel="token_endpoint" href="https://aaronpk.example/token"&gt;
+&lt;link rel="microsub" href="https://aaronpk.example/microsub"&gt;
+</pre>
+<p>The Microsub endpoint URL MUST NOT contain a fragment, and MAY contain query string components. If the URL contains a query string, then any GET requests MUST properly append the additional parameters to the query string, and POST requests MUST NOT send the query string properties in the post body. e.g. making a GET request with the additional query string component "action=config" to the endpoint "/endpoints?type=microsub" would result in a URL of "/endpoints?type=microsub&amp;action=config"
+</p><p>(Note: The client will likely want to also find the <a href="/Micropub" title="Micropub">Micropub</a> endpoint for the user so that the client can post replies and other interactions to the user's website.)
+</p>
+<h3><span class="mw-headline" id="Authentication_and_Authorization">Authentication and Authorization</span></h3>
+<p>Authorization is handled the same way as <a href="/Micropub" title="Micropub">Micropub</a>, using <a href="/IndieAuth" title="IndieAuth">IndieAuth</a> to <a href="/obtaining-an-access-token" title="obtaining-an-access-token">obtain an access token</a>.
+</p>
+<h3><span class="mw-headline" id="Error_Responses">Error Responses</span></h3>
+<p>For consistency, look to how <a href="/Micropub" title="Micropub">Micropub</a> suggests how error messages should be structured when reporting errors at <a class="external free" href="https://micropub.net/draft/#error-response">https://micropub.net/draft/#error-response</a>.
+</p>
+<h4><span class="mw-headline" id="Implementations">Implementations</span></h4>
+<p>This is to track implementations using the same error response used in the Micropub spec. 
+</p>
+<ul><li>Servers</li>
+<li>Clients</li></ul>
+<h2><span class="mw-headline" id="Channels">Channels</span></h2>
+<p>Channels are described by the following properties:
+</p>
+<ul><li><code>uid</code> - a string representation of a user-specific unique ID for the channel. This uid will be unique for each user, but may be duplicated across different users. Some implementations will use constant strings such as "example", while others may use numeric database IDs such as "15029932", a random string like "1NYnmUVYR5qBVXYBzt", or a URL such as "http://user.example.com/channel/foo". The valid characters for a uid are any URL-safe character.</li>
+<li><code>name</code> - the display name for the channel. This may include any valid UTF-8 sequence. The client should use this name when displaying the name of the channel in the interface.</li></ul>
+<pre>{
+  "uid": "indieweb",
+  "name": "IndieWeb"
+}
+</pre>
+<p>Servers must always have a channel with the uid <code>notifications</code>, and must always have at least one other channel for a user.
+</p><p>Some actions may want to apply to every channel, so the uid of <code>global</code> is reserved for this purpose. Actions such as <code>mute</code> that want to mute a user across every channel use the channel uid of <code>global</code>.
+</p>
+<h2><span class="mw-headline" id="Users">Users</span></h2>
+<p>All users are identified by profile URLs, with some constraints. User profile URLs MUST use either the <code>http</code> or <code>https</code> scheme, and MAY contain path and query string components, and MUST NOT contain fragments.
+</p>
+<h2><span class="mw-headline" id="Actions">Actions</span></h2>
+<p>All operations in Microsub are considered "actions", and are specified with a query string or form body parameter of <code>action</code>.
+</p>
+<ul><li>channels</li>
+<li>search</li>
+<li>preview</li>
+<li>follow / unfollow</li>
+<li>timeline</li>
+<li>mute / unmute</li>
+<li>block / unblock</li></ul>
+<p>Actions that operate within the context of a channel can accept a query string or form body parameter of <code>channel</code> specifying the <code>uid</code> of the channel to use.
+</p>
+<h3><span class="mw-headline" id="Timelines">Timelines</span></h3>
+<p><code>action=timeline</code>
+</p>
+<h4><span class="mw-headline" id="Retrieve_Entries_in_a_Channel">Retrieve Entries in a Channel</span></h4>
+<p><b>GET</b>
+</p><p>Retrieve the entries in a given channel.
+</p><p>Parameters:
+</p>
+<ul><li>action=timeline</li>
+<li>channel={uid}</li>
+<li>after={cursor}</li>
+<li>before={cursor}</li></ul>
+<p>The response will include a property <code>items</code> with an array of post objects. See <a href="#Posts">#Posts</a> for documentation on the format of items.
+</p>
+<pre>{
+  "items": [
+    { ... },
+    { ... }
+  ],
+  "paging": {
+    "after": "xxxxx",
+    "before": "xxxxx"
+  }
+}
+</pre>
+<h5><span class="mw-headline" id="Source_Parameter">Source Parameter</span></h5>
+<dl><dt><b>Issues and Discussion</b></dt></dl>
+<ul><li><a class="external free" href="https://github.com/indieweb/microsub/issues/21">https://github.com/indieweb/microsub/issues/21</a></li></ul>
+<p>Proposal is the addition of a 'source' parameter into the query. If added, this will limit the return to the specific source feed in question.
+</p>
+<h6><span class="mw-headline" id="Implementations_2">Implementations</span></h6>
+<p>This is to track implementations using the source parameter for inclusion into the spec.
+</p>
+<ul><li>Servers
+<ul><li>Drupal</li>
+<li>Aperture</li></ul></li>
+<li>Clients
+<ul><li>Monocle</li>
+<li>Indigenous for Android</li></ul></li></ul>
+<p><br />
+</p><p>See <a href="#Paging">#Paging</a> for more details on the paging mechanism.
+</p>
+<h4><span class="mw-headline" id="Mark_Entries_Read">Mark Entries Read</span></h4>
+<p><b>POST</b>
+</p><p>To mark one or more individual entries as read or unread: 
+</p><p>Parameters:
+</p>
+<ul><li>action=timeline</li>
+<li>method=mark_read (or mark_unread)</li>
+<li>channel={uid}</li>
+<li>entry={entry-id} or entry[]={entry-id}</li></ul>
+<p>To mark an entry read as well as everything before it in the timeline: (does not apply to mark_unread)
+</p>
+<ul><li>action=timeline</li>
+<li>method=mark_read</li>
+<li>channel={uid}</li>
+<li>last_read_entry={entry-id}</li></ul>
+<p>These commands only affect the entry within the context of the given channel's timeline, and do not affect other timelines.
+</p>
+<h4><span class="mw-headline" id="Remove_Entry_from_a_Channel">Remove Entry from a Channel</span></h4>
+<p><b>POST</b>
+</p><p>Parameters:
+</p>
+<ul><li>action=timeline</li>
+<li>method=remove</li>
+<li>channel={uid}</li>
+<li>entry={entry-id} or entry[]={entry-id}</li></ul>
+<p>The client can pass one or more entry IDs (found via the <code>_id</code> property on an entry) to remove it from the channel. The server may decide whether to actually delete the entry or just hide it from view. The entry will no longer show up in the given channel's timeline, and this command will not affect the given entry in other channels.
+</p><p>Servers will likely use their own generated IDs for the entry ID, so clients must not make assumptions about the uniqueness of these values.
+</p>
+<h3><span class="mw-headline" id="Search">Search</span></h3>
+<p><code>action=search</code>
+</p><p>The "search" action exists to provide a UI for the server to respond with the full URL of possible things to subscribe to. For example, a user should not be expected to type the exact URL of a feed to subscribe to, but instead should be able to enter partial matches, e.g. entering <code>aaronparecki.com</code> should return the full URL of <code><a class="external free" href="https://aaronparecki.com/">https://aaronparecki.com/</a></code>.
+</p><p>Using the "search" action, a client can provide a single text field where the user can enter either partial URLs or even arbitrary search terms, and the server can reply with a list of URLs that can actually be subscribed to. This also provides the ability to have a confirmation step where users can see a preview of what they will be subscribing to before they actually do so.
+</p><p>If the search term is a URL or partial URL, the Microsub server SHOULD fetch the URL if not already known, and discover any feeds at that URL that can be subscribed to. The server may also return feeds that are already known that match the search term, for example if a similar URL has already been subscribed to. Note that if the server supports multiple users, it should take care to avoid leaking "private" subscription URLs between users.
+</p><p><b>POST</b>
+</p><p>Request 
+</p>
+<ul><li>action=search</li>
+<li>query=</li></ul>
+<pre>POST /microsub
+Content-type: application/x-www-form-urlencoded
+
+action=search&amp;query=aaronparecki.com
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+Content-type: application/json
+
+{
+  "results": [
+    {
+      "type": "feed",
+      "url": "https://aaronparecki.com/",
+      "name": "Aaron Parecki",
+      "photo": "https://aaronparecki.com/images/profile.jpg",
+      "description": "Aaron Parecki's home page"
+    },
+    {
+      "type": "feed",
+      "url": "https://percolator.today/",
+      "name": "Percolator",
+      "photo": "https://percolator.today/images/cover.jpg",
+      "description": "A Microcast by Aaron Parecki",
+      "author": {
+        "name": "Aaron Parecki",
+        "url": "https://aaronparecki.com/",
+        "photo": "https://aaronparecki.com/images/profile.jpg"
+      }
+    },
+    { ... }
+  ]
+}</pre>
+<p>The response results are a <a href="/jf2" title="jf2">jf2</a> version of the <a href="/h-feed" title="h-feed">h-feed</a> vocabulary. The only required properies are the type and URL.
+</p>
+<ul><li>type - (required) <code>feed</code></li>
+<li>url - (required) the URL of the result which can be used in a follow action to follow the feed</li>
+<li>name - the display name of the feed</li>
+<li>photo - a photo or icon representing the feed</li>
+<li>description - a description of the feed, either as reported by the feed or generated by the Microsub server</li>
+<li>author - a <a href="/jf2" title="jf2">jf2</a> <a href="/h-card" title="h-card">h-card</a> describing the author of the feed. For multi-author feeds this may be an h-card representing the organization, or may be omitted</li></ul>
+<p>TBD: It might be nice to show an approximate frequency of posts, e.g. <a href="/File:feedly-search-for-url.png" title="File:feedly-search-for-url.png">Feedly</a>, and <a class="external free" href="https://aaronparecki.com/follow">https://aaronparecki.com/follow</a>
+</p>
+<h4><span class="mw-headline" id="Searching_for_Content">Searching for Content</span></h4>
+<p>Search past posts that the Microsub server has indexed.
+</p><p>GET or POST
+</p>
+<ul><li>action=search</li>
+<li>channel={uid}</li>
+<li>query={term}</li>
+<li>author={url}</li>
+<li>category={tag}</li>
+<li>kind={value}</li>
+<li>source={url}</li>
+<li>before={cursor}</li>
+<li>after={cursor}</li>
+<li>limit={n}</li></ul>
+<p>The presence of the "channel" parameter indicates to the server that the client wants to search for posts rather than search for feeds. The channel parameter can be set to an individual channel uid, or "global" to search across all channels.
+</p><p>If the server receives a request with the "channel" parameter, it MUST treat the request as a search for content.
+</p><p>The "query" parameter is a free-text search term. The server SHOULD search indexed text content such as the post name, summary, and content text when available.
+</p><p>The "author" parameter filters results to posts with a matching author profile URL.
+</p><p>The "category" parameter filters results to posts with a matching value in the post's <code>category</code> property.
+</p><p>The "kind" parameter filters results to posts matching one or more standardized inferred kinds. A post MAY match more than one kind.
+</p><p>Servers SHOULD support the following kind values:
+</p>
+<ul><li>like</li>
+<li>repost</li>
+<li>bookmark</li>
+<li>reply</li>
+<li>checkin</li>
+<li>photo</li>
+<li>video</li>
+<li>audio</li></ul>
+<p>A post matches these kinds when the corresponding properties are present:
+</p>
+<ul><li><code>like</code> matches posts with a <code>like-of</code> property</li>
+<li><code>repost</code> matches posts with a <code>repost-of</code> property</li>
+<li><code>bookmark</code> matches posts with a <code>bookmark-of</code> property</li>
+<li><code>reply</code> matches posts with an <code>in-reply-to</code> property</li>
+<li><code>checkin</code> matches posts with a <code>checkin</code> property</li>
+<li><code>photo</code> matches posts with a non-empty <code>photo</code> property</li>
+<li><code>video</code> matches posts with a non-empty <code>video</code> property</li>
+<li><code>audio</code> matches posts with a non-empty <code>audio</code> property</li></ul>
+<p>Servers MAY support additional kind values.
+</p><p>The "source" parameter filters results to posts from the specified source feed URL.
+</p><p>The server MAY support searching with only the "query" parameter, only structured filter parameters, or a combination of both. If none of "query", "author", "category", "kind", or "source" are provided, the server SHOULD return an error.
+</p><p>If multiple different filter parameters are provided, the server SHOULD combine them with a logical AND. If the same parameter is repeated multiple times, the server SHOULD combine those values with a logical OR.
+</p><p>Search results are returned in the same format as timeline responses.
+</p>
+<pre>   {
+     "items": [
+       { ... },
+       { ... }
+     ],
+     "paging": {
+       "after": "xxxxx",
+       "before": "xxxxx"
+     }
+   }
+   
+</pre>
+<p>Servers SHOULD support the "before" and "after" parameters using the same paging model as timelines.
+</p><p>Servers SHOULD support the "limit" parameter to allow clients to request a specific number of results. Servers MAY enforce minimum or maximum values for "limit".
+</p><p>Results SHOULD be returned newest-first.
+</p><p>Example request:
+</p>
+<pre>   POST /microsub
+   Content-type: application/x-www-form-urlencoded
+   
+   action=search
+   &amp;channel=global
+   &amp;query=webmention
+   &amp;author=<a class="external free" href="https://alice.example/">https://alice.example/</a>
+   &amp;category=indieweb
+   &amp;kind=reply
+   &amp;source=<a class="external free" href="https://alice.example/feed">https://alice.example/feed</a>
+   &amp;limit=20
+   
+</pre>
+<p>Example response:
+</p>
+<pre>   HTTP/1.1 200 Ok
+   Content-type: application/json
+   
+   {
+     "items": [
+       {
+         "type": "entry",
+         "name": "Replying to your post",
+         "url": "<a class="external free" href="https://alice.example/reply/1">https://alice.example/reply/1</a>",
+         "published": "2026-03-26T14:12:00+00:00",
+         "content": {
+           "text": "I finally got webmentions working."
+         },
+         "author": {
+           "type": "card",
+           "url": "<a class="external free" href="https://alice.example/">https://alice.example/</a>",
+           "name": "Alice"
+         },
+         "category": [
+           "indieweb",
+           "webmention"
+         ],
+         "in-reply-to": "<a class="external free" href="https://example.com/original-post">https://example.com/original-post</a>",
+         "_source": {
+           "url": "<a class="external free" href="https://alice.example/feed">https://alice.example/feed</a>",
+           "name": "Alice"
+         },
+         "_id": "12345"
+       }
+     ],
+     "paging": {
+       "before": "12345"
+     }
+   }
+</pre>
+<h3><span class="mw-headline" id="Preview">Preview</span></h3>
+<p><code>action=preview</code>
+</p><p><b>POST</b>
+</p>
+<ul><li>action=preview</li>
+<li>url={url}</li></ul>
+<p>The "preview" action exists so that the client can display a preview of a URL to the user before the user wants to create a subscription for it. The preview should show as much about the URL as the server can determine, such as basic profile information about the user, and a few recent entries by the user. There should be no permanent side effects created by previewing a URL, and as much as possible, the URL being previewed should not be provided with identifying information of the user who is previewing the URL.
+</p><p>The response includes the list of items in the feed if available, in the same format as returned by the <a href="#Timelines">#Timelines</a> API call.
+</p>
+<h3><span class="mw-headline" id="Following">Following</span></h3>
+<p><code>action=follow</code>
+</p><p><b>GET</b>
+</p>
+<ul><li>action=follow</li>
+<li>channel={uid}</li></ul>
+<p>Retrieve the list of feeds being followed in the given channel.
+</p><p>Response
+</p>
+<pre>{
+  "items": [
+    {
+      "type": "feed",
+      "url": "http://tantek.com/"
+    }
+  ]
+}</pre>
+<p>The feed items may contain additional properties that describe the feed, see <a class="external free" href="http://microformats.org/wiki/h-feed">http://microformats.org/wiki/h-feed</a>.
+</p><p><br />
+<b>POST</b>
+</p><p>Follow a new URL in a channel. 
+</p>
+<ul><li>action=follow</li>
+<li>channel={uid}</li>
+<li>url={url}</li></ul>
+<pre>POST /microsub
+Content-type: application/x-www-form-urlencoded
+
+action=follow&amp;channel=indieweb&amp;url=http://tantek.com/
+</pre>
+<p>When a request to the follow endpoint is made, the Microsub server registers the follow action, and begins delivering content at that URL into the channel. The Microsub server can subscribe to the target URL via any mechanism available, but most often will attempt a <a href="/WebSub" title="WebSub">WebSub</a> subscription for its HTML+Microformats, or Atom/RSS feed, and fall back to polling if that fails.
+</p><p>New entries at the followed URL will appear in the channel when fetched from the channel's timeline. The Microsub server may fetch existing entries in the feed and add them to the channel at its discretion.
+</p><p>The response is a JSON representation of the channel, the same as is returned when listing all feeds followed in a channel.
+</p>
+<pre>{
+  "type": "feed",
+  "url": "http://tantek.com/"
+}</pre>
+<h3><span class="mw-headline" id="Unfollowing">Unfollowing</span></h3>
+<p><code>action=unfollow</code>
+</p><p><b>POST</b>
+</p>
+<ul><li>action=unfollow</li>
+<li>channel={uid}</li>
+<li>url={url}</li></ul>
+<p>Unfollow a feed from a channel.
+</p>
+<pre>POST /microsub
+Content-type: application/x-www-form-urlencoded
+
+action=unfollow&amp;channel=indieweb&amp;url=http://tantek.com/
+</pre>
+<p>The Microsub server may remove all of this feed's items from the channel, or may leave them in place, at its discretion. If you are used to treating these channels as an IRC or Slack timeline, it would be more appropriate to leave the old items in the channel, just stop delivering new ones. However if you are more used to treating these channels as a Twitter or Facebook feed, then you may want the server to remove them from the channel.
+</p><p>TODO: Should there be another parameter for the client to specify whether to remove previous entries or leave them? 
+</p>
+<h3><span class="mw-headline" id="Muting">Muting</span></h3>
+<p><code>action=mute</code>
+</p><p>Clients should provide a "mute" option in the interface. This allows the user to mute someone's profile, hiding all posts with the muted user's profile URL as the author from being displayed.
+</p><p>Muting users will cause all posts by the muted user to be hidden from display. The server MAY still store the posts internally, so that un-muting the user will cause past entries to appear again.
+</p><p>Any side effect at the server SHOULD NOT cause the muted user to know they have been muted. Muting users SHOULD NOT have any externally visible side effects.
+</p><p>For example, in the context of the <a href="/Salmention" title="Salmention">Salmention</a> spec, the server should still behave as if the muted user was not muted.
+</p><p><b>GET</b>
+</p>
+<ul><li>action=mute</li>
+<li>channel={uid}</li></ul>
+<p>Retrieve the list of users that are muted in the given channel.
+</p><p>Request
+</p>
+<pre>GET /microsub?action=mute&amp;channel=indieweb HTTP/1.1
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+Content-type: application/json
+
+{
+  "items": [
+    {
+      "type": "card",
+      "url": "http://annoying.example.com/",
+      "name": "Annoying Person",
+      "photo": "http://annoying.example.com/photo.jpg"
+    },
+    {
+      ...
+    }
+  ]
+}
+</pre>
+<p><b>POST</b>
+</p>
+<ul><li>action=mute</li>
+<li>channel={uid}</li>
+<li>url={url}</li></ul>
+<p>Mute a user in a channel, or with the uid <code>global</code> mutes the user across every channel.
+</p><p>Request
+</p>
+<pre>POST /microsub HTTP/1.1
+Content-type: application/x-www-form-urlencoded
+
+action=mute&amp;channel=indieweb&amp;url=https://annoying.example.com/
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+</pre>
+<h3><span class="mw-headline" id="Unmuting">Unmuting</span></h3>
+<p><b>POST</b>
+</p>
+<ul><li>action=unmute</li>
+<li>channel={uid}</li>
+<li>url={url}</li></ul><p>
+To unmute a user, use <code>action=unmute</code> and provide the URL of the account to unmute. Unmuting an account that was previously not muted has no effect and should not be considered an error. Using the uid </p><pre>global</pre><p> will unmute them in every channel.
+</p><p>Request
+</p>
+<pre>POST /microsub HTTP/1.1
+Content-type: application/x-www-form-urlencoded
+
+action=unmute&amp;channel=indieweb&amp;url=https://annoying.example.com/
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+</pre>
+<h3><span class="mw-headline" id="Blocking">Blocking</span></h3>
+<p><code>action=block</code>
+</p><p>Blocking users will cause all previous posts by the blocked user to be hidden or deleted, and future posts by that user should not be stored. Additionally, the server SHOULD NOT produce any content or side effect that would notify the blocked user about a post. It is acceptable for the blocked user to know they have been blocked.
+</p><p>For example, in the context of the Webmention spec, the server should not send webmentions even if the user mentions the blocked user in a post. In the context of the Salmention spec, the server should stop sending follow-up webmentions to the blocked user. 
+</p><p><b>GET</b>
+</p>
+<ul><li>action=block</li>
+<li>channel={uid}</li></ul>
+<p>Retrieve the list of users that are blocked in the given channel.
+</p><p>TODO: document the response format
+</p><p><b>POST</b>
+</p>
+<ul><li>action=block</li>
+<li>channel={uid}</li>
+<li>url={url}</li></ul>
+<p>Block a user in a channel, or with the uid <code>global</code> blocks the user across every channel.
+</p>
+<h3><span class="mw-headline" id="Channels_2">Channels</span></h3>
+<p><code>action=channels</code>
+</p><p><b>GET</b>
+</p>
+<ul><li>action=channels</li></ul>
+<p>Retrieve the list of channels for the user.
+</p><p>The response will contain a <code>channels</code> property with the list of channel uids and names. The <code>uid=notifications</code> channel must always be the first in the list, as clients are expected to treat it separately and not show it in the channel list.
+</p>
+<pre>GET /microsub?action=channels
+Authorization: Bearer xxxxxxxxx
+
+HTTP/1.1 200 Ok
+Content-type: application/json
+
+{
+  "channels": [
+    {
+      "uid": "notifications",
+      "name": "Notifications",
+      "unread": 0
+    },
+    {
+      "uid": "31eccfe322d6c48c50dea2c84efc74ff",
+      "name": "IndieWeb"
+      "unread": 9
+    },
+    {
+      "uid": "1870e67e924856dc7e4c37732b303b45",
+      "name": "W3C",
+      "unread": true
+    }
+  ]
+}</pre>
+<p>Servers <i>should</i> support tracking the read state of items in channels, and return the number of unread items, or a boolean, when the channel list is queried. If the server does not support read state tracking, then the server <i>must not</i> return the <code>unread</code> property in the response.
+</p><p>For channels that support full unread count tracking, the value of the <code>unread</code> property will be an integer. For channels that support only boolean unread tracking (whether there are new entries or not), the value will be <code>true</code> or <code>false</code>.
+</p><p><br />
+</p>
+<ul><li>Proposal to extend channel method to optionally include all sources. <a class="external free" href="https://github.com/indieweb/microsub/issues/44">https://github.com/indieweb/microsub/issues/44</a>
+<ul><li>A new parameter to add the return of the sources in the channel.</li>
+<li>The addition of a channel parameter to only return data on a single channel.</li>
+<li>Return would include the _id property inside the _source property.</li></ul></li></ul>
+<p><b>POST</b>
+</p><p>To create, update, or delete channels, the client sends a POST request with the <code>channels</code> action.
+</p><p>To create a channel, the client includes the name of the channel to create. The uid of the channel will be assigned by the server.
+</p>
+<ul><li>action=channels</li>
+<li>name={channel name}</li></ul>
+<p>To update a channel, the client includes the uid of the channel to update in the <code>channel</code> parameter, and includes the new name of the channel. Changing the name of the channel MAY change the <code>uid</code> of the channel, and if it does, the server MUST return the new <code>uid</code> in the response.
+</p>
+<ul><li>action=channels</li>
+<li>channel={uid}</li>
+<li>name={channel name}</li></ul>
+<p>To delete a channel, the client includes an additional parameter <code>method=delete</code>. Note that the <code>notifications</code> channel cannot be deleted.
+</p>
+<ul><li>action=channels</li>
+<li>method=delete</li>
+<li>channel={uid}</li></ul>
+<p>Both creating and updating a channel MUST return the <code>uid</code> and <code>name</code> properties for the channel.
+</p>
+<h4><span class="mw-headline" id="Create_a_Channel">Create a Channel</span></h4>
+<p>Request
+</p>
+<ul><li>action=channels</li>
+<li>name={channel name}</li></ul>
+<pre>POST /microsub HTTP/1.1
+Content-type: application/x-www-form-urlencoded
+
+action=channels&amp;name=Coworkers
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+Content-type: application/json
+
+{
+  "uid": "2c5e5d7c4d57da68cb03c972846e827845af974c9b",
+  "name": "Coworkers"
+}
+</pre>
+<h4><span class="mw-headline" id="Update_a_Channel">Update a Channel</span></h4>
+<p>Request
+</p>
+<ul><li>action=channels</li>
+<li>channel={uid}</li>
+<li>name={channel name}</li></ul>
+<pre>POST /microsub HTTP/1.1
+Content-type: application/x-www-form-urlencoded
+
+action=channels
+&amp;channel=2c5e5d7c4d57da68cb03c972846e827845af974c9b
+&amp;name=Friends
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+Content-type: application/json
+
+{
+  "uid": "2c5e5d7c4d57da68cb03c972846e827845af974c9b",
+  "name": "Friends"
+}
+</pre>
+<h4><span class="mw-headline" id="Delete_a_Channel">Delete a Channel</span></h4>
+<p>Request
+</p>
+<ul><li>action=channels</li>
+<li>method=delete</li>
+<li>channel={uid}</li></ul>
+<pre>POST /microsub HTTP/1.1
+Content-type: application/x-www-form-urlencoded
+
+action=channels
+&amp;method=delete
+&amp;channel=2c5e5d7c4d57da68cb03c972846e827845af974c9b
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+Content-type: application/json
+
+</pre>
+<h4><span class="mw-headline" id="Set_Channel_Order">Set Channel Order</span></h4>
+<p>Channels are ordered according to the user's preference. When returning the list of channels, the <code>notifications</code> channel must always be the first in the list, as clients are expected to treat it separately such as showing it as a separate icon, not in the main channel list.
+</p><p>To modify the order of channels, the client sends a POST request with a list of channel IDs in the new ordering.
+</p><p>Only the order of the channel IDs specified will be changed. While this command works equally well specifying two, three or more channels, this provides two primary methods for adjusting channel orders. 
+</p>
+<ul><li>To move a channel up or down, the client can include the two IDs of adjacent channels in the new desired order.</li>
+<li>The client can specify a new ordering for all the channels by providing the full list of channel IDs in the new order.</li></ul>
+<p>Request
+</p>
+<ul><li>action=channels</li>
+<li>method=order</li>
+<li>channels[]={uid}</li>
+<li>channels[]={uid}</li>
+<li>...</li></ul>
+<pre>POST /microsub HTTP/1.1
+Content-type: application/x-www-form-urlencoded
+
+action=channels
+&amp;method=order
+&amp;channels[]=2c5e5d7c4d57da68cb03
+&amp;channels[]=c972846e827845af974c
+</pre>
+<p>Response
+</p>
+<pre>HTTP/1.1 200 Ok
+Content-type: application/json
+
+</pre>
+<h5><span class="mw-headline" id="Order_Algorithm">Order Algorithm</span></h5>
+<p>From the server's perspective, the below is a description of how to process the order command.
+</p><p>Given a list of channels with IDs:
+</p>
+<pre>[a b c d e f g h]</pre>
+<p>and a command to set the order of the following in the list: <code>[d a c g]</code>
+</p><p>Assign the items in the initial list a numeric index:
+</p>
+<pre>[a b c d e f g h]
+[1 2 3 4 5 6 7 8]</pre>
+<p>Build a new map with the input items and their existing numeric order:
+</p>
+<pre>[
+  1 =&gt; a
+  3 =&gt; c
+  4 =&gt; d
+  7 =&gt; g
+]</pre>
+<p>For each item in the input list in the given order, set the value in the map:
+</p>
+<pre>[
+  1 =&gt; d
+  3 =&gt; a
+  4 =&gt; c
+  7 =&gt; g
+]</pre>
+<p>For each item in the new map, change the value at the corresponding numeric index of the list:
+</p>
+<pre>[d b a c e f g h]
+[1 2 3 4 5 6 7 8]</pre>
+<h2><span class="mw-headline" id="Types_of_Feeds">Types of Feeds</span></h2>
+<p>The specific types and formats of feeds that can be followed is out of scope of Microsub. Instead, it's up to the Microsub server to support whichever feed formats it wishes. Typically, Microsub servers will prefer a Microformats 2 feed such as an <code>h-feed</code> or list of <code>h-entry</code>s, and will then fall back to finding an Atom or RSS feed. Other types of feeds may be supported, but clients should not make any assumptions about which formats are supported, and should make use of the "preview" action so that users have an indication of whether a subscription will succeed.
+</p>
+<h2><span class="mw-headline" id="Objects">Objects</span></h2>
+<h3><span class="mw-headline" id="Posts">Posts</span></h3>
+<p>Posts are the basic object used in the API. Posts can be short status updates, photos, videos, podcast episodes, checkins, and many other content types. Post objects returned in the "items" array MUST be valid <a href="/jf2" title="jf2">jf2</a> post objects. 
+</p><p>(Note that the representations below should be treated as canonical examples, whereas the jf2 spec itself may provide multiple variations of values. For example, as of 2019-02-25, jf2 says that if there is one value of a property it should be returned as a string, but Microsub will always include the "photo" property as an array.)
+</p><p>An example of a simple jf2 post in the context of a channel timeline is below.
+</p>
+<pre>{
+    "type": "entry",
+    "published": "2017-04-28T11:58:35-07:00",
+    "url": "https://aaronparecki.com/2017/04/28/9/p3k-http",
+    "author": {
+        "type": "card",
+        "name": "Aaron Parecki",
+        "url": "https://aaronparecki.com/",
+        "photo": "https://aaronparecki.com/images/profile.jpg"
+    },
+    "category": [
+        "http",
+        "p3k",
+        "library",
+        "code",
+        "indieweb"
+    ],
+    "photo": [
+        "https://aaronparecki.com/2017/04/28/9/photo.png"
+    ],
+    "content": {
+        "text": "Finally packaged up my HTTP functions into a library! https://github.com/aaronpk/p3k-http Previously I had been copy+pasting these around to quite a few projects. Happy to have consolidated these finally!",
+        "html": "Finally packaged up my HTTP functions into a library! &lt;a href=\"https://github.com/aaronpk/p3k-http\"&gt;https://github.com/aaronpk/p3k-http&lt;/a&gt; Previously I had been copy+pasting these around to quite a few projects. Happy to have consolidated these finally!"
+    },
+    "_id": "abc987",
+    "_is_read": true
+}</pre>
+<p>All properties beginning with an underscore <code>_</code> are set by the Microsub server and are not part of the post's contents. 
+</p>
+<ul><li><code>_id</code> (string) - a unique internal ID for this entry in the given channel, used to mark an entry as read or remove it from a channel</li>
+<li><code>_is_read</code> (boolean) - indicates whether this entry is read or unread so that clients can visually indicate the state to the user</li></ul>
+<p>Neither the Microsub spec nor jf2 defines the vocabularies used in posts. The vocabularies are defined by <a href="/Microformats" class="mw-redirect" title="Microformats">Microformats</a>, and represented as <a href="/jf2" title="jf2">jf2</a> posts. Clients may also find the <a class="external text" href="https://www.w3.org/TR/post-type-discovery/">Post Type Discovery</a> spec useful when consuming posts. A non-comprehensive list of properties and their expected values is below, based on the most common kinds of posts encountered.
+</p>
+<h4><span class="mw-headline" id="entry">entry</span></h4>
+<p>Entries are the base post type for most kinds of posts including <a href="/articles" class="mw-redirect" title="articles">articles</a>, <a href="/notes" class="mw-redirect" title="notes">notes</a>, <a href="/photos" class="mw-redirect" title="photos">photos</a>, <a href="/checkins" class="mw-redirect" title="checkins">checkins</a>, and more.
+</p><p>Properties:
+</p>
+<ul><li><code>type=entry</code></li>
+<li><code>published</code> (string) - ISO8601 timestamp</li>
+<li><code>url</code> (string) - the permalink of the post</li>
+<li><code>uid</code> (string) - a unique ID for the post, often the same as the url</li>
+<li><code>name</code> (string) - the name of the post, such as if the post is an <a href="/article" title="article">article</a></li>
+<li><code>content</code> (object)
+<ul><li><code>text</code> (string) - a plaintext representation of the post content. If a client displays this text in a browser, it is expected to escape any HTML entities itself.</li>
+<li><code>html</code> (string) - an HTML representation of the post content. The Microsub server should do its own HTML sanitization, but clients may also wish to sanitize the HTML themselves according to their own security requirements before displaying the HTML.</li></ul></li>
+<li><code>summary</code> (string) the plaintext summary of a post, if available. Some Microsub apps will display just the name and summary of articles and let the user click through to read the full version.</li>
+<li><code>author</code> (card object) - a card representing the author of the post</li>
+<li><code>category</code> (array of strings) - a list of categories (tags) of the post</li>
+<li><code>photo</code> (array of strings) - one or more URLs to images associated with the post</li>
+<li><code>video</code> (array of strings) - one or more URLs to video files associated with the post</li>
+<li><code>audio</code> (array of strings) - one or more URLs to audio files associated with the post, e.g. podcasts</li>
+<li><code>like-of</code>, <code>repost-of</code>, <code>bookmark-of</code>, <code>in-reply-to</code> (array of strings) - each of these properties indicates a separate post that this post is in response to. See <a href="/like" title="like">like</a>, <a href="/repost" title="repost">repost</a>, <a href="/bookmark" title="bookmark">bookmark</a>, and <a href="/reply" title="reply">reply</a> for more information.</li>
+<li><code>syndication</code> (array of strings) - one or more URLs where this post has been syndicated to</li>
+<li><code>checkin</code> (card object) - indicates this post is a checkin, and the value is a card representing the location of the checkin</li>
+<li><code>_id</code> - a unique ID for this post in this channel. Used to reference this post when doing things like removing it from view. Note that the underscore prefix indicates this is not a property from the main post, but instead is a property generated by the Microsub server.</li></ul>
+<h5><span class="mw-headline" id="Indicating_Item_Source_Proposal">Indicating Item Source Proposal</span></h5>
+<p>This is a proposed additional property to be adopted if sufficient implementations.
+</p>
+<dl><dt><a class="external free" href="https://github.com/indieweb/microsub/issues/13">https://github.com/indieweb/microsub/issues/13</a></dt></dl>
+<p><br />
+</p>
+<ul><li><code>url, name, photo</code>: display values, the client should show the name and photo and click on the URL</li>
+<li><code>_id:</code> internal identifier for the reason this post is in this channel (e.g. the internal feed ID)</li></ul>
+<pre> "_source": {
+   "_id": "9857239874",
+   "url": <a class="external free" href="https://example.com/">https://example.com/</a>",
+   "name": "Example Person",
+   "photo": "<img src="https://example.com/photo.jpg" alt="photo.jpg" />"
+ }
+</pre>
+<p><br />
+Clients should show an "unfollow" button next to a post, which can make an "unfollow" request passing the _id.
+</p><p><br />
+</p>
+<h6><span class="mw-headline" id="Implementations_3">Implementations</span></h6>
+<ul><li>Servers</li>
+<li>Clients</li></ul>
+<h4><span class="mw-headline" id="card">card</span></h4>
+<p>Cards represent people or places and are used as the values of certain properties of entries.
+</p><p>People:
+</p>
+<ul><li><code>type=card</code></li>
+<li><code>name</code> (string) - the full name of this person</li>
+<li><code>url</code> (string) - the profile URL of this person, used as the identifier for this profile</li>
+<li><code>photo</code> (string) - the profile photo of this person</li></ul>
+<p>Places:
+</p>
+<ul><li><code>type=card</code></li>
+<li><code>name</code> (string) - the full name of the place</li>
+<li><code>url</code> (string) - the URL of the place, used as the identifier for this profile</li>
+<li><code>latitude</code> and <code>longitude</code> (string) - the GPS coordinates of this location</li>
+<li><code>street-address</code>, <code>locality</code>, <code>region</code>, <code>country</code> (string) - the location of this place</li></ul>
+<h3><span class="mw-headline" id="Channels_3">Channels</span></h3>
+<h3><span class="mw-headline" id="Feeds">Feeds</span></h3>
+<h2><span class="mw-headline" id="Paging">Paging</span></h2>
+<p>Microsub uses a cursor-based pagination model, which provides the most flexibility to server implementations while still being easy to use by clients.
+</p><p>For API requests that paginate their results (e.g. <a href="#Timelines">#Timelines</a>), there is an additional object returned with the values needed to page through those results. 
+</p>
+<pre>{
+  "items": [ ... ],
+  "paging": {
+    "before": "xxxxx",
+    "after": "xxxxx"
+  }
+}</pre>
+<ul><li>If there are any items returned in the response, the server MUST return a "before" value that will retrieve items before all the returned items in the list.</li>
+<li>If there are no items returned in the response, the server MUST NOT return a "before" value.</li>
+<li>If there are additional items available that were not returned in the response, the server MUST return an "after" value that will retrieve the next page of items.</li>
+<li>If there are no more items available, the server MUST NOT return an "after" value.</li></ul>
+<p>As far as the client is concerned, the "before" and "after" values are arbitrary strings. This allows the server to internally use whatever specific implementation is most appropriate for its backend technology. (Often this will be either a timestamp or a unique ID identifying the first and last items in the returned list.)
+</p><p>To make a timeline request for the next page of results, the client adds the "after=xxxxx" parameter to the query string. This allows easy navigation through the whole list of items in the channel.
+</p><p>While the user is reading the timeline, the client will likely also want to poll the timeline to see if new posts have been added since it was originally requested. Since not all Microsub servers will support streaming, the client needs an efficient way to poll for new items. The client adds "before=xxxxx" to the query string to request items that come before the first item returned in the previous request. This way the client can poll that until new items appear, and only the new items will be returned.
+</p>
+<h3><span class="mw-headline" id="Example_Paging_Workflow">Example Paging Workflow</span></h3>
+<ul><li>The user loads the client and makes a request for the timeline for the default channel:
+<ul><li><code>/microsub?action=timeline</code></li>
+<li>The server replies with the newest 20 items, and includes <code>before=5a1713e55a171588</code> and <code>after=5a1713e55a17136c</code></li></ul></li>
+<li>The user scrolls to the bottom and clicks "load more". The client makes a request for the next set of results:
+<ul><li><code>/microsub?action=timeline&amp;after=5a1713e55a17136c</code></li>
+<li>The server replies with 3 more items, and does not include an "after" paging cursor in the response, indicating that there are no more items in the timeline.</li></ul></li>
+<li>Meanwhile, in the background, the client polls the timeline to find newer items by using the first "before" cursor that was returned in the initial request:
+<ul><li><code>/microsub?action=timeline&amp;before=5a1713e55a171588</code></li>
+<li>The server replies with an empty <code>items</code> list and an empty <code>paging</code> object indicating there are no new items</li></ul></li>
+<li>After some interval, the client polls for new items again
+<ul><li><code>/microsub?action=timeline&amp;before=5a1713e55a171588</code></li>
+<li>In the time between the two polls, there have been 25 new items added to the timeline, more than one page of results. The server replies with the newest 20 <code>items</code> list, and includes new before and after values, <code>before=5a1724ad5a171599</code> and <code>after=5a1722ea5a171280</code></li></ul></li>
+<li>Since the client sees there is an "after" cursor, it immediately fetches the next page of results using the original "before" and the new "after" value:
+<ul><li><code>/microsub?action=timeline&amp;before=5a1713e55a171588&amp;after=5a1722ea5a171280</code></li>
+<li>The server replies with the remaining 5 items, and no new cursors since there is no more data missing.</li></ul></li>
+<li>The client then continues polling with the latest "before" cursor it received</li></ul>
+<p>See the <a class="external text" href="https://github.com/aaronpk/Aperture/blob/master/aperture/tests/Feature/PagingTest.php#L19">tests in Aperture</a> for an example of the API requests made.
+</p>
+<h3><span class="mw-headline" id="Limiting_Results">Limiting Results</span></h3>
+<p>Microsub servers SHOULD set a default limit on the number of items returned in lists. A reasonable default limit is 20 items. Microsub servers SHOULD support an additional query parameter <code>limit</code> which clients can use to indicate the requested limit of number items returned. Microsub servers MAY set an upper or lower bound on the values they accept for the <code>limit</code>, and MAY return a different number of items in the list than the client requets, for any reason. Clients should not expect the number of results returned to exactly match the number of results requested.
+</p>
+<h2><span class="mw-headline" id="Authentication_and_Authorization_Details">Authentication and Authorization Details</span></h2>
+<p>The client builds an <a href="/IndieAuth" title="IndieAuth">IndieAuth</a> authorization request URL at the <a href="/authorization-endpoint" title="authorization-endpoint">authorization endpoint</a>, and directs the user's browser there. In a native client, the client should use a system-native browser, rather than using a web view embedded in the application. See <a class="external text" href="https://tools.ietf.org/html/draft-ietf-oauth-native-apps">OAuth 2.0 for Native Apps</a> for more details.
+</p><p>Build a URL with the following query parameters:
+</p>
+<ul><li><code>me={the user's profile URL}</code> - the URL that the user entered at which the Microsub endpoint was found</li>
+<li><code>response_type=code</code></li>
+<li><code>client_id={the client's URL, e.g. its home page}</code></li>
+<li><code>state={random state}</code> - the client should generate a unique state value, and verify that it matches when the user is redirected</li>
+<li><code>redirect_uri={the client's redirect URI}</code> - for native apps, this may include a custom URL scheme</li>
+<li><code>scope={requested scope}</code> - a space-separated list of scopes that the client is requesting</li></ul>
+<h4><span class="mw-headline" id="Scopes">Scopes</span></h4>
+<p>Microsub defines the following scopes:
+</p>
+<ul><li><code id="scope-read">read</code> - this is the minimum scope clients should request. this allows clients to have read access to channels.</li>
+<li><code id="scope-follow">follow</code> - allows the client to manage the following list</li>
+<li><code id="scope-mute">mute</code> - allows the client to mute and unmute users</li>
+<li><code id="scope-block">block</code> - allows the client to block and unblock users</li>
+<li><code id="scope-channels&quot;">channels</code> - allows the client to manage channels</li></ul>
+<p>Additionally, the client may request Micropub scopes, in order for the user to be able to reply or like posts from within the client.
+</p>
+<ul><li><code id="code-create">create</code></li>
+<li><code id="code-update">update</code></li>
+<li><code id="code-delete">delete</code></li></ul>
+<p>The recommended set of scopes to request is <code>read follow mute block create</code>, which enables a rich set of interaction on the client, while also protecting the security of the user by default.
+</p><p>The user will visit the authorization endpoint, and if they approve the request, their browser will be redirected back to the client's redirect URI with a <code>code</code> and <code>state</code> in the URL.
+</p>
+<pre>HTTP/1.1 302 Found
+Location: https://client.example/redirect?code=xxxxxxxx
+                                         &amp;state=1234567890
+</pre>
+<p>The client verifies the state value matches the state it generated for the initial request, and can then exchange the authorization code for an access token.
+</p><p>The client makes a POST request to the token endpoint initially discovered, with the following parameters:
+</p>
+<ul><li><code>grant_type=authorization_code</code></li>
+<li><code>code=xxxxxxxxx</code></li>
+<li><code>redirect_uri={the client's redirect URI}</code></li>
+<li><code>client_id={the client's URL}</code></li></ul>
+<p>The response will be a JSON object with the following keys:
+</p>
+<pre>{
+  "access_token": "XXXXXXXXXXX",
+  "scope": "read follow mute block create",
+  "me": "https://aaronpk.example/"
+}
+</pre>
+<p>The <code>me</code> value returned MAY be different from the original <code>me</code> value input, but MUST have a matching host name. This enables support for multi-user websites, and allows the user's server to normalize profile URLs, e.g. it will always return <code>https://aaronpk.example/</code> even if the user initially enters <code>http://aaronpk.example</code>.
+</p><p>The scopes returned MAY be different from what the client requested, based on whether the user choose to deny certain scopes, or grant additional scopes during the authorization request.
+</p>
+<h2><span class="mw-headline" id="Design_Considerations">Design Considerations</span></h2>
+<h3><span class="mw-headline" id="Why_a_single_endpoint_instead_of_individual_endpoints_for_each_operation">Why a single endpoint instead of individual endpoints for each operation</span></h3>
+<p>Many similar APIs such as the <a href="/Twitter_API" class="mw-redirect" title="Twitter API">Twitter API</a> or <a href="/wiki/index.php?title=Wordpress_API&amp;action=edit&amp;redlink=1" class="new" title="Wordpress API (page does not exist)">Wordpress API</a> use unique URLs for each type of operation: following, muting, fetching posts, etc. Microsub instead takes an <a href="/RPC" class="mw-redirect" title="RPC">RPC</a> style approach, where all requests are made against a single endpoint, with the operation is specified with a query or form parameter.
+</p><p>This allows more flexibility in the design of the server, since the spec is not imposing a URL design on the server, each can choose a URL for the Microsub endpoint that makes sense for itself. 
+</p><p>This also makes clients easier to write, since all requests are made against one base URL rather than needing to either keep track of a fixed URL pattern, or have a configurable URL pattern.
+</p>
+<h2><span class="mw-headline" id="Feedback">Feedback</span></h2>
+<p>Feel free to leave notes here or open an <a class="external text" href="https://github.com/indieweb/microsub/issues">issue on GitHub</a>.
+</p><p>Client developers should be aware of the potential inclusion of a notifications channel when reordering channels. If it is hidden from the ui it should also be hidden from any potential reordering.
+</p>
+<h2><span class="mw-headline" id="Brainstorming">Brainstorming</span></h2>
+<p><span id="Issues"></span>
+</p><p>See <a class="external text" href="https://github.com/indieweb/microsub/issues?q=is%3Aissue+is%3Aopen+label%3Abrainstorming">brainstorming issues on GitHub</a>.
+</p>
+<!-- 
+NewPP limit report
+Cached time: 20261106143303
+Cache expiry: 34019
+Reduced expiry: true
+Complications: [show‐toc]
+CPU time usage: 0.054 seconds
+Real time usage: 0.057 seconds
+Preprocessor visited node count: 405/1000000
+Post‐expand include size: 331/2097152 bytes
+Template argument size: 43/2097152 bytes
+Highest expansion depth: 4/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 5825/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%    3.703      1 Template:aaronpk
+100.00%    3.703      1 -total
+ 43.05%    1.594      1 Template:sparkline
+-->
+</div>
+<div class="printfooter" data-nosnippet="">Retrieved from "<a dir="ltr" href="https://indieweb.org/wiki/index.php?title=Microsub-spec&amp;oldid=109628">https://indieweb.org/wiki/index.php?title=Microsub-spec&amp;oldid=109628</a>"</div></div>
+					<div id="catlinks" class="catlinks catlinks-allhidden" data-mw="interface"></div>
+				</div>
+			</main>
+			
+		</div>
+		<div class="mw-footer-container">
+			
+<footer id="footer" class="mw-footer" role="contentinfo" >
+	<ul id="footer-info">
+	<li id="footer-info-lastmod"> This page was last edited on 26 March 2026, at 06:45.</li>
+	<li id="footer-info-copyright">Content is available under <a href="/IndieWebCamp:Copyrights" class="mw-redirect" title="IndieWebCamp:Copyrights">a CC0 public domain dedication</a> unless otherwise noted.</li>
+</ul>
+
+	<ul id="footer-places">
+	<li id="footer-places-privacy"><a href="/IndieWeb:Privacy_policy">Privacy policy</a></li>
+	<li id="footer-places-about"><a href="/IndieWeb:About">About IndieWeb</a></li>
+	<li id="footer-places-disclaimers"><a href="/IndieWeb:General_disclaimer">Code of Conduct</a></li>
+</ul>
+
+	<ul id="footer-icons" class="noprint">
+	<li id="footer-copyrightico"><a href="http://creativecommons.org/publicdomain/zero/1.0/"><img src="https://i.creativecommons.org/p/zero/1.0/88x31.png" alt="a CC0 public domain dedication" width="88" height="31" loading="lazy"></a></li>
+	<li id="footer-poweredbyico"><a href="https://www.mediawiki.org/"><img src="/wiki/resources/assets/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" srcset="/wiki/resources/assets/poweredby_mediawiki_132x47.png 1.5x, /wiki/resources/assets/poweredby_mediawiki_176x62.png 2x" width="88" height="31" loading="lazy"></a></li>
+</ul>
+
+</footer>
+
+		</div>
+	</div> 
+</div> 
+<div class="vector-settings" id="p-dock-bottom">
+	<ul>
+		<li>
+		
+		<button class="cdx-button cdx-button--icon-only vector-limited-width-toggle" id=""><span class="vector-icon mw-ui-icon-fullScreen mw-ui-icon-wikimedia-fullScreen"></span>
+
+<span>Toggle limited content width</span>
+</button>
+</li>
+	</ul>
+</div>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgBackendResponseTime":248,"wgPageParseReport":{"limitreport":{"cputime":"0.054","walltime":"0.057","ppvisitednodes":{"value":405,"limit":1000000},"postexpandincludesize":{"value":331,"limit":2097152},"templateargumentsize":{"value":43,"limit":2097152},"expansiondepth":{"value":4,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":5825,"limit":5000000},"timingprofile":["100.00%    3.703      1 Template:aaronpk","100.00%    3.703      1 -total"," 43.05%    1.594      1 Template:sparkline"]},"cachereport":{"timestamp":"20261106143303","ttl":34019,"transientcontent":true}}});});</script>
+</body>
+</html>

@@ -1,0 +1,284 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  canonicalizeProfileUrl,
+  isSupportedChallengeMethod,
+  parseRelMeLinks,
+  relMeLinksBack,
+  signAccessToken,
+  verifyAccessToken,
+  verifyPkce,
+} from "./index.js";
+
+const SECRET = "unit-test-secret";
+
+describe("PKCE", () => {
+  it("verifies a correct S256 verifier and rejects a wrong one", async () => {
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ"; // 43 chars
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(verifier),
+    );
+    const bytes = new Uint8Array(digest);
+    let bin = "";
+    for (const b of bytes) bin += String.fromCharCode(b);
+    const challenge = btoa(bin)
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    expect(await verifyPkce(verifier, challenge, "S256")).toBe(true);
+    expect(await verifyPkce("x".repeat(43), challenge, "S256")).toBe(false);
+  });
+
+  it("rejects unsupported methods and malformed verifiers", async () => {
+    expect(isSupportedChallengeMethod("S256")).toBe(true);
+    expect(isSupportedChallengeMethod("plain")).toBe(false);
+    expect(await verifyPkce("short", "challenge", "S256")).toBe(false);
+    expect(await verifyPkce("a".repeat(43), "challenge", "plain")).toBe(false);
+  });
+});
+
+describe("profile URL canonicalization", () => {
+  it("canonicalizes and validates", () => {
+    expect(canonicalizeProfileUrl("https://example.com")).toBe(
+      "https://example.com/",
+    );
+    expect(canonicalizeProfileUrl("https://example.com/users/alice")).toBe(
+      "https://example.com/users/alice",
+    );
+  });
+
+  it("rejects fragments, credentials, ports, IPs, and dot segments", () => {
+    expect(canonicalizeProfileUrl("https://example.com/#me")).toBeNull();
+    expect(canonicalizeProfileUrl("https://user:pw@example.com/")).toBeNull();
+    expect(canonicalizeProfileUrl("https://example.com:8443/")).toBeNull();
+    expect(canonicalizeProfileUrl("https://127.0.0.1/")).toBeNull();
+    expect(canonicalizeProfileUrl("https://example.com/../x")).toBeNull();
+    expect(canonicalizeProfileUrl("mailto:a@example.com")).toBeNull();
+  });
+});
+
+describe("rel=me discovery", () => {
+  const html = `
+    <a rel="me" href="https://github.com/alice">gh</a>
+    <link rel="me authn" href="/mastodon" />
+    <a rel="nofollow" href="https://other.example/">no</a>
+  `;
+
+  it("extracts and resolves rel=me links", async () => {
+    const links = await parseRelMeLinks(html, "https://alice.example.com/");
+    expect(links).toContain("https://github.com/alice");
+    expect(links).toContain("https://alice.example.com/mastodon");
+    expect(links).not.toContain("https://other.example/");
+  });
+
+  it("ignores commented-out links and hyphenated attribute names", async () => {
+    const tricky = `
+      <!-- <a rel="me" href="https://evil.example/">hidden</a> -->
+      <a data-rel="me" data-href="https://decoy.example/">decoy</a>
+      <a rel="me" href="https://real.example/">real</a>
+    `;
+    const links = await parseRelMeLinks(tricky, "https://alice.example.com/");
+    expect(links).toEqual(["https://real.example/"]);
+  });
+
+  it("supports unquoted href values", async () => {
+    const links = await parseRelMeLinks(
+      `<a rel=me href=https://unquoted.example/>x</a>`,
+      "https://alice.example.com/",
+    );
+    expect(links).toContain("https://unquoted.example/");
+  });
+
+  it("confirms a back-link", async () => {
+    const back = `<a rel="me" href="https://alice.example.com">me</a>`;
+    expect(
+      await relMeLinksBack(
+        back,
+        "https://github.com/alice",
+        "https://alice.example.com/",
+      ),
+    ).toBe(true);
+    expect(
+      await relMeLinksBack(
+        back,
+        "https://github.com/alice",
+        "https://bob.example.com/",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("access token sign/verify", () => {
+  it("round-trips claims and binds cnf.jkt", async () => {
+    const { token, claims } = await signAccessToken(SECRET, {
+      issuer: "https://example.com",
+      me: "https://alice.example.com/",
+      clientId: "https://app.example/",
+      scope: "create",
+      jkt: "thumbprint-123",
+      lifetimeSeconds: 3600,
+    });
+    const result = await verifyAccessToken(token, SECRET, {
+      issuer: "https://example.com",
+    });
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+    expect(result.claims.cnf?.jkt).toBe("thumbprint-123");
+    expect(result.claims.jti).toBe(claims.jti);
+    expect(result.claims.scope).toBe("create");
+  });
+
+  it("rejects a tampered signature, wrong issuer, and expiry", async () => {
+    const { token } = await signAccessToken(SECRET, {
+      issuer: "https://example.com",
+      me: "https://alice.example.com/",
+      clientId: "https://app.example/",
+      scope: "create",
+      jkt: "jkt",
+      lifetimeSeconds: 3600,
+      now: 1000,
+    });
+    expect(
+      (
+        await verifyAccessToken(token, "wrong-secret", {
+          issuer: "https://example.com",
+        })
+      ).valid,
+    ).toBe(false);
+    expect(
+      (await verifyAccessToken(token, SECRET, { issuer: "https://other.com" }))
+        .valid,
+    ).toBe(false);
+    const expired = await verifyAccessToken(token, SECRET, {
+      issuer: "https://example.com",
+      now: 1000 + 3600,
+    });
+    expect(expired.valid).toBe(false);
+    if (!expired.valid) expect(expired.reason).toBe("expired");
+  });
+});
+
+describe("access token cnf claim", () => {
+  /** Sign an arbitrary payload the way `signAccessToken` does. */
+  async function signPayload(payload: Record<string, unknown>) {
+    const b64 = (text: string) =>
+      btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const input = `${b64(JSON.stringify({ alg: "HS256", typ: "at+jwt" }))}.${b64(JSON.stringify(payload))}`;
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(SECRET),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const sig = new Uint8Array(
+      await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(input)),
+    );
+    return `${input}.${b64(String.fromCharCode(...sig))}`;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const claims = {
+    iss: "https://example.com",
+    sub: "https://alice.example.com/",
+    client_id: "https://app.example.org/",
+    scope: "create",
+    iat: now,
+    exp: now + 60,
+    jti: "j1",
+  };
+
+  it("verifies a token minted without a jkt, with no cnf claim", async () => {
+    const { token } = await signAccessToken(SECRET, {
+      issuer: claims.iss,
+      me: claims.sub,
+      clientId: claims.client_id,
+      scope: claims.scope,
+      lifetimeSeconds: 60,
+    });
+    const result = await verifyAccessToken(token, SECRET, {
+      issuer: claims.iss,
+    });
+    expect(result.valid).toBe(true);
+    if (result.valid) expect(result.claims.cnf).toBeUndefined();
+  });
+
+  it("rejects a present but malformed cnf as payload_invalid", async () => {
+    for (const cnf of [null, "jkt", { jkt: 42 }, {}, ["x"]]) {
+      const result = await verifyAccessToken(
+        await signPayload({ ...claims, cnf }),
+        SECRET,
+        { issuer: claims.iss },
+      );
+      expect(result).toEqual({ valid: false, reason: "payload_invalid" });
+    }
+  });
+});
+
+describe("access token audience restriction (RFC 8707 / RFC 9700 §2.3)", () => {
+  const RS = "https://media.example.com/";
+  const OTHER_RS = "https://pod.example.com/";
+
+  async function mint(audience?: readonly string[]) {
+    return signAccessToken(SECRET, {
+      issuer: "https://example.com",
+      me: "https://alice.example.com/",
+      clientId: "https://app.example/",
+      scope: "create",
+      jkt: "jkt",
+      ...(audience ? { audience } : {}),
+      lifetimeSeconds: 3600,
+    });
+  }
+
+  it("omits aud when no audience is requested", async () => {
+    const { token, claims } = await mint();
+    expect(claims.aud).toBeUndefined();
+    const verified = await verifyAccessToken(token, SECRET, {
+      issuer: "https://example.com",
+    });
+    expect(verified.valid).toBe(true);
+    if (verified.valid) expect(verified.claims.aud).toBeUndefined();
+  });
+
+  it("carries and round-trips aud, de-duplicating", async () => {
+    const { token, claims } = await mint([RS, RS, OTHER_RS]);
+    expect(claims.aud).toEqual([RS, OTHER_RS]);
+    const verified = await verifyAccessToken(token, SECRET, {
+      issuer: "https://example.com",
+      audience: RS,
+    });
+    expect(verified.valid).toBe(true);
+    if (verified.valid) expect(verified.claims.aud).toEqual([RS, OTHER_RS]);
+  });
+
+  it("rejects an expected audience the token is not restricted to", async () => {
+    const { token } = await mint([RS]);
+    const verified = await verifyAccessToken(token, SECRET, {
+      issuer: "https://example.com",
+      audience: OTHER_RS,
+    });
+    expect(verified.valid).toBe(false);
+    if (!verified.valid) expect(verified.reason).toBe("audience_mismatch");
+  });
+
+  it("rejects an expected audience when the token carries no aud", async () => {
+    const { token } = await mint();
+    const verified = await verifyAccessToken(token, SECRET, {
+      issuer: "https://example.com",
+      audience: RS,
+    });
+    expect(verified.valid).toBe(false);
+    if (!verified.valid) expect(verified.reason).toBe("audience_mismatch");
+  });
+
+  it("does not check audience when none is expected", async () => {
+    const { token } = await mint([RS]);
+    const verified = await verifyAccessToken(token, SECRET, {
+      issuer: "https://example.com",
+    });
+    expect(verified.valid).toBe(true);
+  });
+});

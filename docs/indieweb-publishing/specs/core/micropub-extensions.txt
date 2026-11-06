@@ -1,0 +1,1186 @@
+Jump to content
+
+From IndieWeb
+
+Micropub extensions are Micropub protocol-related features that are proposed, prototyped, or implemented in Micropub clients and servers beyond the official Micropub specification.
+
+Why
+
+Social readers and other software &amp; services for creating posts often want to implement a new user feature that requires coordinating with a server, beyond the capabilities in the Micropub specification, and thus need an extension for that coordination.
+
+This page is for documenting such extensions to Micropub.
+
+How to
+
+Please use this page to document the list of current and proposed extensions, as well as document implementations of them. Development and discussion of the extensions should happen in a GitHub issue.
+
+How to propose an extension
+
+Please open a new issue here if you would like to propose a new extension, then you can add a new section in the Proposed Extensions section to document your implementation of it here.
+
+Approval of Extensions
+
+The core Micropub spec isn't expected to change, however additional specifications built to extend the Micropub spec are possible. In order to ensure that extensions have diverse implementations there is a three stage process for extensions.
+
+Proposed
+
+Anyone can create a proposed extension. A proposed extension should have an issue in the Micropub Extensions GitHub Repo and a stub under the Proposed Extensions section on this page.
+
+Stable
+
+A stable extension is when a proposed extension has gotten multiple implementations from various people and/or organizations and is considered complete in functionality. This ensures that Micropub extensions work for a variety of use-cases and not just for a single project or company. The general rule of thumb is that there should be a minimum of 3 server implementations and 3 client implementations. These implementations must be done by different individuals/groups, so one individual/group implementing two clients will only be counted once for this criteria.
+
+When an extension becomes a stable extension, it should be moved under Stable Extensions section and there should be clear technical specifications for how a client and server would utilize this extension.
+
+All brainstorming under this extension should either be finished and the Github issue closed, or logged under a different proposed extension. For example, the use of a query parameter may be stable, but there may still be an experimental modifier/filter that has not met this criteria, and should be separated into its own proposal.
+
+Official
+
+An extension only becomes an official Micropub extension when it has been published as part of a broader ranged official Spec extension for Micropub. Currently there are no official extensions.
+
+Official Extensions
+
+There are not currently any Official Extensions
+
+Stable Extensions
+
+Server Commands
+
+Link
+
+Description
+
+Destination
+
+Specify a destination to create a new post on a web site other than the default
+
+Properties
+
+Link
+
+Description
+
+Slug
+
+Allows a Micropub client to suggest a slug to the Micropub endpoint by passing through the proposed slug as mp-slug.
+
+Post Status
+
+Allows a Micropub client to set the status of a post
+
+Visibility
+
+This extension adds a property for use in Micropub requests called visibility that informs a server whether a post should be public, private or unlisted.
+
+Queries
+
+Link
+
+Description
+
+Supported Vocabulary
+
+Additional data is added to the Micropub Configuration query that allows the server to tell the client what types of posts it can receive as well as what those post types should be called in the UI.
+
+Post List
+
+Extends q=source that if no url provided, return will be a list of posts.
+
+Category/Tag List
+
+Adds q=category to return a list of existing categories to choose from when creating a new post.
+
+Limit Parameter
+
+Adds the parameter limit to any query to limit the number of returned results.
+
+Slug
+
+Many posting UIs provide an option for the user to choose a slug for the post that will be created. This extension allows a Micropub client to suggest a slug to the Micropub endpoint by passing through the proposed slug as mp-slug.
+
+mp-slug=
+
+The server MAY or MAY NOT decide to respect the requested slug, based on whether it would cause conflicts with other URLs on the site. For example, some URL structures are {year}/{slug}, so the server may decide to modify the slug to avoid conflicting with an existing one.
+
+One thing to note is that this property, like all Micropub properties, work for all posts#Types_of_Posts unless stated otherwise. For example, you may have both a title and a slug for an article.
+
+Implementations
+
+Clients
+
+Quill
+
+Micropublish
+
+Koype/Publish
+
+Together
+
+Celestial
+
+Omnibear
+
+Sparkles
+
+Servers
+
+p3k
+
+Transformative
+
+Micropub for WordPress
+
+Postr
+
+abode
+
+Indiekit
+
+Koype
+
+Skippy's micropub
+
+Serverless micropub
+
+Post Status
+
+post-status=published (or no post-status set) - The post is published, or when the published date is in the future, the post is scheduled. In most implementations, not passing a post-status is assumed to be published.
+
+post-status=draft - The post is a draft, and should not be shown in lists.
+
+It is up to the implementation whether it wishes to use a capability URL for draft posts or actually restrict it to logged-in users.
+
+There is a separate proposal for a draft scope as an alternative to create that would only allow draft posts to be created.
+
+Original Discussion
+https://github.com/indieweb/micropub-extensions/issues/19
+Implementations
+
+Clients
+
+iA Writer
+
+indiebookclub
+
+Indiekit
+
+IndiePass for Android
+
+Micro.blog
+
+Quill
+
+Shock
+
+Sparkles
+
+Together
+
+Wrimini
+
+Servers
+
+abode
+
+Indiekit
+
+IndieWeb for Drupal
+
+Koype
+
+Micro.blog
+
+Micropub for WordPress
+
+p3k
+
+Postr - also uses post-status=deleted
+
+Serverless micropub
+
+Visibility
+
+This extension adds a property for use in Micropub requests called visibility that informs a server whether a post should be public, private or unlisted. If no visibility is set, a server SHOULD assume the visibility is meant to be public. If the visibility is set to unlisted, a server has flexibility to treat that how it wants, however this typically means the post wouldn't appear in feeds such as galleries, timelines or streams. If the visibility is set to private, that means this post should not be accessible unless viewed by an authenticated user. (See audience for more details.)
+
+visibility=public (or no visibility set)
+
+visibility=unlisted
+
+visibility=private
+
+This extension does not address how a user authenticates for a private post, and if they are authenticated how the access control is managed for said post. Depending on the server a private post could be viewable by a single person, or it could allow a group of authorized people to view it as long as they are authenticated. Discussion continues on authentication.
+
+Original discussion:
+https://github.com/indieweb/micropub-extensions/issues/11
+
+Implementations
+
+Clients
+
+indiebookclub
+
+OwnYourSwarm
+
+Quill
+
+Sparkles
+
+Together
+
+Wrimini
+
+...
+
+Servers
+
+abode
+
+Indiekit
+
+Micropub for WordPress
+
+p3k
+
+Postr
+
+Serverless micropub
+
+Query for Supported Vocabulary
+
+This extension returns what properties a Micropub server supports, so that a client like Quill or IndiePass can chose to hide or rename the common choices in the UI. This is essentially using reverse Post Type Discovery.
+
+Additional data is added to the Micropub Configuration query that allows the server to tell the client what types of posts it can receive as well as what those post types should be called in the UI.
+
+When a Micropub client retrieves the Micropub Configuration query, a server supporting this extension MAY return an array of objects inside the post-types attribute. Each object MUST represent a post type and MUST have a type attribute that matches the PTD post type and SHOULD have a name that is a string that represents the post type in the UI.
+
+An example response is below:
+
+  "post-types": [
+    {
+      "type": "note",
+      "name": "Note"
+    },
+    {
+      "type": "article",
+      "name": "Blog Post"
+    },
+    {
+      "type": "photo",
+      "name": "Photo"
+    },
+    {
+      "type": "reply",
+      "name": "Reply"
+    },
+    {
+      "type": "bookmark",
+      "name": "Bookmark"
+    }
+  ]
+
+If a Micropub client checks the Micropub Configuration query for a post-types array and it doesn't exist or it is empty, the client MUST assume the server does not support this extension and default to its regular post types and names. However, if at least one object exists in the post-types array, the Micropub client SHOULD only display features related to the post types found in the array, and any text in the UI SHOULD reflect the name presented in the post-types array.
+
+Additional Discussion
+https://github.com/indieweb/micropub-extensions/issues/1
+
+Implementations
+
+Clients
+
+Celestial
+
+IndiePass for Android
+
+Monocle
+
+Quill
+
+Sparkles
+
+Servers
+
+abode
+
+Indiekit
+
+IndieWeb for Drupal
+
+Micro.blog
+
+Postr
+
+Serverless micropub
+
+Query for Post List
+
+This is a primarily extension to the q=source query.
+
+If no URL is provided, a query SHOULD return a list. Specifically for q=source, this is a list of posts wrapped in an `items` property.
+
+Being as many possible query extensions will return lists, the discussion of what additional query modifiers  continues as experimental and ideally modifiers will be scoped to any query when appropriate.
+
+Servers, consistent with the spec use of q=source, SHOULD return a full Microformats2 JSON representation, but this is not a requirement. Proposed properties for filtering appear in the proposal section.
+
+Another advantage of this extension is that your Micropub server can solely be responsible for storing and listing posts as Microformats. Rendering posts can be done elsewhere. An example response follows:
+
+GET ?q=source
+{
+ "items": [
+  {
+    "type": [
+      "h-entry"
+    ],
+    "properties": {
+      "like-of": [
+        "https:\/\/en.m.wikipedia.org\/wiki\/Poka-yoke"
+      ],
+      "uid": [
+        "20170820131258_59998adae54d0"
+      ],
+      "published": [
+        "2017-08-20T13:12:58+00:00"
+      ]
+    }
+  },
+  {
+    "type": [
+      "h-entry"
+    ],
+    "properties": {
+      "photo": [
+        "https:\/\/media.j4y.co\/2017\/cfd007ec-c819-47da-99a2-daec2e91a41e.jpg"
+      ],
+      "published": [
+        "2017-08-19T18:30:40+00:00"
+      ],
+      "content": [
+        ""
+      ],
+      "category": [
+        ""
+      ],
+      "uid": [
+        "20170819175715_59987bfb72c4f"
+      ]
+    }
+  }
+}
+
+Original discussion:
+https://github.com/indieweb/micropub-extensions/issues/4
+
+Implementations
+
+Clients
+
+IndiePass for Android
+
+Micro.blog
+
+Together
+
+Servers
+
+abode
+
+j4y_funabashi
+
+IndieWeb for Drupal
+
+Micropub for WordPress
+
+Postr
+
+Micro.blog
+
+Indiekit
+
+Query for Category/Tag List
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/5
+
+This is an extension for returning categories that a Micropub server has received in the past, so that a client like Quill or IndiePass could present a list of existing categories to choose from when creating a new post. This usage is stable, though there are proposed modifiers to limit returns.
+
+The following example would be returned as part of the ?q=category query.
+
+{
+  "categories": [
+    "tag1",
+    "tag2",
+    "tag3",
+    "tag4",
+    "tag5",
+  ]
+}
+
+Implementations
+
+Clients
+
+IndiePass for Android
+
+Koype Publish
+
+Celestial (if not found in ?q=config)
+
+Servers
+
+Micropub for WordPress
+
+IndieWeb for Drupal
+
+abode ( Eddie Hinkle)
+
+Micro.blog
+
+Postr
+
+Indiekit
+
+Koype
+
+Kittybox
+
+Limit Parameter
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/35
+
+This is an extension to extend any query that returns a list of items to be limited to a specific number of returns. The logic behind how to fulfill to be handled by the server, but may optionally be paired with offset.
+
+For example...
+
+The following example would be returned as part of the ?q=category&amp;limit=1 query.
+
+{
+  "categories": [
+    "indieweb",
+  ]
+}
+
+Implementations
+
+Clients
+
+Quill - uses limit=1 to retrieve the last item from the media endpoint
+
+IndiePass for Android
+
+Shock
+
+Sparkles - uses limit and offset to paginate items from the media endpoint
+
+Servers
+
+Micropub for WordPress
+
+Indieweb for Drupal
+
+Koype
+
+Indiekit
+
+Serverless micropub - uses limit and offset to paginate items from the media endpoint
+
+Destination
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/3
+
+mp-destination=https://mysite.example.com/
+
+Specify a destination to create a new post on a web site other than the default. The value of mp-destination should be a uid from the array of destinations returned from q=config. See an example query response here.
+
+Implementations
+
+Clients
+
+Monocle - Monocle will check if your Micropub server returns a list of destinations and will then provide an account chooser UI in the footer when viewing a timeline. Selecting an account will cause any of the response buttons to be sent with the corresponding mp-destination value.
+
+Ekster - Ekster supports destination in the create post field. You can select on destination and that one post will go there instead of the default.
+
+Wrimini - Wrimini has a choice of destinations at the bottom of the main screen. The destinations are fetched and displayed. The chosen destination will be sent with that mp-destination value.
+
+TODO: there are probably some micro.blog clients to add to this list
+
+Shock - This is used to both help build URLs for contents and to query what should be looked up when rendering content
+
+Servers
+
+p3k
+
+micro.blog
+
+Koype
+
+Proposed Extensions
+
+Server Commands
+
+The Micropub spec reserves the mp- prefix in the form-encoded syntax as a mechanism for clients to give commands to servers. This section is for brainstorming additional uses of the mp- functionality.
+
+New Properties
+
+Location Visibility
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/16
+
+This is based on  David Shanske's implementation in Simple Location, an Indieweb friendly location plugin, of the WordPress Geodata unofficial guidelines. It states a single property which can be set to public or private, with the absence of the property being considered to be public. Proposing the third property, which will allow for a less specific text only display, but no actual coordinates.
+
+Implementations
+
+Clients
+
+IndiePass for Android
+
+Servers
+
+Micropub for WordPress
+
+Audience
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/12
+
+This is a proposed extension that allows a Micropub client to tell a server who should be able to access a private post. This is specifically useful with the draft of AutoAuth and Ticket Auth and the idea of sending private webmentions or creating posts that can be read by only a small group of people.
+
+Implementations
+
+Clients
+
+...
+
+Servers
+
+abode
+
+Query
+
+Micropub supports making a GET request to a Micropub endpoint with a q= parameter, in order to query aspects of the endpoint or for retrieving the original source content of posts. This section is for brainstorming additional uses of the query functionality. See also Micropub-brainstorming#Query_for_other_information
+
+If a query parameter acts as a filter on a query, such as 'limit', 'offset', etc...if feasible this should be proposed as vocabulary for all queries, as opposed to just a specific one.
+
+Offset Parameter
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/36
+
+This is an extension to extend any query that returns a list of items to be offset by n. The logic behind how to fulfill to be handled by the server, but MUST be paired with limit.
+
+For example...
+
+The following example would be returned as part of the ?q=category&amp;limit=1&amp;offset=1 query.
+
+{
+  "categories": [
+    "indieweb",
+  ]
+}
+
+Implementations
+
+Clients
+
+Shock
+
+Servers
+
+Micropub for WordPress
+
+Koype
+
+Indiekit
+
+Filter Parameter
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/34
+
+This is an extension to extend any query to allow autocomplete matching using a string. Prior discussion suggested 'search', but search was deemed to have other meanings.
+
+For example...
+
+The following example would be returned as part of the ?q=category&amp;filter=indie query.
+
+{
+  "categories": [
+    "indieweb",
+    "indieweb-goals",
+    "indienews"
+  ]
+}
+
+Implementations
+
+Clients
+
+Servers
+
+Micropub for WordPress
+
+Indiekit
+
+Post-Type
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/42
+
+This is an extension to extend any query that returns a list of items to be limited by post-type as defined by post type discovery. The logic behind how to fulfill to be handled by the server. It has been proposed specifically to apply to q=source and q=syndicate-to but may be applied to other situations with the same usage/intent.
+
+Implementations
+
+For the source query:
+
+Clients
+
+IndiePass for Android
+
+Servers
+
+IndieWeb for Drupal
+
+Post-Status/Visibility Parameters
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/43
+
+As visibility and post-status are now stable parameters for posting, this is an extension to extend any query that returns a list of items to be limited by these parameters. The logic behind how to fulfill to be handled by the server. It has been proposed specifically to apply to q=source but may be applied to other situations with the same usage/intent.
+
+Implementations
+
+For the source query:
+
+Clients
+
+Servers
+
+Supported Properties/Queries
+
+Issues and discussion:
+Queries - https://github.com/indieweb/micropub-extensions/issues/7
+Supported Properties - https://github.com/indieweb/micropub-extensions/issues/8
+Unsupported Properties - https://github.com/indieweb/micropub-extensions/issues/21
+
+These are two extensions for returning queries that a Micropub server will respond to and properties that a server knows about, so that a client like Quill or IndiePass could present only options appropriate to that server. It is similar to the idea about querying for supported vocabulary, except that proposal only covers properties that are part of post-type discovery. Like with the stable supported vocabulary extension, the absence of this instruction would show everything.
+
+Implementations
+
+Clients
+
+Quill (more info)
+
+Micropublish ([1])
+
+Sparkles ([2])
+
+Servers
+
+Micropub for WordPress - returns a simple list of query parameters supported.
+
+Indiekit - returns a simple list of query parameters supported.
+
+IndieWeb for Drupal
+
+Checked Syndication Property
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/23
+
+Proposes an optional checked property to the syndicate-to query that, if present/true, would instruct clients to pre-check the syndication target.
+
+It further proposes, to allow for customized responses, to allow post-type to be passed to the syndicate-to query to return a list of options appropriate to that specific type of post. This is referenced more generally in a sepatate issue.
+
+Implementations
+
+Implements the checked property
+
+Clients
+
+IndiePass for Android
+
+Sparkles
+
+Servers
+
+Indiekit
+
+IndieWeb for Drupal
+
+Implements the post-type query
+
+Clients
+
+Servers
+
+Location/Venue
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/6
+
+ Jonny Barnes originally added Query for Places in 2015. His implementation was for /micopub?q=geo=lat.lng;u=XX, returning a JSON response for each place containing a display name, lat/lng value, and a URL that could be used as the location value in a subsequent request.
+
+ David Shanske expanded on that to be consistent with the current thinking that returns should be inside a property and to allow for a geo URI or the individual parameters. The geo=lat.lng;u=xx is close to the geo URI format of geo:37.786971,-122.399677;u=35 but in the interest of consistency should actually be a GEO URI and a separate property. Therefore, the query for a request with a Geo URI should be ?q=geo&amp;uri=geo:37.786971,-122.399677;u=35  or optionally, each variable individually... q=geo&amp;lat=x&amp;lon=y&amp;u=z
+
+The following example would be returned as part of the ?q=geo&amp;lat=x&amp;lon=y query. Return would contain two properties, 'venues' and 'geo'. Geo would be a suggestion for the queried location perhaps returned using reverse geolocation, and venues would be one or more venues. The lack of either property assumes nothing could be found about the location.
+
+All geo returns would follow the common properties of an h-adr object with only label and latitude/longitude being mandatory, All places returns would follow the properties of an h-card object. There is one optional extra parameter, following the proposed Location Visibility property which would allow the query to suggest whether this location should be publicly displayed, allowing for private venues.
+
+{
+  "geo": [
+    "label"&#160;: "123 Main Street",
+    "latitude": "18.1123",
+    "longitude": "-72.1933",
+    "visibility": "public",
+  ],
+  "places": [
+   {
+     "name"&#160;: "Main Street Apothecary",
+     "latitude": "18.1123",
+     "longitude": "-72.1931",
+     "url": "https://example.com/venues/apothecary",
+   },
+   {
+     "name"&#160;: "Main Street Market",
+     "latitude": "18.1123",
+     "longitude": "-72.1931",
+     "url": "https://example.com/venues/market",
+   },
+  ]
+}
+
+ David Shanske went back to the drawing board on above in 2026-10 with a new query parameter, q=places, that still allow for a geo URI or the individual parameters. The geo=lat.lng;u=xx is close to the geo URI format of geo:37.786971,-122.399677;u=35 but in the interest of consistency should actually be a GEO URI and a separate property. Therefore, the query for a request with a Geo URI should be ?q=places&amp;uri=geo:37.786971,-122.399677;u=35  or optionally, each variable individually... q=places&amp;lat=x&amp;lon=y&amp;u=z
+
+Arguments
+
+q=places
+
+lat=37.786971 - Latitude
+
+lon=-122.399677 - Longitude
+
+geo=lat,lon - Geo URI
+
+limit=10 (Optional) - Limit the results
+
+local=1 - (Optional) - Limits returns to locally stored venues. This allows you to keep previously used ones on your endpoint, but use an external option for others.
+
+The following example would be returned as part of the ?q=places&amp;lat=x&amp;lon=y query. Return would contain a single property, places, which would be the returned list of venues.
+
+All places returns would follow the properties of an h-card object. There are two optional extra properties, following the proposed Location Visibility property which would allow the query to suggest whether this location should be publicly displayed, allowing for private venues, and the local property.
+
+Implementations
+
+Clients
+
+IndiePass for Android - uses the geo property, places as suggestions
+
+Servers
+
+Micropub for WordPress + Simple Location - supports the places query.
+
+IndieWeb for Drupal - uses the geo property, can return places
+
+Contacts
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/39
+
+For apps to be able to autocomplete by known contacts we need some way to query these values. This would be very useful for person-tag
+
+Discovery of the endpoint (as in, it exists), happens through the query for supported queries, see https://github.com/indieweb/micropub-extensions/issues/7
+
+q=contact&amp;filter=aaron would do a search for any field which matches .*aaron.* thereby allowing the client application to autosuggest and insert links.
+
+q=contact would return the complete list, which should only be so that clients (e.g. IndiePass) can cache all contacts locally.
+
+The response in JSON is a list of h-cards using the h-card vocabulary.
+
+Example response
+
+GET ?q=contact
+
+  "contacts": [
+    {
+      "name": "Kevin Marks",
+      "photo": "http://known.kevinmarks.com/file/9255656669173b7867ab839ee6556f9e",
+      "url": "http://known.kevinmarks.com/profile/kevinmarks",
+      "nickname": "kevinmarks",
+    },
+    {
+      "name": "Kristof De Jaeger",
+      "photo": "https://realize.be/vue/images/swentel-200.png",
+      "url": "https://realize.be",
+      "nickname": "swentel",
+    },
+  ]
+
+Note: The IndiePass for Android/IndieWeb for Drupal implementation add a property to the h-card called _internal_url which can be used for updating the contacts via micropub. This is included as a note as there is wider consensus on the h-card vocabulary.
+
+Implementations
+
+Clients
+
+IndiePass for Android - see https://realize.be/notes/1970 - it fetches the full list, filtering happens in the client. Create, update and delete are also possible using micropub so you can manage your contacts using the _internal_url property. Supports using `search` as opposed to filter.
+
+Servers
+
+IndieWeb for Drupal - Supports using `search` as opposed to filter.
+
+ Aaron Parecki's Micropub endpoint supports querying and filtering contacts, intended to be used for typeahead nickname suggestions in micropub clients
+
+Pagination
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/48
+
+after, before - leaning on a cursor-based pagination approach. Problem being how does the client know what arbitrary options to use here, unless in this implementation it is set to date string or such.
+
+As far as the client is concerned, the before and after values are arbitrary strings. This allows the server to internally use whatever specific implementation is most appropriate for its backend technology. (Often this will be either a timestamp or a unique ID identifying the first and last items in the returned list.)
+
+Implementations
+
+Clients
+
+Servers
+
+Order
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/49
+
+order - Proposes a means of setting the order of the  returned list. Common options for this might be ascending/descending
+
+Implementations
+
+Clients
+
+Servers
+
+Property Exists/Not Exists
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/51
+
+exists[] - Matches one or more property names (for example, exists[]=like-of)
+
+not-exists[] = Inverse of exists
+
+Implementations
+
+Clients
+
+Servers
+
+Property Value
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/50
+
+property-property-name (Example: property-rsvp=yes) - Allows filtering by a specific property value
+
+Implementations
+
+Clients
+
+Servers
+
+Brainstorming
+
+Ideas for other types of queries
+
+mp-config
+
+extended markup formats – right now it is relatively dependent on the server implementation how text content is treated (1:1, basic processing like linking URLs, Markdown, ...). A query could expose information about this (and maybe even be part of a way to choose for the user)
+
+Questions
+
+According to the current spec (2017-01), a GET ?q=config should also include the syndicate-to property. If the collection of supported properties grows, is this still a thing to hold on to? Venues and tags can make the response potentially large.  Sebastiaan Andeweg
+
+Agreed, I think the empty GET ?q=config should be very limited, and clients should request things with potentially large responses separately.  Aaron Parecki 11:40, 11 April 2018 (PDT)
+
+What would those requests look like? We have q=contact and q=category currently but what would it look like for fetching venues? Do we fall back on using the h-* value for the query?
+
+I think it's safe to lean on returning either a Microformats2 JSON or JF2 formatted response (defaulting to Microformats2 JSON as that's the expected format for entries)
+
+Other
+
+Standalone Pages
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/25
+
+This proposal deals with how to create standalone pages, as opposed to posts.
+
+Options include using a '/' in the mp-slug parameter, or overloading the h property with h=page.
+
+Consensus after the Microformats Pop-Up 2020 session was that h=page was the most clear solution to this issue.
+
+Dealing with Expiring Tokens
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/17
+
+Currently IndieAuth and Micropub don't talk about how to deal with expired tokens, whether auto-expiring tokens or revoked tokens. To get a new token, most Micropub clients will make you log out and back in. However in the new Micropub client era with native apps and Reader web apps, you might not want to have to log out and back in just to refresh your token. (more details for brainstorming available in GitHub issue)
+
+Dealing with Expiring Configuration
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/18
+
+There are instances where the configuration of a Micropub endpoint can change. Currently both the Media Endpont url and the syndication values are in the Micropub's config query. Because the Media Endpoint is an external service it makes sense that at times this url may change, and the user shouldn't have to log out and back in to update that value. (more details for brainstorming available in GitHub issue)
+
+Extended GEO URI
+
+https://github.com/indieweb/micropub-extensions/issues/32
+
+IndiePass for Android has a checkin post type which passes the checkin information as additional parameters in the Geo URI in order to allow more parameters in a form-encoded request. The payload property is 'geo'. It's not doing a JSON post, so you can also immediately upload pictures as well. Additional properties for the venue/location can be added later. The same technique is used to post geocache logs, see https://indieweb.org/geocaching
+
+geo:51.5258325,-0.1359825,0.0;name=london;url=https://hwclondon.co.uk
+
+Implementations:
+
+Clients
+
+IndiePass for Android
+
+Servers
+
+IndieWeb for Drupal. An example can be found here: https://realize.be/checkin/1762
+
+WordPress Micropub Plugin
+
+Post contacts
+
+Clients should be able to add or update h-cards.
+
+Adding or updating also happens on the q=contact endpoint, but with a POST request.
+
+Properties: h=card&amp;name=Contact name&amp;nickname=Nick&amp;photo=photo&amp;url=url
+
+Implementations
+
+Clients
+
+IndiePass for Android - can create, update and delete
+
+Servers
+
+IndieWeb for Drupal
+
+Draft Scope
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/24
+
+Proposal to implement a draft scope. Draft by itself, without (create/update) scope, would only allow draft posts to be created regardless of what post-status is sent by the client.
+
+Clients
+
+Micropublish supports an optional draft scope when logging in. If used, all posts will have post-status=draft.
+
+Servers
+
+WordPress Micropub Plugin
+
+Consent screen allows the server to change a request for create into draft.
+
+ Aaron Parecki supports the draft scope
+
+His consent screen allows the server to change a request for create into draft so that clients who do not know about draft can still use it.
+
+&#160; Jamie Tanna has implemented this.
+
+when creating a post, and the draft scope is present, the post-status is forced to draft (even if it's set otherwise in the post)
+
+when updating a post, and the draft scope is present, the update is only allowed when updating a draft post, otherwise returns insufficient_scope
+
+delete/undelete returns insufficient_scope when the draft scope is present
+
+Media Endpoint Extensions
+
+Proposed Extensions
+
+Delete from Media Endpoint
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/30
+
+This is a proposed extension to the Media Endpoint section of the Micropub spec to allow deletes using the Micropub syntax of POST action=delete&amp;url=https://example.com/filename.jpg
+
+Proposal is that to allow this, the client must have both the delete and the media scopes.
+
+Implementations
+
+Clients
+
+...
+
+Servers
+
+ Aaron Parecki's media endpoint supports this requiring media delete scope
+
+micro.blog supports this as of 28 Jul 2020, though without scope enforcement
+
+Micropub for WordPress supports this as of 11 Dec 2021
+
+Response from Media Endpoint
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/13
+
+This is a proposed extension to the Media Endpoint section of the Micropub spec to define the response body used by a media endpoint on successful upload and to be used if the media endpoint responds to q=source, which is defined for the micropub endpoint.
+
+Initial Consensus is to implement a response with a minimum required property of "url". Enhancement to be done later with possible other properties.
+
+Implementations
+
+Servers
+
+ Aaron Parecki in his media endpoint on media.aaronpk.com
+
+unrelentingtech in sweetroll — instead of "url" there's a JSON structure with a bunch of stuff. For photos: "width", "height", "meta" (metadata extracted by exiv2), "palette" (prominent colors via vibrant), "tiny_preview" (data uri of a tiny WebP preview) and most importantly "source" (links to the actual image in different formats).
+
+WordPress Micropub currently returns the published date, URL, and mime-type
+
+ Jonathan LaCour added support for this response in Known in November 2018.
+
+Clients
+
+ Aaron Parecki - a iOS Workflow that I created to upload to my media endpoint requests a text/plain response and uses the body as the URL, copying it to the clipboard. that was easier than adding a JSON parser to the Workflow.
+
+unrelentingtech - sweetroll does rich photo display based on the data generated by the endpoint.
+
+Query for Media from Media Endpoint
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/14
+
+This is a proposed extension to the Media Endpoint section of the Micropub spec to respond to the stable extension, q=source, which is defined for the micropub endpoint.
+
+The response would be an array of the data elements being discussed as the response body being proposed as a separate extension.
+
+Note: This has superseded the previous suggestion of q=last.
+
+Example:
+
+GET /media-endpoint?q=source
+Authorization: Bearer XYZ123
+
+{
+    "items": [
+        {
+            "url": "http://mpserver/media/2018/d45f435b2ce3ea97cf35054122736751.jpg",
+        }
+    ]
+}
+
+Implementations
+
+Clients
+
+Quill queries ?q=source&amp;limit=1 for recently uploaded files to prepopulate the photo on the new post interface. It requires the "url" property to exist, and if a "published" property exists, will only show the file if it has been created within the last 5 minutes.
+
+Sparkles ([3])
+
+...
+
+Servers
+
+WordPress Micropub Plugin implements q=source as well as limit to specify the number of things to return. It returns WordPress media metadata until there is a discussion of what to return to consume.
+
+inari by  j4y_funabashi allows you to query for a media list. Currently this shows the latest 30 media files uploaded, pagination is to follow.
+
+GET /media-endpoint?q=source
+Authorization: Bearer XYZ123
+
+{
+    "items": [
+        {
+            "uid": "8535f86b-3a4a-4d50-8a33-ed71050b2f12",
+            "url": "http://mpserver/media/2018/d45f435b2ce3ea97cf35054122736751.jpg",
+            "file_key": "2018/d45f435b2ce3ea97cf35054122736751.jpg",
+            "file_hash": "d45f435b2ce3ea97cf35054122736751",
+            "mime_type": "image/jpeg",
+            "date_time": "2018-10-03T16:26:24Z",
+            "lat": 48.14296338888889,
+            "lng": 17.115262972222222
+        }
+    ]
+}
+
+ Aaron Parecki's media endpoint returns up to 10 recent files, ordered by newest first. Properties returned include url, published, and mime_type.
+
+{
+  "items": [
+    {
+      "url": "https://media.aaronpk.com/2020/07/file-20200726XXX.jpg",
+      "published": "2020-07-26T09:51:11-07:00",
+      "mime_type": "image/jpeg"
+    },
+    {
+      "url": "https://media.aaronpk.com/2020/07/file-20200726XXX.jpg",
+      "published": "2020-07-26T08:49:24-07:00",
+      "mime_type": "image/jpeg"
+    }
+  ]
+}
+
+Previous Implementations
+
+The previous proposal q=last is currently implemented by:
+
+ Aaron Parecki on his media endpoint media.aaronpk.com
+
+WordPress Micropub Plugin
+
+And consumed by:
+
+Quill - queries the media endpoint to find the last uploaded image and pre-populates the photo in the note interface. this has been replaced with q=source as of 2020-07-26
+
+Query for Media by URL
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/37
+Implementations
+
+Servers
+
+inari allows you to query for media by URL
+
+WordPress Micropub Plugin implements q=source and url= for the media endpoint. It returns the WordPress media metadata and will likely change this when there is a clearer return standard.
+
+Link Rel for Media Endpoint
+
+Issues and discussion:
+https://github.com/indieweb/micropub-extensions/issues/15
+
+This is a proposed extension to the Media Endpoint section of the Micropub spec, where the Media Endpoint will advertise itself separately instead of requiring you to query the micropub endpoint.
+
+Implementations
+
+Clients
+
+...
+
+Servers
+
+ Marty McGuire on his site.
+
+WordPress Micropub Plugin
+
+See Also
+
+Latest Editor's Draft
+
+Micropub
+
+Micropub-brainstorming
+
+Retrieved from "https://indieweb.org/wiki/index.php?title=Micropub-extensions&amp;oldid=114406"
+
+Category:
+Micropub
+
+Toggle limited content width

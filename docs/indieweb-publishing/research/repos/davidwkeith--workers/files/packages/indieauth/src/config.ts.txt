@@ -1,0 +1,346 @@
+/**
+ * Configuration for {@link createIndieAuth}: endpoint URLs, lifetimes, supported
+ * scopes, the redirect-URI policy, and the delegated authentication/consent
+ * hook. Per the composition contract, the package never reads the global
+ * environment — every tunable arrives here, so it can be instantiated multiple
+ * times and tested in isolation.
+ */
+
+import { noopLogger, noopMetrics, type Logger, type Metrics } from "@dwk/log";
+
+/** DPoP proof signing algorithms advertised in the metadata document. */
+export const DPOP_SIGNING_ALG_VALUES_SUPPORTED = [
+  "ES256",
+  "ES384",
+  "RS256",
+  "PS256",
+] as const;
+
+const DEFAULT_ACCESS_TOKEN_LIFETIME_SECONDS = 3600;
+const DEFAULT_AUTHORIZATION_CODE_LIFETIME_SECONDS = 600;
+
+/** A parsed, validated authorization request handed to {@link IndieAuthConfig.approveAuthorization}. */
+export interface AuthorizationRequest {
+  /** The client identifier URL. */
+  readonly clientId: string;
+  /** The validated redirect URI the code will be delivered to. */
+  readonly redirectUri: string;
+  /** Opaque client state, echoed back on redirect. */
+  readonly state: string;
+  /** PKCE challenge (`S256`). */
+  readonly codeChallenge: string;
+  /** PKCE challenge method — always `"S256"` for this server. */
+  readonly codeChallengeMethod: string;
+  /** Space-separated requested scopes (may be empty). */
+  readonly scope: string;
+  /** Requested scopes as a list. */
+  readonly scopes: readonly string[];
+  /** The profile URL hint supplied by the client (`me`), if any. */
+  readonly me?: string;
+  /**
+   * Validated RFC 8707 resource indicators requested by the client, if any. The
+   * minted access token is audience-restricted (`aud`) to these, so a token
+   * leaked to one resource server cannot be replayed at another. Present only
+   * when the client supplied one or more acceptable `resource` parameters.
+   */
+  readonly resources?: readonly string[];
+}
+
+/** Optional profile information returned to the client on redemption. */
+export interface ProfileInfo {
+  readonly name?: string;
+  readonly url?: string;
+  readonly photo?: string;
+  readonly email?: string;
+}
+
+/** The decision returned by {@link IndieAuthConfig.approveAuthorization} when the request is approved. */
+export interface AuthorizationApproval {
+  /** The verified canonical profile URL of the authenticated user. */
+  readonly me: string;
+  /** Scopes actually granted (defaults to the requested scopes). */
+  readonly scopes?: readonly string[];
+  /** Optional profile information returned alongside `me`. */
+  readonly profile?: ProfileInfo;
+}
+
+/**
+ * Authentication + consent hook. The library owns all protocol mechanics;
+ * authenticating the user and obtaining consent is the deployer's concern.
+ *
+ * Return an {@link AuthorizationApproval} to mint a code and redirect, or a
+ * `Response` to take over the exchange (render a login/consent page, redirect
+ * to an external identity provider, etc.). The library returns that `Response`
+ * unchanged.
+ */
+export type ApproveAuthorization = (
+  request: AuthorizationRequest,
+  httpRequest: Request,
+) => Promise<AuthorizationApproval | Response>;
+
+/** Decides whether a `redirect_uri` is acceptable for a given `client_id`. */
+export type RedirectUriPolicy = (
+  clientId: string,
+  redirectUri: string,
+) => boolean | Promise<boolean>;
+
+/**
+ * Decides whether the server will issue access tokens audience-restricted to a
+ * given RFC 8707 `resource` indicator (already checked to be a well-formed
+ * absolute URI). Return `false` to reject the request with `invalid_target`.
+ * The default accepts any well-formed resource; deployers SHOULD narrow this to
+ * the resource servers they actually front (e.g. same-origin as `baseUrl`).
+ */
+export type ResourceIndicatorPolicy = (
+  resource: string,
+  clientId: string,
+) => boolean | Promise<boolean>;
+
+/** Configuration passed to {@link createIndieAuth}. */
+export interface IndieAuthConfig {
+  /** The identity root / base URL (e.g. `https://example.com`). */
+  readonly baseUrl: string;
+  /** The token issuer identifier. Defaults to `baseUrl`. */
+  readonly issuer?: string;
+  /** Absolute authorization endpoint URL. Defaults to `${baseUrl}/authorize`. */
+  readonly authorizationEndpoint?: string;
+  /** Absolute token endpoint URL. Defaults to `${baseUrl}/token`. */
+  readonly tokenEndpoint?: string;
+  /** Absolute revocation endpoint URL. Defaults to `${baseUrl}/revocation`. */
+  readonly revocationEndpoint?: string;
+  /**
+   * Absolute token introspection endpoint URL (RFC 7662; IndieAuth §6.1).
+   * Defaults to `${baseUrl}/introspect`. Served and advertised only when
+   * {@link authorizeIntrospection} is set.
+   */
+  readonly introspectionEndpoint?: string;
+  /**
+   * Decide whether a request may introspect tokens — IndieAuth §6.1 requires
+   * the endpoint to demand some authorization, e.g. a resource server's own
+   * bearer secret. Set it to serve the introspection endpoint and advertise
+   * `introspection_endpoint` in the metadata (which IndieAuth lists for
+   * resource servers on other hosts to verify tokens); omit it and neither is.
+   */
+  readonly authorizeIntrospection?: AuthorizeIntrospection;
+  /**
+   * Absolute metadata endpoint URL. Defaults to
+   * `${baseUrl}/.well-known/oauth-authorization-server`.
+   */
+  readonly metadataEndpoint?: string;
+  /** Scopes this server is willing to issue, advertised in metadata. */
+  readonly scopesSupported?: readonly string[];
+  /** Access-token lifetime in seconds. Defaults to 3600. */
+  readonly accessTokenLifetimeSeconds?: number;
+  /** Authorization-code lifetime in seconds. Defaults to 600. */
+  readonly authorizationCodeLifetimeSeconds?: number;
+  /**
+   * Redirect-URI policy. Defaults to same-origin as `client_id`, the IndieAuth
+   * baseline when no client metadata is registered.
+   */
+  readonly redirectUriPolicy?: RedirectUriPolicy;
+  /**
+   * Policy gating which RFC 8707 `resource` indicators may audience-restrict an
+   * issued token. Defaults to accepting any well-formed resource URI; deployers
+   * fronting specific resource servers SHOULD narrow it (see
+   * {@link ResourceIndicatorPolicy}).
+   */
+  readonly resourceIndicatorPolicy?: ResourceIndicatorPolicy;
+  /** Authentication + consent hook (see {@link ApproveAuthorization}). */
+  readonly approveAuthorization: ApproveAuthorization;
+  /**
+   * Opt in to unbound Bearer tokens for clients that send no DPoP proof (see
+   * {@link BearerTokenPolicy}). Omit to require DPoP on every token request.
+   */
+  readonly bearerTokens?: BearerTokenPolicy;
+  /**
+   * Logger for authorization/token/revocation events; defaults to a no-op. Wire
+   * a real logger (see `@dwk/log`) to surface authorization rejections, token
+   * rejections, and revocations instead of swallowing them.
+   */
+  readonly logger?: Logger;
+  /**
+   * Metrics sink for the same events; defaults to a no-op. Wire an adapter (e.g.
+   * `analyticsEngineMetrics` from `@dwk/log`) to chart what the logger names —
+   * authorization rejections/min, token issuance rate, rejections by reason.
+   */
+  readonly metrics?: Metrics;
+}
+
+/** Fully resolved configuration with defaults applied and URLs parsed. */
+export interface ResolvedConfig {
+  readonly issuer: string;
+  readonly authorizationEndpoint: string;
+  readonly tokenEndpoint: string;
+  readonly revocationEndpoint: string;
+  readonly metadataEndpoint: string;
+  readonly authorizationPath: string;
+  readonly tokenPath: string;
+  readonly revocationPath: string;
+  /** Present only when introspection is configured. */
+  readonly introspection?: {
+    readonly endpoint: string;
+    readonly path: string;
+    readonly authorize: AuthorizeIntrospection;
+  };
+  readonly metadataPath: string;
+  readonly scopesSupported: readonly string[];
+  readonly accessTokenLifetimeSeconds: number;
+  readonly authorizationCodeLifetimeSeconds: number;
+  readonly redirectUriPolicy: RedirectUriPolicy;
+  readonly resourceIndicatorPolicy: ResourceIndicatorPolicy;
+  readonly approveAuthorization: ApproveAuthorization;
+  /** The resolved Bearer-token policy; absent when Bearer tokens are off. */
+  readonly bearerTokens?: {
+    readonly lifetimeSeconds: number;
+    readonly scopes: readonly string[];
+  };
+  readonly logger: Logger;
+  readonly metrics: Metrics;
+}
+
+/**
+ * Opt-in policy for issuing **unbound Bearer** access tokens (RFC 6750) to a
+ * token request that carries no `DPoP` proof — for Micropub/Microsub clients
+ * that predate DPoP. Absent (the default), every token request MUST carry a
+ * valid proof and every token is DPoP-bound ("DPoP everywhere",
+ * `spec/non-functional-requirements.md`). A request that does send a proof is
+ * always held to it: an invalid proof is rejected, never downgraded.
+ *
+ * A Bearer token has no `cnf` claim, so it is useless at a Resource Server that
+ * hasn't opted in too (`acceptBearerTokens` in `@dwk/micropub` and
+ * `@dwk/microsub`; `@dwk/mcp` never accepts one). It is recorded in the
+ * issued-token store like any other, so revocation applies.
+ */
+export interface BearerTokenPolicy {
+  /**
+   * Bearer-token lifetime in seconds; a stolen one is replayable until then.
+   * Defaults to (and may not exceed) `accessTokenLifetimeSeconds`.
+   */
+  readonly lifetimeSeconds?: number;
+  /**
+   * The only scopes a Bearer token may carry: the granted scope is narrowed to
+   * these, and a grant with none of them gets no Bearer token
+   * (`invalid_scope`). Defaults to `scopesSupported`.
+   */
+  readonly scopes?: readonly string[];
+}
+
+/** See {@link IndieAuthConfig.authorizeIntrospection}. */
+export type AuthorizeIntrospection = (
+  request: Request,
+) => boolean | Promise<boolean>;
+
+/** Default policy: the redirect URI must share an origin with the client id. */
+function sameOriginRedirect(clientId: string, redirectUri: string): boolean {
+  try {
+    return new URL(clientId).origin === new URL(redirectUri).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Default resource-indicator policy: accept any well-formed resource URI. The
+ * handler has already enforced RFC 8707 well-formedness (absolute https — or
+ * http-loopback — URI, no fragment) before this runs, so the default is simply
+ * to allow it. Deployers fronting specific resource servers should override.
+ */
+function acceptAnyResource(): boolean {
+  return true;
+}
+
+function pathOf(absoluteUrl: string, label: string): string {
+  try {
+    return new URL(absoluteUrl).pathname;
+  } catch {
+    throw new Error(`@dwk/indieauth: ${label} is not a valid URL`);
+  }
+}
+
+/**
+ * Resolve user config into a {@link ResolvedConfig}, applying defaults and
+ * pre-computing each endpoint's pathname for request routing. Throws if
+ * `baseUrl` (or any explicitly supplied endpoint URL) is not a valid URL.
+ */
+export function resolveConfig(config: IndieAuthConfig): ResolvedConfig {
+  let base: URL;
+  try {
+    base = new URL(config.baseUrl);
+  } catch {
+    throw new Error("@dwk/indieauth: `baseUrl` is not a valid URL");
+  }
+  const origin = base.origin;
+
+  const issuer = config.issuer ?? config.baseUrl;
+  const authorizationEndpoint =
+    config.authorizationEndpoint ?? `${origin}/authorize`;
+  const tokenEndpoint = config.tokenEndpoint ?? `${origin}/token`;
+  const revocationEndpoint =
+    config.revocationEndpoint ?? `${origin}/revocation`;
+  const metadataEndpoint =
+    config.metadataEndpoint ??
+    `${origin}/.well-known/oauth-authorization-server`;
+
+  const scopesSupported = config.scopesSupported ?? [];
+  const accessTokenLifetimeSeconds =
+    config.accessTokenLifetimeSeconds ?? DEFAULT_ACCESS_TOKEN_LIFETIME_SECONDS;
+  const bearerTokens = resolveBearerTokens(
+    config.bearerTokens,
+    accessTokenLifetimeSeconds,
+    scopesSupported,
+  );
+
+  const introspectionEndpoint =
+    config.introspectionEndpoint ?? `${origin}/introspect`;
+  const introspection = config.authorizeIntrospection
+    ? {
+        endpoint: introspectionEndpoint,
+        path: pathOf(introspectionEndpoint, "introspectionEndpoint"),
+        authorize: config.authorizeIntrospection,
+      }
+    : undefined;
+
+  return {
+    issuer,
+    authorizationEndpoint,
+    tokenEndpoint,
+    revocationEndpoint,
+    metadataEndpoint,
+    authorizationPath: pathOf(authorizationEndpoint, "authorizationEndpoint"),
+    tokenPath: pathOf(tokenEndpoint, "tokenEndpoint"),
+    revocationPath: pathOf(revocationEndpoint, "revocationEndpoint"),
+    ...(introspection ? { introspection } : {}),
+    metadataPath: pathOf(metadataEndpoint, "metadataEndpoint"),
+    scopesSupported,
+    accessTokenLifetimeSeconds,
+    authorizationCodeLifetimeSeconds:
+      config.authorizationCodeLifetimeSeconds ??
+      DEFAULT_AUTHORIZATION_CODE_LIFETIME_SECONDS,
+    redirectUriPolicy: config.redirectUriPolicy ?? sameOriginRedirect,
+    resourceIndicatorPolicy:
+      config.resourceIndicatorPolicy ?? acceptAnyResource,
+    approveAuthorization: config.approveAuthorization,
+    ...(bearerTokens ? { bearerTokens } : {}),
+    logger: config.logger ?? noopLogger,
+    metrics: config.metrics ?? noopMetrics,
+  };
+}
+
+function resolveBearerTokens(
+  policy: BearerTokenPolicy | undefined,
+  accessTokenLifetimeSeconds: number,
+  scopesSupported: readonly string[],
+): ResolvedConfig["bearerTokens"] {
+  if (policy === undefined) return undefined;
+  const lifetimeSeconds = policy.lifetimeSeconds ?? accessTokenLifetimeSeconds;
+  if (
+    !Number.isInteger(lifetimeSeconds) ||
+    lifetimeSeconds <= 0 ||
+    lifetimeSeconds > accessTokenLifetimeSeconds
+  ) {
+    throw new Error(
+      "@dwk/indieauth: `bearerTokens.lifetimeSeconds` must be a positive integer no greater than `accessTokenLifetimeSeconds`",
+    );
+  }
+  return { lifetimeSeconds, scopes: policy.scopes ?? scopesSupported };
+}

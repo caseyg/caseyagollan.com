@@ -1,0 +1,1842 @@
+microformats2
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+Contents
+
+1 Summary
+
+1.1 simple microformats2 examples
+
+1.1.1 person example
+
+1.1.2 hyperlinked person
+
+1.1.3 hyperlinked person image
+
+1.1.4 detailed person example
+
+1.2 details from examples
+
+1.3 microformats2 design
+
+2 v2 vocabularies
+
+2.1 h-adr
+
+2.2 h-card
+
+2.3 h-entry
+
+2.4 h-event
+
+2.5 h-geo
+
+2.6 h-item
+
+2.7 h-product
+
+2.8 h-recipe
+
+2.9 h-resume
+
+2.10 h-review
+
+2.11 h-review-aggregate
+
+2.12 v2 vocab notes
+
+2.13 v2 vocab to-do
+
+3 combining microformats
+
+3.1 h-event location h-card
+
+3.2 h-card org h-card
+
+4 authoring
+
+4.1 minimal markup
+
+4.2 backward compatible
+
+5 extensions
+
+5.1 experimental extensions
+
+5.2 vendor extensions
+
+5.3 extensions background
+
+6 validators
+
+7 Examples in the wild
+
+7.1 offline
+
+8 Implementations
+
+8.1 Live Textarea Input
+
+8.2 Blogging tools
+
+8.3 Converters
+
+8.4 Parsers
+
+8.4.1 Parsers in production
+
+8.4.2 Development parsers
+
+8.4.3 Experiments
+
+8.5 Outreach
+
+9 Presentations
+
+10 Testimonials
+
+11 Origins
+
+12 See Also
+
+Welcome to the microformats2 home page.
+
+Summary
+
+Microformats2 is the latest version of microformats, the simplest way to markup structured information in HTML. Microformats2 improves ease of use and implementation for both authors (publishers) and developers (parser implementers).
+
+Developers: see the microformats2-parsing specification
+
+Microformats2 replaces and supersedes both classic microformats (sometimes called microformats1), as well as incorporates lessons learned from microdata and RDFa.
+
+simple microformats2 examples
+
+Here are a few simple microformats2 examples along with canonical JSON.
+
+person example
+
+Simple person reference:
+
+&lt;span class=&quot;h-card&quot;&gt;Frances Berriman&lt;/span&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Frances Berriman&quot;]
+    }
+  }]
+}
+
+hyperlinked person
+
+Simple hyperlinked person reference
+
+&lt;a class=&quot;h-card&quot; href=&quot;http://benward.me&quot;&gt;Ben Ward&lt;/a&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Ben Ward&quot;],
+      &quot;url&quot;: [&quot;http://benward.me&quot;]
+    }
+  }]
+}
+
+hyperlinked person image
+
+Simple hyperlinked person image
+
+&lt;a class=&quot;h-card&quot; href=&quot;http://rohit.khare.org/&quot;&gt;
+ &lt;img alt=&quot;Rohit Khare&quot;
+      src=&quot;https://s3.amazonaws.com/twitter_production/profile_images/53307499/180px-Rohit-sq_bigger.jpg&quot; /&gt;
+&lt;/a&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Rohit Khare&quot;],
+      &quot;url&quot;: [&quot;http://rohit.khare.org/&quot;],
+      &quot;photo&quot;: [&quot;https://s3.amazonaws.com/twitter_production/profile_images/53307499/180px-Rohit-sq_bigger.jpg&quot;]
+    }
+  }]
+}
+
+Additional simple cases details in microformats-2-implied-properties.
+
+detailed person example
+
+More detailed person
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;img class=&quot;u-photo&quot; alt=&quot;photo of Mitchell&quot;
+       src=&quot;https://webfwd.org/content/about-experts/300.mitchellbaker/mentor_mbaker.jpg&quot;/&gt;
+  &lt;a class=&quot;p-name u-url&quot;
+     href=&quot;http://blog.lizardwrangler.com/&quot;
+    &gt;Mitchell Baker&lt;/a&gt;
+ (&lt;a class=&quot;u-url&quot;
+     href=&quot;https://twitter.com/MitchellBaker&quot;
+    &gt;@MitchellBaker&lt;/a&gt;)
+  &lt;span class=&quot;p-org&quot;&gt;Mozilla Foundation&lt;/span&gt;
+  &lt;p class=&quot;p-note&quot;&gt;
+    Mitchell is responsible for setting the direction and scope of the Mozilla Foundation and its activities.
+  &lt;/p&gt;
+  &lt;span class=&quot;p-category&quot;&gt;Strategy&lt;/span&gt;
+  &lt;span class=&quot;p-category&quot;&gt;Leadership&lt;/span&gt;
+&lt;/div&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;photo&quot;: [&quot;https://webfwd.org/content/about-experts/300.mitchellbaker/mentor_mbaker.jpg&quot;],
+      &quot;name&quot;: [&quot;Mitchell Baker&quot;],
+      &quot;url&quot;: [
+        &quot;http://blog.lizardwrangler.com/&quot;,
+        &quot;https://twitter.com/MitchellBaker&quot;
+      ],
+      &quot;org&quot;: [&quot;Mozilla Foundation&quot;],
+      &quot;note&quot;: [&quot;Mitchell is responsible for setting the direction and scope of the Mozilla Foundation and its activities.&quot;],
+      &quot;category&quot;: [
+        &quot;Strategy&quot;,
+        &quot;Leadership&quot;
+      ]
+    }
+  }]
+}
+
+details from examples
+
+Details demonstrated by the examples:
+
+The JSON "type" uses the full microformat root class name (e.g. "h-card") for consistent identification.
+
+all properties are optional and syntactically plural with parsed values provided in document order; particular microformats (and applications there-of) may apply specific/singular semantics to first value of a property.
+
+microformats2 design
+
+microformats2 has the following key design aspects:
+
+Prefixes for class names
+All microformats class names use prefixes. Prefixes are syntax independent from vocabularies, which are developed separately.
+
+h-* for root class names (e.g. h-card)
+
+p-* for plain text properties (e.g. p-name)
+
+u-* for URL properties (e.g. u-photo)
+
+dt-* for date/time properties (e.g. dt-bday)
+
+e-* for embedded markup properties (e.g. e-note)
+
+See microformats2-prefixes for more details.
+
+Flat sets of optional properties
+All microformats consist of a root, and a collection of properties. Hierarchical data is represented with nested microformats, typically as property values themselves. Properties are all optional and multivalue-capable (applications needing a singular semantic may use first instance).
+Single class markup for common uses
+Common simple markup patterns require only a single microformat root class name, which parsers use to find a few generic properties: name, url, photo. The simple microformats2 examples above demonstrate these.
+
+Parsing each prefix (including generating canonical JSON) is detailed step-by-step in:
+
+The microformats2 parsing specification
+
+Note: Most properties are specified and used with a single specific prefix (or occasionally two or three) that is self-evident from context. However, any parsing prefix can be used with any property, especially if you find a good reason to do so!
+
+v2 vocabularies
+
+Status: draft. Please review and provide feedback in IRC.
+
+h-adr
+
+h-card
+
+h-entry
+
+h-event
+
+h-feed
+
+h-geo
+
+h-item
+
+h-listing
+
+h-product
+
+h-recipe
+
+h-resume
+
+h-review
+
+h-review-aggregate
+
+See below for vocabulary summaries.
+
+h-adr
+
+Main article: h-adr
+
+The h-adr microformat is for marking up structured locations such as addresses, physical and/or postal. This is an update to adr.
+
+root class name: h-adr
+
+profile/itemtype: http://microformats.org/profile/h-adr
+
+properties:
+
+p-post-office-box
+
+p-extended-address
+
+p-street-address
+
+p-locality
+
+p-region
+
+p-postal-code
+
+p-country-name
+
+p-label - new in vCard4 (RFC6350)
+
+p-geo (or u-geo with a RFC 5870 geo: URL) - new in vCard4 (RFC6350)
+
+p-latitude - new in vCard4 (RFC6350 from RFC 5870)
+
+p-longitude - new in vCard4 (RFC6350 from RFC 5870)
+
+p-altitude - new in vCard4 (RFC6350 from RFC 5870)
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-adr" is found, don't look for an "adr" on the same element.
+
+compat root class name: adr
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+post-office-box
+
+extended-address
+
+street-address
+
+locality
+
+region
+
+postal-code
+
+country-name
+
+h-card
+
+Main article: h-card
+
+The h-card microformat is for marking up people and organizations. This is an update to hCard.
+
+root class name: h-card
+
+profile/itemtype: http://microformats.org/profile/h-card
+
+properties:
+
+p-name
+
+p-honorific-prefix
+
+p-given-name
+
+p-additional-name
+
+p-family-name
+
+p-sort-string
+
+p-honorific-suffix
+
+p-nickname
+
+u-email
+
+u-logo
+
+u-photo
+
+u-url
+
+u-uid
+
+p-category
+
+p-adr
+
+p-post-office-box
+
+p-extended-address
+
+p-street-address
+
+p-locality
+
+p-region
+
+p-postal-code
+
+p-country-name
+
+p-label
+
+p-geo or u-geo with a RFC 5870 geo: URL, new in vCard4 (RFC6350)
+
+p-latitude
+
+p-longitude
+
+p-altitude - new in vCard4 (RFC6350 from RFC 5870)
+
+p-tel
+
+p-note
+
+dt-bday
+
+u-key
+
+p-org
+
+p-job-title - previously 'title' in hCard, disambiguated.
+
+p-role
+
+u-impp per RFC 4770, new in vCard4 (RFC6350)
+
+p-sex new in vCard4 (RFC6350)
+
+p-gender-identity new in vCard4 (RFC6350)
+
+dt-anniversary new in vCard4 (RFC6350)
+
+...
+
+Reserved properties: (properties not used much (if at all) in practice)
+
+p-organization-name
+
+p-organization-unit
+
+p-tz
+
+dt-rev
+
+...
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-card" is found, don't look for a "vcard" on the same element.
+
+compat root class name: vcard
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+fn - parse as p-name
+
+honorific-prefix
+
+given-name
+
+additional-name
+
+family-name
+
+honorific-suffix
+
+nickname
+
+email - parse as u-
+
+logo - parse as u-
+
+photo - parse as u-
+
+url - parse as u-
+
+uid - parse as u-
+
+category
+
+adr - parse as p-adr h-adr including compat root class adr
+
+extended-address
+
+street-address
+
+locality
+
+region
+
+postal-code
+
+country-name
+
+label
+
+geo - parse as p-geo h-geo including compat root class geo
+
+latitude
+
+longitude
+
+tel
+
+note
+
+bday - parse as dt-
+
+key - parse as u-
+
+org
+
+organization-name
+
+organization-unit
+
+title - parse as p-job-title
+
+role
+
+...
+
+Reserved: (backward compat properties that parsers MAY implement, if they do, they MUST implement in this way:
+
+tz
+
+rev - parse as dt-
+
+...
+
+Note: use of 'value' within 'tel' should be automatically handled by the support of the value-class-pattern. And for now, the 'type' subproperty of 'tel' is dropped/ignored. If there is demonstrable documented need for additional tel types (e.g. fax), we can introduce new flat properties as needed (e.g. p-tel-fax).
+
+h-entry
+
+Main article: h-entry
+
+The h-entry microformat is for marking up syndicatable content such as blog posts, notes, articles, comments, photos and similar. This is an update to hAtom.
+
+root class name: h-entry
+
+profile/itemtype: http://microformats.org/profile/h-entry
+
+properties:
+
+p-name (was p-entry-title, see issues)
+
+p-summary (was p-entry-summary, see issues)
+
+e-content (was e-entry-content, see issues)
+
+dt-published
+
+dt-updated
+
+p-author
+
+p-category
+
+u-url
+
+u-uid
+
+p-geo
+
+p-latitude
+
+p-longitude
+
+This is an update to hAtom.
+
+Brainstorming:
+
+The following properties are proposed additions to h-entry above and beyond what hAtom (or Atom) provides, based on various existing link preview markup conventions:
+
+u-photo
+
+u-audio - consider special u- parsing rules for &lt;audio&gt;
+
+u-video - consider special u- parsing rules for &lt;video&gt;
+
+u-in-reply-to - for links to other posts that this post is a reply to (comment regarding, etc.)
+
+Backward compatibility:
+
+(*)hAtom-specific implementations that perform custom display or translation (e.g. to Atom XML) SHOULD prefer p-name over p-entry-title, and use p-entry-title value(s) as a fallback if there is no p-name.
+
+For hAtom backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-entry" is found, don't look for a "hentry" on the same element.
+
+compat root class name: hentry
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+entry-title - parse as p-name
+
+entry-summary
+
+entry-content - parse as e-
+
+published - parse as dt-
+
+updated - parse as dt-
+
+author - including compat root vcard in the absence of h-card
+
+category
+
+geo - parse as p-geo h-geo including compat root geo
+
+latitude
+
+longitude
+
+...
+
+FAQ:
+
+What is the p-name of a note?
+
+A few options, from simplest to most detailed.
+
+same as the p-content/e-content property.
+
+same as the title element on the note permalink post page. When publishing a note on its own permalink post page, the contents of the note are likely abbreviated for the title of the page. The same abbreviation can be used for the p-name.
+
+first sentence of the p-content/e-content property. It may be better for syndication and link-preview purposes to provide just the first sentence of the note as the p-name. Similarly if only a portion of the content is syndicated to other sites, that portion can be marked up as the p-summary.
+
+...
+
+Resolved Issues:
+
+2012-245 Resolved. See 2012-243 IRC discussion/consensus for:
+
+Use p-summary instead of p-entry-summary. The historical semantic of "entry-summary" is not different from "summary" in any significant (or discernible way). Collapsing the two will simplify the overall microformats2 vocabularies further. In microformats2, entry-summary is no more.
+
+Use e-content instead of e-entry-content. Same point and advantage. In microformats2, entry-content is no more.
+
+drop p-entry-title. Unnecessary and subsumed by "p-name". Would consider move to backward compat only if cases are presented - known publishing uses are expected to be updated shortly.
+
+h-event
+
+Main article: h-event
+
+The h-event microformat is for marking up events. This is an update to hCalendar.
+
+root class name: h-event
+
+profile/itemtype: http://microformats.org/profile/h-event
+
+properties:
+
+p-name
+
+p-summary(*)
+
+dt-start
+
+dt-end
+
+dt-duration
+
+p-description
+
+u-url
+
+p-category
+
+p-location
+
+p-geo
+
+p-latitude
+
+p-longitude
+
+...
+
+This is an update to hCalendar.
+
+(*)hCalendar-specific implementations that perform custom display or translation (e.g. to iCalendar .ics) SHOULD prefer p-name over p-summary, and use p-summary value(s) as a fallback if there is no p-name.
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-event" is found, don't look for a "vevent" on the same element.
+
+compat root class name: vevent
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+summary - parse as p-name
+
+dtstart - parse as dt-start
+
+dtend - parse as dt-end
+
+duration - parse as dt-duration
+
+description
+
+url - parse as u-
+
+category
+
+location - including compat root vcard in the absence of h-card, and compat root adr in the absence of h-adr
+
+geo - parse as p-geo h-geo including compat root geo
+
+latitude
+
+longitude
+
+...
+
+h-geo
+
+Main article: h-geo
+
+The h-geo microformat is for marking up WGS84 geophysical coordinates. This is an update to geo.
+
+root class name: h-geo
+
+profile/itemtype: http://microformats.org/profile/h-geo
+
+properties:
+
+p-latitude
+
+p-longitude
+
+p-altitude - new in vCard4 (RFC6350 from RFC 5870)
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-geo" is found, don't look for an "geo" on the same element.
+
+compat root class name: geo
+properties: (parsed as p- plain text unless otherwise specified)
+
+latitude
+
+longitude
+
+h-item
+
+Main article: h-item
+
+The h-item microformat is for marking up the item of an h-review or h-product. This is an update to part of hReview.
+
+root class name: h-item
+
+profile/itemtype: http://microformats.org/profile/h-item
+
+properties:
+
+p-name
+
+u-photo
+
+u-url
+
+Note: in practice, due to the microformats2 implied property rules, it is expected that most uses of "h-item" won't require any explicit properties at all (since microformats2 parsers will infer name, photo, and url properties from the structure of the element with "h-item" and its contained content/elements if any).
+
+h-product
+
+Main article: h-product
+
+The h-product microformat is for marking up products. This is an update to hProduct.
+
+root class name: h-product
+
+profile/itemtype: http://microformats.org/profile/h-product
+
+properties:
+
+p-name - name of the product
+
+u-photo - photo of the product
+
+p-brand - manufacturer, can also be a nested h-card
+
+p-category - freeform categories or tags applied to the item by the reviewer
+
+e-description
+
+u-url - URL of the product
+
+u-identifier - includes type (e.g. mpn, upc, isbn, issn, sn, vin, sku etc.) and value.
+
+p-review - a review of the product, can also be a nested h-review
+
+p-price - retail price of the product
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-product" is found, don't look for an "hproduct" on the same element.
+
+compat root class name: hproduct
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+fn - parse as p-name
+
+photo  - parse as u-
+
+brand
+
+category
+
+description
+
+identifier - parse as u-
+
+url - parse as u-
+
+review - including compat root class hreview in the absence of h-review
+
+price
+
+Note: hProduct has at least one experimental property which has real world adoption due to Google and Bing search support of hProduct. Currently this is: price
+
+h-recipe
+
+Main article: h-recipe
+
+The h-recipe microformat is for marking up food recipes. This is an update to hRecipe.
+
+root class name: h-recipe
+
+profile/itemtype: http://microformats.org/profile/h-recipe
+
+properties:
+
+p-name - the name of the recipe
+
+p-ingredient - describes one or more ingredients used in the recipe.
+
+p-yield - Specifies the quantity produced by the recipe, like how many persons it satisfyies
+
+e-instructions - the method of the recipe.
+
+dt-duration - the time it takes to prepare the meal described by the recipe.
+
+u-photo - an accompanying image
+
+Experimental properties with wide adoption
+
+p-summary  - provides a short summary or introduction
+
+p-author - the person who wrote the recipe with h-card
+
+dt-published - the date the recipe was published
+
+p-nutrition - nutritional information like calories, fat, dietary fiber etc.
+
+...
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-recipe" is found, don't look for an "hrecipe" on the same element.
+
+compat root class name: hrecipe
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+fn - parse as p-name
+
+ingredient
+
+yield
+
+instructions - parse as e-
+
+duration - parse as dt-
+
+photo  - parse as u-
+
+summary
+
+author - including compat root vcard in the absence of h-card
+
+nutrition
+
+Note: hRecipe has a number of experimental properties which have real world adoption due to Google recipe search support of hRecipe. These are: summary, author, published and nutrition
+
+h-resume
+
+Main article: h-resume
+
+The h-resume microformat is for marking up resumes. This is an update to hResume.
+
+root class name: h-resume
+
+profile/itemtype: http://microformats.org/profile/h-resume
+
+properties:
+
+p-summary - overview of qualifications and objectives
+
+p-contact - current contact info in an h-card
+
+p-education - an education h-calendar event, years, nested h-card of the school, location.
+
+p-experience - a job or other professional experience h-calendar event, years, nested h-card of the organization, location, job-title.
+
+p-skill - a skill or ability, optionally including level and/or duration of experience
+
+p-affiliation - an affiliation with an h-card organization
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-resume" is found, don't look for an "hresume" on the same element.
+
+compat root class name: hresume
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+summary
+
+contact - including compat root vcard in the absence of h-card
+
+education - including compat root vevent in the absence of h-event
+
+experience - including compat root vevent in the absence of h-event
+
+skill
+
+affiliation - including compat root vcard in the absence of h-card
+
+Note: skill has a proposed expansion into competency with explicit summary, rating and/or duration components. Based on existing real world adoption, we should consider an h-competency vocabulary with p-summary, p-rating, and dt-duration properties.
+
+h-review
+
+Main article: h-review
+
+The h-review microformat is for marking up reviews. This is an update to hReview. See also h-item.
+
+root class name: h-review
+
+profile/itemtype: http://microformats.org/profile/h-review
+
+properties:
+
+p-name - name of the review
+
+p-item - thing been reviewed i.e. business or person (h-card), event (h-event), place (h-adr or h-geo), product (h-product), website, url, or other item (h-item).
+
+p-author - person who authored the review, optionally with an embedded h-card
+
+dt-published - date time of when the review was written and published
+
+p-rating - value from 1-5 indicating a rating for the item (5 best).
+
+p-best  - define best rating value. can be numerically lower than worst.
+
+p-worst  - define worst rating value. can be numerically higher than best.
+
+e-content - the full text written evaluation and opinion of the reviewer
+
+p-category - freeform categories or tags applied to the item by the reviewer
+
+u-url - URL of the review
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-review" is found, don't look for an "hreview" on the same element.
+
+compat root class name: hreview
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+summary parse as p-name
+
+fn - parse as p-name of the item being reviewed (p-item h-item p-name)
+
+photo - parse as u-photo of the item being reviewed (p-item h-item u-photo)
+
+url - parse as u-url of the item being reviewed (p-item h-item u-url)
+
+reviewer  - including compat root vcard in the absence of h-card
+
+dtreviewed - parse as dt-
+
+rating
+
+best
+
+worst
+
+description - parse as e-
+
+rel="tag" - parse as p-category
+
+rel="self bookmark" - parse as u-url. note that rel attribute value is treated as a space separated set, thus any presence of "self" and "bookmark" within such a set in a rel value is accepted.
+
+Note: The hReview format has three properties which make use of rel attribute, these are tag, permalink (via the self and bookmark values) and license. Microformats2 parsers SHOULD map these URLs into the page scoped rel collection.
+
+h-review-aggregate
+
+Main article: h-review-aggregate
+
+The h-review-aggregate microformat is for marking up aggregate reviews of a single item. This is an update to hreview-aggregate. See also h-item.
+
+root class name: h-review-aggregate
+
+profile/itemtype: http://microformats.org/profile/h-review-aggregate
+
+properties:
+
+p-name - name of the review
+
+p-item - thing been reviewed i.e. business or person (h-card), event (h-event), place (h-adr or h-geo), product (h-product), website, url, or other item (h-item).
+
+p-rating - value from 1-5 indicating average rating for the item (5 best).
+
+p-best  - define best rating value. can be numerically lower than worst.
+
+p-worst  - define worst rating value. can be numerically higher than best.
+
+p-count  - number of reviews aggregated.
+
+p-votes  - number of reviewers who have rated the product, thus contributing to the average rating.
+
+p-category - freeform categories or tags applied to the item by the reviewer
+
+u-url - URL of the review
+
+For backward compatibility, microformats2 parsers SHOULD detect the following root class name and property names. A microformats2 parser may use existing classic microformats parsers to extract these properties. If an "h-review-aggregate" is found, don't look for an "hreview-aggregate" on the same element.
+
+compat root class name: hreview-aggregate
+
+properties: (parsed as p- plain text unless otherwise specified)
+
+summary parse as p-name
+
+fn - parse as p-name of the item being reviewed (p-item h-item p-name)
+
+photo - parse as u-photo of the item being reviewed (p-item h-item u-photo)
+
+url - parse as u-url of the item being reviewed (p-item h-item u-url)
+
+rating
+
+best
+
+worst
+
+count
+
+votes
+
+rel="tag" - parse as p-category
+
+rel="self bookmark" - parse as u-url. note that rel attribute value is treated as a space separated set, thus any presence of "self" and "bookmark" within such a set in a rel value is accepted.
+
+v2 vocab notes
+
+Notes:
+
+All v2 vocabularies are defined as flat lists of properties of an object/item, and thus can be used in microformats-2 syntax as shown, or in microdata items, or RDFa. The microformats-2 property parsing prefixes "p-", "u-", "dt-", "e-" are omitted when using defined properties in microdata itemprop and RDFa property as those syntaxes have their own element-specific parsing rules.
+
+Profile URLs are provided for use with the HTML4 profile attribute, microdata itemtype attribute, and RDFa vocab &amp; typeof attributes (though the latter requires slicing off the trailing segment of the profile for the typeof attribute, and leaving the rest in vocab).
+
+microformats2 properties may also be explicitly bound as URIs using rel-profile, the html5-profile attribute proposal, or an HTML5 'vocab' attribute instead. If URI bound terms are important to you, please express interest on rel-profile, html5-profile, or contribute to an html5-vocab draft.
+
+v2 vocab to-do
+
+To do:
+
+write a simple tutorial for creating/getting started with microformats-2 markup for new content
+
+examples in each h-* spec listed above of how to embed other microformats in them
+
+actual profile documents at http://microformats.org/profile/h-* URLs mentioned above.
+
+Provide any necessary microdata-specific language as needed (e.g. to be comparably understandable to the sample vCard4/hCard1 microdata vocabulary. Also provide any necessary RDFa-specific language as needed. Both preferably in a generic vocabulary-independent way.
+
+write a porting guide mapping v1 property -&gt; v2 property
+
+use-case: simple search/replace in templates (e.g. in case web author doesn't remember existing microformats vocabs and where they used them).
+
+advise using *both* in existing templates (e.g. in case some CSS depends on the existing microformats)
+
+analyzie/document how well the microformats2 model and vocabularies satisfy the use-cases used to design/create microdata.
+
+combining microformats
+
+Since microformats2 uses simple flat sets of properties for each microformat, multiple microformats are combined to indicate additional structure.
+
+h-event location h-card
+
+Events commonly have venue information with additional structure, like address information. For example:
+
+&lt;div class=&quot;h-event&quot;&gt;
+  &lt;a class=&quot;p-name u-url&quot; href=&quot;http://indiewebcamp.com/2012&quot;&gt;
+    IndieWebCamp 2012
+  &lt;/a&gt;
+  from &lt;time class=&quot;dt-start&quot;&gt;2012-06-30&lt;/time&gt;
+  to &lt;time class=&quot;dt-end&quot;&gt;2012-07-01&lt;/time&gt; at
+  &lt;span class=&quot;p-location h-card&quot;&gt;
+    &lt;a class=&quot;p-name p-org u-url&quot; href=&quot;http://geoloqi.com/&quot;&gt;
+      Geoloqi
+    &lt;/a&gt;,
+    &lt;span class=&quot;p-street-address&quot;&gt;920 SW 3rd Ave. Suite 400&lt;/span&gt;,
+    &lt;span class=&quot;p-locality&quot;&gt;Portland&lt;/span&gt;,
+    &lt;abbr class=&quot;p-region&quot; title=&quot;Oregon&quot;&gt;OR&lt;/abbr&gt;
+  &lt;/span&gt;
+&lt;/div&gt;
+
+The nested h-card used to structure the p-location of the h-event is represented as a structured value for "location" in the JSON, which has an additional key, "value" that represents the plain text version parsed from the p-location.
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-event&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;IndieWebCamp 2012&quot;],
+      &quot;url&quot;: [&quot;http://indiewebcamp.com/2012&quot;],
+      &quot;start&quot;: [&quot;2012-06-30&quot;],
+      &quot;end&quot;: [&quot;2012-07-01&quot;],
+      &quot;location&quot;: [{
+        &quot;value&quot;: &quot;Geoloqi&quot;,
+        &quot;type&quot;: [&quot;h-card&quot;],
+        &quot;properties&quot;: {
+          &quot;name&quot;: [&quot;Geoloqi&quot;],
+          &quot;org&quot;: [&quot;Geoloqi&quot;],
+          &quot;url&quot;: [&quot;http://geoloqi.com/&quot;],
+          &quot;street-address&quot;: [&quot;920 SW 3rd Ave. Suite 400&quot;],
+          &quot;locality&quot;: [&quot;Portland&quot;],
+          &quot;region&quot;: [&quot;Oregon&quot;]
+        }
+      }]
+    }
+  }]
+}
+
+Questions:
+
+Should the nested hCard be present also as a top-level item in the JSON? - Tantek 02:02, 19 June 2012 (UTC)
+
+My current (2012-243) leaning is no. - Tantek 18:53, 30 August 2012 (UTC)
+
+If so, how do we avoid expansion of the JSON geometrically proportional to the depth of microformat nesting? (Or do we not worry about it?)
+
+Should there be a canonical hierarchical JSON and a canonical flattened JSON? - Tantek 02:02, 19 June 2012 (UTC)
+
+My current (2012-243) leaning is no, we stick with one canonical JSON for uf2 which is hierarchical. - Tantek 18:53, 30 August 2012 (UTC)
+
+If so, should the flattened JSON have references from properties to nested microformats that have been pushed to the top level per flattening? - Tantek 02:02, 19 June 2012 (UTC)
+
+If so, what convention does/do JSON follow for such synthetic local reference identifiers? - Tantek 02:02, 19 June 2012 (UTC)
+
+Notes:
+
+The 'location' value reflects the visible text of its element, including spaces and punctuation, as well as the state abbreviation 'OR'. The 'h-card' property values are only what is marked up, and thus include structure values without extra punctuation, and the state takes the expanded form from the title attribute of its &lt;abbr&gt; element.
+
+h-card org h-card
+
+People often publish information general to their company rather than specific to them, in which case, they may wish to encapsulate that in separately nested microformat. E.g. here is a simple h-card example with org property:
+
+Mitchell Baker (Mozilla Foundation)
+
+with source:
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;a class=&quot;p-name u-url&quot;
+     href=&quot;http://blog.lizardwrangler.com/&quot;
+    &gt;Mitchell Baker&lt;/a&gt;
+  (&lt;span class=&quot;p-org&quot;&gt;Mozilla Foundation&lt;/span&gt;)
+&lt;/div&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Mitchell Baker&quot;],
+      &quot;url&quot;: [&quot;http://blog.lizardwrangler.com/&quot;],
+      &quot;org&quot;: [&quot;Mozilla Foundation&quot;]
+    }
+  }]
+}
+
+Sometimes such organization affiliations are hyperlinked to the website of the organization:
+
+Mitchell Baker (Mozilla Foundation)
+
+You can mark that up with a nested h-card:
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;a class=&quot;p-name u-url&quot;
+     href=&quot;http://blog.lizardwrangler.com/&quot;
+    &gt;Mitchell Baker&lt;/a&gt;
+  (&lt;a class=&quot;p-org h-card&quot;
+      href=&quot;http://mozilla.org/&quot;
+     &gt;Mozilla Foundation&lt;/a&gt;)
+&lt;/div&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Mitchell Baker&quot;],
+      &quot;url&quot;: [&quot;http://blog.lizardwrangler.com/&quot;],
+      &quot;org&quot;: [{
+        &quot;value&quot;: &quot;Mozilla Foundation&quot;,
+        &quot;type&quot;: [&quot;h-card&quot;],
+        &quot;properties&quot;: {
+          &quot;name&quot;: [&quot;Mozilla Foundation&quot;],
+          &quot;url&quot;: [&quot;http://mozilla.org/&quot;]
+        }
+      }]
+    }
+  }]
+}
+
+Note: the nested h-card has implied 'name' and 'url' properties, just like any other root-class-name-only h-card on an &lt;a href&gt; would.
+
+FOR PARSERS ONLY:
+
+The nested 'h-card' could be marked up as an 'h-org' as well, which adds it to the nested microformat's type array, all as part of the property specified by the 'p-org'.
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;a class=&quot;p-name u-url&quot;
+     href=&quot;http://blog.lizardwrangler.com/&quot;
+    &gt;Mitchell Baker&lt;/a&gt;
+  (&lt;a class=&quot;p-org h-card h-org&quot;
+      href=&quot;http://mozilla.org/&quot;
+     &gt;Mozilla Foundation&lt;/a&gt;)
+&lt;/div&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Mitchell Baker&quot;],
+      &quot;url&quot;: [&quot;http://blog.lizardwrangler.com/&quot;],
+      &quot;org&quot;: [{
+        &quot;value&quot;: &quot;Mozilla Foundation&quot;,
+        &quot;type&quot;: [&quot;h-card&quot;, &quot;h-org&quot;],
+        &quot;properties&quot;: {
+          &quot;name&quot;: [&quot;Mozilla Foundation&quot;],
+          &quot;url&quot;: [&quot;http://mozilla.org/&quot;]
+        }
+      }]
+    }
+  }]
+}
+
+FOR PARSERS ONLY:
+
+Without a property class name like 'p-org' holding all the nested objects together, we need to introduce another array for nested children (similar to the existing DOM element notion of children) of a microformat that are not attached to a specific property:
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;a class=&quot;p-name u-url&quot;
+     href=&quot;http://blog.lizardwrangler.com/&quot;
+    &gt;Mitchell Baker&lt;/a&gt;
+  (&lt;a class=&quot;h-org h-card&quot;
+      href=&quot;http://mozilla.org/&quot;
+     &gt;Mozilla Foundation&lt;/a&gt;)
+&lt;/div&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Mitchell Baker&quot;],
+      &quot;url&quot;: [&quot;http://blog.lizardwrangler.com/&quot;]
+    },
+    &quot;children&quot;: [{
+      &quot;type&quot;: [&quot;h-card&quot;,&quot;h-org&quot;],
+      &quot;properties&quot;: {
+        &quot;name&quot;: [&quot;Mozilla Foundation&quot;],
+        &quot;url&quot;: [&quot;http://mozilla.org/&quot;]
+      }
+    }]
+  }]
+}
+
+Since there's no property class name on the element with classes 'h-card' and 'h-org', the microformat representing that element is collected into the children array.
+
+Such a nested microformat implies some relationship (containment, being related), but is not as useful as if the nested microformat was a specific property of its parent.
+
+For this reason it's recommended that authors should not publish nested microformats without a  property class name, and instead, when nesting microformats, authors should always specify a property class name (like 'p-org') on the same element as the root class name(s) of the nested microformat(s) (like 'h-card' and/or 'h-org').
+
+FOR PARSERS ONLY:
+
+Or the nested object could be only marked up with 'h-card'. Source:
+
+&lt;div class=&quot;h-card&quot;&gt;
+  &lt;a class=&quot;p-name u-url&quot;
+     href=&quot;http://blog.lizardwrangler.com/&quot;
+    &gt;Mitchell Baker&lt;/a&gt;
+  (&lt;a class=&quot;h-card&quot;
+      href=&quot;http://mozilla.org/&quot;
+     &gt;Mozilla Foundation&lt;/a&gt;)
+&lt;/div&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [{
+    &quot;type&quot;: [&quot;h-card&quot;],
+    &quot;properties&quot;: {
+      &quot;name&quot;: [&quot;Mitchell Baker&quot;],
+      &quot;url&quot;: [&quot;http://blog.lizardwrangler.com/&quot;]
+    },
+    &quot;children&quot;: [{
+      &quot;type&quot;: [&quot;h-card&quot;],
+      &quot;properties&quot;: {
+        &quot;name&quot;: [&quot;Mozilla Foundation&quot;],
+        &quot;url&quot;: [&quot;http://mozilla.org/&quot;]
+      }
+    }]
+  }]
+}
+
+TO DO: Add h-event h-card example and JSON, per real world publishing examples like Swing Time: Classes in Southern England.
+
+authoring
+
+minimal markup
+
+The best way to use microformats-2 is with as little additional markup as possible. This keeps your code cleaner, improves its maintainability, and thus the quality and longevity of your microformats.
+
+One big advantage of microformats-2 over previous microformats (and others) is the ability to add one class name to an existing element to create a structured item.
+
+See the simple examples at the top for a start, e.g.
+
+Simple hCards work just by adding class="h-card"&#160;:
+
+&lt;span class=&quot;h-card&quot;&gt;Frances Berriman&lt;/span&gt;
+
+&lt;a class=&quot;h-card&quot; href=&quot;http://benward.me&quot;&gt;Ben Ward&lt;/a&gt;
+
+&lt;img class=&quot;h-card&quot; alt=&quot;Sally Ride&quot;
+     src=&quot;http://upload.wikimedia.org/wikipedia/commons/a/a4/Ride-s.jpg&quot;/&gt;
+
+&lt;a class=&quot;h-card&quot; href=&quot;http://tantek.com&quot;&gt;
+ &lt;img alt=&quot;Tantek Çelik&quot; src=&quot;http://ttk.me/logo.jpg&quot;/&gt;
+&lt;/a&gt;
+
+Tip: Inside an open tag, put the class attribute first, then any human text content attributes (e.g. alt), then URL attributes (e.g. href src), and lastly other attributes (e.g. style). Putting the class attribute first ties it closely to the element name/tag itself, makes it more obvious, and thus more likely to be kept up to date.
+
+backward compatible
+
+If you depend on current microformats implementations, while they're being updated to support microformats2, you can include both existing classic microformats and microformats2 markup.
+
+In short: use both sets of class names simultaneously.
+
+When doing so, use them on the same element, with the microformats-2 class name first, followed immediately by the existing microformats class name.
+
+Here are the microformats-2 hCards from above with current hCard markup as well, which may require adding a wrapping element (e.g. a &lt;span&gt;) to separate the root class name element from explicit property class name elements:
+
+&lt;span class=&quot;h-card vcard&quot;&gt;
+  &lt;span class=&quot;p-name fn&quot;&gt;Frances Berriman&lt;/span&gt;
+&lt;/span&gt;
+
+&lt;span class=&quot;h-card vcard&quot;&gt;
+  &lt;a class=&quot;p-name fn u-url url&quot; href=&quot;http://benward.me&quot;&gt;Ben Ward&lt;/a&gt;
+&lt;/span&gt;
+
+&lt;span class=&quot;h-card vcard&quot;&gt;
+  &lt;img class=&quot;p-name fn u-photo photo&quot; alt=&quot;Sally Ride&quot;
+       src=&quot;http://upload.wikimedia.org/wikipedia/commons/a/a4/Ride-s.jpg&quot;/&gt;
+&lt;/span&gt;
+
+&lt;span class=&quot;h-card vcard&quot;&gt;
+  &lt;a class=&quot;u-url url&quot; href=&quot;http://tantek.com&quot;&gt;
+    &lt;img class=&quot;p-name fn u-photo photo&quot; alt=&quot;Tantek Çelik&quot;
+         src=&quot;http://ttk.me/logo.jpg&quot;/&gt;
+  &lt;/a&gt;
+&lt;/span&gt;
+
+Tips:
+
+use the microformats-2 class name first, e.g.
+
+class="h-card vcard"
+
+class="u-url url"
+
+and pair them when using an element for multiple properties, e.g.:
+
+class="p-name fn u-url url"
+
+class="p-name fn u-photo photo"
+
+put microformats classes after classes for CSS (since page authors will likely interact more with their own classes for design than with microformats classes), e.g. as used on individual microformats events pages:
+
+class="event-page h-event vevent"
+
+The prefixes (h-, p-, etc.) of microformats2 class names provide easier recognition, and when followed by the similarly named existing class name, they're more easily recognized as related and thus kept together when the markup is maintained over time.
+
+Related FAQ: When using both h-card and vcard which should be first and why?
+
+extensions
+
+microformats2 is extensible by means of two separate but syntactically similar extension prefixes for experiments intended to be iterated &amp; evolved and for vendor specific extensions not intended for standardization.
+
+experimental extensions
+
+There have been times when specific sites have wanted to extend microformats beyond the set of properties in the microformat vocabulary, and currently lack any experimental way to do so - to try and see if a feature (or even a whole format) is interesting in the real world before bothering to pursue researching and walking it through the microformats process.  Thus:
+
+For experimental extensions for the purpose of prototyping to learn more, iterate, towards possibly standardizing, use the -x- prefix before root and property class names.
+
+Specifically:
+
+'*-x-' + '-' + meaningful name for root and property class names
+
+where "*" indicates the single-character-prefix as defined above
+
+where "x" indicates a literal 'x' for an experimental extension
+
+Examples:
+
+"p-x-prep-time" - a possible experimental property name to be added to h-recipe upon consideration/documentation of real-world usage/uptake.
+
+See microformats2-experimental-properties for more examples.
+
+vendor extensions
+
+For vendor specific extensions, microformats2 uses a mechanism similar to CSS vendor extensions, using a similar syntax as experimental extensions, except with a vendor prefix instead of a literal 'x'.
+
+'*-x-' + '-' + meaningful name for root and property class names
+
+where "*" indicates the single-character-prefix as defined above
+
+where "x" indicates a vendor prefix (more than one character, e.g. like CSS vendor extension abbreviations, or some stock symbols, avoiding first words/phrases/abbreviations of microformats properties like dt-, numbers allowed after first character)
+
+Examples:
+
+"h-bigco-one-ring" - a hypothetical "bigco" vendor-specific "one-ring" microformat root class name.
+
+"p-goog-preptime" - to represent Google's "preptime" property extension to hRecipe (aside: "duration" may be another property type to consider separate from "datetime" as it may be subject to different parsing rules.)
+
+See vendor-prefixes for more examples.
+
+extensions background
+
+This extensibility mechanism is a composition of the following (at least somewhat) successful extension syntaxes:
+
+CSS 2.1 4.1.2.1 Vendor-specific extensions
+
+IETF MIME/content-type "x-*" extensions per RFC 2045 Section 6.3. [1]
+
+IETF MIME experimental fields (e.g. x-spam-score)
+
+HTTP header extensions (e.g. x-pingback)
+
+note also some critical thoughts from mnot
+
+In particular:
+
+Proprietary extensions to formats have typically been shortlived experimental failures with one big recent exception.
+
+Proprietary or experimental CSS3 property implementations have been very successful.
+
+There has been much use of border radius properties and animations/transitions which use CSS properties with vendor-specific prefixes like:
+
+-moz-border-radius
+
+-webkit-border-radius
+
+etc.
+
+Note that these are merely string prefixes, not bound to any URL, and thus not namespaces in any practical sense of the word.  This is quite an important distinction, as avoiding the need to bind to a URL has made them easier to support and use.
+
+This use of vendor specific CSS properties allowed the larger web design/development/implementor communities to experiment and iterate on new CSS features while the features were being developed and standardized.
+
+The benefits have been two-fold:
+
+designers have been able to make more attractive sites sooner (at least in some browsers)
+
+features have been market / real-world tested before being fully standardized, thus resulting in better features
+
+Implementers have used/introduced "x-" prefixes for IETF MIME/content-types for experimental content-types, MIME parameter extensions, and HTTP header extensions, per RFC 2045 Section 6.3, RFC 3798 section 3.3, and Wikipedia: HTTP header fields - non-standard headers (could use RFC reference instead) respectively, like:
+
+application/x-latex (per Wikipedia Internet media type: Type x)
+
+x-spam-score (in email headers)
+
+X-Pingback (per Wikipedia:Pingback)
+
+Some standard types started as experimental "x-" types, thus demonstrating this experiment first, standardize later approach has worked for at least some cases:
+
+image/x-png (standardized as image/png, both per RFC2083)
+
+See microformats2-origins#VENDOR_EXTENSIONS for more background.
+
+validators
+
+microformats2 validators:
+
+new! Test your microformatted web page with:
+
+https://pin13.net/mf2/
+
+Barnaby Walters has a hosted version of the open source php-mf2 parser where you can enter your markup into a textarea and see how it's parsed:
+
+http://waterpigs.co.uk/php-mf2/
+
+See the validators page for a longer list of validators.
+
+Examples in the wild
+
+Please add new examples in the wild of microformats-2 to the top of this list. When it gets too big we can move it to a separate page like microformats-2-examples-in-wild.
+
+...
+
+David John Mead marks up his profile, blog posts and comments with h-card, h-entry and h-cite on davidjohnmead.com
+
+Brian Suda marks up his blog posts up with h-entry and h-card on optional.is
+
+Ashton McAllan marks up her blog posts, reposts, comments and likes with h-entry, h-card and h-cite on acegiak.net
+
+Emma Kuo marks up her blog posts and notes with h-entry and h-card on notenoughneon.com
+
+Scott Jenson marks up his blog posts with h-entry and h-card on jenson.org
+
+Emily McAllen marks up her blog posts with h-entry and h-card on blackwoolholiday.com
+
+Ryan Barrett marks up his blog posts, notes, replies and likes with h-entry and h-card on snarfed.org
+
+Barry Frost marks up his notes with h-entry, h-card and h-cite on barryfrost.com
+
+Amber Case marks up her profile, blog posts, replies and notes with h-entry and h-card on caseorganic.com
+
+Johannes Ernst marks up his blog posts with h-entry on upon2020.com
+
+Michiel de Jong marks up his profile and notes with h-entry and h-card on michielbdejong.com
+
+Mike Taylor marks up his profile and blog posts with h-card and h-entry on bear.im
+
+Erin Jo Ritchey marks up her profile, posts and comments using h-card, h-entry and h-cite with idno on erinjo.is
+
+Jeena Paradies marks up his profile, blog posts, notes and comments using h-card, h-entry and h-cite on jeena.net
+
+Andy Sylvester marks up his profile, blog posts and comments using h-card and h-entry on andysylvester.com (note: as of 2014-03-13 using h-entry for comments instead of correct h-cite --bw 14:44, 13 March 2014 (UTC))
+
+Hakan Demir marks up his Coupon and Voucher blog posts with h-entry and h-card on gutscheinflagge.de
+
+Chloe Weil marks up her blog posts with h-entry on chloeweil.com
+
+Christophe Ducamp marks up his blog posts and profile with h-entry and h-card on christopheducamp.com
+
+Glenn Jones marks up his blog posts, notes, replies, profile and comments with h-entry, h-card and h-cite on glennjones.net
+
+Marcus Povey marks up his blog posts and profile with h-entry and h-card on marcus-povey.co.uk
+
+Eugen Busoiu marks up his web profile with h-card on eugenbusoiu.com]
+
+Matthias Pfefferle marks up his blog posts, comments and profile with h-card, h-cite and h-entry on notizblog.org
+
+Kyle Mahan marks up his profile and notes with h-card and h-entry on kylewm.com
+
+Emil Björklund marks up his blog posts with h-entry and h-card (example)
+
+App.net rolled out support for h-card and h-entry on all profile pages and permalink pages as of 2013-08-06 (example)
+
+Brett Comnes marks up his posts with h-entry and h-card (example)
+
+Ben Werdmuller marks up his posts with h-card and h-entry, u-in-reply-to and u-like (example)
+
+Sandeep Shetty marks his posts up with h-card and h-entry, as well as draft u-in-reply-to and experimental u-like properties (example)
+
+Laurent Eschenauer marks up his posts with h-entry (example)
+
+Tom Morris marks up his posts using h-entry (example)
+
+Sinolandquality marks up some of their content using h-feed and h-entry on sinolandquality.com
+
+W3Conf 2013 uses h-event for the main event, and h-card for all the speakers and notable attendees. The h-cards make particularly good use of implied name, url, and photo properties.
+
+SemPress is a WordPress theme that supports h-card, h-feed/h-entry and h-as-*
+
+The Pastry Box Project use h-card and h-entry markup on their homepage and individual thoughts pages
+
+Tom Morris uses h-card and XFN to markup his blogroll.
+
+Aaron Parecki uses h-card to markup both authorship and references to people in his notes permalinks, e.g. 2012/230/reply/1.
+
+Tantek Çelik uses h-card, h-event, and h-entry on his home page, as well as h-entry on all post permalinks, e.g. 2012-243 post, with rel-prev/rel-next (if applicable) to indicate prev/next posts, and with rel-author to his home page with canonical hCard to indicate authorship.
+
+Barnaby Walters uses h-card on his home page, h-card, h-entry and XFN markup on his notes page.
+
+2013-01-25 Barnaby Walters: Experimental Markup - describes how he's using microformats2 vocabularies: h-adr, h-card, h-entry, h-event, h-geo, h-review, and experimental vocabularies: h-feed (embedded for update histories), activity-streams objects h-as-article, h-as-collection, h-as-note, h-as-update, as well as experimental properties: u-alternate and u-as-downstream-duplicate (links to POSSE copies), and u-in-reply-to (links to content that the posts are in reply to).
+
+microformats.org at 7 years presentation with h-event and h-card markup for people and organizations.
+
+Rise of the Indie Web hCards (from Personal Democracy Forum 2012 #pdf12 #pdf2012) has microformats-2 h-calendar and h-card markup
+
+WebMaker by Mozilla has microformats-2 h-calendar and h-card on event search (e.g. search near Portland Oregon) and event pages (e.g. IndieWebCamp 2012).[2]
+
+WebFWD by Mozilla has microformats-2 h-card markup on experts and team pages
+
+IndieWebCamp has microformats-2 h-event markup with nested h-cards for the organizers and the location.
+
+Mozilla Events page has microformats-2 h-event markup with attendees marked up with h-card.
+
+The Esri PDX Blog has h-entry markup on all blog posts (as of 2013-10-19), and h-product markup on project pages
+
+offline
+
+spreadly marks up share permalink pages with h-entry, as well as minimal h-cards and experimental p-like properties
+
+Implementations
+
+Test your microformatted web page with:
+
+Live Textarea Input
+
+Use any of these to enter HTML+microformats2 markup and see the parsed result!
+
+https://microformats.io hosts several of the parser libraries listed below for interactive testing
+
+https://go.microformats.io
+
+https://node.microformats.io/
+
+https://php.microformats.io/
+
+https://python.microformats.io/
+
+https://ruby.microformats.io/
+
+or look for "Parser Libraries" on the homepage
+
+https://pin13.net/mf2/ (where it says "Microformats Parser")
+
+Blogging tools
+
+Storytlr parses the target from pingbacks for h-entry with properties and nested h-card for information to automatically display in the comments section on a post (archived; original).
+
+Note: per storytlr.org, retrieved 2022-05-22:
+
+Storytlr is no longer maintained and might be unsafe to run on a public server. It is running on an old version of PHP and the Zend framework and has not been upgraded to latest versions and security patches.
+
+Converters
+
+granary is a library and REST API that converts between silo APIs, ActivityStreams, microformats2, and Atom (all directions). Supported silos include Facebook, Twitter, Instagram, Google+, and Flickr. Users include Bridgy, Woodwind, and facebook-atom and twitter-atom, among others.
+
+microformats to RSS - a Yahoo! pipe that converts a URL containing an h-feed containing h-entries, into an RSS feed (2013-10-21 blog post announcing)
+
+XRay (source code) - Returns a normalized representation of the microformats data at a URL
+
+Parsers
+
+Parsers, open source libraries, in alphabetical order by programming language:
+
+If you are implementing a microformats2 parser, see:
+
+microformats2-parsing
+
+Parsers in production
+
+The following parsers are of very high quality, in active development, and use on live sites on the web in production.
+
+Java
+
+any23 Apache Any23 (Anything to Triples)] a library, a web service and a command line tool that extracts structured data in RDF format from a variety of Web documents: http://any23.apache.org
+
+Javascript
+
+microformats-parser for both browser and node.js
+
+github open source: https://github.com/aimee-gm/microformats-parser (current)
+
+live: https://aimee-gm.github.io/microformats-parser/
+
+Previously:
+
+microformat-node Node.js microformats2 parser
+
+github open source: https://github.com/microformats/microformat-node (current)
+
+forked from https://github.com/glennjones/microformat-node
+
+test suite: https://github.com/microformats/tests
+
+command line: https://github.com/JerrySievert/mf2
+
+microformat-shiv  - cross browser javascript microformats2 parser which can also be used in browser extensions.
+
+github open source: https://github.com/glennjones/microformat-shiv
+
+PHP
+
+php-mf2 - PHP microformats2 parser
+
+github open source: https://github.com/indieweb/php-mf2
+
+Packagist: https://packagist.org/packages/mf2/mf2
+
+live:
+
+textarea entry: http://waterpigs.co.uk/php-mf2/
+
+URL and textarea entry: https://pin13.net/mf2/
+
+mf-cleaner: functions for working with the raw mf2 data structure
+
+Python
+
+mf2py Python microformats2 parser
+
+main entry: mf2py
+
+github open source: https://github.com/tommorris/mf2py
+
+live:
+
+URL entry: mf2py.herokuapp.com
+
+textarea entry: https://kartikprabhu.com/connection/mfparser
+
+another textarea: http://www.unmung.com/?html=
+
+URL and/or textarea: https://kylewm.com/services/mf2
+
+Ruby
+
+indieweb/microformats-ruby Ruby microformats parser
+
+github open source: https://github.com/indieweb/microformats-ruby
+
+live text entry: https://microformats-parser-ruby.herokuapp.com
+
+Haskell
+
+myfreeweb/microformats2-parser Haskell microformats2 parser
+
+github open source: https://github.com/myfreeweb/microformats2-parser
+
+live textarea entry: https://unrelenting.technology/mf2/
+
+Development parsers
+
+The following parsers are in-development and have key microformats2 functionality yet are incomplete, not fully tested, or have other limitations. Contributions welcome!
+
+Erlang
+
+hazybluedot/mf2erl Erlang microformats2 parser
+
+github open source: https://github.com/hazybluedot/mf2erl
+
+Elixir
+
+ckruse/microformats-elixir Elixir microformats2 parser
+
+github open source: https://github.com/ckruse/microformats2-elixir
+
+Go
+
+willnorris/microformats Golang microformats2 parser
+
+github open source: https://github.com/willnorris/microformats
+
+live textarea entry: https://go.microformats.io/
+
+Java
+
+Apache Any23 a library, a web service and a command line tool that extracts structured data in RDF format from a variety of Web documents. Supports Microformats1 and 2.
+
+Download recent release: http://any23.apache.org/download.html
+
+live: http://any23-vm.apache.org/
+
+source: http://any23.apache.org/build-src.html
+
+mf2j An early-stage Java microformats2 parser
+
+github open source: https://github.com/kylewm/mf2j
+
+live: https://mf2j.herokuapp.com/?url={http://example.com}
+
+Perl
+
+Web::Microformats2 Perl microformats2 parser
+
+https://metacpan.org/pod/Web::Microformats2
+
+open source: https://github.com/jmacdotorg/microformats2-perl
+
+Experiments
+
+Experiments and other proof of concept microformat2 parsing support.
+
+Rust - https://gitlab.com/maxburon/microformats-parser
+
+...
+
+Outreach
+
+Mozilla Fathom:  examples with nested classes, e.g. microformats2
+
+Presentations
+
+Presentations about microformats2:
+
+2013-01-24 Microformats 2 presentation by Barnaby Walters at the Exeter Web Meetup in Devon, UK.
+
+2012-09-21 microformats2 &amp; bits of HTML5: The Evolution Of Web Data presentation by Tantek Çelik (@t) at RefreshLX in Lisbon, Portugal.
+
+2012-07-21 HTML5 and microformats2: The Evolution Of Web Data presentation by Tantek Çelik (@t) at Innovators of the Web conference in San Francisco, CA.
+
+2012-07-14 HTML5 and microformats2: The Evolution Of Web Data presentation by Tantek Çelik (@t) at Open Web Camp IV in San Jose, CA.
+
+Testimonials
+
+To prove the web standards community can come up with better standards than the SE’s, compare this: http://microformats.org/wiki/microformats-2 with schema . org &#8212; Joost de Valk (@yoast) 2013-02-05 13:35
+
+... I’m hoping SE’s will pick up microformats2. It’s SO much cleaner. &#8212; Joost de Valk (@yoast) 2013-02-05 13:49
+
+... But damn Microformats2 are sexy. &#8212; Joost de Valk (@yoast) 2013-02-05 13:53
+
+Origins
+
+This page was originally used to brainstorm and develop microformats2 in an exploratory manner, with problem statements, questions, lessons learned from past and other formats.
+
+Now that microformats2-parsing is a Microformats specification, the original brainstorming has been moved to a separate page for anyone who wants to understand more about how we came up with the design of microformats2, and how it evolved in the early years.
+
+microformats2-origins
+
+See Also
+
+microformats2
+
+microformats2-brainstorming - moving more experimental / undeveloped / and rejected thoughts ideas here to simplify/progress *this* page further.
+
+microformats2-experimental-properties - listing experimental (-x- prefixed) properties and their use
+
+microformats2-prefixes
+
+vendor-prefixes
+
+microformats2-faq
+
+microformats2-parsing
+
+2010-05-02 microformats 2.0 discussion session at FOO East
+
+Retrieved from "http://microformats.org/wiki/index.php?title=microformats2&amp;oldid=70871"
+
+Navigation menu
+
+				Search

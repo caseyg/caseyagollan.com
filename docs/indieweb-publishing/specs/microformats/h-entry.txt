@@ -1,0 +1,616 @@
+h-entry
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+h-entry is a simple, open format for content on the web. h-entry is often used with content intended to be syndicated, e.g. blog posts. h-entry is one of several open microformat standards suitable for embedding data in HTML.
+
+h-entry is the microformats2 update to hAtom, in particular its "hentry" root class which itself was based on Atom's "entry" element. For an update to "hfeed" see h-feed.
+
+Status
+This is a Living Specification yet mature enough to encourage additional implementations and feedback. This specification has portions that are stable, draft, and proposed. Features are stable unless explicitly labeled draft or proposed, or in draft or proposed sections. Draft and proposed features are likely to change substantively. While substantive changes to stable features are unexpected, it is a living specification subject to substantive change by issues and errata filed in response to implementation experience, requiring consensus among participating implementers as part of an explicit change control process.
+Participate
+Open Issues
+Resolved issues before 2012-246
+IRC
+Advance the spec by following explicit change control process
+
+Editor
+Tantek Çelik
+
+License
+Per CC0, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the Open Web Foundation Agreement Version 1.0.
+
+Contents
+
+1 Example
+
+2 Get started
+
+3 Properties
+
+3.1 Core Properties
+
+3.2 Draft Properties
+
+3.3 Proposed Additions
+
+3.4 Proposing and upgrading
+
+4 Property Details
+
+4.1 p-location
+
+5 FAQ
+
+5.1 p-name of a note
+
+5.2 venue an entry was posted from
+
+5.3 address an entry was posted from
+
+5.4 lat long an entry was posted from
+
+5.5 dt-published property and HTML5 time element
+
+5.6 what is the bare minimum list of required properties on an h-entry
+
+6 Examples in the wild
+
+6.1 offline
+
+7 Validating
+
+8 Implementations
+
+9 Backward Compatibility
+
+9.1 Publisher Compatibility
+
+9.2 Parser Compatibility
+
+9.3 Compat FAQ
+
+9.3.1 What about rel bookmark
+
+9.3.2 Why rename entry-title entry-summary entry-content
+
+10 Related Work
+
+11 Background
+
+12 change control
+
+13 See Also
+
+Example
+
+Here is a simple blog post example:
+
+&lt;article class=&quot;h-entry&quot;&gt;
+  &lt;h1 class=&quot;p-name&quot;&gt;Microformats are amazing&lt;/h1&gt;
+  &lt;p&gt;Published by &lt;a class=&quot;p-author h-card&quot; href=&quot;http://example.com&quot;&gt;W. Developer&lt;/a&gt;
+     on &lt;time class=&quot;dt-published&quot; datetime=&quot;2013-06-13 12:00:00&quot;&gt;13&lt;sup&gt;th&lt;/sup&gt; June 2013&lt;/time&gt;&lt;/p&gt;
+
+  &lt;p class=&quot;p-summary&quot;&gt;In which I extoll the virtues of using microformats.&lt;/p&gt;
+
+  &lt;div class=&quot;e-content&quot;&gt;
+    &lt;p&gt;Blah blah blah&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/article&gt;
+
+Parsed JSON:
+
+{
+  &quot;items&quot;: [
+    {
+      &quot;type&quot;: [
+        &quot;h-entry&quot;
+      ],
+      &quot;properties&quot;: {
+        &quot;name&quot;: [
+          &quot;Microformats are amazing&quot;
+        ],
+        &quot;author&quot;: [
+          {
+            &quot;value&quot;: &quot;W. Developer&quot;,
+            &quot;type&quot;: [
+              &quot;h-card&quot;
+            ],
+            &quot;properties&quot;: {
+              &quot;name&quot;: [
+                &quot;W. Developer&quot;
+              ],
+              &quot;url&quot;: [
+                &quot;http://example.com&quot;
+              ]
+            }
+          }
+        ],
+        &quot;published&quot;: [
+          &quot;2013-06-13 12:00:00&quot;
+        ],
+        &quot;summary&quot;: [
+          &quot;In which I extoll the virtues of using microformats.&quot;
+        ],
+        &quot;content&quot;: [
+          {
+            &quot;value&quot;: &quot;Blah blah blah&quot;,
+            &quot;html&quot;: &quot;&lt;p&gt;Blah blah blah&lt;/p&gt;&quot;
+          }
+        ]
+      }
+    }
+  ]
+}
+
+Get started
+
+The class h-entry is a root class name that indicates the presence of an h-entry.
+
+p-name, p-author, dt-published and the other h-entry property classnames listed below define properties of the h-entry.
+
+Note: The purpose of an entry is to place it around both the explicitly written content (in the content property or in other specific properties for non-textual content or responses) and whatever else is the context for that content, including properties for when it was published and/or updated, who created it, tags or categorization, and links to what the content is a response to (perhaps with a quoted excerpt) and/or links to syndicated copies.
+
+Properties
+
+h-entry properties, inside an element with class h-entry. All properties are both optional and may have multiple instances, e.g. multiple name, url, photo etc. properties.
+
+See microformats2-parsing to learn more about property classnames.
+
+Core Properties
+
+The following core h-entry properties have broad consensus and are broadly interoperably published and consumed:
+
+p-name - entry name/title
+
+p-summary - short entry summary
+
+e-content - full content of the entry
+
+dt-published - when the entry was published
+
+dt-updated - when the entry was updated
+
+p-author - who wrote the entry, optionally embedded h-card(s)
+
+p-category - entry categories/tags
+
+u-url - entry permalink URL
+
+u-uid - universally unique identifier, typically canonical entry URL
+
+p-location - location the entry was posted from, optionally embed h-card, h-adr, or h-geo
+
+u-syndication - URL(s) of syndicated copies of this post. The property equivalent of rel-syndication (archived example)
+
+u-in-reply-to - the URL which the h-entry is considered reply to (i.e. doesn’t make sense without context, could show up in comment thread), optionally an embedded h-cite (reply-context) (example)
+
+p-rsvp (enum, use &lt;data&gt; element or value-class-pattern)
+
+"yes", "no", "maybe", "interested". Case-insensitive values, normalized to lowercase. Examples:
+
+... &lt;data class="p-rsvp" value="YES"&gt;is going&lt;/data&gt; to ..., or
+
+... &lt;data class="p-rsvp" value="Maybe"&gt;might go&lt;/data&gt; to ...
+
+... &lt;data class="p-rsvp" value="no"&gt;unable to go&lt;/data&gt; to ...
+
+... &lt;data class="p-rsvp" value="interested"&gt;am interested/tracking/watching&lt;/data&gt;  ...
+
+u-like-of - the URL which the h-entry is considered a “like” (favorite, star) of. Optionally an embedded h-cite
+
+u-repost-of - the URL which the h-entry is considered a “repost” of. Optionally an embedded h-cite.
+
+Draft Properties
+
+The following draft properties are in use in the wild (published and consumed), and are under strong consideration, but are not yet part of the core:
+
+p-comment - optionally embedded (or nested?) h-cite(s), each of which is a comment on/reply to the parent h-entry. See comment-brainstorming (example)
+
+Issue 20
+
+u-photo - one or more photos that is/are considered the primary content of the entry, unless there is a p-location h-card, which is still considered a "checkin" (i.e. with a photo). Otherwise the presence of a u-photo means the name of the entry should be interpreted as a caption on the photo, and the summary/content should be interpreted as a description of the photo.
+
+Issue 4: u-photo draft-&gt;core bc way more than 3+ pub and consuming impls/sites
+
+depends on: Issue 24: Update Definition of Draft Property u-photo
+
+depends on: Issue 23: E-Content Overlaps with u-photo and similar properties
+
+Proposed (issue TBF): A u-photo property MUST be on an element that provides a text description for the image (e.g. &lt;img alt=""&gt;) UNLESS the image is already described inside the contents a text property such as p-name, p-summary, or e-content
+
+u-video - special u- parsing rules for &lt;video src&gt; &amp; &lt;source src&gt;
+
+Issue 5
+
+Proposed Additions
+
+The following properties are proposed additions based on various use-cases, such as existing link preview markup conventions, but are awaiting citations of use across multiple sites in the wild, and at least one reader / real world consuming code example:
+
+u-audio - special u- parsing rules for &lt;audio src&gt; &amp; &lt;source src&gt;. Examples: Transportini,possibly more
+
+Issue 6
+
+u-like - similar to p-comment, URL to a like post of the current post, e.g. in a responses list or facepile.
+
+Issue 32
+
+u-repost - similar to u-like, URL to a repost of the current post, e.g. in a responses list or facepile.
+
+Issue 30
+
+u-bookmark-of - indicates this h-entry is a bookmark of another URL. Optionally an h-cite. See indieweb.org/bookmark for examples in the wild.
+
+Issue 12
+
+u-featured - a representative photo or image for the entry, e.g. primary photo for an article or subject-cropped photo, suitable for use in a link-preview.
+
++1 sknebel: https://github.com/microformats/h-entry/issues/14
+
+Location Properties - https://github.com/microformats/h-entry/issues/29
+
+p-latitude - latitude of the location of the entry
+
+p-longitude - longitude of the location of the entry
+
+p-altitude - altitude of the location of the entry
+
+p-duration - duration of an audio or video file in the entry. https://indieweb.org/duration Multiple publishers and consumers in the wild; https://github.com/snarfed/granary/issues/169 more background.
+
+Issue 21
+
+p-size - size in bytes of an audio or video file in the entry. https://indieweb.org/size Multiple publishers and consumers in the wild; https://github.com/snarfed/granary/issues/169 more background.
+
+u-listen-of - also known as a 'scrobble', indicates this h-entry is a listen of another URL. Optionally an h-cite. https://github.com/microformats/h-entry/issues/11
+
+u-watch-of - indicates this h-entry is a watch of another URL, a visual version of the scrobble. Optionally an h-cite. https://github.com/microformats/h-entry/issues/17
+
+p-read-of - indicates this h-entry is a read post of some written work (book or other document). The value can be the title of the work or an h-cite. Proposal also mentions u-read-of, where the value would be a URL to the written work or a representative citation page. https://github.com/microformats/h-entry/issues/10
+
+u-translation-of - indicates this h-entry is a translation of the linked URL into another language. Can be used in the same way as the existing u-like-of and u-repost-of properties, with just the URL to the original h-entry, or (optionally) contain an embedded h-cite. https://github.com/microformats/h-entry/issues/26
+
+u-checkin - the URL of the venue/location h-card which the h-entry is considered a “checkin” of. Optionally an embedded h-card. https://github.com/microformats/h-entry/issues/15
+
+u-review-of - the URL which the h-entry is considered a review of, optionally an embedded h-cite, h-card, h-event, or h-item. This could allow retirement of the h-review as unnecessary, in theory.
+
+Issue 32
+
+The following interpretation is also proposed addition:
+
+if the p-location is also an embedded h-card, the entry is treated as a "checkin".
+
+-1 Aaronpk 14:22, 19 January 2017 (UTC) this post is not a checkin, but has an h-card as the p-location property.
+
+Note: As h-entry usage grows to express and consume different kinds of content, we expect additional properties may be proposed and iterated as demonstrated by real-world needs, usage, and interoperability.
+
+Proposing and upgrading
+
+How do you add proposed properties and then upgrade them to draft and then core properties?
+
+See: change control
+
+Property Details
+
+This section is a stub.
+
+p-location
+
+p-location has been re-used from h-event.
+
+FAQ
+
+p-name of a note
+
+What is the p-name of a note?
+
+You probably should avoid adding p-name to notes. See https://indieweb.org/note for more discussion of the topic.
+
+venue an entry was posted from
+
+How do you indicate a named venue where an entry was posted from? Like a restaurant or park.
+
+Use an embedded h-card microformat on a p-location property value.
+
+address an entry was posted from
+
+How do you indicate the address where an entry was posted from? Like a restaurant or park.
+
+If the address is just part of a named venue, see above, use an h-card
+
+Otherwise use an embedded h-adr microformat on a p-location property value.
+
+lat long an entry was posted from
+
+How do you indicate the latitude and longitude of where an entry was posted from?
+
+If the location has a name in addition to latitude and longitude, see above, use an h-card
+
+Otherwise if there is an address in addition to latitude and longitude, see above, use an h-adr
+
+Otherwise use an embedded h-geo microformat on a p-location property value.
+
+dt-published property and HTML5 time element
+
+Does the dt-published property need to be a time element?
+
+The dt-published property should be a &lt;time&gt; element so that you can take advantage of HTML5's "datetime" property.
+
+This lets you specify a human-readable date in the value of the attribute, and the ISO8601 machine-readable date in the "datetime" property.
+
+what is the bare minimum list of required properties on an h-entry
+
+What is the bare minimum list of required properties on an h-entry?
+No properties are explicitly required, but in practice a h-entry should have the following properties at a minimum for consumers:
+
+url
+
+published — if there is no "published" date for the "entry", then reconsider whether it is correct (or worth) marking it up as an entry.
+
+What properties should an h-entry have in addition to the bare minimum?
+Beyond the bare minimum, a typical h-entry should have the following as well:
+
+content (or summary at least) - especially for structured content. For a plain text note, the content/summary (whichever is used) should be the same as the name, otherwise it will be implied from the text content of the root element.
+
+name - for explicitly named/titled entries like blog posts and articles. Otherwise the entry is assumed to be a "title-less" note (like a tweet).
+
+author - including a nested h-card with author details like name, photo, url.
+
+Examples in the wild
+
+Real world in the wild examples of sites and services that publish or consume h-entry:
+
+... add uses of h-entry you see in the wild here.
+
+ind.ie mark up their blog listing and permalink pages with h-entry
+
+David John Mead marks up his profile, blog posts and comments with h-card, h-entry and h-cite on davidjohnmead.com
+
+Brian Suda marks up his blog posts up with h-entry and h-card on optional.is
+
+Ashton McAllen marks up his blog posts, reposts, comments and likes with h-entry, h-card and h-cite on acegiak.net
+
+Emma Kuo marks up her blog posts and notes with h-entry and h-card on notenoughneon.com
+
+Scott Jenson marks up his blog posts with h-entry and h-card on jenson.org
+
+Emily McAllen marks up her blog posts with h-entry and h-card on blackwoolholiday.com
+
+Ryan Barrett marks up his blog posts, notes, replies and likes with h-entry and h-card on snarfed.org
+
+Barry Frost marks up his notes with h-entry, h-card and h-cite on barryfrost.com
+
+Amber Case marks up her profile, blog posts, replies and notes with h-entry and h-card on caseorganic.com
+
+Johannes Ernst marks up his blog posts with h-entry on upon2020.com
+
+Michiel de Jong marks up his profile and notes with h-entry and h-card on michielbdejong.com
+
+Mike Taylor marks up his profile and blog posts with h-card and h-entry on bear.im
+
+Jeena Paradies marks up his profile, blog posts, notes and comments using h-card, h-entry and h-cite on jeena.net
+
+Andy Sylvester marks up his profile, blog posts and comments using h-card and h-entry on andysylvester.com (note: as of 2014-03-13 using h-entry for comments instead of correct h-cite --bw 14:44, 13 March 2014 (UTC))
+
+Chloe Weil marks up her blog posts with h-entry on chloeweil.com
+
+Christophe Ducamp marks up his blog posts and profile with h-entry and h-card on christopheducamp.com
+
+Glenn Jones marks up his blog posts, notes, replies, profile and comments with h-entry, h-card and h-cite on glennjones.net
+
+Marcus Povey marks up his blog posts and profile with h-entry and h-card on marcus-povey.co.uk
+
+Matthias Pfefferle marks up his blog posts, comments and profile with h-card, h-cite and h-entry on notizblog.org
+
+Okinawan-lyrics marks up his posts with h-entry and h-card (example)
+
+App.net marks up profile pages and permalink pages with h-entry as of 2013-08-06 (example)
+
+The Twitter archive browser UI uses h-entry and h-card internally, unfortunately it’s not exposed as HTML in static files anywhere
+
+Brett Comnes marks up his posts with h-entry and h-card (example)
+
+Ben Werdmuller marks up his posts with h-card and h-entry, u-in-reply-to and u-like (example)
+
+Sandeep Shetty marks his posts up with h-card and h-entry, as well as draft u-in-reply-to and experimental u-like properties (example)
+
+Laurent Eschenauer marks up his posts with h-entry (example)
+
+Tom Morris marks up his posts using h-entry (example)
+
+Numerous newer W3C specs, e.g.
+
+CSS Values and Units Module Level 3 - 2013-04-04
+
+CSS Conditional Rules Module Level 3 - 2013-04-04
+
+CSS Paged Media Module Level 3 - 2013-03-14
+
+CSS Counter Styles Level 3 - 2013-02-21
+
+SemPress is a WordPress theme that supports h-card, h-feed/h-entry.
+
+The Pastry Box Project use h-card and h-entry markup on their homepage and individual thoughts pages
+
+Aaron Parecki uses h-entry to mark up notes, e.g. 2012/230/reply/1.
+
+Tantek Çelik uses h-entry on his home page, as well as h-entry on all post permalinks, e.g. 2012-243 post, with rel-prev/rel-next (if applicable) to indicate prev/next posts
+
+Barnaby Walters uses h-entry on all notes and articles, as well as nested within notes as reply contexts example and comments example.
+
+offline
+
+Erin Jo Ritchey marked up her profile, posts and comments using h-card, h-entry and h-cite with idno on http://erinjo.is/
+
+Kyle Mahan marked up his profile and notes with h-card and h-entry on http://kylewm.com/
+
+spreadly marks up share permalink pages with h-entry, as well as minimal h-cards and experimental p-like properties
+
+Validating
+
+indiewebify.me h-entry validator parses h-entry markup, finds common errors and makes suggestions for things to add, with code samples
+
+Shrewdness h-entry/h-feed validator shows how shrewdness interprets+displays h-entries, with original source and interim formats, works for single h-entries and feed pages
+
+Main article: validators
+
+Test and validate microformats2 markup in general with:
+
+https://pin13.net/mf2/ - enter your markup directly
+
+https://pin13.net/ - enter a URL to a page to test where it says "Microformats Parser"
+
+Implementations
+
+Software implementations that publish or consume h-entry, including themes, plugins, or extensions:
+
+(This section is a stub that needs expansion! In practice, nearly every CMS on every indie web site supports publishing h-entry by default.)
+
+When adding an implementation, please provide and link to its home page and open source repo if any.
+
+GNUsocial source code
+
+Hubzilla source code
+
+Friendica source code
+
+InkBlot
+
+...
+
+Backward Compatibility
+
+Publisher Compatibility
+
+For backward compatibility with legacy hAtom consuming implementations, use hAtom classnames (or rel values) in addition to the more future-proof h-entry properties, for example:
+
+&lt;article class=&quot;h-entry hentry&quot;&gt;
+  &lt;h1 class=&quot;p-name entry-title&quot;&gt;A Tale Of Two Tags&lt;/h1&gt;
+  &lt;address class=&quot;p-author author h-card vcard&quot;&gt;
+    &lt;a href=&quot;https://chandra.example.com/&quot; class=&quot;u-url url p-name fn&quot; rel=&quot;author&quot;&gt;Chandra&lt;/a&gt;
+  &lt;/address&gt;
+  &lt;time class=&quot;dt-published published&quot; datetime=&quot;2012-06-20T08:34:46-07:00&quot;&gt;June 20, 2012&lt;/time&gt;
+  &lt;div class=&quot;e-content entry-content&quot;&gt;
+    &lt;p&gt;It was the best of visible tags, it was the alternative invisible tags.&lt;/p&gt;
+    &lt;p&gt;The a tag is perhaps the best of HTML, yet its corresponding invisible link tag has uses too.&lt;/p&gt;
+  &lt;/div&gt;
+  &lt;a href=&quot;/category/uncategorized/&quot; rel=&quot;category tag&quot; class=&quot;p-category&quot;&gt;General&lt;/a&gt;
+&lt;/article&gt;
+
+ℹ️ Note: Note: you may use any valid HTML5 elements. The article h1 address time elements are used in the example as semantically richer suggestions, however in general div span work fine too. The time element is special though in that its datetime attribute provides a more author/user friendly way of separating a machine readable ISO8601 datetime from a human readable summary.
+
+The list of equivalent hAtom classnames and rel values is provided below.
+
+Parser Compatibility
+
+Microformats parsers SHOULD detect classic properties only if a classic root class name is found and parse them as microformats2 properties.
+
+If an "h-entry" is found, don't look for an "hentry" on the same element.
+
+Compat root class name: hentry
+
+Properties: (parsed as p- plain text unless otherwise specified):
+
+entry-title - parse as p-name
+
+entry-summary - parse as p-summary
+
+entry-content - parse as e-content
+
+published - parse as dt-
+
+updated - parse as dt-
+
+author - including compat root vcard in the absence of h-card
+
+category
+
+rel=bookmark - parse as u-url. While not a class name nor typical microformats property, rel=bookmark was the only way to indicate an hentry permalink. Thus parsers should look for rel=bookmark hyperlinks inside an hentry, and take their "href" value as a value for a u-url property, including handling any relative URL resolution.
+
+rel=tag - parse as p-category. While not a class name nor typical microformats property, rel=tag was the typical way to tag an hentry. Thus parsers should look for rel=tag hyperlinks inside an hentry, and take the last path segment of their "href" value as a value for a p-category property.
+
+Proposed: (follow-up in issue #7)
+
+time.entry-date[datetime] - in the absence of published, parse as dt-published. parse for the first &lt;time&gt; element with class name of entry-date and non-empty datetime attribute inside an hentry, if there is no published property, use that time element's datetime attribute value for the dt-published property. Evidence: default WordPress themes 2011-2014([1][2][3][4]).
+
+rel=author - in the absence of author, parse as u-author. While not a class name nor typical microformats property, rel=author was commonly used to link to an author's URL. Thus parsers should look for rel=author hyperlinks inside an hentry (or even on the same page, preceding the hentry), use the absolute version of it as a value for the u-author property if there is no "author" property. (citations to "hentry" examples in the wild that depend on rel=author needed to accepted this proposal. Note: default WordPress themes twentyeleven, twentytwelve, twentythirteen, twentyfourteen all use rel=author but only inside class="author vcard", and thus rel=author can be ignored since authorship is already picked up by existing author backcompat parsing.)
+
+Compat FAQ
+
+What about rel bookmark
+
+Also asked as: Why use an h-entry u-url u-uid for permalinks when I have rel=bookmark?
+
+A: tl;dr: use class="u-url u-uid" instead of rel=bookmark for post permalinks because it's simpler (fewer attributes), and works better across contexts (permalink page, recent posts on home page, collection of posts on archive pages).
+
+rel=bookmark was the old hAtom way of marking up permalinks. Since then two factors have contributed to reducing use of rel inside microformats:
+
+rel by typically* document scoped in HTML5 - thus making it inappropriate for use in microformats that are aggregated, e.g. a collection of posts on a home page or in monthly archives.
+
+it is easier to always use class names for properties. When formats use two (or more!) attributes in HTML to specify properties, confusion results in lower data quality (of the markup and thus the stuff that is marked up). Thus per the microformats principle of simplicity, in microformats2 we only use class names for properties.
+
+* even though rel=bookmark in particular is article-element / sectioning scoped in HTML5[5], it's a detail that typical authors are not going to remember, and thus it's not good to depend on it for any kind of format.
+
+Why rename entry-title entry-summary entry-content
+
+The entry-* classnames in classic hAtom were prefixed as such due to concerns about vocabulary overlap with the title (as in job title, completely separate semantic) property in hCard and the summary property in hCalendar (see: hAtom FAQ).
+
+Following the simplicity principle, in microformats2, the aforementioned vagueness of title is dealt with by removing it. As name is now used consistently across all vocabularies as the property which “names” the microformat, it makes sense to use it to mark up the name of a post.
+
+Likewise, adding entry- to summary doesn’t add any useful information, and in practice there have been no problems with blog post summaries overlapping with entry summaries, so it makes sense to simplify to summary. The same applies to entry-content simplified to content.
+
+See also: 2012-08-30 IRC conversation.
+
+Related Work
+
+Work that re-uses or builds upon h-entry:
+
+Mailpile Open Message Format is using h-entry with structured properties, e.g. p-author h-card.
+
+Background
+
+This work is based on the existing hAtom microformat, and extensive selfdogfooding in the indie web camp community.
+
+change control
+
+Minor editorial changes (e.g. fixing minor typos or punctuation) that do not change and preferably clarify the structure and existing intended meaning may be done by anyone without filing issues, requiring only a sufficient "Summary" description field entry for the edit. More than minor but still purely editorial changes may be made by an editor. Anyone may question such editorial changes by undoing corresponding edits without filing an issue. Any further reversion or iteration on such an editorial change must be done by filing an issue.
+
+For the stable features of this document, substantive issue filing, resolution, and edits may be done by filing an issue and discussing them on the issue and on #microformats IRC with a link to the issue.
+
+Because this is primarily a vocabulary specification, very few issues beyond the list of vocabulary have been filed or required any lengthy discussion. If such a non-trivial issue arises in the future, use the microformats2-parsing change control process to resolve them.
+
+In general, non-vocabulary related features or requirements should be avoided in this specification, e.g. changes to microformats2 syntax must be proposed as microformats2-parsing changes using the microformats2-parsing change control process.
+
+Beyond that, the following requirements must be met for adding or moving features (e.g. properties and values) to proposed, draft, or stable. File an issue to collect necessary citations for the requirements for each property being proposed or upgraded, explain how citations fulfill the requirements for the phase(s), get consensus on both (resolve any implementer objections) in the issue.
+
+Proposed
+Proposed features must provide documentation of what specific real world use-cases they are solving, preferably with a link to a step-by-step user scenario, e.g. demonstratable using existing non-standard / single-site / single-implementation tools.
+Draft
+Draft properties must in addition be published and consumed in the wild on the public web, demonstrate solving the use case for which they were proposed, and should provide citations of real world public web sites publishing and (other sites) consuming them, interoperably.
+Stable
+Stable features (e.g. Core Properties) must in addition be published and consumed in the wild on multiple sites by multiple implementations (3+ different sites and implementations for publishing and  consuming). When a draft property reaches a critical mass of deployment by numerous sites and implementations (far beyond 3+), due to network effects and backward compatibility considerations it effectively becomes stable, since it becomes increasingly difficult to change it in any way and have so many sites and implementations also change.
+
+For creating an entirely new vocabulary, and more details about how to research existing values, properties, document examples in the wild, etc., see the microformats process.
+
+See Also
+
+h-feed
+
+microformats2
+
+microformats2-parsing
+
+h-geo
+
+hCard
+
+Retrieved from "http://microformats.org/wiki/index.php?title=h-entry&amp;oldid=70830"
+
+Category:
+Specifications
+
+Navigation menu
+
+				Search

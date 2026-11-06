@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<title>Value Class Pattern - Microformats Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"9404cebad845296a4bfa3ce3","wgCSPNonce":false,"wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"value-class-pattern","wgTitle":"value-class-pattern","wgCurRevisionId":70879,"wgRevisionId":70879,"wgArticleId":5310,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Pages using deprecated source tags","Draft Specifications"],"wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"value-class-pattern","wgRelevantArticleId":5310,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":["sysop"],
+"wgRestrictionMove":["sysop"]};RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready","user.options":"loading","ext.pygments":"ready","skins.vector.styles.legacy":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.vector.legacy.js"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.implement("user.options@1i9g4",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});});});</script>
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=ext.pygments%7Cskins.vector.styles.legacy&amp;only=styles&amp;skin=vector"/>
+<script async="" src="/wiki/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+<meta name="generator" content="MediaWiki 1.38.4"/>
+<meta name="format-detection" content="telephone=no"/>
+<link rel="shortcut icon" href="/favicon.ico"/>
+<link rel="search" type="application/opensearchdescription+xml" href="/wiki/opensearch_desc.php" title="Microformats Wiki (en)"/>
+<link rel="EditURI" type="application/rsd+xml" href="//microformats.org/wiki/api.php?action=rsd"/>
+<link rel="alternate" type="application/atom+xml" title="Microformats Wiki Atom feed" href="/wiki/index.php?title=Special:RecentChanges&amp;feed=atom"/>
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-value-class-pattern rootpage-value-class-pattern skin-vector action-view skin-vector-legacy"><div id="mw-page-base" class="noprint"></div>
+<div id="mw-head-base" class="noprint"></div>
+<div id="content" class="mw-body" role="main">
+	<a id="top"></a>
+	<div id="siteNotice"></div>
+	<div class="mw-indicators">
+	</div>
+	<h1 id="firstHeading" class="firstHeading mw-first-heading">Value Class Pattern</h1>
+	<div id="bodyContent" class="vector-body">
+		<div id="siteSub" class="noprint">From Microformats Wiki</div>
+		<div id="contentSub"></div>
+		<div id="contentSub2"></div>
+		
+		<div id="jump-to-nav"></div>
+		<a class="mw-jump-link" href="#mw-head">Jump to navigation</a>
+		<a class="mw-jump-link" href="#searchInput">Jump to search</a>
+		<div id="mw-content-text" class="mw-body-content mw-content-ltr" lang="en" dir="ltr"><div class="mw-parser-output"><p><br />
+The <b><dfn>value class pattern</dfn></b> is a standard set of techniques to markup the value of a microformats property in part of an element, a title attribute, or across multiple elements, and how to parse &amp; normalize those markup techniques.
+</p>
+<dl><dt>Editors</dt>
+<dd><span class="h-card vcard"><span class="fn"><a href="/wiki/User:BenWard" title="User:BenWard">Ben Ward</a></span></span></dd>
+<dd><span class="h-card vcard"><span class="fn"><a href="/wiki/User:Tantek" title="User:Tantek">Tantek Çelik</a></span></span></dd>
+<dt>Short URL</dt>
+<dd><kbd><a rel="nofollow" class="external free" href="http://ufs.cc/w/vcp">http://ufs.cc/w/vcp</a></kbd></dd></dl>
+<div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Introduction"><span class="tocnumber">1</span> <span class="toctext">Introduction</span></a></li>
+<li class="toclevel-1 tocsection-2"><a href="#Status"><span class="tocnumber">2</span> <span class="toctext">Status</span></a></li>
+<li class="toclevel-1 tocsection-3"><a href="#Simple_Examples"><span class="tocnumber">3</span> <span class="toctext">Simple Examples</span></a></li>
+<li class="toclevel-1 tocsection-4"><a href="#Basic_Parsing"><span class="tocnumber">4</span> <span class="toctext">Basic Parsing</span></a></li>
+<li class="toclevel-1 tocsection-5"><a href="#Date_and_time_values"><span class="tocnumber">5</span> <span class="toctext">Date and time values</span></a>
+<ul>
+<li class="toclevel-2 tocsection-6"><a href="#Summary"><span class="tocnumber">5.1</span> <span class="toctext">Summary</span></a></li>
+<li class="toclevel-2 tocsection-7"><a href="#Date_and_time_parsing"><span class="tocnumber">5.2</span> <span class="toctext">Date and time parsing</span></a>
+<ul>
+<li class="toclevel-3 tocsection-8"><a href="#Date_and_time_parsing_issues"><span class="tocnumber">5.2.1</span> <span class="toctext">Date and time parsing issues</span></a></li>
+</ul>
+</li>
+<li class="toclevel-2 tocsection-9"><a href="#format_specific_details"><span class="tocnumber">5.3</span> <span class="toctext">format specific details</span></a>
+<ul>
+<li class="toclevel-3 tocsection-10"><a href="#hCalendar_dtend_implied_date"><span class="tocnumber">5.3.1</span> <span class="toctext">hCalendar dtend implied date</span></a></li>
+<li class="toclevel-3 tocsection-11"><a href="#iCalendar_generators"><span class="tocnumber">5.3.2</span> <span class="toctext">iCalendar generators</span></a></li>
+<li class="toclevel-3 tocsection-12"><a href="#hAtom_updated_implied_date"><span class="tocnumber">5.3.3</span> <span class="toctext">hAtom updated implied date</span></a></li>
+<li class="toclevel-3 tocsection-13"><a href="#Atom_generators"><span class="tocnumber">5.3.4</span> <span class="toctext">Atom generators</span></a></li>
+<li class="toclevel-3 tocsection-14"><a href="#microformats2_parsers_implied_date"><span class="tocnumber">5.3.5</span> <span class="toctext">microformats2 parsers implied date</span></a></li>
+</ul>
+</li>
+<li class="toclevel-2 tocsection-15"><a href="#derivation_and_tests"><span class="tocnumber">5.4</span> <span class="toctext">derivation and tests</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-16"><a href="#Parsing_value_from_a_title_attribute"><span class="tocnumber">6</span> <span class="toctext">Parsing value from a title attribute</span></a>
+<ul>
+<li class="toclevel-2 tocsection-17"><a href="#Using_value-title_to_publish_machine-data"><span class="tocnumber">6.1</span> <span class="toctext">Using value-title to publish machine-data</span></a></li>
+<li class="toclevel-2 tocsection-18"><a href="#Parsing_machine-data_value-title"><span class="tocnumber">6.2</span> <span class="toctext">Parsing machine-data value-title</span></a></li>
+<li class="toclevel-2 tocsection-19"><a href="#limited_use_of_value-title"><span class="tocnumber">6.3</span> <span class="toctext">limited use of value-title</span></a></li>
+<li class="toclevel-2 tocsection-20"><a href="#H2VX_workaround"><span class="tocnumber">6.4</span> <span class="toctext">H2VX workaround</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-21"><a href="#Test_cases"><span class="tocnumber">7</span> <span class="toctext">Test cases</span></a></li>
+<li class="toclevel-1 tocsection-22"><a href="#FAQ"><span class="tocnumber">8</span> <span class="toctext">FAQ</span></a></li>
+<li class="toclevel-1 tocsection-23"><a href="#Examples_in_the_wild"><span class="tocnumber">9</span> <span class="toctext">Examples in the wild</span></a></li>
+<li class="toclevel-1 tocsection-24"><a href="#Implementations"><span class="tocnumber">10</span> <span class="toctext">Implementations</span></a>
+<ul>
+<li class="toclevel-2 tocsection-25"><a href="#consuming_and_parsing_tools"><span class="tocnumber">10.1</span> <span class="toctext">consuming and parsing tools</span></a></li>
+<li class="toclevel-2 tocsection-26"><a href="#publishing_tools"><span class="tocnumber">10.2</span> <span class="toctext">publishing tools</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-27"><a href="#Background"><span class="tocnumber">11</span> <span class="toctext">Background</span></a></li>
+<li class="toclevel-1 tocsection-28"><a href="#Articles"><span class="tocnumber">12</span> <span class="toctext">Articles</span></a></li>
+<li class="toclevel-1 tocsection-29"><a href="#References"><span class="tocnumber">13</span> <span class="toctext">References</span></a></li>
+<li class="toclevel-1 tocsection-30"><a href="#Related_Pages"><span class="tocnumber">14</span> <span class="toctext">Related Pages</span></a></li>
+<li class="toclevel-1 tocsection-31"><a href="#Translations"><span class="tocnumber">15</span> <span class="toctext">Translations</span></a></li>
+</ul>
+</div>
+
+<h2><span class="mw-headline" id="Introduction">Introduction</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>Use the value class pattern when you need to markup:
+</p>
+<ol><li>Only part of an element's content as the value of a property</li>
+<li>The displayed value written a certain way for design reasons, and a more universal value in the title attribute of an element</li>
+<li>Multiple elements that need to be combined to set the value of a property</li></ol>
+<p>For these purposes, the special class name <code>value</code> is used to mark-up the relevant data excerpt from larger element content.
+</p>
+<h2><span class="mw-headline" id="Status">Status</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>The value-class-pattern is feature complete, ready for use in markup, and supported in implementations such as <a href="/wiki/search_engines" class="mw-redirect" title="search engines">search engines</a>, <a href="/wiki/parsers" title="parsers">parsers</a>, and Firefox <a href="/wiki/Operator" class="mw-redirect" title="Operator">Operator</a>. <a href="/wiki/H2VX" class="mw-redirect" title="H2VX">H2VX</a> supports parsing date and time separation but not value-title. See also the <a rel="nofollow" class="external text" href="http://microformats.org/blog/2009/05/12/value-class-pattern/">blog announcement</a>.
+</p><p>The <a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a> specification normatively references the value-class-pattern, and <a href="/wiki/microformats2" title="microformats2">microformats2</a> parsers implement it.
+</p>
+<h2><span class="mw-headline" id="Simple_Examples">Simple Examples</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>Here is markup for a home phone number:
+</p><p>vCard fragment:
+</p>
+<div class="mw-highlight mw-highlight-lang-text mw-content-ltr" dir="ltr"><pre><span></span>TEL;TYPE=HOME:+1.415.555.1212
+</pre></div>
+<p>hCard fragment:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;tel&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;type&quot;</span><span class="p">&gt;</span>Home<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>:
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>+1.415.555.1212<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>In this case, the <code>value</code> of <code>tel</code> is <code>+1.415.555.1212</code>, not <code>Home: +1.415.555.1212</code>.
+</p><p>Sometimes the value for a microformats property must be split into multiple pieces in the content of the element representing that property. Multiple elements with a class name of "value" (value elements) can be used to extract and concatenate these pieces into a single value for microformats properties which expect simple strings or tel values.
+</p><p>Another example, this time using a localized (British) telephone number:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;tel&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;type&quot;</span><span class="p">&gt;</span>Home<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>:
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>+44<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> (0) <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>1223 123 123<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>In this case, the valid <i>data</i> for the telephone number is <samp>+441223123123</samp>, but the way in which phone number is presented in Britain will include the <samp>(0)</samp>, for local dialling. That is, from anywhere in the world you may dial <kbd>+441223123123</kbd>, or from within Britain you may dial <kbd>01223123123</kbd>. Common local publishing interferes with the data, since dialling <kbd><b>+440</b>1223123123</kbd> is an invalid number.
+</p><p>In the mark-up, two <code>value</code> classes target the part of the telephone number string that makes an international, valid number, whilst allowing conventional presentation.
+</p><p>Another example, adding a place name to a <a href="/wiki/geo" title="geo">geo</a> co-ordinate:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>I&#39;m loitering outside The Bricklayer&#39;s Arms
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;geo&quot;</span><span class="p">&gt;</span>
+    51° 30&#39; 48.45&quot;, -0° 8&#39; 53.23&quot;
+    (<span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>51.513458;-0.14812<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>)
+  <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div>
+<p>Whilst the entire string is a geo point, it's only the decimal encoded co-ordinates which must be consumed by a microformats parser, so the <code>value</code> class isolates it from the degrees form, which the publisher includes for completeness.
+</p>
+<h2><span class="mw-headline" id="Basic_Parsing">Basic Parsing</span></h2>
+<ol><li>The value class pattern only applies to properties which are simple strings, enumerated values, telephone numbers, and datetimes. The value class pattern does not affect parsing of properties of type email, URL, URI, UID.</li>
+<li>Where an element with such a microformat property class name has a descendant with class name <code>value</code> (a "value element") not inside some other property element, parsers should use the following portion of that value element:
+<ol><li>if the value element is an <code>img</code> or <code>area</code> element, then use the element's <code>alt</code> attribute value.</li>
+<li>if the value element is a <code>data</code> element, then use the element's <code>value</code> attribute value if present, otherwise its inner-text.</li>
+<li>if the value element is an <code>abbr</code> element, then use the element's <code>title</code> attribute value if present, otherwise its inner-text.</li>
+<li>for any other element, use its inner-text.</li></ol></li>
+<li>Where there are multiple descendants of a property with class name of <code>value</code> (multiple value elements)
+<ol><li>if the microformats property expects a simple string, enumerated value, or telephone number, then the values extracted from the value elements should be concatenated <i>without</i> inserting additional characters or white-space.</li>
+<li>if the microformats property expects a datetime value, see the <a href="#Date_and_time_parsing">Date Time Parsing</a> section.</li></ol></li>
+<li>Descendants with class of <code>value</code> must not be parsed deeper than one level. That is, where an element <code>foo</code> with class <code>value</code> has a <em>descendant</em> <code>bar</code> with class <code>value</code>, the content of <strong><code>foo</code></strong> is taken as the <code>value</code>. Nesting additional elements with class of <code>value</code> cannot be used to further isolate a property's value.</li></ol>
+<p>e.g.
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span> <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;description&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">em</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>Puppies Rule!<span class="p">&lt;/</span><span class="nt">em</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">strong</span><span class="p">&gt;</span>But kittens are better!<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;</span>
+ <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div>
+<p>In this example, <code>description</code> has a child ‘<code>value</code>’, and that child has a <i>grandchild</i> ‘<code>value</code>’. However, the parsing of <code>value</code> classes stops at the first level, so the data for <code>description</code> is: <samp><code>&lt;em class="value"&gt;Puppies Rule!&lt;/em&gt;&lt;strong&gt;But kittens are better!&lt;/strong&gt;</code></samp>, not just <samp>Puppies Rule!</samp>.
+</p><p><br />
+</p>
+<h2><span class="mw-headline" id="Date_and_time_values">Date and time values</span></h2>
+<h3><span class="mw-headline" id="Summary">Summary</span></h3>
+<p>Some microformats properties expect an ISO8601 datetime value, e.g.  <a href="/wiki/hCalendar" class="mw-redirect" title="hCalendar">hCalendar</a> <code>dtstart</code> and <code>dtend</code>, <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> <code>published</code> and <code>updated</code>, and all <a href="/wiki/microformats2" title="microformats2">microformats2</a> <code>dt-*</code> properties.  
+</p><p>Authors may use the value class pattern to separately specify the date and the time, which are then combined to specify a single datetime value.
+</p><p>Example, this hCalendar 'dtstart' property with 'value' elements: 
+</p>
+<div class="mw-highlight mw-highlight-lang-xml mw-content-ltr" dir="ltr"><pre><span></span><span class="nt">&lt;p&gt;</span>The weekly dinner will be on 
+    <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;dtstart&quot;</span><span class="nt">&gt;</span>
+        <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span> <span class="na">datetime=</span><span class="s">&quot;2008-06-24&quot;</span><span class="nt">&gt;</span>this Tuesday<span class="nt">&lt;/time&gt;</span> 
+     at <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>18:30<span class="nt">&lt;/time&gt;</span>
+    <span class="nt">&lt;/span&gt;</span>
+<span class="nt">&lt;/p&gt;</span>
+</pre></div>
+<p>Alternatively, if you're not able to use the <a href="/wiki/HTML5" class="mw-redirect" title="HTML5">HTML5</a> &lt;time&gt; element:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>The weekly dinner will be on 
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dtstart&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">abbr</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;2008-06-24&quot;</span><span class="p">&gt;</span>this Tuesday<span class="p">&lt;/</span><span class="nt">abbr</span><span class="p">&gt;</span> 
+     at <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>18:30<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div>
+<p>both produce the following 'dtstart' value:
+</p>
+<div class="mw-highlight mw-highlight-lang-text mw-content-ltr" dir="ltr"><pre><span></span>2008-06-24 18:30
+</pre></div>
+<p>and iCalendar converters produce the following DTSTART:
+</p>
+<div class="mw-highlight mw-highlight-lang-text mw-content-ltr" dir="ltr"><pre><span></span>DTSTART:20080624T183000
+</pre></div>
+<p>Note: The lack of a timezone indicates a "floating" datetime, that is a datetime independent of any particular timezone. Examples of floating datetimes could be an alarm clock you set to ring at 7am, or the common 9am-5pm workday.
+</p><p>Note for iCalendar DTSTART: The implied "00" seconds here is only due to iCalendar syntax requirements, and not actually meaningful.
+</p>
+<h3><span class="mw-headline" id="Date_and_time_parsing">Date and time parsing</span></h3>
+<p>For all date time properties (as defined in their respective microformats specifications), the following rules apply in addition to (and in some cases replacing) the above value class pattern parsing rules.
+</p><p>When a "value element" is found, parse a value from the element as follows:
+</p>
+<ul><li>if the element is an <code>img</code> or <code>area</code> element, then use the element's <code>alt</code> attribute value.</li>
+<li>if the element is a <code>data</code> element, then use the element's <code>value</code> attribute value if present, otherwise its inner-text.</li>
+<li>if the element is an <code>abbr</code> element, then use the element's <code>title</code> attribute value if present, otherwise its inner-text.</li>
+<li>if the element is a <code>del</code>, <code>ins</code>, or <code>time</code> element, then use the element's <code>datetime</code> attribute value if present, otherwise its inner-text.</li>
+<li>for any other element, use its inner-text.</li>
+<li>if the value has a specific ISO8601 date, time, and timezone, use those and stop looking for "value" elements.</li>
+<li>if the value has both a specific ISO8601 date and time, use those
+<ul><li>ignore any further "value" elements that specify the date or time.</li></ul></li>
+<li>if the value has *only* a specific date, specifically, fits the following ISO8601 date patterns (i.e. as documented in the <a rel="nofollow" class="external text" href="http://en.wikipedia.org/wiki/ISO_8601">Wikipedia summary of ISO8601</a>)
+<ul><li>YYYY-MM-DD</li>
+<li>YYYY-DDD</li>
+<li>then use that as the date value.  For the purposes of the value class pattern, the hyphens "-" separating the year, month, day and/or ordinal day are required.</li>
+<li>ignore any further "value" elements that specify the date.</li></ul></li>
+<li>if the value has *only* a specific time (with or without timezone), parse it for a time value that can match any of the following:
+<ul><li>HH:MM:SS-XX:YY</li>
+<li>HH:MM:SS+XX:YY</li>
+<li>HH:MM:SS-XXYY</li>
+<li>HH:MM:SS+XXYY</li>
+<li>HH:MM:SSZ</li>
+<li>HH:MM:SS</li>
+<li>HH:MM-XX:YY</li>
+<li>HH:MM+XX:YY</li>
+<li>HH:MM-XXYY</li>
+<li>HH:MM+XXYY</li>
+<li>HH:MMZ</li>
+<li>HH:MM</li>
+<li>HH is the 24 hour "hours" in the time, from 00 to 24, with optional leading 0 for values less than 10.</li>
+<li>MM are the minutes from 00 to 59</li>
+<li>SS are the optional seconds from 00 to 59 (60 for a leap second). If seconds are NOT provided, DO NOT imply 00 seconds, and instead keep the authored level of specificity.</li>
+<li>XX is the time zone hours offset, from 00 to 12 with optional leading 0 for values less than 10.</li>
+<li>YY is the time zone minutes offset, from 00 to 59, though in practice only 00, 15, 30, 45 minute offsets are used in global timezones.</li>
+<li>Z is the literal 'Z' to indicate GMT.</li>
+<li>For the purposes of the value class pattern, the colons ":" separating the hour, minutes, seconds are required.</li>
+<li>However the colons ":" separating the hours and minutes of any timezone offset are optional and discouraged. If the offset uses XX:YY format, remove the colon so it is XXYY format. Omitting the colon makes it less likely that a timezone offset will be confused for a time.</li>
+<li>Case insensitive { }"am"|{ }"a.m." suffix to treat an HH value of 12 as 00, or a case-insensitive { }"pm"|{ }"p.m." suffix to add 12 to HH value less than 12 - per <a rel="nofollow" class="external text" href="http://en.wikipedia.org/wiki/12-hour_clock">Wikipedia article on the 12 hour clock</a>. Note: <a href="/wiki/X2V" class="mw-redirect" title="X2V">X2V</a> has implemented this.
+<ul><li>HH:MM:SSam</li>
+<li>HH:MM:SSpm</li>
+<li>HH:MMam</li>
+<li>HH:MMpm</li>
+<li>HHam</li>
+<li>HHpm</li>
+<li>where "am" and "pm" mean "am or a.m." and "pm or p.m."</li>
+<li>when MM is omitted, infer 00 minutes.</li>
+<li>when SS is omitted, DO NOT infer 00 seconds. Instead, keep the authored level of specificity.</li></ul></li>
+<li>ignore any further "value" elements that specify the time.</li></ul></li>
+<li>if the value has *only* a specific timezone, parse it for a time zone value that can match any of the following:
+<ul><li>-XX:YY</li>
+<li>+XX:YY</li>
+<li>-XXYY</li>
+<li>+XXYY</li>
+<li>-XX</li>
+<li>+XX</li>
+<li>Z</li>
+<li>XX is the time zone hours offset, from 00 to 12 with optional leading 0 for values less than 10.</li>
+<li>YY is the time zone minutes offset, from 00 to 59, though in practice only 00, 15, 30, 45 minute offsets are used in global timezones.</li>
+<li>Z is the literal 'Z' to indicate GMT.</li>
+<li>ignore any further "value" elements that specify the timezone.</li></ul></li></ul>
+<p>If by parsing the "value" element(s), at least a specific date has been found, then the "value" is overall valid, and the parser assembles the overall datetime value by concatenating the specific date (<a rel="nofollow" class="external text" href="https://github.com/microformats/microformats2-parsing/issues/27#issuecomment-376004491">PROPOSED</a>: normalized to YYYY-MM-DD), " " (space character) and specific time (if time was specified, with 00 minutes implied if no minutes are provided), and specific timezone (if timezone and a specific time was specified).
+</p>
+<ul><li>YYYY-MM-DD - no time specified</li>
+<li>YYYY-MM-DD HH:MM or YYYY-MM-DD HH:MM:SS - time specified but no timezone.  This is a floating time.</li>
+<li>YYYY-MM-DD HH:MMZ or YYYY-MM-DD HH:MM:SSZ or</li>
+<li>YYYY-MM-DD HH:MM-XXYY or YYYY-MM-DD HH:MM:SS-XXYY or</li>
+<li>YYYY-MM-DD HH:MM+XXYY or YYYY-MM-DD HH:MM:SS+XXYY - both time and timezone offset were specified.</li></ul>
+<h4><span class="mw-headline" id="Date_and_time_parsing_issues">Date and time parsing issues</span></h4>
+<ul><li>2026-02-03: What should a parser do if the value is not “overall valid”?
+<ul><li>Raised by jkingweb in chat: <a rel="nofollow" class="external free" href="https://chat.indieweb.org/microformats/2026-02-03#t1770133542875900">https://chat.indieweb.org/microformats/2026-02-03#t1770133542875900</a></li></ul></li></ul>
+<h3><span class="mw-headline" id="format_specific_details">format specific details</span></h3>
+<p>The following are format specific details and <span id="format_specific_optimizations">optimizations</span> that make use of the value-class-pattern.
+</p>
+<dl><dt><span style="font-size:smaller">short URL for this section</span></dt>
+<dd><a rel="nofollow" class="external free" href="http://ufs.cc/w/vcpfso">http://ufs.cc/w/vcpfso</a></dd></dl>
+<h4><span class="mw-headline" id="hCalendar_dtend_implied_date">hCalendar dtend implied date</span></h4>
+<p>Typically events that start and end the same day only display the date of the event once (makes sense per the DRY <a href="/wiki/principle" class="mw-redirect" title="principle">principle</a>) (real world examples: <a rel="nofollow" class="external text" href="http://upcoming.yahoo.com/event/3010807/">Upcoming</a>, ... more examples with URLs would help for thoroughness).  
+</p><p>Thus it would be convenient if we could imply an <a href="/wiki/hCalendar" class="mw-redirect" title="hCalendar">hCalendar</a> event "dtend" date from its "dtstart" date when only the time (and optionally timezone) was specified for its "dtend", e.g.:
+</p>
+<div class="mw-highlight mw-highlight-lang-xml mw-content-ltr" dir="ltr"><pre><span></span><span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;vevent&quot;</span><span class="nt">&gt;</span>
+ The <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;summary&quot;</span><span class="nt">&gt;</span>party<span class="nt">&lt;/span&gt;</span> will be on 
+ <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;dtstart&quot;</span><span class="nt">&gt;</span>
+  <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>2009-06-26<span class="nt">&lt;/time&gt;</span>, from
+  <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>19:00<span class="nt">&lt;/time&gt;&lt;/span&gt;</span> to 
+ <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;dtend&quot;</span><span class="nt">&gt;&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>22:00<span class="nt">&lt;/time&gt;&lt;/span&gt;</span>.
+<span class="nt">&lt;/span&gt;</span>
+</pre></div>
+<p>and in HTML4/XHTML1:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;vevent&quot;</span><span class="p">&gt;</span>
+ The <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;summary&quot;</span><span class="p">&gt;</span>party<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> will be on 
+ <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dtstart&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>2009-06-26<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>, from
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>19:00<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> to 
+ <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dtend&quot;</span><span class="p">&gt;&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>22:00<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.
+<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>To simplify this further for authors, hCalendar processors could treat the specifying of just the time per the value-class-pattern date and time value rules, and thus eliminate the need for the "value" span inside the "dtend" span:
+</p>
+<div class="mw-highlight mw-highlight-lang-xml mw-content-ltr" dir="ltr"><pre><span></span><span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;vevent&quot;</span><span class="nt">&gt;</span>
+ The <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;summary&quot;</span><span class="nt">&gt;</span>party<span class="nt">&lt;/span&gt;</span> will be on 
+ <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;dtstart&quot;</span><span class="nt">&gt;</span>
+  <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>2009-06-26<span class="nt">&lt;/time&gt;</span>, from
+  <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>19:00<span class="nt">&lt;/time&gt;&lt;/span&gt;</span> to 
+ <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;dtend&quot;</span><span class="nt">&gt;</span>22:00<span class="nt">&lt;/time&gt;</span>.
+<span class="nt">&lt;/span&gt;</span>
+</pre></div>
+<p>and in HTML4/XHTML1:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;vevent&quot;</span><span class="p">&gt;</span>
+ The <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;summary&quot;</span><span class="p">&gt;</span>party<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> will be on 
+ <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dtstart&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>2009-06-26<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>, from
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>19:00<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> to 
+ <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dtend&quot;</span><span class="p">&gt;</span>22:00<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.
+<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>hCalendar to iCalendar converters should produce the following iCalendar fragment (as part of a valid .ics file) from all of the above four examples:
+</p>
+<div class="mw-highlight mw-highlight-lang-text mw-content-ltr" dir="ltr"><pre><span></span>BEGIN:VEVENT
+SUMMARY:party
+DTSTART:20090626T190000
+DTEND:20090626T220000
+END:VEVENT
+</pre></div>
+<p>Note that the implied "00" seconds here is only due to iCalendar syntax requirements, and not actually meaningful.
+</p><p>Implementations: 
+</p>
+<ul><li><a href="/wiki/X2V" class="mw-redirect" title="X2V">X2V</a> has implemented dtend implied date from dtstart.</li></ul>
+<p>Examples "in the wild":
+</p>
+<ul><li><a rel="nofollow" class="external free" href="http://microformats.org/wiki/events/2009-08-12-nyc-workshop">http://microformats.org/wiki/events/2009-08-12-nyc-workshop</a> (real world example, but on this wiki).</li></ul>
+<h4><span class="mw-headline" id="iCalendar_generators">iCalendar generators</span></h4>
+<p>microformats implementations which consume <a href="/wiki/hCalendar" class="mw-redirect" title="hCalendar">hCalendar</a> and generate iCalendar <em title="MUST in &#82;FC 2119 context" style="text-transform: lowercase; font-style: italic;" class="&#82;FC2119">MUST</em> in addition:
+</p>
+<ol><li>remove any dash "-" separators in the date.</li>
+<li>remove any colon ":" separators in the time.</li>
+<li>add a whole day to any date-only (lacking a specified time) (date inclusive) hCalendar <code>dtend</code> property values in order to generate an (date exclusive) iCalendar <code>DTEND</code> property value with the same meaning, per the resolution to the <a href="/wiki/dtend-issue" title="dtend-issue">dtend-issue</a>.</li>
+<li>imply 00 seconds if seconds are omitted due to iCalendar artificial precision syntax requirements</li>
+<li>perform datetime math on any +/- relative timezone value, and produce an effective UTC value ending with "Z".</li></ol>
+<h4><span class="mw-headline" id="hAtom_updated_implied_date">hAtom updated implied date</span></h4>
+<p>Similarly, in blog posts that indicate both when they were "published" and "updated", the date is usually only displayed once, typically when "published" (real world examples with URLs would help for thoroughness).
+</p><p>Thus it would be convenient if we could imply an <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> entry "updated" date from its "published" date when only the time (and optionally timezone) was specified for its "updated", e.g. for a blog post that was updated the same day:
+</p>
+<div class="mw-highlight mw-highlight-lang-xml mw-content-ltr" dir="ltr"><pre><span></span><span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;hentry&quot;</span><span class="nt">&gt;</span>
+ <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;entry-summary&quot;</span><span class="nt">&gt;</span>short blog post example<span class="nt">&lt;/span&gt;</span>
+ was published on <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;published&quot;</span><span class="nt">&gt;</span>
+  <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>2009-08-01<span class="nt">&lt;/time&gt;</span> at <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>12:06<span class="nt">&lt;/time&gt;&lt;/span&gt;</span>
+ and updated at <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;updated&quot;</span><span class="nt">&gt;&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>12:10<span class="nt">&lt;/time&gt;&lt;/span&gt;</span>.
+<span class="nt">&lt;/span&gt;</span>
+</pre></div>
+<p>and in HTML4/XHTML1:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hentry&quot;</span><span class="p">&gt;</span>
+ <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;entry-summary&quot;</span><span class="p">&gt;</span>short blog post example<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+ was published on <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;published&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>2009-08-01<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> at <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>12:06<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+ and updated at <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;updated&quot;</span><span class="p">&gt;&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>12:10<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.
+<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>To simplify this further for authors, hAtom processors could treat the specifying of just the time per the value-class-pattern date and time value rules, and thus eliminate the need for the "value" span inside the "updated" span:
+</p>
+<div class="mw-highlight mw-highlight-lang-xml mw-content-ltr" dir="ltr"><pre><span></span><span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;hentry&quot;</span><span class="nt">&gt;</span>
+ <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;entry-summary&quot;</span><span class="nt">&gt;</span>short blog post example<span class="nt">&lt;/span&gt;</span>
+ was published on <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">&quot;published&quot;</span><span class="nt">&gt;</span>
+  <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>2009-08-01<span class="nt">&lt;/time&gt;</span> at <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;value&quot;</span><span class="nt">&gt;</span>12:06<span class="nt">&lt;/time&gt;&lt;/span&gt;</span>
+ and updated at <span class="nt">&lt;time</span> <span class="na">class=</span><span class="s">&quot;updated&quot;</span><span class="nt">&gt;</span>12:10<span class="nt">&lt;/time&gt;</span>.
+<span class="nt">&lt;/span&gt;</span>
+</pre></div>
+<p>and in HTML4/XHTML1:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hentry&quot;</span><span class="p">&gt;</span>
+ <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;entry-summary&quot;</span><span class="p">&gt;</span>short blog post example<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+ was published on <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;published&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>2009-08-01<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> at <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>12:06<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+ and updated at <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;updated&quot;</span><span class="p">&gt;</span>12:10<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.
+<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<h4><span class="mw-headline" id="Atom_generators">Atom generators</span></h4>
+<p>microformats implementations which consume <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> and generate 
+Atom <em title="MUST in &#82;FC 2119 context" style="text-transform: lowercase; font-style: italic;" class="&#82;FC2119">MUST</em> in addition:
+</p>
+<ul><li>normalize all date and datetime values to <a href="/wiki/RFC3339" class="mw-redirect" title="RFC3339">RFC3339</a>, including:
+<ul><li>imply 00 seconds if seconds are omitted due to Atom artificial precision syntax requirements</li></ul></li></ul>
+<h4><span class="mw-headline" id="microformats2_parsers_implied_date">microformats2 parsers implied date</span></h4>
+<p>Since <span id="microformats2_parsers"><a href="/wiki/microformats2#parsers" title="microformats2">microformats2 parsers</a></span> are generic, instead of checking for specific properties (as above for hAtom and hCalendar), they must perform the following algorithm to imply dates for dt-* properties:
+</p>
+<ul><li>if a dt-* property has a time but lacks a date</li>
+<li>then it adopts the date of the most recently seen dt-* property with a date in that microformat.
+<ul><li>if no previous dt-* properties have a date,</li>
+<li>then it adopts its date from the next dt-* property with a date seen in that microformat.</li>
+<li>otherwise it simply has a time (and no date).</li></ul></li></ul>
+<p>Note: This results in a similar enough implementation/interpretation as the previous vocabulary dependent heuristics for hAtom and hCalendar that a microformats2 parser can produce similar results for h-entry and h-event without having to know about their specific dt-* properties.
+</p>
+<h3><span class="mw-headline" id="derivation_and_tests">derivation and tests</span></h3>
+<p>This section is <em>informative</em>.
+</p><p>The handling of date and time values in the value class pattern was originally <a href="/wiki/value-excerption-pattern-brainstorming#date_and_time_separation" class="mw-redirect" title="value-excerption-pattern-brainstorming">brainstormed on the value-excerption-pattern-brainstorming</a> page and derived from that analysis and feedback. For the curious, historical details may be found there, along with additional thoughts for extension.
+</p><p>See <a href="/wiki/value-class-date-time-tests" title="value-class-date-time-tests">value-class-date-time-tests</a> for test cases.
+</p>
+<h2><span class="mw-headline" id="Parsing_value_from_a_title_attribute">Parsing value from a <code>title</code> attribute</span></h2>
+<div style="padding: 1em; border: 5px solid #f78c00; background: #fcdcb3; font-size: 1.5em; margin-bottom: 1em;">⚠️ <strong>Warning:</strong> you should use the HTML5 <code>&lt;data&gt;</code> element instead of the <code>value-title</code> class name, in particular, use: <div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">data</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;dt-start&#39;</span> <span class="na">value</span><span class="o">=</span><span class="s">&#39;2008&#39;</span><span class="p">&gt;</span>last year<span class="p">&lt;/</span><span class="nt">data</span><span class="p">&gt;</span>
+</pre></div> instead of <div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;dt-start&#39;</span><span class="p">&gt;&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;value-title&#39;</span> <span class="na">title</span><span class="o">=</span><span class="s">&#39;2008&#39;</span><span class="p">&gt;</span>last year<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div> The <code>value-title</code> feature is under consideration for deprecation.</div>
+<p>The <code>value-title</code> class name allows the publisher to indicate the data value for a parent property is contained in the <code>title</code> attribute of an element, rather than the inner-text.
+</p><p>This can be used to provide a synonym within content, or used to quietly publish alternate forms of information for microformats parsing, without affecting the consumption of content.
+</p><p>For example, you can use casual localization with dates:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>It was 
+ <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;dtstart&#39;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;value-title&#39;</span> <span class="na">title</span><span class="o">=</span><span class="s">&#39;2008&#39;</span><span class="p">&gt;</span>last year<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+ <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+  that I realised my addiction to cashew nuts would cost this country so dear.
+<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div>
+<p>Parsing rules for <code>value-title</code> are the same as for <code>value</code> above, with the following change:
+</p>
+<ul><li>Where a microformats property has a child element with class name of <code>value-title</code>, the content of the <code>title</code> attribute of that element must be parsed, rather than the portion of the element that would be parsed for a class name of <code>value</code>.</li></ul>
+<h3><span class="mw-headline" id="Using_value-title_to_publish_machine-data">Using <code>value-title</code> to publish machine-data</span></h3>
+<p>The initial usage of <code>value-title</code> is used to publish alternate, parsable forms of property values in a visible context without the use of the <code>abbr</code> element whose semantics already support interpretation of the 'title' attribute as an expanded, more precise form of the content. 
+</p><p>Experience has found that there are some cases in microformats where a number of publishers want to include a precisely accurate and parsable value for a property but do not want it to be visible in their page, <i>even as a tooltip</i>.
+</p><p>For example, full <a href="/wiki/ISO8601" class="mw-redirect" title="ISO8601">ISO8601</a> datetimes may be confusing to readers of the page (as a tooltip or when read aloud by a screen reader), and enumerated values such as the <code>type</code> subproperty of hCard's <code>tel</code> property use US-English terms, which are not part of pages in any other language.
+</p><p>Since both of those scenarios have shown to be obstacles for a number of publishers, for these cases, and these alone, there exists a further extension of value-excerption. This extension allows the parsable form of the property to be published ‘silently’ in an <i>empty</i> element immediately adjacent with the respective local visible content.
+</p><p>Here is an example, with the required use of a first child element with class name <code>value-title</code>:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;tel&#39;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&#39;en-gb&#39;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;type&#39;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;value-title&#39;</span> <span class="na">title</span><span class="o">=</span><span class="s">&#39;cell&#39;</span><span class="p">&gt;</span> <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    mobile
+  <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;value&#39;</span><span class="p">&gt;</span>+44 7773 000 000<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div>
+<p><b>Note:</b> the <code>&lt;span class='value-title' title='cell'&gt; &lt;/span&gt;</code> span is deliberately empty (just has a space between the open and close tags) so that it doesn't take up any space and therefore can't show a tooltip.
+</p><p>The <samp>cell</samp> value is parsed for the 'type' subproperty, but <samp>mobile</samp> is presented to the user.
+</p><p>In the case of dates:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;dtstart&#39;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&#39;value-title&#39;</span> <span class="na">title</span><span class="o">=</span><span class="s">&#39;2009-03-14T16:28-0600&#39;</span><span class="p">&gt;</span> <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+  March 14th 2009, around half-past four
+<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div> 
+<p>A microformats parser will read the ISO8601 format datetime <samp>2009-03-14T16:28-0600</samp>, but users will only see <samp>March 14th 2009, around half-past four</samp>. Testing has shown that the ISO8601 datetime above does not get exposed to any user at all.
+</p>
+<h3><span class="mw-headline" id="Parsing_machine-data_value-title">Parsing machine-data <code>value-title</code></span></h3>
+<p>Browsers collapse the <code>value-title</code> span down to a width of <code>0</code>, effectively providing no visual rendering, whilst keeping the element in the DOM. With no physical dimensions, there is no ‘hover’ state, so no tooltip is revealed. Furthermore, the empty element is not passed to assistive technology layers such as VoiceOver.  Screen readers do not read the contents of the title attribute of an empty <code>span</code> element.
+</p><p>We conducted <a href="/wiki/value-excerption-value-title-test" title="value-excerption-value-title-test">thorough testing</a> of these parsing behaviors to ensure accessibility.
+</p><p><i>Note: Whilst the <code>value-title</code> element is more gracefully written without whitespace inner-text (or as self-closing <code>&lt;foo /&gt;</code> element in XHTML), some tools such as WYSIWYG editors and HTML-Tidy will erroneously discard such elements, resulting in parsable data being thrown away by some tools. As such, <code>&lt;span class='value-title'&gt; &lt;/span&gt;</code>, including a single whitespace character between the opening and closing tag, may also be used. In some situations, this whitespace may be rendered by the browser, and authors should test their output.</i>
+</p><p>Parsing this final <code>value-title</code> extension imposes some stricter restrictions on usage. These restrictions exist to reduce the impact of <abbr title="Don&#39;t Repeat Yourself">DRY</abbr> violations, reduce the opportunity for sites to spoof data, and encourage best practice for maintaining both forms of data accurately.
+</p><p>Where an element with class <code>value-title</code> is to be parsed as data for a property, and that element also contains no non-whitespace content (hereafter referred to as ‘empty’), the following rules apply:
+</p>
+<ul><li>The ‘empty’ value-title element must be the <b>first, non-whitespace child</b> of the property element. That is, it should follow immediately after the property is declared, before the human-readable form, and without any additional nesting.</li>
+<li>The ‘empty’ value-title element can only be used for specific properties. Future microformat specifications (and updates to existing microformats) must explicitly state which properties may be used with this extension of the value-class-pattern. (Retroactive property support for existing microformats is documented below.)</li>
+<li>Where an ‘empty’ value-title element is to be used as the single property value, it must be the <i>only</i> such <code>value</code> content. That is, the first instance of a conforming <code>value-title</code> element overrides all other <code>value</code> and <code>value-title</code> siblings and/or cousins.</li>
+<li>Tools written to perform Conformance Testing and/or Validation of microformats <i>should</i> attempt to compare the machine-data and human-legible forms of the property data, and warn authors if the forms do not match.</li></ul>
+<h3><span class="mw-headline" id="limited_use_of_value-title">limited use of value-title</span></h3>
+<div style="padding: 1em; border: 5px solid #f78c00; background: #fcdcb3; font-size: 1.5em; margin-bottom: 1em;">⚠️ <strong>Warning:</strong> This issue applies to the preferred <code>&lt;data&gt;</code> element too.</div>
+<p>Due to the fact that the value-title pattern hides some amount of data which tends to be a machine-specific duplicate of data that is provided in the human readable content, there are two microformats <a href="/wiki/principles" title="principles">principles</a> being compromised: <b>visibility</b> and <b><abbr title="Don&#39;t Repeat Yourself">DRY</abbr></b>. Thus the applicability of this pattern is deliberately restricted to properties that have demonstrated through experience a need for it, with no known better alternative.
+</p><p>In general authors should:
+</p>
+<ol><li>First, try to directly specify microformats property values inline (the most visible, no duplication),</li>
+<li>Then consider using the value-class pattern
+<ol><li>Including multiple value elements for date and time properties</li></ol></li>
+<li>and then only if those methods are insufficient, consider the value-title pattern (or rather, the <code>&lt;data&gt;</code> element).</li></ol>
+<p>This document post-dates other microformat specifications, such that they may not yet indicate which properties permit use of this pattern. In the interim, <b>only</b> the following types of properties should allow the value-title pattern.
+</p>
+<ul><li>ISO8601 date, datetime, timezone, and duration values</li>
+<li>Enumerated values (such as the hCard tel/email/adr 'type' subproperties)</li>
+<li>Co-ordinates (such as the <a href="/wiki/geo" title="geo">geo</a> 'latitude' and 'longitude' properties)</li>
+<li>Telephone number properties (e.g. the hCard 'tel' property)</li></ul>
+<p>The <a href="/wiki/machine-data" title="machine-data">machine-data</a> page has documentation of some of the properties of some specs which experience has shown need a solution like the value-title pattern.
+</p><p>There are some simple reference examples and tests for this pattern on <a href="/wiki/value-class-pattern-tests" title="value-class-pattern-tests">value-class-pattern-tests</a>.
+</p>
+<ul><li>Note: <a href="/wiki/value-class-pattern-tests#to_do_value-title_test_pages" title="value-class-pattern-tests">to do value-title test pages</a></li></ul>
+<p>In future use, <i>specification authors</i> may inherit use of <code>value-title</code> by use of ISO8601 date and time formats, or reuse of other microformats, but specifications should _avoid_ introducing new data structures that depend on or encourage this pattern. New specifications are themselves expected to adhere to the principals of visible data and <abbr>DRY</abbr>.
+</p>
+<h3><span class="mw-headline" id="H2VX_workaround">H2VX workaround</span></h3>
+<p><a href="/wiki/H2VX" class="mw-redirect" title="H2VX">H2VX</a> does not yet support the 'value-title' feature of the value class pattern (still waiting for proper <a href="/wiki/value-class-pattern-tests#to_do_value-title_test_pages" title="value-class-pattern-tests">value-title tests on separate live pages</a>). Thus if your page depends on H2VX, you should use the following techniques instead (from <a href="/wiki/pbworks" title="pbworks">pbworks</a> documentation)
+</p><p>E.g. if the value to be placed in the value-title is both human and machine readable, instead of:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-rsvp&quot;</span><span class="p">&gt;&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value-title&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;yes&quot;</span><span class="p">&gt;</span>going<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>Use an abbr (ok only if the value is human readable/listenable)
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">abbr</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-rsvp&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;yes&quot;</span><span class="p">&gt;</span>going<span class="p">&lt;/</span><span class="nt">abbr</span><span class="p">&gt;</span>
+</pre></div>
+<p>Otherwise if the value is only machine readable, or human-unfriendly, instead of the empty span technique:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-rsvp&quot;</span><span class="p">&gt;&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value-title&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;yes&quot;</span><span class="p">&gt;</span> <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> going<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>Use an empty abbr:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">abbr</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-rsvp&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;yes&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">abbr</span><span class="p">&gt;</span> going
+</pre></div>
+<h2><span class="mw-headline" id="Test_cases">Test cases</span></h2>
+<p>See <a href="/wiki/value-class-pattern-tests" title="value-class-pattern-tests">value-class-pattern-tests</a>.
+</p>
+<h2><span class="mw-headline" id="FAQ"><abbr title="Frequently Asked Questions">FAQ</abbr></span></h2>
+<p>This section is <b>informative</b>.
+</p><p>Frequently asked questions about the value-class-pattern. Once this section grows too big, we'll make a separate wiki page (like <a href="/wiki/index.php?title=value-class-faq&amp;action=edit&amp;redlink=1" class="new" title="value-class-faq (page does not exist)">value-class-faq</a>).
+</p>
+<div class="discussion">
+<ul><li><b>Is the value-class pattern supported by any of the microformats tools?</b>
+<ul><li><b>A: Yes</b>. See the <a href="/wiki/value-class-pattern#Implementations" title="value-class-pattern">implementations</a> section.</li></ul></li>
+<li><b>Why use an 'empty' element? Why not embed data in the class attribute?</b>
+<ul><li><b>A: 'class' is for field names, not data.</b> The class attribute is inappropriate for embedded data values, as per the HTML4 specification, which states <code>class</code> is for ‘general purposing processing’, which is defined as ‘e.g. for identifying fields when extracting data from HTML pages into a database, translating HTML documents into other formats, etc.’. ‘General purpose processing’ does not extend to data itself. Furthermore, this method avoids inventing a new string pattern for embedding data.</li></ul></li>
+<li><b>Why use an 'empty' element? Why not make up a new attribute, like ‘data’?</b>
+<ul><li><b>A: New attributes are invalid.</b> Microformats exist and function in <i>valid</i> HTML. Those are the current standards for web development, and microformats exist for use <i>now</i>. In the future, perhaps revisions of HTML will offer up another solution. For now, this method has been tested against browsers, and creates a consistent document structure (where machine-form and human-form data are siblings).</li></ul></li>
+<li><b>Shouldn't the <code>title</code> attribute only be used for content?</b>
+<ul><li><b>A: 'title' is used for content, machine readable content.</b> The <code>title</code> attribute <i>is</i> used for content and is read by microformats parsers. This exists for cases where data cannot be parsed with sufficient precision from just the commonly published, visible information. This pattern allows both forms of content to be included, whilst keeping it invisible to human consumers.</li></ul></li>
+<li><b>How should microformats2 parsers handle improperly nested value-class-patterns inside p- properties?</b> *:Consider the following markup.</li></ul>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-card&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-tel&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>0123456789<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-card&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">div</span> <span class="na">cass</span><span class="o">=</span><span class="s">&quot;p-tel&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;value&quot;</span><span class="p">&gt;</span>9876543210<span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+<ul><li><dl><dd>Why might someone write some markup like this? Ask a consulting psychologist. WordPress template authors, the sort of people enamoured with trendy CSS frameworks and so on—there's plenty of scope for crappy markup. The value-class-pattern spec as currently written (specficially §4 of <a href="/wiki/value-class-pattern#Basic_parsing" title="value-class-pattern">Basic parsing</a>) instructs implementers to not handle <i>nested</i> elements with class <kbd>value</kbd>, but in the context of a microformats2 parser, it would seem reasonable for an implementer to assume that the author here did <i>not</i> intend to make the text content of the second microformats2 object instance part of the value of the first. The question then is what to do with this kind of markup (other than find the author and ask him or her to kindly rewrite it). —<a href="/wiki/User:TomMorris" title="User:TomMorris">Tom Morris</a> 20:02, 7 November 2013 (UTC)</dd></dl></li></ul>
+</div>
+<p>You can also refer to the general <a href="/wiki/faq" title="faq">Microformats FAQ</a> and <a href="/wiki/principles" title="principles">principles</a>.
+</p>
+<h2><span class="mw-headline" id="Examples_in_the_wild">Examples in the wild</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>The following sites and pages have started marking up content with the value-class-pattern, and are thus good places to go for examples with real world content to test with implementations (i.e. parsers). If you use the value-class-pattern in your content, feel free to add it to the <b>top</b> of this list. Once the list grows too big, we'll make a separate wiki page (like <a href="/wiki/value-class-examples-in-wild" title="value-class-examples-in-wild">value-class-examples-in-wild</a>).
+</p>
+<ul><li><a rel="nofollow" class="external text" href="http://tantek.com">Tantek's site</a> uses date and time value separation with nested <a href="/wiki/HTML5" class="mw-redirect" title="HTML5">HTML5</a> &lt;time&gt; elements for the separate date and time values in his hAtom "dtpublished" properties.</li>
+<li><a rel="nofollow" class="external text" href="http://visitmix.com/labs/oomph/2.0/tests/test.html">Test Harness For Oomph</a> This pages uses a whole range of different patterns for both hCard and hCalendar, using both value and value-title, mostly derived from the specification above</li>
+<li><a rel="nofollow" class="external text" href="http://georgebrock.com/">George Brocklehurst's activity stream</a> and <a rel="nofollow" class="external text" href="http://blog.georgebrock.com/">blog</a> use "value-title" for hAtom <code>published</code> property</li>
+<li><a rel="nofollow" class="external text" href="http://ben-ward.co.uk/">Ben Ward's home page</a> uses:
+<ul><li>"value-title" for hCard <code>bday</code> property</li>
+<li>"value-title" for hAtom <code>updated</code> property</li></ul></li>
+<li><a rel="nofollow" class="external text" href="http://microformats.org/">microformats.org</a> uses:
+<ul><li>"value-title" for hAtom <code>updated</code> property in <a rel="nofollow" class="external text" href="http://microformats.org/">microformats.org blog posts</a></li>
+<li>date and time value separation for hCalendar <code>dtstart</code> property in <a href="/wiki/events" title="events">microformats.org recent and upcoming events wiki page</a></li></ul></li></ul>
+<p><i>Add your site/page(s) that use the value-class-pattern here, along with a brief description of what value-class-pattern features you use, with which microformat(s) and which of its/their properties.</i>
+</p>
+<h2><span class="mw-headline" id="Implementations">Implementations</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>The following implementations have been developed which either generate or parse value-class-pattern property values. If you have an value-class-pattern implementation, feel free to add it to the <b>top</b> of this list. Once the list grows too big, we'll make a separate wiki page (like <a href="/wiki/value-class-implementations" title="value-class-implementations">value-class-implementations</a>).
+</p>
+<h3><span class="mw-headline" id="consuming_and_parsing_tools">consuming and parsing tools</span></h3>
+<ul><li><a href="/wiki/Google" class="mw-redirect" title="Google">Google</a> parses <code>value-title</code> as part of their <a rel="nofollow" class="external text" href="http://googlewebmastercentral.blogspot.com/2010/01/introducing-new-rich-snippets-format.html">support for hCalendar rich snippets</a>, as documented specifically in the <a rel="nofollow" class="external text" href="https://www.google.com/support/webmasters/bin/answer.py?hl=en&amp;answer=164506">microformats example for rich snippet events</a>.</li>
+<li><a href="/wiki/Oomph" class="mw-redirect" title="Oomph">Oomph</a> Version 2 passes <a href="/wiki/value-class-pattern-tests#Date_and_time_values" title="value-class-pattern-tests">Date and time values test cases</a> and is a thorough implementation of the value class pattern.</li>
+<li><a href="/wiki/X2V" class="mw-redirect" title="X2V">X2V</a> v0.9.3 and later:
+<ul><li>implements <a href="#Date_and_time_values">Date and time values parsing</a>, including am/pm time values
+<ul><li>thus passes <a href="/wiki/value-class-pattern-tests#Date_and_time_values" title="value-class-pattern-tests">Date and time values test cases</a>.</li></ul></li>
+<li>implements <a href="#hCalendar_dtend_implied_date">hCalendar implied dtend date</a></li></ul></li>
+<li><a href="/wiki/Operator" class="mw-redirect" title="Operator">Operator</a> has *some* implementation of the value-class-pattern according to Michael Kaply, but precisely how much is implemented, for which properties (property types) and which microformats is not currently known.</li>
+<li><a href="/wiki/Optimus" class="mw-redirect" title="Optimus">Optimus</a> v0.8 and later implements <code>value-title</code> as <a rel="nofollow" class="external text" href="http://twitter.com/DmitryBaranovsk/status/1891253248">announced by Dmitry Baranovskiy</a>.</li>
+<li>HTML::Microformats and its predecessors support <code>value</code> excerpting. HTML::Microformats (though not its predecessors) supports <code>value-title</code>.</li></ul>
+<h3><span class="mw-headline" id="publishing_tools">publishing tools</span></h3>
+<ul><li><a rel="nofollow" class="external text" href="http://getk2.com/">K2</a> (WordPress Theme) is using "value-title" for the hAtom published property. <a rel="nofollow" class="external autonumber" href="http://code.google.com/p/kaytwo/issues/detail?id=832">[1]</a></li></ul>
+<h2><span class="mw-headline" id="Background">Background</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>The value class pattern is derived from <a href="/wiki/hCard#Value_excerpting" class="mw-redirect" title="hCard">value-excerpting</a> in hCard.
+</p><p>Sometimes, only a part of an element's content is to be used as the value of a microformat property. This may occur when a property has optional subproperties, such as <code>tel: type</code> and <code>tel: value</code> in <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a>. Other times, the most appropriate structure for a property may include other content.
+</p>
+<h2><span class="mw-headline" id="Articles">Articles</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>Articles and <span id="Blog_Posts">blog posts</span>  discussing the value class pattern, most recent first.
+When this section gets too big, create a separate page like: <a href="/wiki/value-class-pattern-articles" title="value-class-pattern-articles">value-class-pattern-articles</a>
+</p>
+<ul><li><span class="hentry"><span class="published">2009-08-25</span> <span class="entry-summary">MIX Online: <span class="entry-title"><a rel="nofollow" class="external text" href="http://visitmix.com/Articles/The-Value-Class-Pattern">The Value Class Pattern</a></span></span> by <span class="author vcard"><span class="fn">Jeremy Keith</span></span></span></li>
+<li><a rel="nofollow" class="external text" href="http://ablognotlimited.com/articles/getting-semantic-with-microformats-part-8-value-class-pattern">Getting Semantic With Microformats, Part 8: Value Class Pattern</a> -- A very thorough writeup by Emily Lewis on the value class pattern</li>
+<li><a rel="nofollow" class="external text" href="http://adactio.com/journal/1579/">2009-05-17 Adactio: Microformation</a></li>
+<li><a rel="nofollow" class="external text" href="http://forabeautifulweb.com/blog/about/value_class_pattern/">For A Beautiful Web: Value Class Pattern</a></li>
+<li><span class="hentry"><span class="published">2009-05-12</span> <span class="entry-title">notizblog.org: <a rel="nofollow" class="external text" href="http://notizblog.org/2009/05/12/microformats-value-class-pattern/">Microformats: Value Class Pattern</a></span> by <span class="author vcard"><span class="fn">Matthias Pfefferle</span></span></span> (german)</li>
+<li><a rel="nofollow" class="external text" href="http://microformats.org/blog/2009/05/12/value-class-pattern/">2009-05-12 microformats.org: Value Class Pattern</a></li></ul>
+<h2><span class="mw-headline" id="References">References</span></h2>
+<p>This section is <b>informative</b>.
+</p>
+<ul><li><a rel="nofollow" class="external text" href="http://www.useit.com/alertbox/9608.html">Jakob Nielsen: International Web Usability</a></li></ul>
+<h2><span class="mw-headline" id="Related_Pages">Related Pages</span></h2>
+<p>This section is <b>informative</b>.
+</p>
+<ul><li><a href="/wiki/value-class-pattern-tests" title="value-class-pattern-tests">value-class-pattern-tests</a></li>
+<li><a href="/wiki/value-excerption-pattern-issues" class="mw-redirect" title="value-excerption-pattern-issues">value-excerption-pattern-issues</a></li>
+<li><a href="/wiki/hcard#Value_excerpting" title="hcard">hCard: Value Excepting</a></li>
+<li><a href="/wiki/value-class-pattern-brainstorming" title="value-class-pattern-brainstorming">value-class-pattern-brainstorming</a></li>
+<li><a href="/wiki/value-excerption-pattern-brainstorming" class="mw-redirect" title="value-excerption-pattern-brainstorming">value-excerption-pattern-brainstorming</a></li>
+<li><a href="/wiki/machine-data" title="machine-data">Machine Data in Microformats</a></li></ul>
+<h2><span class="mw-headline" id="Translations">Translations</span></h2>
+<p>This section is <b>informative</b>.
+</p><p>Read the value-class-pattern specification in additional <span id="languages">languages</span>:
+</p>
+<ul><li><a href="/wiki/value-class-pattern-fr" title="value-class-pattern-fr">français</a></li>
+<li><a href="/wiki/value-class-pattern-ja" title="value-class-pattern-ja">日本語</a></li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20261105213251
+Cache expiry: 86400
+Reduced expiry: false
+Complications: []
+CPU time usage: 0.124 seconds
+Real time usage: 17.243 seconds
+Preprocessor visited node count: 347/1000000
+Post‐expand include size: 932/2097152 bytes
+Template argument size: 362/2097152 bytes
+Highest expansion depth: 4/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 28582/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00% 5058.506      1 -total
+ 22.51% 1138.678      2 Template:warning
+  0.03%    1.542      2 Template:must
+-->
+
+<!-- Saved in parser cache with key wiki:pcache:idhash:5310-0!canonical and timestamp 20261105213234 and revision id 70879. Serialized with JSON.
+ -->
+</div>
+<div class="printfooter">Retrieved from "<a dir="ltr" href="http://microformats.org/wiki/index.php?title=value-class-pattern&amp;oldid=70879">http://microformats.org/wiki/index.php?title=value-class-pattern&amp;oldid=70879</a>"</div></div>
+		<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Categories</a>: <ul><li><a href="/wiki/index.php?title=Category:Pages_using_deprecated_source_tags&amp;action=edit&amp;redlink=1" class="new" title="Category:Pages using deprecated source tags (page does not exist)">Pages using deprecated source tags</a></li><li><a href="/wiki/Category:Draft_Specifications" title="Category:Draft Specifications">Draft Specifications</a></li></ul></div></div>
+	</div>
+</div>
+
+<div id="mw-navigation">
+	<h2>Navigation menu</h2>
+	<div id="mw-head">
+		
+<nav id="p-personal" class="mw-portlet mw-portlet-personal vector-user-menu-legacy vector-menu" aria-labelledby="p-personal-label" role="navigation" 
+	 >
+	<label id="p-personal-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Personal tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="pt-login" class="mw-list-item"><a href="/wiki/index.php?title=Special:UserLogin&amp;returnto=value-class-pattern" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span>Log in</span></a></li></ul>
+		
+	</div>
+</nav>
+
+		<div id="left-navigation">
+			
+<nav id="p-namespaces" class="mw-portlet mw-portlet-namespaces vector-menu vector-menu-tabs" aria-labelledby="p-namespaces-label" role="navigation" 
+	 >
+	<label id="p-namespaces-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Namespaces</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/value-class-pattern" title="View the content page [c]" accesskey="c"><span>Page</span></a></li><li id="ca-talk" class="new mw-list-item"><a href="/wiki/index.php?title=Talk:value-class-pattern&amp;action=edit&amp;redlink=1" rel="discussion" title="Discussion about the content page (page does not exist) [t]" accesskey="t"><span>Discussion</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-variants" class="mw-portlet mw-portlet-variants emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-variants-label" role="navigation" 
+	 >
+	<input type="checkbox"
+		id="p-variants-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-variants"
+		class="vector-menu-checkbox" aria-labelledby="p-variants-label" />
+	<label id="p-variants-label" aria-label="Change language variant" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">English</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+		</div>
+		<div id="right-navigation">
+			
+<nav id="p-views" class="mw-portlet mw-portlet-views vector-menu vector-menu-tabs" aria-labelledby="p-views-label" role="navigation" 
+	 >
+	<label id="p-views-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Views</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-view" class="selected mw-list-item"><a href="/wiki/value-class-pattern"><span>Read</span></a></li><li id="ca-viewsource" class="mw-list-item"><a href="/wiki/index.php?title=value-class-pattern&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e"><span>View source</span></a></li><li id="ca-history" class="mw-list-item"><a href="/wiki/index.php?title=value-class-pattern&amp;action=history" title="Past revisions of this page [h]" accesskey="h"><span>View history</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-cactions" class="mw-portlet mw-portlet-cactions emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-cactions-label" role="navigation"  title="More options"
+	 >
+	<input type="checkbox"
+		id="p-cactions-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-cactions"
+		class="vector-menu-checkbox" aria-labelledby="p-cactions-label" />
+	<label id="p-cactions-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">More</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+			
+<div id="p-search" role="search" class="vector-search-box-vue  vector-search-box-show-thumbnail vector-search-box-auto-expand-width vector-search-box">
+	<div>
+			<h3 >
+				<label for="searchInput">Search</label>
+			</h3>
+		<form action="/wiki/index.php" id="searchform"
+			class="vector-search-box-form">
+			<div id="simpleSearch"
+				class="vector-search-box-inner"
+				 data-search-loc="header-navigation">
+				<input class="vector-search-box-input"
+					 type="search" name="search" placeholder="Search Microformats Wiki" aria-label="Search Microformats Wiki" autocapitalize="none" title="Search Microformats Wiki [f]" accesskey="f" id="searchInput"
+				/>
+				<input type="hidden" name="title" value="Special:Search"/>
+				<input id="mw-searchButton"
+					 class="searchButton mw-fallbackSearchButton" type="submit" name="fulltext" title="Search the pages for this text" value="Search" />
+				<input id="searchButton"
+					 class="searchButton" type="submit" name="go" title="Go to a page with this exact name if it exists" value="Go" />
+			</div>
+		</form>
+	</div>
+</div>
+
+		</div>
+	</div>
+	
+
+<div id="mw-panel">
+	<div id="p-logo" role="banner">
+		<a class="mw-wiki-logo" href="/wiki/Main_Page"
+			title="Visit the main page"></a>
+	</div>
+	
+<nav id="p-Microformats_Wiki" class="mw-portlet mw-portlet-Microformats_Wiki vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats_Wiki-label" role="navigation" 
+	 >
+	<label id="p-Microformats_Wiki-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats Wiki</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Front-Page" class="mw-list-item"><a href="/wiki/Main_Page"><span>Front Page</span></a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" icon="recentChanges" title="A list of recent changes in the wiki [r]" accesskey="r"><span>Recent changes</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+<nav id="p-Microformats" class="mw-portlet mw-portlet-Microformats vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats-label" role="navigation" 
+	 >
+	<label id="p-Microformats-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Blog" class="mw-list-item"><a href="http://microformats.org" rel="nofollow"><span>Blog</span></a></li><li id="n-Events" class="mw-list-item"><a href="/wiki/Microformats_Wiki:Current_events"><span>Events</span></a></li><li id="n-About" class="mw-list-item"><a href="/wiki/About"><span>About</span></a></li></ul>
+		
+	</div>
+</nav>
+
+<nav id="p-tb" class="mw-portlet mw-portlet-tb vector-menu vector-menu-portal portal" aria-labelledby="p-tb-label" role="navigation" 
+	 >
+	<label id="p-tb-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/value-class-pattern" title="A list of all wiki pages that link here [j]" accesskey="j"><span>What links here</span></a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/value-class-pattern" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k"><span>Related changes</span></a></li><li id="t-specialpages" class="mw-list-item"><a href="/wiki/Special:SpecialPages" title="A list of all special pages [q]" accesskey="q"><span>Special pages</span></a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p"><span>Printable version</span></a></li><li id="t-permalink" class="mw-list-item"><a href="/wiki/index.php?title=value-class-pattern&amp;oldid=70879" title="Permanent link to this revision of the page"><span>Permanent link</span></a></li><li id="t-info" class="mw-list-item"><a href="/wiki/index.php?title=value-class-pattern&amp;action=info" title="More information about this page"><span>Page information</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+</div>
+
+</div>
+
+<footer id="footer" class="mw-footer" role="contentinfo" >
+	<ul id="footer-info">
+	<li id="footer-info-lastmod"> This page was last edited on 20 September 2026, at 19:33.</li>
+</ul>
+
+	<ul id="footer-places">
+	<li id="footer-places-privacy"><a href="/wiki/Microformats_Wiki:Privacy_policy" title="Microformats Wiki:Privacy policy">Privacy policy</a></li>
+	<li id="footer-places-about"><a href="/wiki/Microformats_Wiki:About" title="Microformats Wiki:About">About Microformats Wiki</a></li>
+	<li id="footer-places-disclaimer"><a href="/wiki/Microformats_Wiki:General_disclaimer" title="Microformats Wiki:General disclaimer">Disclaimers</a></li>
+</ul>
+
+	<ul id="footer-icons" class="noprint">
+	<li id="footer-poweredbyico"><a href="https://www.mediawiki.org/"><img src="/wiki/resources/assets/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" srcset="/wiki/resources/assets/poweredby_mediawiki_132x47.png 1.5x, /wiki/resources/assets/poweredby_mediawiki_176x62.png 2x" width="88" height="31" loading="lazy"/></a></li>
+</ul>
+
+</footer>
+
+<script src="https://www.googletagmanager.com/gtag/js?id=UA-1889385-1" async=""></script><script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'UA-1889385-1');
+</script>
+
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgPageParseReport":{"limitreport":{"cputime":"0.124","walltime":"17.243","ppvisitednodes":{"value":347,"limit":1000000},"postexpandincludesize":{"value":932,"limit":2097152},"templateargumentsize":{"value":362,"limit":2097152},"expansiondepth":{"value":4,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":28582,"limit":5000000},"timingprofile":["100.00% 5058.506      1 -total"," 22.51% 1138.678      2 Template:warning","  0.03%    1.542      2 Template:must"]},"cachereport":{"timestamp":"20261105213251","ttl":86400,"transientcontent":false}}});mw.config.set({"wgBackendResponseTime":191});});</script>
+</body>
+</html>

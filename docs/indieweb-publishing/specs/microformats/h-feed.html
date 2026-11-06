@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<title>h-feed - Microformats Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"f64d83abee04322409241c9b","wgCSPNonce":false,"wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"h-feed","wgTitle":"h-feed","wgCurRevisionId":70688,"wgRevisionId":70688,"wgArticleId":13072,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Draft Specifications"],"wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"h-feed","wgRelevantArticleId":13072,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":[]};RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready",
+"user.options":"loading","ext.pygments":"ready","skins.vector.styles.legacy":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.vector.legacy.js"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.implement("user.options@1i9g4",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});});});</script>
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=ext.pygments%7Cskins.vector.styles.legacy&amp;only=styles&amp;skin=vector"/>
+<script async="" src="/wiki/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+<meta name="generator" content="MediaWiki 1.38.4"/>
+<meta name="format-detection" content="telephone=no"/>
+<link rel="shortcut icon" href="/favicon.ico"/>
+<link rel="search" type="application/opensearchdescription+xml" href="/wiki/opensearch_desc.php" title="Microformats Wiki (en)"/>
+<link rel="EditURI" type="application/rsd+xml" href="//microformats.org/wiki/api.php?action=rsd"/>
+<link rel="alternate" type="application/atom+xml" title="Microformats Wiki Atom feed" href="/wiki/index.php?title=Special:RecentChanges&amp;feed=atom"/>
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-h-feed rootpage-h-feed skin-vector action-view skin-vector-legacy"><div id="mw-page-base" class="noprint"></div>
+<div id="mw-head-base" class="noprint"></div>
+<div id="content" class="mw-body" role="main">
+	<a id="top"></a>
+	<div id="siteNotice"></div>
+	<div class="mw-indicators">
+	</div>
+	<h1 id="firstHeading" class="firstHeading mw-first-heading">h-feed</h1>
+	<div id="bodyContent" class="vector-body">
+		<div id="siteSub" class="noprint">From Microformats Wiki</div>
+		<div id="contentSub"></div>
+		<div id="contentSub2"></div>
+		
+		<div id="jump-to-nav"></div>
+		<a class="mw-jump-link" href="#mw-head">Jump to navigation</a>
+		<a class="mw-jump-link" href="#searchInput">Jump to search</a>
+		<div id="mw-content-text" class="mw-body-content mw-content-ltr" lang="en" dir="ltr"><div class="mw-parser-output"><p><dfn style="font-style:normal;font-weight:bold">h-feed</dfn> is a simple, open format for publishing a stream or feed of <a href="/wiki/h-entry" title="h-entry">h-entry</a> posts, like complete posts on a home page or archive pages, or summaries or other brief lists of posts. h-feed is one of several open <a href="/wiki/microformats" title="microformats">microformat</a> draft standards suitable for embedding data in HTML.
+</p><p>h-feed is the <a href="/wiki/microformats2" title="microformats2">microformats2</a> update to <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a>, and in particular its "hfeed" root class.
+</p>
+<dl><dt><span id="status">Status</span></dt>
+<dd><b>h-feed</b> is a microformats.org draft specification.</dd>
+<dd>h-feed is ready to use and implemented in the wild, but for backwards compatibility you should also mark h-feed up as a classic <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> "hfeed".</dd></dl>
+<dl><dt><span id="participate">Participate</span></dt>
+<dd><a rel="nofollow" class="external text" href="https://github.com/microformats/h-feed/issues">Open Issues</a></dd>
+<dd><a href="/wiki/IRC" class="mw-redirect" title="IRC">IRC</a></dd>
+<dt>Editor</dt>
+<dd><span class="h-card vcard"><span class="p-name fn"><a href="/wiki/User:Tantek" title="User:Tantek">Tantek Çelik</a></span> (<span class="p-role role">Editor</span>)</span></dd>
+<dt>License</dt>
+<dd><small>Per <a rel="nofollow" class="external text" href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the <a rel="nofollow" class="external text" href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0">Open Web Foundation Agreement Version 1.0</a>.</small></dd></dl>
+<div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Properties"><span class="tocnumber">1</span> <span class="toctext">Properties</span></a>
+<ul>
+<li class="toclevel-2 tocsection-2"><a href="#Core_Properties"><span class="tocnumber">1.1</span> <span class="toctext">Core Properties</span></a></li>
+<li class="toclevel-2 tocsection-3"><a href="#Draft_Properties"><span class="tocnumber">1.2</span> <span class="toctext">Draft Properties</span></a></li>
+<li class="toclevel-2 tocsection-4"><a href="#Proposed_Properties"><span class="tocnumber">1.3</span> <span class="toctext">Proposed Properties</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-5"><a href="#Proposed_Additions"><span class="tocnumber">2</span> <span class="toctext">Proposed Additions</span></a></li>
+<li class="toclevel-1 tocsection-6"><a href="#Discovery"><span class="tocnumber">3</span> <span class="toctext">Discovery</span></a>
+<ul>
+<li class="toclevel-2 tocsection-7"><a href="#Implied_h-feed"><span class="tocnumber">3.1</span> <span class="toctext">Implied h-feed</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-8"><a href="#Examples_in_the_wild"><span class="tocnumber">4</span> <span class="toctext">Examples in the wild</span></a></li>
+<li class="toclevel-1 tocsection-9"><a href="#Consumers"><span class="tocnumber">5</span> <span class="toctext">Consumers</span></a></li>
+<li class="toclevel-1 tocsection-10"><a href="#Backward_Compatibility"><span class="tocnumber">6</span> <span class="toctext">Backward Compatibility</span></a>
+<ul>
+<li class="toclevel-2 tocsection-11"><a href="#Publisher_Compatibility"><span class="tocnumber">6.1</span> <span class="toctext">Publisher Compatibility</span></a></li>
+<li class="toclevel-2 tocsection-12"><a href="#Parser_Compatibility"><span class="tocnumber">6.2</span> <span class="toctext">Parser Compatibility</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-13"><a href="#FAQ"><span class="tocnumber">7</span> <span class="toctext">FAQ</span></a>
+<ul>
+<li class="toclevel-2 tocsection-14"><a href="#How_do_I_avoid_duplicating_the_page_title"><span class="tocnumber">7.1</span> <span class="toctext">How do I avoid duplicating the page title</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-15"><a href="#See_Also"><span class="tocnumber">8</span> <span class="toctext">See Also</span></a></li>
+</ul>
+</div>
+
+<h2><span class="mw-headline" id="Properties">Properties</span></h2>
+<p>h-feed properties, inside an element with class <b>h-feed</b>. All properties are both optional and may have multiple instances, e.g. multiple name, url, photo etc. properties.
+</p><p>root class name: h-feed
+</p>
+<h3><span class="mw-headline" id="Core_Properties">Core Properties</span></h3>
+<p>The following <i>core</i> h-feed properties have broad consensus:
+</p>
+<ul><li><b><code>p-name</code></b> - name of the feed</li>
+<li><b><code>p-author</code></b> - author of the feed, optionally embed an <a href="/wiki/h-card" title="h-card">h-card</a> <div style="text-indent:2em;font-style:italic">Main article: <a href="/wiki/h-card" title="h-card">h-card</a></div></li>
+<li><b><code>u-url</code></b> - URL of the feed</li>
+<li><b><code>u-photo</code></b> - representative photo / icon for the feed</li></ul>
+<p>children:
+</p>
+<ul><li>nested <a href="/wiki/h-entry" title="h-entry">h-entry</a> objects representing the items of the feed</li></ul>
+<h3><span class="mw-headline" id="Draft_Properties">Draft Properties</span></h3>
+<p>None currently.
+</p>
+<h3><span class="mw-headline" id="Proposed_Properties">Proposed Properties</span></h3>
+<p>The following properties are proposed additions based on various observed examples in the wild, but are awaiting at least one reader / real world consuming code example to become a draft property:
+</p>
+<ul><li><b><code>p-summary</code></b> - based on non-trivial actual content usage of "atom:subtitle" on Blogger and WordPress.com featured blogs's Atom feeds.</li>
+<li><b><code>p-entry</code></b> - to be more consistent with the cascading of p-author or <a rel="nofollow" class="external text" href="http://microformats.org/wiki/comment-brainstorming#Proposal">p-comment</a>.</li></ul>
+<h2><span class="mw-headline" id="Proposed_Additions">Proposed Additions</span></h2>
+<ul><li>Proposal that h-feed not be limited to h-entry, due use cases for feeds of h-cards or h-events <a rel="nofollow" class="external free" href="https://github.com/microformats/h-feed/issues/3">https://github.com/microformats/h-feed/issues/3</a></li>
+<li>Proposal to add implied h-feed in cases where no h-feed is explicitly marked up. <a rel="nofollow" class="external free" href="https://github.com/microformats/h-feed/issues/1">https://github.com/microformats/h-feed/issues/1</a></li></ul>
+<h2><span class="mw-headline" id="Discovery">Discovery</span></h2>
+<p>Implementations may discover one or more h-feeds in several ways.
+</p>
+<ul><li>If the implementation is given a URL (e.g. from a user entering it) to do h-feed discovery, it:
+<ul><li>SHOULD do traditional feed discovery by looking through link elements with a rel value of "alternate"</li>
+<li>For each link alternate with a media type of <code><a rel="nofollow" class="external text" href="https://indieweb.org/text/mf2%2Bhtml">text/mf2+html</a></code>
+<ol><li>get its href,</li>
+<li>do any relative-URL resolution needed on that href to construct an absolute URL</li>
+<li>fetch that absolute URL and <a href="/wiki/microformats2-parsing" title="microformats2-parsing">parse it</a> (within a specific element matching a fragment in the URL if any) for microformats2 items,</li>
+<li>look for top-level items (within that fragment element subtree if any) of type "h-feed"</li></ol></li>
+<li>ALSO implementations MAY <a href="/wiki/microformats2-parsing" title="microformats2-parsing">parse the whole document</a> and look in its top level items for those of type "h-feed"</li></ul></li></ul>
+<ul><li>If the implementation has already parsed an HTML document, it may look for elements with a class name of "h-feed"</li></ul>
+<p>Details:
+</p>
+<ul><li>Implementations may fetch public h-feeds without having to pass cookies or any other user-identifying information</li>
+<li>Implementations should parse h-feed documents without executing any scripts (parse as if scripting is disabled or unimplemented)</li>
+<li>If an implementation needs only one h-feed, it should take the first one found per the above methods</li></ul>
+<h3><span class="mw-headline" id="Implied_h-feed">Implied h-feed</span></h3>
+<p>In the absence of an explicit "h-feed" element, implementations may infer an h-feed of all top level microformats items in the document (as determined by <a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a> the document). Among those top level items, if precisely one of them is an "h-card" then it is used to imply a "p-author h-card" property of the implied "h-feed" and is removed from the "children" array of the implied "h-feed".
+</p><p>E.g. if an archive page has a collection of h-entry elements at the top level, implementations may imply an h-feed container for all of them and treat the entire document as a feed.
+</p>
+<h2><span class="mw-headline" id="Examples_in_the_wild">Examples in the wild</span></h2>
+<p>See <a rel="nofollow" class="external free" href="https://indieweb.org/h-feed#IndieWeb_Examples">https://indieweb.org/h-feed#IndieWeb_Examples</a> for examples of h-feed in the wild.
+</p>
+<h2><span class="mw-headline" id="Consumers">Consumers</span></h2>
+<p>See <a rel="nofollow" class="external free" href="https://indieweb.org/h-feed#Consumers_of_H-Feed">https://indieweb.org/h-feed#Consumers_of_H-Feed</a> for examples of implementations that consume h-feed.
+</p>
+<h2><span class="mw-headline" id="Backward_Compatibility">Backward Compatibility</span></h2>
+<h3><span class="mw-headline" id="Publisher_Compatibility">Publisher Compatibility</span></h3>
+<p>For backward compatibility, you may wish to use classic <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> classnames in addition to the more future-proof h-feed properties, for example:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-feed hfeed&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h1</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name site-title&quot;</span><span class="p">&gt;</span>The Markup Blog<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-summary site-description&quot;</span><span class="p">&gt;</span>Stories of elements of their attributes.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="nt">article</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-entry hentry&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;u-url&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;bookmark&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;2020/06/22/balanced-divisive-complementary&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h2</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name entry-title&quot;</span><span class="p">&gt;</span>A Tale Of Two Tags: Part 2<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">address</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-author author h-card vcard&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://chandra.example.com/&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;u-url url p-name fn&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;author&quot;</span><span class="p">&gt;</span>Chandra<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">address</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">time</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dt-published published&quot;</span> <span class="na">datetime</span><span class="o">=</span><span class="s">&quot;2012-06-22T09:45:57-07:00&quot;</span><span class="p">&gt;</span>June 21, 2012<span class="p">&lt;/</span><span class="nt">time</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-summary entry-summary&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>From balanced harmony, to divisive misunderstandings, to complementary roles.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/category/uncategorized/&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;category tag&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-category&quot;</span><span class="p">&gt;</span>General<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">article</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="nt">article</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-entry hentry&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;u-url&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;bookmark&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;2020/06/20/best-visible-alternative-invisible&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h2</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name entry-title&quot;</span><span class="p">&gt;</span>A Tale Of Two Tags: Part 1<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">address</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-author author h-card vcard&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://chandra.example.com/&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;u-url url p-name fn&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;author&quot;</span><span class="p">&gt;</span>Chandra<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">address</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">time</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dt-published published&quot;</span> <span class="na">datetime</span><span class="o">=</span><span class="s">&quot;2012-06-20T08:34:46-07:00&quot;</span><span class="p">&gt;</span>June 20, 2012<span class="p">&lt;/</span><span class="nt">time</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-summary entry-summary&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>It was the best of visible tags, it was the alternative invisible tags.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/category/uncategorized/&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;category tag&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-category&quot;</span><span class="p">&gt;</span>General<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">article</span><span class="p">&gt;</span>
+
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+<div style="text-indent:2em;font-weight:bold;padding:1em;background:#FFFFCC">ℹ️ Note: Note: you may use any valid HTML5 elements. The <code>article h1 h2 address time</code> elements are used in the example as semantically richer suggestions, however in general <code>div span</code> work fine too. The <code>time</code> element is special though in that its <code>datetime</code> attribute provides a more author/user friendly way of separating a machine readable ISO8601 datetime from a human readable summary.
+</div>
+<p>The class <b><code>hfeed</code></b> is a <i>backward compatible root class name</i> that indicates the presence of an <a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a> feed.
+</p><p>Backward compatibility hAtom property class names and rel values are listed below.
+</p>
+<h3><span class="mw-headline" id="Parser_Compatibility">Parser Compatibility</span></h3>
+<p>Microformats parsers <em title="SHOULD in &#82;FC 2119 context" style="text-transform: lowercase; font-style: italic;" class="&#82;FC2119">SHOULD</em> detect classic properties only if a classic root class name is found and parse them as microformats2 properties. 
+</p><p>If an "h-feed" is found, don't look for an "hfeed" on the same element.
+</p><p>Compat root class name: <code id="hfeed">hfeed</code><br />
+Properties: (parsed as <b>p-</b> plain text unless otherwise specified):
+</p><p>(this section is a stub and needs review and citations to note what real world examples would each of these backcompat parsing rules actually help parse)
+</p>
+<ul><li><code>rel=tag</code> - parse as <b><code>p-category</code></b>. While not a class name nor typical microformats property, rel=tag was the defined way to tag an hfeed. Thus parsers should look for rel=tag hyperlinks inside an hfeed, and take the last path segment of their "href" value as a value for a <b><code>p-category</code></b> property.</li>
+<li><code>site-title</code> - parse as <b><code>p-name</code></b> [WordPress (Core? Typical themes?) has this class name by default, and without it buggy parsers may imply p-name as the whole h-feed (<a rel="nofollow" class="external text" href="http://microformats.org/wiki/microformats2-parsing#parsing_for_implied_properties">implied properties only apply to actual h-x roots, not backcompat</a>).]</li>
+<li><code>site-description</code> - parse as <b><code>p-summary</code></b> [WordPress (Core? Typical themes?) has this class name by default]</li></ul>
+<p>If no "h-feed" nor "hfeed" element is found, however multiple top-level <a href="/wiki/h-entry" title="h-entry">h-entry</a> elements (explicit or backcompat) are found, implementations may use:
+</p>
+<ul><li>top level <a href="/wiki/h-entry" title="h-entry">h-entry</a> elements as items in a synthetic h-feed.</li>
+<li><code>&lt;title&gt;</code> of the page or the URL of the page as <b><code>p-name</code></b></li>
+<li><a rel="nofollow" class="external free" href="https://indieweb.org/authorship">https://indieweb.org/authorship</a> on the page to discover default authorship for any h-entry posts lacking explicit parsed <code>author</code> properties.</li></ul>
+<h2><span class="mw-headline" id="FAQ">FAQ</span></h2>
+<h3><span class="mw-headline" id="How_do_I_avoid_duplicating_the_page_title">How do I avoid duplicating the page title</span></h3>
+<p><i>I want to use the name (title) of my page as the name of my feed, how do I avoid duplicating the page title somewhere invisibly on the page as the feed name?</i>
+</p><p>If you want re-use the &lt;title&gt; of your page as the name of your feed, you can do so by putting the h-feed root class name on the &lt;html&gt; element, and the p-name property class name on the &lt;title&gt; element, e.g. here's a snippet showing how those tags would look:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">html</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-feed&quot;</span><span class="p">&gt;</span>
+  … 
+  <span class="p">&lt;</span><span class="nt">title</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name&quot;</span><span class="p">&gt;</span>The Markup Blog<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+  …
+</pre></div>
+<h2><span class="mw-headline" id="See_Also">See Also</span></h2>
+<ul><li><a href="/wiki/h-entry" title="h-entry">h-entry</a></li>
+<li><a href="/wiki/microformats2" title="microformats2">microformats2</a></li>
+<li><a href="/wiki/hAtom" class="mw-redirect" title="hAtom">hAtom</a></li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20261106143302
+Cache expiry: 3600
+Reduced expiry: true
+Complications: []
+CPU time usage: 0.034 seconds
+Real time usage: 1.345 seconds
+Preprocessor visited node count: 104/1000000
+Post‐expand include size: 1173/2097152 bytes
+Template argument size: 433/2097152 bytes
+Highest expansion depth: 3/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 8197/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00%  654.899      1 -total
+  0.95%    6.203      1 Template:cc0-owfa-license
+  0.41%    2.656      1 Template:should
+  0.39%    2.537      1 Template:note
+  0.30%    1.951      1 Template:main
+-->
+
+<!-- Saved in parser cache with key wiki:pcache:idhash:13072-0!canonical and timestamp 20261106143301 and revision id 70688. Serialized with JSON.
+ -->
+</div>
+<div class="printfooter">Retrieved from "<a dir="ltr" href="http://microformats.org/wiki/index.php?title=h-feed&amp;oldid=70688">http://microformats.org/wiki/index.php?title=h-feed&amp;oldid=70688</a>"</div></div>
+		<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Draft_Specifications" title="Category:Draft Specifications">Draft Specifications</a></li></ul></div></div>
+	</div>
+</div>
+
+<div id="mw-navigation">
+	<h2>Navigation menu</h2>
+	<div id="mw-head">
+		
+<nav id="p-personal" class="mw-portlet mw-portlet-personal vector-user-menu-legacy vector-menu" aria-labelledby="p-personal-label" role="navigation" 
+	 >
+	<label id="p-personal-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Personal tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="pt-login" class="mw-list-item"><a href="/wiki/index.php?title=Special:UserLogin&amp;returnto=h-feed" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span>Log in</span></a></li></ul>
+		
+	</div>
+</nav>
+
+		<div id="left-navigation">
+			
+<nav id="p-namespaces" class="mw-portlet mw-portlet-namespaces vector-menu vector-menu-tabs" aria-labelledby="p-namespaces-label" role="navigation" 
+	 >
+	<label id="p-namespaces-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Namespaces</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/h-feed" title="View the content page [c]" accesskey="c"><span>Page</span></a></li><li id="ca-talk" class="new mw-list-item"><a href="/wiki/index.php?title=Talk:h-feed&amp;action=edit&amp;redlink=1" rel="discussion" title="Discussion about the content page (page does not exist) [t]" accesskey="t"><span>Discussion</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-variants" class="mw-portlet mw-portlet-variants emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-variants-label" role="navigation" 
+	 >
+	<input type="checkbox"
+		id="p-variants-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-variants"
+		class="vector-menu-checkbox" aria-labelledby="p-variants-label" />
+	<label id="p-variants-label" aria-label="Change language variant" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">English</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+		</div>
+		<div id="right-navigation">
+			
+<nav id="p-views" class="mw-portlet mw-portlet-views vector-menu vector-menu-tabs" aria-labelledby="p-views-label" role="navigation" 
+	 >
+	<label id="p-views-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Views</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-view" class="selected mw-list-item"><a href="/wiki/h-feed"><span>Read</span></a></li><li id="ca-viewsource" class="mw-list-item"><a href="/wiki/index.php?title=h-feed&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e"><span>View source</span></a></li><li id="ca-history" class="mw-list-item"><a href="/wiki/index.php?title=h-feed&amp;action=history" title="Past revisions of this page [h]" accesskey="h"><span>View history</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-cactions" class="mw-portlet mw-portlet-cactions emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-cactions-label" role="navigation"  title="More options"
+	 >
+	<input type="checkbox"
+		id="p-cactions-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-cactions"
+		class="vector-menu-checkbox" aria-labelledby="p-cactions-label" />
+	<label id="p-cactions-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">More</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+			
+<div id="p-search" role="search" class="vector-search-box-vue  vector-search-box-show-thumbnail vector-search-box-auto-expand-width vector-search-box">
+	<div>
+			<h3 >
+				<label for="searchInput">Search</label>
+			</h3>
+		<form action="/wiki/index.php" id="searchform"
+			class="vector-search-box-form">
+			<div id="simpleSearch"
+				class="vector-search-box-inner"
+				 data-search-loc="header-navigation">
+				<input class="vector-search-box-input"
+					 type="search" name="search" placeholder="Search Microformats Wiki" aria-label="Search Microformats Wiki" autocapitalize="none" title="Search Microformats Wiki [f]" accesskey="f" id="searchInput"
+				/>
+				<input type="hidden" name="title" value="Special:Search"/>
+				<input id="mw-searchButton"
+					 class="searchButton mw-fallbackSearchButton" type="submit" name="fulltext" title="Search the pages for this text" value="Search" />
+				<input id="searchButton"
+					 class="searchButton" type="submit" name="go" title="Go to a page with this exact name if it exists" value="Go" />
+			</div>
+		</form>
+	</div>
+</div>
+
+		</div>
+	</div>
+	
+
+<div id="mw-panel">
+	<div id="p-logo" role="banner">
+		<a class="mw-wiki-logo" href="/wiki/Main_Page"
+			title="Visit the main page"></a>
+	</div>
+	
+<nav id="p-Microformats_Wiki" class="mw-portlet mw-portlet-Microformats_Wiki vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats_Wiki-label" role="navigation" 
+	 >
+	<label id="p-Microformats_Wiki-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats Wiki</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Front-Page" class="mw-list-item"><a href="/wiki/Main_Page"><span>Front Page</span></a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" icon="recentChanges" title="A list of recent changes in the wiki [r]" accesskey="r"><span>Recent changes</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+<nav id="p-Microformats" class="mw-portlet mw-portlet-Microformats vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats-label" role="navigation" 
+	 >
+	<label id="p-Microformats-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Blog" class="mw-list-item"><a href="http://microformats.org" rel="nofollow"><span>Blog</span></a></li><li id="n-Events" class="mw-list-item"><a href="/wiki/Microformats_Wiki:Current_events"><span>Events</span></a></li><li id="n-About" class="mw-list-item"><a href="/wiki/About"><span>About</span></a></li></ul>
+		
+	</div>
+</nav>
+
+<nav id="p-tb" class="mw-portlet mw-portlet-tb vector-menu vector-menu-portal portal" aria-labelledby="p-tb-label" role="navigation" 
+	 >
+	<label id="p-tb-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/h-feed" title="A list of all wiki pages that link here [j]" accesskey="j"><span>What links here</span></a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/h-feed" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k"><span>Related changes</span></a></li><li id="t-specialpages" class="mw-list-item"><a href="/wiki/Special:SpecialPages" title="A list of all special pages [q]" accesskey="q"><span>Special pages</span></a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p"><span>Printable version</span></a></li><li id="t-permalink" class="mw-list-item"><a href="/wiki/index.php?title=h-feed&amp;oldid=70688" title="Permanent link to this revision of the page"><span>Permanent link</span></a></li><li id="t-info" class="mw-list-item"><a href="/wiki/index.php?title=h-feed&amp;action=info" title="More information about this page"><span>Page information</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+</div>
+
+</div>
+
+<footer id="footer" class="mw-footer" role="contentinfo" >
+	<ul id="footer-info">
+	<li id="footer-info-lastmod"> This page was last edited on 23 May 2024, at 17:50.</li>
+</ul>
+
+	<ul id="footer-places">
+	<li id="footer-places-privacy"><a href="/wiki/Microformats_Wiki:Privacy_policy" title="Microformats Wiki:Privacy policy">Privacy policy</a></li>
+	<li id="footer-places-about"><a href="/wiki/Microformats_Wiki:About" title="Microformats Wiki:About">About Microformats Wiki</a></li>
+	<li id="footer-places-disclaimer"><a href="/wiki/Microformats_Wiki:General_disclaimer" title="Microformats Wiki:General disclaimer">Disclaimers</a></li>
+</ul>
+
+	<ul id="footer-icons" class="noprint">
+	<li id="footer-poweredbyico"><a href="https://www.mediawiki.org/"><img src="/wiki/resources/assets/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" srcset="/wiki/resources/assets/poweredby_mediawiki_132x47.png 1.5x, /wiki/resources/assets/poweredby_mediawiki_176x62.png 2x" width="88" height="31" loading="lazy"/></a></li>
+</ul>
+
+</footer>
+
+<script src="https://www.googletagmanager.com/gtag/js?id=UA-1889385-1" async=""></script><script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'UA-1889385-1');
+</script>
+
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgPageParseReport":{"limitreport":{"cputime":"0.034","walltime":"1.345","ppvisitednodes":{"value":104,"limit":1000000},"postexpandincludesize":{"value":1173,"limit":2097152},"templateargumentsize":{"value":433,"limit":2097152},"expansiondepth":{"value":3,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":8197,"limit":5000000},"timingprofile":["100.00%  654.899      1 -total","  0.95%    6.203      1 Template:cc0-owfa-license","  0.41%    2.656      1 Template:should","  0.39%    2.537      1 Template:note","  0.30%    1.951      1 Template:main"]},"cachereport":{"timestamp":"20261106143302","ttl":3600,"transientcontent":true}}});mw.config.set({"wgBackendResponseTime":1537});});</script>
+</body>
+</html>

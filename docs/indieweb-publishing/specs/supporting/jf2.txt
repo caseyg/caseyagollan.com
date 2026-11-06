@@ -1,0 +1,1004 @@
+JF2 Post Serialization Format
+
+W3C Working Group Note 10 January 2018
+
+      This version:
+      https://www.w3.org/TR/2018/NOTE-jf2-20180110/
+      Latest published version:
+      https://www.w3.org/TR/jf2/
+      Latest editor's draft:
+      http://jf2.spec.indieweb.org/
+      Previous version:
+      https://www.w3.org/TR/2017/WD-jf2-20171026/
+    Editors:
+    Benjamin Roberts
+Kevin Marks
+
+          Repository:
+
+                      GitHub
+
+                      Issues
+
+                      Commits
+
+          Test:
+
+                      Validator
+
+                      Sample Set
+
+                      Implementation Reports
+
+        Copyright ©
+        2018
+
+        W3C®
+        (MIT,
+        ERCIM,
+        Keio, Beihang).
+        W3C liability,
+        trademark and
+            permissive document license
+        rules apply.
+
+Abstract
+
+        This document describes a JSON serialization format to describe simple
+        streams of data as well as single objects of data for data transfer and
+        processing.
+
+Status of This Document
+
+        This section describes the status of this document at the time of its publication. Other documents may supersede this document. A list of current W3C publications and the latest revision of this technical report can be found in the W3C technical reports index at https://www.w3.org/TR/.
+
+          This document was published by the Social Web Working Group as a Working Group Note.
+            Comments regarding this document are welcome. Please send them to
+            public-socialweb@w3.org
+            (subscribe,
+            archives).
+
+            Publication as a Working Group Note does not imply endorsement by the W3C
+            Membership. This is a draft document and may be updated, replaced or obsoleted by other
+            documents at any time. It is inappropriate to cite this document as other than work in
+            progress.
+
+            This document was produced by
+            a group
+             operating under the
+            W3C Patent Policy.
+              W3C maintains a public list of any patent
+              disclosures
+            made in connection with the deliverables of
+            the group; that page also includes
+            instructions for disclosing a patent. An individual who has actual knowledge of a patent
+            which the individual believes contains
+            Essential
+            Claim(s) must disclose the information in accordance with
+            section
+            6 of the W3C Patent Policy.
+
+This document is governed by the 1 March 2017 W3C Process Document.
+
+1. Author's Note
+
+This section is non-normative.
+
+        This document is an attempt to unify various simplified versions of the
+        microformats2 representative JSON format.  As such, much of this document
+        is likely to change as various implementations contribute input.
+
+2. Introduction
+
+This section is non-normative.
+
+        JF2 is a JSON based document format that describes single entries of
+        information and lists of those entries.  The primary use case for JF2 is to
+        create a JSON format for social web post objects to be processed directly by
+        client software and by other servers.
+
+        JF2 is vocabulary independent except for its profiles which are fully
+        vocabulary aware.  Rather than defining a new vocabulary the profiles
+        described in this document use the vocabulary defined by [microformats2]
+        (MF2); however, any other suitable vocabulary could be used.  The name JF2
+        comes from its origins in being a direct parsed format of microformats2 data
+        from HTML.
+
+3. Use Cases
+
+This section is non-normative.
+
+        JF2 has evolved as a result of a variety of use-cases for different implementations
+        exploring ways to simplify their existing use of canonical parsed microformats2 JSON
+        output.  All of these use cases in particular are simply to have a single format for
+        the storage and use of social web objects.
+
+      Webmention.io is a service that provides Webmention
+      processing and verification on behalf of other sites.  It uses a simple JSON object to
+      transfer a processed Webmention back to the client site's JavaScript for display.  The
+      attributes are intended to be processed only by the client site's JavaScript code, not
+      by anything else.
+
+      mf2util is a utility library that provides a layer on top
+      of microformats processing.  The library returns only a simple JSON object and strips
+      off any unnecessary information leaving the library user only the most essential information.
+
+      Various services (XRay, Unmung, SocialStreams)
+      provide conversion from microformats pages into JF2 for quick inspection to
+      validate proper semantics.  These tools have been used in practice to allow for embedded social activity in a page.
+
+4. Conformance
+
+  As well as sections marked as non-normative, all authoring guidelines, diagrams, examples,
+  and notes in this specification are non-normative. Everything else in this specification is
+  normative.
+
+The key words  MAY, MUST, MUST NOT, and SHOULD are
+  to be interpreted as described in [RFC2119].
+
+4.1 Documents
+
+          Conforming documents are those that comply with all the conformance
+          criteria for JF2 documents. For readability, some of these conformance
+          requirements are phrased as conformance requirements on publishers.
+          Such requirements are implicitly requirements on documents: by
+          definition, all documents are assumed to have a publisher.
+
+          Conforming documents must not use features of JSON-LD or other
+          serialization features disallowed in this specification. Conforming
+          documents that include types or properties beyond those defined in
+          [microformats2] must use [microformats2]'s prefixing methods to indicate
+          non-standard properties.
+
+          A non-exhaustive list of examples of documents includes:
+
+            A document representing an author
+
+            A document representing an event
+
+            A document representing a post
+
+            A document representing a collection of the posts created by an author
+
+            A document representing a collection of people
+
+            A document representing a like
+
+4.2 Implementations
+
+          Conforming implementations are software that publish, store, analyze,
+          consume or otherwise process conforming documents. The two main kinds
+          of implementations are publishers and consumers.
+
+4.2.1 Publishers
+
+            Conforming publishers are implementations that create and publish
+            conforming documents. Conforming publishers must make conforming
+            documents available according to the serialization requirements of
+            this document. Conforming publishers must consider privacy as described
+            in the Privacy section of this document.
+            Conforming publishers must consider security as described in the
+            Security Considerations section
+            of this document.
+
+            A non-exhaustive list of example publishers includes:
+
+              A social network
+
+              A personal web site
+
+              A document publishing system
+
+              A bridge from a non-conforming social network
+
+              A document converter from similar document types such as RSS, Atom,
+              or JSON Feed
+
+4.2.2 Consumers
+
+            Conforming consumers are implementations that read and analyze
+            conforming documents. Conforming consumers must not halt on any
+            unrecognized properties or types.
+
+            Conforming consumers may re-publish conforming documents in other
+            other data formats. Conforming consumers may present conforming
+            documents to a user on screen, in print, in audio format, or using
+            other presentation mechanisms. Conforming consumers must faithfully
+            translate the information represented in conforming documents into
+            these other formats or media. Conforming consumers that re-publish
+            conforming documents must consider privacy and security as described
+            in the Privacy section and
+            Security Considerations section
+            of this document.
+
+A non-exhaustive list of example consumers includes:
+
+              A social network
+
+              A search engine
+
+              A feed reader
+
+              A document validator
+
+              A feed aggregator
+
+4.3 Validator and Reporting
+
+This section is non-normative.
+
+          A validator for conforming documents is available at
+          https://jf2.rocks/.
+          This also offers example conforming and non-conforming
+          documents for testing purposes.
+
+          Please submit your implementation reports at
+          https://jf2.rocks/.
+          Instructions are provided at the URL.
+
+5. Syntax
+
+      JF2 consists of JSON objects which are defined by a type property that will specify
+      the vocabulary of the object.  Properties are attached to these objects which will contain
+      either a single string, a single object, an array of strings, or an array of objects.
+      Arrays that have only a single item SHOULD be condensed into only the single containing item.
+      Any property of an object MAY be a single item or an array of items except for reserved properties
+      defined below.
+
+5.1 Reserved Properties
+
+          The following properties are reserved and cannot be used as property names in vocabularies.
+
+type defines the object classification.  In microformats, this is presumed
+          to be an h-* class from the microformats2 vocabulary.
+          Type MUST be a single string value only.
+
+children is a container for all unnamed sub-objects inside
+          an entry.  That is, any sub-object that is not associated to a specific property of the object.
+          If a children value is set, it MUST be serialized as an array even if only a
+          single item is present.
+
+references is an associative array, serialized as a JSON object, of all sub-objects
+          inside an object which have "id" defined as an external [URL].
+          The authoritative source for all objects in this array is always at the URL, not in this object.
+          If the references property is defined, it MUST be serialized as an associative array and MUST be
+          present at the top level entry only.
+
+content-type is the MIME media type of the containing object's original source.
+          Content-type MUST be a single string value only.
+
+html is the text/html version of the containing object.
+          html MUST be a single string value only.
+
+text is the text/plain version of the containing object.
+          text MUST be a single string value only.
+
+lang is the localization language of the containing object and all
+            sub-objects, unless overridden by another lang definition.
+            Setting lang at a lower level overrides any lang value set at higher levels.
+            This value MUST be a single string value and MUST be a [RFC5646] language tag.
+
+@context is the context of the vocabulary as defined in [JSON-LD].
+            This attribute MAY be omitted and has an inferred value if not present.  If it is present it MUST be
+            present at the top level entry only.  See the JSON-LD Consideration section.
+
+5.2 Posts
+
+5.2.1 Post Objects
+
+            A post is composed of a "type" property, and one or more additional properties that describe the post.
+
+          The "type" property has a value that describes the vocabulary of the post. Common values include "entry", "card", etc. See microformats2 vocabularies for the full list when using a microformats based vocabulary.
+
+            Any additional properties in the post object are considered part of the post's vocabulary.
+
+5.2.2 Post Properties
+
+            The list of valid post properties is defined by the vocabularies. This allows new vocabularies to be developed outside the development of the syntax.
+
+            Most values will be strings. If a property (such as "author" for example) references another
+            object, it may be serialized in two ways: as an inline JSON object or as the unique identifier
+            or [URL] where the object can be found.  See Using References.
+
+            Values MAY also be arrays if the vocabulary allows for multiple values of the property.
+
+5.2.3 Example Post
+
+Example 1
+
+{
+  "type": "entry",
+  "published": "2015-10-20T15:49:00-0700",
+  "url": "http://example.com/post/fsjeuu8372",
+  "author": {
+    "type": "card",
+    "name": "Alice",
+    "url": "http://alice.example.com",
+    "photo": "http://alice.example.com/photo.jpg"
+  },
+  "name": "Hello World",
+  "content": "This is a blog post",
+  "category": "Posts"
+}
+
+Example 2
+
+{
+  "type": "entry",
+  "published": "2015-10-20T15:49:00-0700",
+  "url": "http://example.com/like/r23eugi02c",
+  "author": {
+    "type": "card",
+    "name": "Alice",
+    "url": "http://alice.example.com",
+    "photo": "http://alice.example.com/photo.jpg"
+  },
+  "like-of": "http://bob.example.com/post/100",
+  "category": ["Likes", "Posts"]
+}
+
+5.3 Author
+
+          An author is represented by the [h-card] vocabulary, and consists of a name, photo [URL], [URL] to the author profile, and others. This is represented by the following JSON.
+
+Example 3
+
+{
+  "type": "card",
+  "name": "Aaron Parecki",
+  "photo": "http://aaronparecki.com/photo.jpg",
+  "url": "http://aaronparecki.com/"
+}
+
+5.4 HTML Content
+
+          By default, any string value should be interpreted as literal plaintext.
+          This means when displaying a string in an HTML page, it must be HTML escaped.
+
+        If the value of a property is to be interpreted as HTML, it MUST be enclosed in
+        an object and placed under the "html" property as follows.  If a plaintext version
+        is also available, that is placed under the "text" property.
+
+Example 4
+
+{
+  "type": "entry",
+  "content": {
+    "html": "&lt;p&gt;Hello World&lt;/p&gt;",
+    "text": "Hello World"
+  }
+}
+
+5.4.1 Multiple URLs for video/audio/picture
+
+            Since HTML video/audio/picture tags may have multiple URLs, we need a way to convey this information in the JSON representation.
+            In such situations, vocabulary properties MAY be arrays.
+
+            For example, this HTML (marked up with microformats2):
+
+Example 5
+
+&lt;div class="h-entry"&gt;
+  &lt;video class="u-video" width="640" height="360" preload controls&gt;
+    &lt;source src="sample_h264.mov" type='video/mp4; codecs="avc1.42E01E, mp4a.40.2"' /&gt;
+    &lt;source src="sample_ogg.ogv" type='video/ogg; codecs="theora, vorbis"' /&gt;
+    &lt;source src="sample_webm.webm" type='video/webm; codecs="vp8, vorbis"' /&gt;
+  &lt;/video&gt;
+&lt;/div&gt;
+
+            could be represented with this JSON:
+
+Example 6
+
+{
+  "type": "entry",
+  "video": [
+    {
+      "content-type": "video/mp4",
+      "url": "sample_h264.mov"
+    },
+    {
+      "content-type": "video/ogg",
+      "url": "sample_ogg.ogg"
+    },
+    {
+      "content-type": "video/webm",
+      "url": "sample_webm.webm"
+    }
+  ]
+}
+
+6. Using References
+
+        The purpose of the references property is to exclude any non-authoritative
+        data from the defined object.  To do this, non-authoritative data is moved so
+        that implementations looking to process only authoritative data may simply ignore
+        the references property and fetch any data that would be contained there from its
+        authoritative source.
+
+        If a property is a reference to an object that is defined authoritatively in
+        some other location, the references property SHOULD be used.  The property
+        SHOULD contain only the unique identifier or [URL] where the authoritative data
+        may be found.  In the references object, the URL or unique identifier MAY
+        be used as the property key and a serialization of the referenced object MAY
+        be provided as the property value.  This serialization of the referenced object MAY
+        be incomplete so as to provide only necessary data.
+
+        Parsing implementations SHOULD fetch data from the authoritative source instead of using
+        the references object.
+
+6.1 Example of References
+
+Example 7
+
+{
+  "type": "entry",
+  "published": "2015-10-20T15:49:00-0700",
+  "url": "http://example.com/post/fsjeuu8372",
+  "author": "http://alice.example.com",
+  "name": "Hello World",
+  "content": "This is a blog post",
+  "category": "Posts",
+  "references": {
+    "http://alice.example.com": {
+      "type": "card",
+      "name": "Alice",
+      "url": "http://alice.example.com",
+      "photo": "http://alice.example.com/photo.jpg"
+    }
+  }
+}
+
+Example 8
+
+{
+  "type": "entry",
+  "published": "2015-10-20T15:49:00-0700",
+  "url": "http://example.com/like/r23eugi02c",
+  "author": {
+    "type": "card",
+    "name": "Alice",
+    "url": "http://alice.example.com",
+    "photo": "http://alice.example.com/photo.jpg"
+  },
+  "like-of": "http://bob.example.com/post/100",
+  "category": ["Likes", "Posts"],
+  "references": {
+    "http://bob.example.com/post/100": {
+      "type": "entry",
+      "published": "2015-10-18T12:33:00-0700",
+      "url": "http://bob.example.com/post/100",
+      "author": "http://bob.example.com",
+      "name": "My First Post",
+      "content": "This is my first post on my new blog, I hope you like it"
+    },
+    "http://bob.example.com": {
+      "type": "card",
+      "name": "Bob",
+      "url": "http://bob.example.com",
+      "photo": "http://bob.example.com/mypicture.jpg"
+    }
+  }
+}
+
+7. Collections
+
+        Posts can be contained inside of collections. A collection may be a home page feed, or a feed of other posts such as a list of contacts, a list of things someone has liked, etc. There is no requirement that all posts in a collection need to be of the same type.
+
+        The collection may also have its own properties such as "name" or "author".
+
+Example 9
+
+{
+  "type": "feed",
+  "url": "http://alice.example.com/collectionurl",
+  "name": "Alice's Home Page",
+  "author": {
+    "type": "card",
+    "name": "Alice",
+    "url": "http://alice.example.com",
+    "photo": "http://alice.example.com/photo"
+  },
+  "children": [
+    {
+      "type": "entry",
+      "content": {
+        "html": "Hello World",
+        "text": "Hello World"
+      }
+    },
+    {
+      "type": "entry",
+      "content": {
+        "html": "A Second Post",
+        "text": "A Second Post"
+      }
+    }
+  ]
+}
+
+7.1 Multiple items on a page
+
+          If an HTML page contains multiple top-level items, (most commonly found when a page contains a list of [h-entry] objects), the parser creates an implicit top-level collection with no properties.
+
+Example 10
+
+{
+  "children": [
+    {
+      "type": "entry",
+      "content": {
+        "html": "Hello World",
+        "text": "Hello World"
+      }
+    },
+    {
+      "type": "entry",
+      "content": {
+        "html": "A Second Post",
+        "text": "A Second Post"
+      }
+    }
+  ]
+}
+
+8. Deriving the Syntax
+
+        This syntax is derived from HTML with microformats2 converted to JSON with [microformats2-parsing], then converted to a simplified JSON. The examples below illustrate the process.
+
+8.1 Deriving a Note
+
+HTML + Microformats
+
+Example 11
+
+&lt;article class="h-entry"&gt;
+  &lt;h1 class="p-name"&gt;Hello World&lt;/h1&gt;
+  &lt;p&gt;Published by &lt;a class="p-author h-card" href="http://example.com/"&gt;A. Developer&lt;/a&gt;
+     on &lt;a href="http://example.com/2015/10/21" class="u-url"&gt;&lt;time class="dt-published" datetime="2015-10-21T12:00:00-0700"&gt;October 21&lt;sup&gt;st&lt;/sup&gt;, 2015&lt;/time&gt;&lt;/a&gt;
+
+  &lt;p class="p-summary"&gt;Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus imperdiet ultrices pulvinar.&lt;/p&gt;
+
+  &lt;div class="e-content"&gt;&lt;p&gt;Donec dapibus enim lacus, &lt;i&gt;a vehicula magna bibendum non&lt;/i&gt;. Phasellus id lacinia felis, vitae pellentesque enim. Sed at quam dui. Suspendisse accumsan, est id pulvinar consequat, urna ex tincidunt enim, nec sodales lectus nulla et augue. Cras venenatis vehicula molestie. Donec sagittis elit orci, sit amet egestas ex pharetra in.&lt;/p&gt;&lt;/div&gt;
+&lt;/article&gt;
+
+Parsed Microformats JSON
+
+Example 12
+
+{
+  "items": [
+    {
+      "type": [
+        "h-entry"
+      ],
+      "properties": {
+        "author": [
+          {
+            "type": [
+              "h-card"
+            ],
+            "properties": {
+              "name": [
+                "A. Developer"
+              ],
+              "url": [
+                "http://example.com/"
+              ]
+            },
+            "value": "A. Developer"
+          }
+        ],
+        "name": [
+          "Hello World"
+        ],
+        "summary": [
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus imperdiet ultrices pulvinar."
+        ],
+        "url": [
+          "http://example.com/2015/10/21"
+        ],
+        "published": [
+          "2015-10-21T12:00:00-0700"
+        ],
+        "content": [
+          {
+            "html": "&lt;p&gt;Donec dapibus enim lacus, &lt;i&gt;a vehicula magna bibendum non&lt;/i&gt;. Phasellus id lacinia felis, vitae pellentesque enim. Sed at quam dui. Suspendisse accumsan, est id pulvinar consequat, urna ex tincidunt enim, nec sodales lectus nulla et augue. Cras venenatis vehicula molestie. Donec sagittis elit orci, sit amet egestas ex pharetra in.&lt;/p&gt;",
+            "value": "Donec dapibus enim lacus, a vehicula magna bibendum non. Phasellus id lacinia felis, vitae pellentesque enim. Sed at quam dui. Suspendisse accumsan, est id pulvinar consequat, urna ex tincidunt enim, nec sodales lectus nulla et augue. Cras venenatis vehicula molestie. Donec sagittis elit orci, sit amet egestas ex pharetra in."
+          }
+        ]
+      }
+    }
+  ]
+}
+
+Simplified JSON
+
+Example 13
+
+{
+  "type": "entry",
+  "author": {
+    "type": "card",
+    "url": "http://example.com",
+    "name": "A. Developer"
+  },
+  "url": "http://example.com/2015/10/21",
+  "published": "2015-10-21T12:00:00-0700",
+  "name": "Hello World",
+  "summary": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus imperdiet ultrices pulvinar.",
+  "content": {
+    "html": "&lt;p&gt;Donec dapibus enim lacus, &lt;i&gt;a vehicula magna bibendum non&lt;/i&gt;. Phasellus id lacinia felis, vitae pellentesque enim. Sed at quam dui. Suspendisse accumsan, est id pulvinar consequat, urna ex tincidunt enim, nec sodales lectus nulla et augue. Cras venenatis vehicula molestie. Donec sagittis elit orci, sit amet egestas ex pharetra in.&lt;/p&gt;",
+    "text": "Donec dapibus enim lacus, a vehicula magna bibendum non. Phasellus id lacinia felis, vitae pellentesque enim. Sed at quam dui. Suspendisse accumsan, est id pulvinar consequat, urna ex tincidunt enim, nec sodales lectus nulla et augue. Cras venenatis vehicula molestie. Donec sagittis elit orci, sit amet egestas ex pharetra in."
+  }
+}
+
+8.2 JSON-LD Consideration
+
+          JF2 documents all have an implicit @context field which is optional.  This @context can be found at
+          http://www.w3.org/ns/jf2
+          and is provided only to make conversion to [JSON-LD] format possible.  Most JF2 will process
+          fine in JSON-LD systems, however, this support is not guaranteed and those wishing to
+          use JF2 in JSON-LD may need to modify serialization slightly.
+
+9. Profiles
+
+9.1 Intro
+
+This section is non-normative.
+
+          JF2 on its own is intentionally vocabulary independent, that is, any value may contain a single value, a
+          set of values, or a structure and there are no requirements that fields be present.  While this keeps
+          the fidelity of the original [microformats2] encoded HTML, some consuming code can be simplified by
+          adding vocabulary requirements.  This creates the need for vocabulary aware profiles of JF2, where
+          the profile adds additional constraints on the fields present.
+
+9.2 JF2 Feed
+
+9.2.1 Introduction
+
+This section is non-normative.
+
+            XML formats have heavily dominated serializations of social activity feeds for blogs and news feeds for years.
+            Several attempts have been created over the years to attempt to bring these to a JSON format, most recently
+            [jsonfeed-v1], which JF2 Feed gets the majority of its requirements from.  JF2 Feed is an attempt to bring
+            some of the advantages of these vocabulary aware specifications under a standard vocabulary from
+            [microformats2].
+
+            Fields described below have additional requirements to be considered a valid JF2 Feed, however they may contain
+            any number of additional fields from [h-feed], [h-entry], and [h-card].  The fields below are codified as
+            they are likely the most useful for feed readers; additional data is expected to be fetchable at the entry URL,
+            preferably though valid [microformats2] markup.
+
+9.2.2 Required Fields and Required Formats
+
+            The following fields have additional constraints to be a valid JF2 Feed that only apply
+            to the top level feed object, its child entry object, and any properties of them.
+
+type MUST be defined with a value of "feed" on the top level entry.
+              All other sub-object items MUST NOT have a type value of "feed".  All direct children
+              of the top level feed object MUST have a value of "entry".
+
+name MUST be defined on the top level "feed" object.  This value MUST
+              be a single string value. Any direct children of the top level item SHOULD have this
+              property and if present MUST be a single string value.
+
+url SHOULD be defined on the top level "feed" object.  This value MUST
+              be a single string value and is expected to contain the [URL] of the data which this
+              JF2 Feed describes. Additionally, if present in the author property object, or any direct
+              child entry object, it MUST contain a single string value only and that value must be a [URL].
+
+photo MUST be a single string value if present on the top level feed
+              object, its author property object, or any direct child entry object and MUST be a valid [URL].
+
+uid MUST be present on any entry object which is a direct child of the
+              top level feed object.  This property MUST be a single string value and MUST uniquely
+              identify this entry object.  This MAY be a duplicate of the entry's url property.
+
+published SHOULD be present on any entry object which is a direct
+              child of the top level feed object.  If present, this property MUST be a single string
+              value and MUST be formatted as specified by [ISO8601].
+
+updated MAY be present on any entry object which is a direct
+              child of the top level feed object.  If present, this property MUST be a single string
+              value and MUST be formatted as specified by [ISO8601].
+
+category MAY be present on any entry object which is a direct
+              child of the top level feed object.  If present, this property MUST be an array of
+              string values.
+
+author MAY be present on the top level feed or second level entry
+              objects. If present, it MUST be an object and it MUST contain at least a name, url,
+              or photo property.
+
+content MAY be present on any entry object which is a direct
+              child of the top level feed object.  If present, this property MUST be an object as
+              described in the HTML content regardless if only a text/plain
+              version is available.
+
+summary MAY be present on any second level entry object. If present,
+              it MUST be a single string.
+
+video or audio MAY be present on any second level entry object. If present,
+              it MUST be an object as described in the multiple URLs section with
+              at least a 'url' property which MUST be a single string and a valid [URL].
+
+Note
+
+          The format of published and updated fields may change from [ISO8601] to [RFC3339] or use [microformats2]'s more liberal date field.  Please discuss on github issues
+
+9.2.3 Discovery
+
+          The JF2 Feed for a page may be published as HTTP Link header [RFC5988], or as an HTML
+          &lt;link&gt; or &lt;a&gt; tag element with the following attributes.
+
+rel="alternate" type="application/jf2feed+json" href="http://www.example.com/jf2feed.json"
+
+9.2.4 JF2 Feed Example
+
+Example 14
+
+{
+    "type": "feed",
+    "url": "https://example.org/myfeed.html",
+    "name": "Brent Simmons’s Microblog",
+    "author": {
+        "type": "card",
+        "name": "Brent Simmons",
+        "url": "http://example.org/",
+        "photo": "https://example.org/avatar.png"
+    },
+    "children": [
+        {
+            "type": "entry",
+            "uid": "https://example.org/2347259",
+            "url": "https://example.org/2347259",
+            "content": {
+              "text": "Cats are neat. \n\nhttps://example.org/cats"
+            },
+            "published": "2016-02-09T14:22:00-07:00"
+        }
+    ]
+}
+
+9.2.5 JSON Feed to JF2 conversion
+
+This section is non-normative.
+
+Note
+
+            As it is not sane to do this for every feed serialization currently available,
+            this section is likely to only be temporary in the spec and may be moved to a
+            more permanant home elsewhere.
+
+            JF2 Feed was based heavily on [jsonfeed-v1] and as such it is quite trivial to process a
+            JSON Feed as a JF2 Feed with only minor changes.  This section discusses the conversion that
+            must be made for this process, most of which is simply conversion of properties to their
+            [microformats2] equivalent.
+
+            Conversion of the top level structure
+
+Drop or ignore the "version" property
+
+Create a property "type" with the value "feed"
+
+Rename the properties "title" to "name", "home_page_url" to "url", "icon" to "photo", and "description" to "summary"
+
+Modify the "author" property as described below
+
+Rename the "items" property to "children" and modify as described below
+
+            Conversion of the author property on the top level or on any lower level entry
+
+Rename the property 'avatar' to 'photo'
+
+            Conversion of each entry in items
+
+Rename the 'id' property to 'uid'
+
+Convert content_html and content_text into a single object under the property "content" with properties "html" and "text", leaving out either if not present or the entire property if neither are present
+
+Rename the properties
+              "title" to "name",
+              "image" to "photo",
+              "date_published" to "published",
+              "date_modified" to "updated",
+              "tags" to "category",
+              "banner_image" to "featured"
+
+Drop or ignore the 'external_url' property.  If content is not set, it may be useful to set content['text'] to the value of 'external_url'
+
+Keep "summary" property the same
+
+              For each entry in the "attachments" array,
+
+Rename "mime-type" to "content-type".
+
+Keep the "url" property as is.
+
+If the "content-type" field begins with "video/", add the item to the "video" property array.
+
+If the "content-type" field begins with "photo/", add the item to the "photo" property array.
+
+            It may be benefitial to drop any properties other than those mentioned to avoid conflicts with any future [microformats2] properties.
+
+10. Extension
+
+        JF2 MAY be extended by the [microformats2] extension mechanism.  The 'x-*' properties created in this
+        way MAY be present in any serialization of JF2.  Parsers MUST NOT halt on any unknown properties they
+        encounter.
+
+11. Language And Internationalization
+
+This section is non-normative.
+
+        In order to allow any language to be serialized in JF2, the 'lang' value can be set on any object to annotate
+        the natural language of the text.  Many often ask for control structures like directionality of text and
+        multiple language serializations.  Directionality of text can be accomplished with UTF-8 control characters
+        which can be added to any of the values in the document.  In addition, any content inside of 'html' properties
+        can have any markup as defined by [HTML5].
+
+        Multiple serializations of the same text has not been seen to be needed in practice.
+        The suggested path for accomplishing this with JF2 is to have these hosted at different locations.
+        For example, it is common practice on websites to host an alternate language version of a site under a different
+        directory structure for each language (such as /en/, /jp/, /fr/, etc).
+
+12. Privacy Considerations
+
+        As with any serialization format, JF2 streams can potentially contain private and personally identifiable information.
+        As such, producing and consuming implementations SHOULD take a default stance that all information in these documents are
+        private and take steps to ensure the privacy of their users.  This can include transmission only over secure connections,
+        limiting access to streams, deletion of stored secure information, or any other steps that would apply to any private
+        information.
+
+13. Security Considerations
+
+        JF2 is not intended to contain executable code however, as JF2 allows arbitrary text it may be possible for publishers
+        to craft text in an executable fashion.  As such, JF2 documents should not be passed through any executable mechanism
+        such as JavaScript's eval() function to be parsed.  Processing of field contents should not execute any encountered code
+        and it is recommended that any HTML formatted content be filtered to remove any executable code such as script and style tags.
+
+        JF2 documents may require privacy and integrity services depending on the document content and implementation
+        concerns.  If such services are required, they must be provided externally such as by the use of SSL/TLS connections
+        to prevent forgery or exposure of data.
+
+        Any externally linked documents must be processed by their own format's security model. JF2 documents do not make any claims
+        about the security of any externally referenced documents.
+
+        JF2 Streams are JSON Documents and are subject to the same security considerations described in [RFC7159].
+
+14. IANA Considerations
+
+14.1 The application/jf2feed+json Media Type
+
+        This specification registers the application/jf2feed+json MIME Media Type specifically for identifying documents
+        conforming to the JF2 format with the JF2 Feed profile.
+
+          Type name:
+          application
+
+          Subtype name:
+          jf2feed+json
+
+          Required parameters:
+          None
+
+          Optional parameters:
+          None
+
+          Encoding considerations:
+
+            Binary, as per [RFC6839], section 3.1; the charset parameter is not used and byte-order marks are not permitted, as per [RFC7159], sections 11 and 8.1
+
+          Security considerations:
+          See [RFC7159] section 12 and the Security Considerations section of this specification.
+
+          Contact:
+
+            Ben Roberts &lt;ben@thatmustbe.me&gt;
+
+A. Change Log
+
+A.1 Changes from 26 Oct 2017 WD to this version
+
+This section lists changes from the 26 Oct 2017 WD to this version.
+
+Relabel Reserved "Keywords" as Reseverd "Properties".
+
+Remove Implementations section.
+
+Minor typos and editorial fixes.
+
+A.2 Changes from 19 July 2017 WD to 26 Oct 2017
+
+This section lists changes from the 19 July 2017 WD to 26 Oct 2017 WD.
+
+Minor typos and editorial fixes.
+
+Correct references to be normative not informative.
+
+Remove definition of previously removed 'value' keyword.
+
+A.3 Changes from 27 June 2017 WD to 19 July 2017
+
+This section lists changes from the 27 June 2017 WD to 19 July 2017 WD.
+
+Expanded and corrected examples.
+
+Added a Conformance section.
+
+Added links to validator, implementation reports, and sample set.
+
+A.4 Changes from 12 June 2017 WD to 27 June 2017
+
+This section lists changes from the 12 June 2017 WD to 27 June 2017 WD.
+
+Remove at-risk warning for JF2 Feed Discovery via 'a' tags in body
+
+Updated Security Considerations
+
+A.5 Changes from 28 July 2016 FPWD to 12 Jun 2017 WD
+
+This section lists changes from the 28 July 2016 FPWD to 12 June 2017 WD
+
+Changed format of HTML content items
+
+Added Profiles section to allow for JF2 Feed
+
+Added Extension Section
+
+Added Privacy section
+
+Added Security Considerations section
+
+Added Internationalization section
+
+Added IANA Considerations section for JF2 Feed
+
+Corrections to referenced URLs
+
+Updated Introduction and Authors Note
+
+Minor Editorial Changes
+
+B. Acknowledgements
+
+          The authors wish to thank the Microformats, IndieWeb, Pump.io, and Activity Streams communities for their continued work
+          in building the social web and helping define standards such as this one.  This includes, but is certainly not limited to,
+          Aaron Parecki,
+          AJ Jordan,
+          Benjamin Goering,
+          Brent Simmons,
+          Christopher Webber,
+          Dave Wilkinson II,
+          James Snell,
+          Jonathan LaCour,
+          Kyle Mahan,
+          Manton Reece,
+          Pelle Wessman,
+          and
+          Tantek Çelik.
+
+C. References
+
+C.1 Normative references
+[h-card]h-card. Tantek Çelik. microformats.org. Living Specification. URL: http://microformats.org/wiki/h-card
+[HTML5]HTML5. Ian Hickson; Robin Berjon; Steve Faulkner; Travis Leithead; Erika Doyle Navara; Theresa O'Connor; Silvia Pfeiffer. W3C. 28 October 2014. W3C Recommendation. URL: https://www.w3.org/TR/html5/
+[ISO8601]Representation of dates and times. ISO 8601:2004..  International Organization for Standardization (ISO). 2004. ISO 8601:2004. URL: http://www.iso.org/iso/catalogue_detail?csnumber=40874
+[microformats2]microformats2. Tantek Çelik. microformats.org. Living Specification. URL: http://microformats.org/wiki/microformats2
+[microformats2-parsing]microformats2 parsing. Tantek Çelik. microformats.org. Living Specification. URL: http://microformats.org/wiki/microformats2-parsing
+[RFC2119]Key words for use in RFCs to Indicate Requirement Levels. S. Bradner. IETF. March 1997. Best Current Practice. URL: https://tools.ietf.org/html/rfc2119
+[RFC5646]Tags for Identifying Languages. A. Phillips, Ed.; M. Davis, Ed.. IETF. September 2009. Best Current Practice. URL: https://tools.ietf.org/html/rfc5646
+[RFC5988]Web Linking. M. Nottingham. IETF. October 2010. Proposed Standard. URL: https://tools.ietf.org/html/rfc5988
+[RFC6839]Additional Media Type Structured Syntax Suffixes. T. Hansen; A. Melnikov. IETF. January 2013. Informational. URL: https://tools.ietf.org/html/rfc6839
+[RFC7159]The JavaScript Object Notation (JSON) Data Interchange Format. T. Bray, Ed.. IETF. March 2014. Proposed Standard. URL: https://tools.ietf.org/html/rfc7159
+[URL]URL Standard. Anne van Kesteren. WHATWG. Living Standard. URL: https://url.spec.whatwg.org/
+
+C.2 Informative references
+[h-entry]h-entry. Tantek Çelik. microformats.org. Living Specification. URL: http://microformats.org/wiki/h-entry
+[h-feed]h-feed. Tantek Çelik. microformats.org. Living Specification. URL: http://microformats.org/wiki/h-feed
+[JSON-LD]JSON-LD 1.0. Manu Sporny; Gregg Kellogg; Markus Lanthaler. W3C. 16 January 2014. W3C Recommendation. URL: https://www.w3.org/TR/json-ld/
+[jsonfeed-v1]JSON Feed Version 1. Brent Simmons; Manton Reece. http://jsonfeed.org. Draft. URL: http://jsonfeed.org/version/1
+[RFC3339]Date and Time on the Internet: Timestamps. G. Klyne; C. Newman. IETF. July 2002. Proposed Standard. URL: https://tools.ietf.org/html/rfc3339
+
+↑

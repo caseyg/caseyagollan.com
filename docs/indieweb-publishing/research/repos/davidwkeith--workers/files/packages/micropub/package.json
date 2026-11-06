@@ -1,0 +1,53 @@
+{
+  "name": "@dwk/micropub",
+  "version": "1.0.0-beta.8",
+  "description": "Micropub create/update/delete endpoint with R2 media endpoint. Consumes IndieAuth tokens.",
+  "keywords": [
+    "micropub",
+    "indieweb",
+    "indieauth",
+    "media-endpoint",
+    "cloudflare-workers"
+  ],
+  "type": "module",
+  "license": "ISC",
+  "author": "David W. Keith <me@dwk.io>",
+  "homepage": "https://github.com/davidwkeith/workers/tree/main/packages/micropub#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidwkeith/workers.git",
+    "directory": "packages/micropub"
+  },
+  "bugs": {
+    "url": "https://github.com/davidwkeith/workers/issues"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@dwk/calendar": "workspace:*",
+    "@dwk/dpop": "workspace:*",
+    "@dwk/indieauth": "workspace:*",
+    "@dwk/log": "workspace:*",
+    "@dwk/mcp": "workspace:*"
+  }
+}
