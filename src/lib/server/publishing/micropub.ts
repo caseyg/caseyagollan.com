@@ -9,7 +9,7 @@ import { validPostParams } from '../github-posts';
 import { POST_TYPE_PLURALS } from '../../posts-types';
 
 export interface PublishingConfig extends AuthConfig {
-	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaEnabled?: boolean; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
+	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaEnabled?: boolean; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
 }
 interface Dependencies { fetcher?: Fetcher; now?: () => Date; id?: () => string }
 const folders = Object.values(POST_TYPE_PLURALS);

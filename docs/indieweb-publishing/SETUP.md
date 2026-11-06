@@ -23,7 +23,7 @@ Bindings:
 - `PUBLISHING_MEDIA`: `caseyagollan-publishing-media-preview`, public delivery only through the restricted `/media/...` route.
 - `PUBLISHING_STATE`: `caseyagollan-publishing-state-preview`, private jobs, active indices, transition intents, manifest history and provider receipts. No route exposes this bucket.
 
-Both preview buckets and the empty production counterparts (`caseyagollan-publishing-media`, `caseyagollan-publishing-state`) were created November 6, 2026. The screenshot bucket and production Worker have not been changed. Fresh accounts must create those resources once with Wrangler before deployment.
+Preview buckets and the production state bucket were created November 6, 2026. Production uploads now use the existing `caseyagollan-content` bucket and `PUBLISHING_MEDIA_BASE_URL=https://files.caseyagollan.com/`; the two objects in the separate newer production media bucket were copied into it with identical keys, metadata and verified SHA-256 values (see `media-consolidation.json`). The source remains a backup. Legacy `media/...` objects and `screenshots/...` caches stay in that shared bucket. New uploads use `publishing/...`; preview remains isolated. Fresh accounts must create those resources once with Wrangler before deployment.
 
 ```sh
 bun install --frozen-lockfile
@@ -70,7 +70,7 @@ curl -i -H "Authorization: Bearer $MICROPUB_TOKEN" "$TEST_ENDPOINT?q=config"
 
 Create returns 202 and canonical production `Location`; open that path on the test Worker. Read source with `q=source&url=...`; HTML returns an HTML object. Supply the source ETag as `If-Match` on edits to receive 412 for stale revisions. Check the actual Markdown on `preview/indieweb`, then edit, delete, restore and delete the disposable test note. Draft permalinks return 404 while source remains accessible with owner authorization.
 
-For media, POST multipart `file` to `/micropub/media`; expect 201 and a public media `Location`. Use it as a photo/video value. JSON photo objects retain `alt`; Quill's `mp-photo-alt[]` form is supported. Public media supports HEAD, ETag and single byte ranges. HTML/SVG uploads are rejected.
+For media, POST multipart `file` to `/micropub/media`; expect 201 and a public media `Location`. Use it as a photo/video value. JSON photo objects retain `alt`; Quill's `mp-photo-alt[]` form is supported. The compatibility `/media/...` route supports HEAD, ETag and single byte ranges. Production upload Location uses the custom domain and exact `publishing/...` object key. HTML/SVG uploads are rejected.
 
 ## Durable delivery
 
@@ -119,3 +119,7 @@ bun utils/check-publishing-media-runtime.ts
 ```
 
 The manual runtime check needs local sockets but uses no remote bindings or account credentials. `wrangler.sveltekit.jsonc` is adapter-output configuration, never the deployment target; production/preview configs point to the source wrapper and generated static assets.
+
+## Media consolidation verification — November 6, 2026
+
+Both production objects from `caseyagollan-publishing-media` were copied to `caseyagollan-content` with identical keys, HTTP/custom metadata, sizes, ETags and SHA-256. Both custom-domain URLs and previously issued `/media/...` URLs returned matching bytes after deployment. Quill uploaded a new test PNG and received a `https://files.caseyagollan.com/publishing/...` Location; its bytes matched the fixture. The test attachment was removed from the composer without posting. A legacy `media/photos/...` URL still returned 200. The newer source bucket is no longer bound for production writes and retains two backup copies; preview media stays isolated. The temporary authenticated migration Worker was deleted.

@@ -24,6 +24,7 @@
 		"PUBLISHING_AUTH_MODE": "internal",
 		"PUBLISHING_ENABLED": "true",
 		"PUBLISHING_DELIVERY_ENABLED": "false",
+		"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
 		"PUBLISHING_ME": "https://caseyagollan.com/",
 		"PUBLISHING_INTROSPECTION_ENDPOINT": "https://kit.caseyagollan.com/auth/introspect",
 		"PUBLISHING_GITHUB_OWNER": "caseyg",
@@ -73,7 +74,7 @@
 		{ "binding": "PUBLISHING_STATE", "bucket_name": "caseyagollan-publishing-state" },
 		{
 			"binding": "PUBLISHING_MEDIA",
-			"bucket_name": "caseyagollan-publishing-media"
+			"bucket_name": "caseyagollan-content"
 		},
 		{
 			"binding": "SCREENSHOTS",

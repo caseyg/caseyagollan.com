@@ -4,7 +4,7 @@ import type { PublishingConfig } from '../src/lib/server/publishing/micropub';
 
 const config: PublishingConfig = { me: 'https://example.com/', introspectionEndpoint: 'https://auth.example/introspect', owner: 'caseyg', repo: 'content', branch: 'test', token: 'git', timeZone: 'America/New_York' };
 const png = new Uint8Array([137,80,78,71,13,10,26,10,0,1,2,3]);
-function setup(scope = 'media', fail = false) {
+function setup(scope = 'media', fail = false, mediaBaseUrl?: string) {
   const files = new Map<string, { data: Uint8Array; type: string }>();
   let calls = 0;
   const bucket = {
@@ -22,7 +22,7 @@ function setup(scope = 'media', fail = false) {
       return { size: file.data.length, httpEtag: '"test-etag"', httpMetadata: { contentType: file.type }, body: range ? file.data.slice(range.offset, range.offset + range.length) : file.data };
     }
   } as unknown as R2Bucket;
-  const handler = createMediaHandler(config, bucket, { fetcher: async () => Response.json({ active: true, me: config.me, scope }), now: () => new Date('2026-11-06T17:00:00Z'), id: () => '11111111-1111-4111-8111-111111111111' });
+  const handler = createMediaHandler({ ...config, mediaBaseUrl }, bucket, { fetcher: async () => Response.json({ active: true, me: config.me, scope }), now: () => new Date('2026-11-06T17:00:00Z'), id: () => '11111111-1111-4111-8111-111111111111' });
   const upload = (bytes: Uint8Array<ArrayBuffer> = png, type = 'image/png', extra = false) => {
     const form = new FormData(); form.append('file', new Blob([bytes], { type }), '../../unsafe.png');
     if (extra) form.append('file', new Blob([bytes], { type }), 'other.png');
@@ -38,6 +38,22 @@ describe('publishing media', () => {
     expect(response.headers.get('Location')).toBe('https://preview.example/media/2026/11/11111111-1111-4111-8111-111111111111.png');
     const file = [...app.files.values()][0]; expect(file.data).toEqual(png); expect(file.type).toBe('image/png');
     expect(response.headers.get('Access-Control-Expose-Headers')).toContain('Location');
+  });
+  test('returns the custom-domain URL for the exact stored object key', async () => {
+    const app = setup('media', false, 'https://files.caseyagollan.com/');
+    const response = await app.upload();
+    expect(response.status).toBe(201);
+    const url = new URL(response.headers.get('Location')!);
+    expect(url.origin).toBe('https://files.caseyagollan.com');
+    expect(app.files.has(url.pathname.slice(1))).toBe(true);
+    expect(app.files.get(url.pathname.slice(1))!.data).toEqual(png);
+  });
+  test('rejects invalid public origins before storing files', async () => {
+    for (const base of ['http://files.example/', 'https://user:password@files.example/', 'https://files.example/path', 'https://files.example/?token=x']) {
+      const app = setup('media', false, base);
+      expect((await app.upload()).status).toBe(503);
+      expect(app.calls()).toBe(0);
+    }
   });
   test('requires media scope and does not store unauthorized or ambiguous uploads', async () => {
     for (const scope of ['create', 'update', 'delete', '']) { const app = setup(scope); expect((await app.upload()).status).toBe(403); expect(app.calls()).toBe(0); }
