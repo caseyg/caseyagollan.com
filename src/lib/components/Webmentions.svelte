@@ -96,7 +96,7 @@
 				throw new Error(`Failed to fetch webmentions: ${response.status}`);
 			}
 
-			const data = await response.json();
+			const data = await response.json() as { children?: Webmention[] };
 			const mentions: Webmention[] = data.children || [];
 
 			// Sort by wm-id (chronological)
