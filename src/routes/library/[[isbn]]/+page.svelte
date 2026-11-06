@@ -90,6 +90,7 @@
 	const sortIcons = ['📅', '⏳', '📖', '🌈'];
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
+	let shelfFramePending = false;
 
 	// Book detail overlay state
 	let selectedBook: Node | null = $state(null);
@@ -867,6 +868,12 @@
 
 		Graph = ForceGraph3D()(graphContainer)
 			.graphData(graphData)
+			.onEngineTick(() => {
+				if (isGridModeActive && shelfFramePending) {
+					shelfFramePending = false;
+					frameShelves();
+				}
+			})
 			.onNodeClick((node: Node) => {
 				if (node.group === 'book') {
 					// If a book is already selected
@@ -1088,8 +1095,9 @@
 		// Recreate labels when changing modes; graph labels use popularity-based sizes.
 		Graph.nodeThreeObject(Graph.nodeThreeObject());
 		customForce();
-		frameShelves();
-		Graph.d3ReheatSimulation();
+		shelfFramePending = true;
+		// graphData initializes and reheats the simulation in its deferred update.
+		// Reheating here can start rendering before that layout exists on a deep link.
 	}
 
 	function toggleMode(updateUrl = true) {
