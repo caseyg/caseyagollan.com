@@ -66,6 +66,7 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		category: data.category,
 		content,
 		visibility: data.visibility,
+		draft: data.draft === true,
 		syndication: data.syndication,
 		photo: normalizeMedia(data.photo, data['mp-photo-alt']),
 		video: normalizeMedia(data.video),
