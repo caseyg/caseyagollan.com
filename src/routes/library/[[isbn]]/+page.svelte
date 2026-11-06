@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { pushState, replaceState } from '$app/navigation';
-	import { librarySortModes, libraryShelfYear, readLibraryView, writeLibraryView } from '$lib/library-view';
+	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
@@ -23,6 +23,7 @@
 		authorName?: string;
 		pages?: number;
 		dateacquired?: string;
+		entrydate?: string;
 		publicationYear?: number;
 		ddcCode?: string;
 		img?: string;
@@ -770,6 +771,8 @@
 				pages?: number;
 				d?: string;
 				dateacquired?: string;
+				e?: string;
+				entrydate?: string;
 				y?: number;
 				publicationYear?: number;
 				c?: string;
@@ -800,6 +803,7 @@
 					isbn: n.n,
 					pages: n.p,
 					dateacquired: n.d,
+					entrydate: n.e,
 					publicationYear: n.y,
 					ddcCode: n.c,
 					img: n.m,
@@ -827,6 +831,7 @@
 				isbn: n.isbn || n.n,
 				pages: n.pages || n.p,
 				dateacquired: n.dateacquired || n.d,
+				entrydate: n.entrydate || n.e,
 				publicationYear: n.publicationYear || n.y,
 				ddcCode: n.ddcCode || n.c,
 				img: n.img || n.m,
@@ -1354,7 +1359,7 @@
 			let shelfRow = 0;
 			for (const year of years) {
 				const books = groups.get(year)!;
-				if (sort === 'dateacquired') books.sort((a, b) => (b.dateacquired || '').localeCompare(a.dateacquired || ''));
+				if (sort === 'dateacquired') books.sort((a, b) => libraryShelfDate(b).localeCompare(libraryShelfDate(a)));
 				const heading = headings.find((node) => node.id === year);
 				if (heading) {
 					heading.x = heading.fx = shelfStartX;
@@ -1536,7 +1541,7 @@
 <Nav currentPage="library" />
 <div class="controls" class:hidden={isLoading}>
 	<button id="modeToggle" onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
-	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
+	<button id="sortToggle" title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
 	>
 </div>

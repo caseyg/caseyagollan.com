@@ -16,13 +16,18 @@ export function writeLibraryView(url: URL, shelves: boolean, sort: LibrarySort) 
 	return next;
 }
 
+export function libraryShelfDate(book: { dateacquired?: string; entrydate?: string }): string {
+	const valid = (date?: string) => date && /^[1-9]\d{3}-\d{2}-\d{2}/.test(date);
+	return valid(book.dateacquired) ? book.dateacquired! : valid(book.entrydate) ? book.entrydate! : '';
+}
+
 export function libraryShelfYear(
-	book: { dateacquired?: string; publicationYear?: number },
+	book: { dateacquired?: string; entrydate?: string; publicationYear?: number },
 	sort: LibrarySort
 ): string {
 	if (sort === 'dateacquired') {
 		// LibraryThing dates are calendar dates; preserve their year across time zones.
-		const year = book.dateacquired?.match(/^(\d{4})-/)?.[1];
+		const year = libraryShelfDate(book).slice(0, 4);
 		return year && Number(year) > 0 ? year : 'Unknown year';
 	}
 	return book.publicationYear && Number.isInteger(book.publicationYear) && book.publicationYear > 0

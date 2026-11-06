@@ -34,3 +34,11 @@ test('year headings use acquisition calendar year or publication year with unkno
 	expect(libraryShelfYear({ dateacquired: 'invalid' }, 'dateacquired')).toBe('Unknown year');
 	expect(libraryShelfYear({ publicationYear: 0 }, 'publicationYear')).toBe('Unknown year');
 });
+
+test('acquisition shelves fall back to catalog entry dates without overwriting known acquisition dates', async () => {
+	const { libraryShelfDate, libraryShelfYear } = await import('../src/lib/library-view');
+	expect(libraryShelfDate({ dateacquired: '2016-09-27', entrydate: '2017-11-06' })).toBe('2016-09-27');
+	expect(libraryShelfYear({ entrydate: '2024-01-03' }, 'dateacquired')).toBe('2024');
+	expect(libraryShelfYear({ dateacquired: 'invalid', entrydate: '2023-12-31' }, 'dateacquired')).toBe('2023');
+	expect(libraryShelfYear({}, 'dateacquired')).toBe('Unknown year');
+});

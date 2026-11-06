@@ -14,6 +14,7 @@ interface MinifiedNode {
 	n?: string; // isbn
 	p?: number; // pages
 	d?: string; // dateacquired
+	e?: string; // date added to LibraryThing
 	y?: number; // publicationYear
 	c?: string; // ddcCode
 	m?: string; // img
@@ -43,6 +44,7 @@ interface Node {
 	isbn?: string;
 	pages?: number;
 	dateacquired?: string;
+	entrydate?: string;
 	publicationYear?: number;
 	ddcCode?: string;
 	img?: string;
@@ -72,6 +74,7 @@ function expandNode(n: MinifiedNode): Node {
 	if (n.n) node.isbn = n.n;
 	if (n.p) node.pages = n.p;
 	if (n.d) node.dateacquired = n.d;
+	if (n.e) node.entrydate = n.e;
 	if (n.y) node.publicationYear = n.y;
 	if (n.c) node.ddcCode = n.c;
 	if (n.m) node.img = n.m;
