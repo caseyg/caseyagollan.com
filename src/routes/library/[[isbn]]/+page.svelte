@@ -7,6 +7,7 @@
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
 	import { libraryText } from '$lib/library-text';
+	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -97,6 +98,8 @@
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
 	let shelfFramePending = false;
+	let shelfBounds: ShelfBounds | null = null;
+	let shelfFramingUntil = 0;
 	const shelfDraggedPositions = new Map<string, { x: number; y: number }>();
 
 	// Book detail overlay state
@@ -466,6 +469,8 @@
 		const request = new AbortController();
 		detailsRequest = request;
 		selectedBook = node;
+		Graph.controls().minDistance = 0.1;
+		Graph.controls().maxDistance = Infinity;
 		const catalogDetails: GoogleBookVolumeInfo = {
 			title: libraryText(node.id),
 			authors: node.authorName ? [libraryText(node.authorName)] : undefined,
@@ -905,6 +910,9 @@
 					shelfDraggedPositions.set(node.id, { x: node.x || 0, y: node.y || 0 });
 				}
 			})
+			.onNodeDragEnd(() => {
+				if (isGridModeActive) shelfBounds = getShelfBounds();
+			})
 			.onNodeClick((node: Node) => {
 				if (node.group === 'book') {
 					// If a book is already selected
@@ -969,6 +977,8 @@
 		controls.rotateSpeed = 0.8;
 		controls.zoomSpeed = 1.2;
 		controls.panSpeed = 0.8;
+		controls.addEventListener('change', constrainShelfCamera);
+		window.addEventListener('resize', resizeLibrary);
 		// Enable touch gestures: one finger = rotate, two fingers = pan/zoom
 		controls.touches = {
 			ONE: THREE.TOUCH.ROTATE,
@@ -1007,6 +1017,8 @@
 
 		// Remove keyboard event listener
 		detailsRequest?.abort();
+		window.removeEventListener('resize', resizeLibrary);
+		Graph?.controls().removeEventListener('change', constrainShelfCamera);
 		window.removeEventListener('keydown', handleKeydown);
 		window.removeEventListener('popstate', restoreLibraryView);
 
@@ -1108,19 +1120,56 @@
 		else if (isGridModeActive && sortChanged) applyShelfSort();
 	}
 
-	function frameShelves(duration = 700) {
-		if (!Graph) return;
-		const nodes = Graph.graphData().nodes as Node[];
-		if (!nodes.length) return;
-		const minY = Math.min(...nodes.map((n) => n.y || 0)) - 20;
-		const maxY = Math.max(...nodes.map((n) => n.y || 0)) + 20;
-		const centerY = (minY + maxY) / 2;
+	function getShelfBounds(): ShelfBounds {
+		const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, depth: 0 };
+		for (const node of Graph.graphData().nodes as Node[]) {
+			const object = node.__threeObj;
+			const x = node.x || 0, y = node.y || 0;
+			const isBook = node.group === 'book';
+			const width = isBook ? object?.geometry?.parameters?.depth || 2 : object?.scale.x || 5;
+			const height = isBook ? object?.geometry?.parameters?.height || 25 : object?.scale.y || 5;
+			bounds.minX = Math.min(bounds.minX, x - (isBook ? width / 2 : 0));
+			bounds.maxX = Math.max(bounds.maxX, x + (isBook ? width / 2 : width));
+			bounds.minY = Math.min(bounds.minY, y - height / 2);
+			bounds.maxY = Math.max(bounds.maxY, y + height / 2);
+			if (isBook) bounds.depth = Math.max(bounds.depth, (object?.geometry?.parameters?.width || 20) / 2);
+		}
+		return bounds;
+	}
+
+	function frameShelves(duration = 0) {
+		if (!Graph || !Graph.graphData().nodes.length) return;
+		shelfBounds = getShelfBounds();
 		const camera = Graph.camera();
-		const fov = camera.fov * Math.PI / 180;
-		const halfWidth = Math.max(150, ...nodes.map((n) => Math.abs(n.x || 0) + 20));
-		const distance = Math.max((maxY - minY) / 2, halfWidth / camera.aspect) / Math.tan(fov / 2) * 1.15;
+		const frame = shelfCameraFrame(shelfBounds, graphContainer.clientWidth, graphContainer.clientHeight, camera.fov);
+		const controls = Graph.controls();
+		controls.minDistance = Math.max(shelfBounds.depth + 2, frame.distance * 0.08);
+		const tangent = Math.tan(camera.fov * Math.PI / 360);
+		controls.maxDistance = Math.max(frame.distance, (shelfBounds.maxY - shelfBounds.minY) / (2 * tangent) * 1.2);
+		shelfFramingUntil = performance.now() + duration + 50;
 		camera.up.set(0, 1, 0);
-		Graph.cameraPosition({ x: 0, y: centerY, z: distance }, { x: 0, y: centerY, z: 0 }, duration);
+		Graph.cameraPosition({ x: frame.x, y: frame.y, z: frame.distance }, { x: frame.x, y: frame.y, z: 0 }, duration);
+	}
+
+	function constrainShelfCamera() {
+		if (!Graph || !isGridModeActive || selectedBook || !shelfBounds || shelfFramePending || performance.now() < shelfFramingUntil) return;
+		const camera = Graph.camera();
+		const controls = Graph.controls();
+		const halfHeight = Math.max(1, Math.abs(camera.position.z) - shelfBounds.depth) * Math.tan(camera.fov * Math.PI / 360);
+		const target = clampShelfTarget(shelfBounds, controls.target.x, controls.target.y,
+			halfHeight * camera.aspect, halfHeight, graphContainer.clientHeight);
+		const dx = target.x - controls.target.x, dy = target.y - controls.target.y;
+		// Translate camera and target together so clamping never tilts the shelf view.
+		camera.position.x += dx;
+		camera.position.y += dy;
+		controls.target.x = target.x;
+		controls.target.y = target.y;
+	}
+
+	function resizeLibrary() {
+		if (!Graph) return;
+		Graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
+		if (isGridModeActive && !selectedBook) frameShelves(0);
 	}
 
 	function refreshShelves() {
@@ -1175,6 +1224,7 @@
 			controls.maxPolarAngle = (3 * Math.PI) / 4;
 			controls.enableZoom = true;
 			controls.enableRotate = false;
+			controls.noRotate = true;
 			controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
 			// In shelf mode: one finger = pan, two fingers = zoom
 			controls.touches = {
@@ -1223,6 +1273,9 @@
 			controls.maxPolarAngle = Math.PI;
 			controls.enableZoom = true;
 			controls.enableRotate = true;
+			controls.noRotate = false;
+			controls.minDistance = 0;
+			controls.maxDistance = Infinity;
 			// In graph mode: one finger = rotate, two fingers = pan/zoom
 			controls.touches = {
 				ONE: THREE.TOUCH.ROTATE,
