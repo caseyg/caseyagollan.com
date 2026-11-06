@@ -42,7 +42,14 @@ export const PLURAL_TO_SINGULAR: Record<string, Post['type']> = {
 	photos: 'photo',
 	videos: 'video',
 	replies: 'reply',
-	media: 'media'
+	media: 'media',
+	likes: 'like',
+	reposts: 'repost',
+	events: 'event',
+	reviews: 'review',
+	itineraries: 'itinerary',
+	foods: 'food',
+	drinks: 'drink'
 };
 
 export function parsePost(fileContent: string, type: string, file: string): Post {
@@ -77,6 +84,9 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		syndication: data.syndication,
 		photo: normalizeMedia(data.photo, data['mp-photo-alt']),
 		video: normalizeMedia(data.video),
+		microformatType: data._micropubType ?? (type === 'events' ? 'h-event' : type === 'reviews' ? 'h-review' : 'h-entry'),
+		channel: data._micropubChannel,
+		properties: Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith('_')).map(([key,value]) => [key, Array.isArray(value) ? value : [value]])),
 		filePath: `${type}/${file}`
 	};
 }

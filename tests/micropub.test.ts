@@ -249,3 +249,85 @@ describe('Micropub HTTP flow', () => {
     expect(app.files.size).toBe(1);
   });
 });
+
+describe('Quill structured posts', () => {
+  const cases = [
+    ['like', 'h-entry', { 'like-of': ['https://other.example/one'] }],
+    ['repost', 'h-entry', { 'repost-of': ['https://other.example/two'] }],
+    ['event', 'h-event', { name: ['Camp'], start: ['2026-11-01T09:00-07:00'], end: ['2026-11-02'], location: [{ type: ['h-card'], properties: { name: ['Venue'], latitude: [45.52], longitude: [-122.68] } }] }],
+    ['review', 'h-review', { item: [{ type: ['h-product'], properties: { name: ['Book'], url: ['https://other.example/book'] } }], rating: [4], best: [5], content: ['Good'] }],
+    ['itinerary', 'h-entry', { itinerary: [{ type: ['h-leg'], properties: { 'transit-type': ['air'], operator: ['Alaska'], number: ['123'], origin: ['PDX'], destination: ['SFO'], departure: ['2026-10-10T08:00:00-07:00'], arrival: ['2026-10-10T10:00:00-07:00'] } }] }],
+    ['food', 'h-entry', { ate: [{ type: ['h-food'], properties: { name: ['Toast'] } }] }],
+    ['drink', 'h-entry', { drank: [{ type: ['h-food'], properties: { name: ['Americano'] } }] }]
+  ] as const;
+  for (const [kind, type, properties] of cases) test(`creates and round trips ${kind}`, async () => {
+    const app = setup();
+    const response = await app.send({ type: [type], properties: { ...properties, 'mp-slug': [kind] } });
+    expect(response.status).toBe(202);
+    const source = await (await app.query(`q=source&url=${encodeURIComponent(response.headers.get('Location')!)}`)).json() as any;
+    expect(source.type).toEqual([type]);
+    for (const [key, value] of Object.entries(properties)) expect(source.properties[key]).toEqual(value);
+  });
+  test('round trips Markdown source, minute timestamps and channels', async () => {
+    const app = setup();
+    const response = await app.send({ properties: { content: ['**Hello**'], 'p3k-content-type': ['text/markdown'], published: ['2026-11-06T09:30-05:00'], 'mp-channel': ['notes'], 'mp-slug': ['markdown'] } });
+    expect(response.status).toBe(202);
+    const source = await (await app.query(`q=source&url=${encodeURIComponent(response.headers.get('Location')!)}`)).json() as any;
+    expect(source.properties.content).toEqual(['**Hello**']);
+    expect(source.properties['p3k-content-type']).toEqual(['text/markdown']);
+    expect(source.properties['mp-channel']).toEqual(['notes']);
+    expect((await (await app.query('q=channels')).json() as any).channels).toContainEqual({ uid: 'notes', name: 'Notes' });
+  });
+  test('updates likes without changing their permalink and rejects weight/private writes', async () => {
+    const app = setup();
+    const response = await app.send({ properties: { 'like-of': ['https://other.example/a'], 'mp-slug': ['like-edit'] } });
+    expect(response.status).toBe(202);
+    const url = response.headers.get('Location');
+    expect((await app.send({ action: 'update', url, replace: { 'like-of': ['https://other.example/b'] } })).status).toBe(204);
+    for (const properties of [{ weight: [{ type: ['h-measure'], properties: { num: [72.5], unit: ['kg'] } }] }, { visibility: ['private'] }]) {
+      expect((await app.send({ properties: { content: ['x'], ...properties } })).status).toBe(400);
+      expect((await app.send({ action: 'update', url, replace: properties })).status).toBe(400);
+    }
+  });
+  test('rejects malformed structured data, invalid merged reviews, and unsafe URLs', async () => {
+    const app = setup();
+    for (const properties of [{ 'like-of': ['javascript:alert(1)'] }, { location: ['geo:999,0'], content: ['x'] }, { itinerary: [{ type: ['h-leg'], properties: { origin: ['PDX'] } }] }]) {
+      expect((await app.send({ properties })).status).toBe(400);
+    }
+    const created = await app.send({ type: ['h-review'], properties: { item: [{ type: ['h-product'], properties: { name: ['Book'] } }], rating: [4], best: [5] } });
+    expect(created.status).toBe(202);
+    expect((await app.send({ action: 'update', url: created.headers.get('Location'), replace: { best: [3] } })).status).toBe(400);
+  });
+});
+
+test('Markdown editing keeps source format aligned with frontend and supports value deletion', async () => {
+ const app = setup();
+ const created = await app.send({ properties: { content: ['**Hello**'], 'p3k-content-type': ['text/markdown'], 'mp-slug': ['format-edit'] } });
+ const url = created.headers.get('Location');
+ expect((await app.send({ action: 'update', url, delete: ['p3k-content-type'] })).status).toBe(204);
+ expect(readDocument(app.files.get('notes/2026-11-06-format-edit.md')!.content).bodyFormat).toBe('text');
+ expect((await app.send({ action: 'update', url, replace: { 'p3k-content-type': ['text/markdown'] } })).status).toBe(204);
+ expect(readDocument(app.files.get('notes/2026-11-06-format-edit.md')!.content).bodyFormat).toBe('markdown');
+ expect((await app.send({ action: 'update', url, delete: { content: ['**Hello**'] } })).status).toBe(204);
+ const source = await (await app.query(`q=source&url=${encodeURIComponent(url!)}`)).json() as any;
+ expect(source.properties.content).toBeUndefined();
+});
+
+test('sanitizes nested presentation content and keeps channel edits outside ordinary properties', async () => {
+ const app = setup();
+ const created = await app.send({ type: ['h-event'], 'mp-channel': ['events'], properties: { name: ['Camp'], start: ['2026-11-06'], 'slides-embed': ['<iframe src="https://www.youtube.com/embed/abcdefghijk"></iframe><script>bad()</script>'], conference: [{ type: ['h-event'], properties: { name: ['Parent'], start: ['2026-11-05'], content: [{ html: '<p>Conference<script>bad()</script></p>' }] } }] } });
+ expect(created.status).toBe(202);
+ const url = created.headers.get('Location');
+ expect((await app.send({ action: 'update', url, 'mp-channel': ['notes'] })).status).toBe(204);
+ const source = await (await app.query(`q=source&url=${encodeURIComponent(url!)}`)).json() as any;
+ expect(source.properties['mp-channel']).toEqual(['notes']);
+ expect(JSON.stringify(source)).not.toContain('<script');
+ expect(source.properties['slides-embed'][0]).toContain('www.youtube.com/embed/abcdefghijk');
+ expect((await app.send({ action: 'update', url, delete: ['start'] })).status).toBe(400);
+});
+
+test('accepts Quill conference references without event dates', async () => {
+ const app = setup();
+ const created = await app.send({ type: ['h-event'], properties: { name: ['Talk'], start: ['2026-11-06T09:00-05:00'], conference: [{ type: ['h-event'], properties: { name: ['Conference'], url: ['https://example.org/conference'] } }] } });
+ expect(created.status).toBe(202);
+});

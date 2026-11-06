@@ -67,28 +67,28 @@ function parse(markdown: string) {
 }
 
 /** Legacy Markdown keeps its source format; a protocol handler must render it for q=source. */
-export function readDocument(markdown: string): { properties: Properties; body: string; bodyFormat: 'text' | 'html' | 'markdown' } {
+export function readDocument(markdown: string): { properties: Properties; body: string; bodyFormat: 'text' | 'html' | 'markdown'; type: string; channel?: string } {
 	const { data, body } = parse(markdown);
 	const properties: Properties = Object.create(null);
 	for (const [key, value] of Object.entries(data)) {
 		// Historical rendering metadata stays in YAML, outside the protocol property map.
-		if (key === formatKey || key.startsWith('mp-')) continue;
+		if (key.startsWith('_micropub') || key.startsWith('mp-')) continue;
 		const property = Object.hasOwn(reverseFields, key) ? reverseFields[key] : key;
 		validName(property);
 		if (Object.hasOwn(properties, property)) throw new Error(`Ambiguous frontmatter property: ${property}`);
 		properties[property] = Array.isArray(value) ? value : [value];
 	}
 	const format = data[formatKey];
-	if (format !== undefined && format !== 'text' && format !== 'html') throw new Error('Unknown content format');
-	if (format === 'text') properties.content = [body];
+	if (format !== undefined && format !== 'text' && format !== 'html' && format !== 'markdown') throw new Error('Unknown content format');
+	if (format === 'text' || format === 'markdown') properties.content = [body];
 	if (format === 'html') properties.content = [{ html: body }];
-	return { properties, body, bodyFormat: format ?? 'markdown' };
+	return { properties, body, bodyFormat: format ?? 'markdown', type: typeof data._micropubType === 'string' ? data._micropubType : 'h-entry', channel: typeof data._micropubChannel === 'string' ? data._micropubChannel : undefined };
 }
 
 /** Apply updates to the full document, preserving unrelated frontmatter and body source. */
 export function updateDocument(markdown: string, operations: UpdateOperations): string {
 	const original = readDocument(markdown);
-	const legacyContent = original.bodyFormat === 'markdown' && original.body.length > 0;
+	const legacyContent = original.bodyFormat === 'markdown' && !original.properties.content && original.body.length > 0;
 	if (legacyContent && operations.add && Object.hasOwn(operations.add, 'content')) {
 		throw new Error('Cannot add content to an existing Markdown body; use replace');
 	}
@@ -127,7 +127,7 @@ export function updateDocument(markdown: string, operations: UpdateOperations): 
 			if (!values) { body = ''; yaml.delete(formatKey); continue; }
 			if (values.length !== 1) throw new Error('Content must have exactly one value');
 			const value = values[0];
-			if (typeof value === 'string') { body = value; yaml.set(formatKey, 'text'); }
+			if (typeof value === 'string') { body = value; yaml.set(formatKey, properties['p3k-content-type']?.[0] === 'text/markdown' ? 'markdown' : 'text'); }
 			else if (value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 1 && typeof value.html === 'string') {
 				body = value.html; yaml.set(formatKey, 'html');
 			} else throw new Error('Content must be text or an HTML object');
@@ -140,10 +140,19 @@ export function updateDocument(markdown: string, operations: UpdateOperations): 
 			yaml.set(field, values[0]);
 		} else yaml.set(field, values);
 	}
+	if (properties.content && typeof properties.content[0] === 'string' && (!legacyContent || properties['p3k-content-type'])) yaml.set(formatKey, properties['p3k-content-type']?.[0] === 'text/markdown' ? 'markdown' : 'text');
 	return `---\n${yaml.toString()}---\n${body}`;
 }
 
 export function createDocument(properties: Properties): string {
 	validateProperties(properties);
 	return updateDocument('', { replace: properties });
+}
+
+/** Reserved metadata is set only by the protocol handler. */
+export function documentMetadata(markdown: string, type: string, channel?: string): string {
+ const { yaml, body } = parse(markdown);
+ yaml.set('_micropubType', type);
+ if (channel !== undefined) yaml.set('_micropubChannel', channel);
+ return `---\n${yaml.toString()}---\n${body}`;
 }

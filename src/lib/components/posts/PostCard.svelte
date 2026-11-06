@@ -1,4 +1,5 @@
 <script lang="ts">
+	import PostDetails from './PostDetails.svelte';
 	import PostMeta from './PostMeta.svelte';
 	import BookmarkTitle from './BookmarkTitle.svelte';
 	import PostContent from './PostContent.svelte';
@@ -34,7 +35,7 @@
 	const isArticle = $derived(post.type === 'article');
 </script>
 
-<article class="h-entry post">
+<article class="{post.microformatType ?? 'h-entry'} post">
 	<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
 	<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
 
@@ -64,6 +65,8 @@
 		<p class="bookmark-url"><small><a class="u-bookmark-of" href={post.bookmarkOf}>{post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 	{/if}
 
+	<PostDetails {post} />
+	{#if post.summary && !isArticle}<p class="p-summary">{post.summary}</p>{/if}
 	{#if isArticle}
 		<p class="p-summary preview">
 			{post.summary || getPreview(post.content)}

@@ -25,3 +25,8 @@ test('normalizes updated and syndication target metadata',()=>{
  const post=parsePost('---\ndate: 2026-11-05\nupdated: [2026-11-06]\nsyndicationTargets: [mastodon, 2, bluesky, mastodon]\n---\nHello','notes','2026-11-05-hello.md');
  expect(post.updated).toBe('2026-11-06');expect(post.syndicationTargets).toEqual(['mastodon','bluesky']);
 });
+
+test('retains existing revision hashes for posts without new structured data', async () => {
+ // Recorded from the original revision schema for p(); avoids resending unchanged history.
+ expect(await publicationRevision(p())).toBe('f3a2bc6da48f350ec2d6903f6f8c60d7f287404f6ae5c5e464ff933dad3c197e');
+});

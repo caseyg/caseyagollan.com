@@ -27,6 +27,7 @@
 	}
 
 	const TYPE_ICONS: Record<string, string> = {
+		like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
 		note: '📝',
 		article: '📄',
 		bookmark: '🔖',

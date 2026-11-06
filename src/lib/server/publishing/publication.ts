@@ -1,3 +1,4 @@
+import { renderPostDetails } from '../../utils/post-details';
 import { fromHtml } from 'hast-util-from-html';
 import type { Nodes } from 'hast';
 import type { Post } from '../../posts-types';
@@ -19,7 +20,11 @@ const CANONICAL = 'https://caseyagollan.com';
 
 /** A content revision excludes delivery bookkeeping so recording a result is not a new send. */
 export async function publicationRevision(post: Post): Promise<string> {
+ const structured = Object.fromEntries(['like-of', 'repost-of', 'rsvp', 'location', 'start', 'end', 'slides', 'slides-embed', 'video-link', 'video-embed', 'conference', 'item', 'rating', 'best', 'worst', 'itinerary', 'ate', 'drank'].filter(key => post.properties?.[key] !== undefined).map(key => [key, post.properties![key]]));
  const state = JSON.stringify({
+  ...(Object.keys(structured).length ? { structured } : {}),
+  ...(post.microformatType && post.microformatType !== 'h-entry' ? { microformatType: post.microformatType } : {}),
+  ...(post.channel ? { channel: post.channel } : {}),
   slug: post.slug, type: post.type, date: post.date, title: post.title ?? null,
   html: renderContentSync(post.content, post.contentFormat), summary: post.summary ?? null,
   category: post.category ?? null, photo: post.photo ?? [], video: post.video ?? [],
@@ -33,7 +38,7 @@ export async function publicationRevision(post: Post): Promise<string> {
 
 export async function publicationForPost(post: Post, origin = CANONICAL): Promise<Publication> {
  const site = new URL(origin).origin;
- const tree = fromHtml(renderContentSync(post.content, post.contentFormat), { fragment: true });
+ const tree = fromHtml(renderContentSync(post.content, post.contentFormat) + renderPostDetails(post), { fragment: true });
  const targets = new Set<string>();
  function addTarget(value: string) {
   if (targets.size >= 32) return;
