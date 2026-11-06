@@ -1,3 +1,4 @@
+import { renderPostDetails } from '../utils/post-details';
 import type { MediaItem, Post } from '../posts-types';
 import { getPostPermalink } from '../posts-types';
 import { isPublicPost } from './parse-post';
@@ -47,7 +48,7 @@ function entries(posts: Post[], limit: number) {
    const publishedTime = Date.parse(post.date);
    const updatedTime = post.updated ? Date.parse(post.updated) : NaN;
    const modified = Number.isFinite(updatedTime) && updatedTime >= publishedTime ? new Date(updatedTime).toISOString() : undefined;
-   return { post, url, modified, updated: modified ?? new Date(publishedTime).toISOString(), date: new Date(post.date).toISOString(), html: clean(renderContentSync(post.content, post.contentFormat) + photos + videos), attachments };
+   return { post, url, modified, updated: modified ?? new Date(publishedTime).toISOString(), date: new Date(post.date).toISOString(), html: clean(renderPostDetails(post) + renderContentSync(post.content, post.contentFormat) + photos + videos), attachments };
   });
 }
 

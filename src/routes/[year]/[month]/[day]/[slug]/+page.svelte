@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import PostDetails from '$lib/components/posts/PostDetails.svelte';
 	import BookmarkTitle from '$lib/components/posts/BookmarkTitle.svelte';
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
@@ -22,7 +23,7 @@
 <PostsLayout>
 	<DateArchiveHeader year={data.year} month={data.month} day={data.day} />
 
-	<article class="h-entry post">
+	<article class="{data.post.microformatType ?? 'h-entry'} post">
 		<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
 		<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
 
@@ -49,9 +50,8 @@
 		{/if}
 
 		<PostMedia photos={data.post.photo} videos={data.post.video} />
-		{#if data.post.inReplyTo}
-			<p>In reply to <a class="u-in-reply-to" href={data.post.inReplyTo}>{data.post.inReplyTo}</a></p>
-		{/if}
+		<PostDetails post={data.post} />
+		{#if data.post.summary}<p class="p-summary">{data.post.summary}</p>{/if}
 
 		<PostContent content={data.post.content} format={data.post.contentFormat} />
 

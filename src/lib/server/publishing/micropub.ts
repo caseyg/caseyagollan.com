@@ -3,15 +3,17 @@ import { sanitizePublishingHtml } from '../../utils/sanitizeHtml';
 import { queuePublication, requestedSyndication, syndicationTargets } from './delivery';
 import type { SyndicationConfig } from './syndication';
 import { authorize, profileUrl, ProtocolError, type AuthConfig, type Fetcher } from './auth';
-import { createDocument, readDocument, updateDocument, type Properties, type UpdateOperations } from './document';
+import { createDocument, readDocument, updateDocument, documentMetadata, type Properties, type UpdateOperations } from './document';
 import { createGitHubStore, GitHubStoreError } from './github';
 import { validPostParams } from '../github-posts';
 import { POST_TYPE_PLURALS } from '../../posts-types';
+import { channels, channelValue, postFolder, QUILL_TYPES, validateQuill } from './quill';
 
 export interface PublishingConfig extends AuthConfig {
 	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaEnabled?: boolean; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
 }
 interface Dependencies { fetcher?: Fetcher; now?: () => Date; id?: () => string }
+
 const folders = Object.values(POST_TYPE_PLURALS);
 const bad = (message: string) => new ProtocolError(400, 'invalid_request', message);
 
@@ -58,7 +60,7 @@ function timestamp(now: Date, timeZone: string): string {
 }
 
 function dated(value: unknown): string {
-	if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value)) ||
+	if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value)) ||
 		!validPostParams({ year: value.slice(0, 4), month: value.slice(5, 7), day: value.slice(8, 10), slug: 'date' })) throw bad('Use a valid published timestamp with a timezone');
 	return value;
 }
@@ -78,6 +80,7 @@ function location(value: unknown, me: string) {
 function publicProperties(properties: Properties, removing = false) {
 	for (const [key, values] of Object.entries(properties)) {
 		if (!Array.isArray(values)) throw bad('Property values must be arrays');
+		if (key === 'weight') throw bad('Weight posts are not supported');
 		if (key.startsWith('_') || key === 'draft' || key === 'syndicationTargets' || key === 'deleted' || key === 'url' || key.startsWith('mp-')) throw bad(`Unsupported property: ${key}`);
 		if (removing && values.length === 0) continue;
 		if (key === 'visibility' && (values.length !== 1 || values[0] !== 'public')) throw bad('Private visibility is not enabled');
@@ -92,7 +95,7 @@ function publicProperties(properties: Properties, removing = false) {
 		}
 		if (key === 'published' && (values.length !== 1 || typeof values[0] !== 'string')) throw bad('Use one published timestamp');
 		if (['category', 'summary'].includes(key) && values.some(value => typeof value !== 'string')) throw bad(`Use text values for ${key}`);
-		if (['bookmark-of', 'in-reply-to', 'photo', 'video', 'syndication'].includes(key)) {
+		if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'photo', 'video', 'syndication'].includes(key)) {
 			for (const value of values) {
 				const href = typeof value === 'string' ? value : value && typeof value === 'object' && !Array.isArray(value) ? value.value ?? value.url : undefined;
 				if (typeof href !== 'string' || !['http:', 'https:'].includes(new URL(href).protocol)) throw bad(`Invalid ${key} URL`);
@@ -143,7 +146,8 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 
 			if (request.method === 'GET') {
 				const q = url.searchParams.get('q');
-				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), 'post-statuses': ['published', 'draft'], 'post-types': ['note', 'article', 'bookmark', 'reply', ...(config.mediaEnabled ? ['photo', 'video'] : [])].map(type => ({ type, name: type })) });
+				if (q === 'channels') return json({ channels });
+				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video'].includes(type)).map(type => ({ type, name: type })) });
 				if (q === 'syndicate-to') return json({ 'syndicate-to': syndicationTargets(config) });
 				if (q !== 'source') throw bad('Unsupported query');
 				const { file } = await find(url.searchParams.get('url'));
@@ -151,14 +155,21 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				const doc = readDocument(file.content);
 				const properties: Properties = { ...doc.properties };
 				delete properties.syndicationTargets;
+				if (doc.channel) properties['mp-channel'] = [doc.channel];
 				if (!properties.content && doc.body) properties.content = [{ html: sanitizePublishingHtml(marked.parse(doc.body, { async: false })) }];
 				const filter = url.searchParams.getAll('properties[]');
-				return json({ properties: filter.length ? Object.fromEntries(Object.entries(properties).filter(([key]) => filter.includes(key))) : properties }, 200, { ETag: `"${file.sha}"` });
+				return json({ ...(!filter.length ? { type: [doc.type] } : {}), properties: filter.length ? Object.fromEntries(Object.entries(properties).filter(([key]) => filter.includes(key))) : properties }, 200, { ETag: `"${file.sha}"` });
 			}
 
 			if (action === 'create') {
-				if (input.type !== undefined && (!Array.isArray(input.type) || input.type.length !== 1 || input.type[0] !== 'h-entry')) throw bad('Only h-entry is supported');
+				if (input.type !== undefined && (!Array.isArray(input.type) || input.type.length !== 1 || !['h-entry','h-event','h-review'].includes(String(input.type[0])))) throw bad('Use h-entry, h-event or h-review');
+				const root = (input.type as string[] | undefined)?.[0] ?? 'h-entry';
 				const properties = structuredClone(record(input.properties)) as Properties;
+				for (const command of ['mp-slug', 'mp-channel']) {
+					if (input[command] !== undefined) { if (properties[command] !== undefined) throw bad(`Send ${command} once`); properties[command] = input[command] as Properties[string]; }
+				}
+				const channel = channelValue(properties['mp-channel']);
+				delete properties['mp-channel'];
 				const requestedSlug = properties['mp-slug'];
 				delete properties['mp-slug'];
 				const photoAlts = properties['mp-photo-alt'];
@@ -172,6 +183,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				try { requested = requestedSyndication(input['mp-syndicate-to'] ?? properties['mp-syndicate-to'], config); } catch { throw bad('Syndication target is not configured'); }
 				delete properties['mp-syndicate-to'];
 				publicProperties(properties);
+				validateQuill(properties, root);
 				if (requested.length) properties.syndicationTargets = requested;
 				const published = dated(properties.published?.[0] ?? timestamp(now, config.timeZone));
 				properties.published = [published];
@@ -182,11 +194,10 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				if (typeof slug !== 'string' || slug.length > 120) throw bad('Invalid slug');
 				const target = location(`${new URL(me).origin}/${published.slice(0, 10).replaceAll('-', '/')}/${encodeURIComponent(slug)}/`, me);
 				if ((await find(target.url)).file) throw new ProtocolError(409, 'invalid_request', 'Post URL already exists');
-				const folder = properties['in-reply-to'] ? 'replies' : properties['bookmark-of'] ? 'bookmarks' : properties.video ? 'videos' : properties.photo ? 'photos' : properties.name ? 'articles' : 'notes';
-				if (properties['like-of'] || properties['repost-of']) throw bad('This post type is not enabled yet');
-				if (!properties.content?.length && !properties.name?.length && !properties['bookmark-of']?.length && !properties['in-reply-to']?.length && !properties.photo?.length && !properties.video?.length) throw bad('Post is empty');
+				const folder = postFolder(properties, root);
+				if (!['content','name','bookmark-of','in-reply-to','like-of','repost-of','photo','video','item','itinerary','ate','drank'].some(key => properties[key]?.length)) throw bad('Post is empty');
 				const path = `${folder}/${target.date}-${slug}.md`;
-				const markdown = createDocument(properties);
+				const markdown = documentMetadata(createDocument(properties), root, channel);
 				const saved = await store.write(path, markdown, { expectedHead, message: `Publish ${target.slug}` });
 				const queued = await queuePublication(config, path, markdown, undefined, saved.commit);
 				return new Response(null, { status: 202, headers: { ...headers, Location: target.url, ...(!queued ? { Warning: '199 - "Post saved; delivery will retry after publication"' } : {}) } });
@@ -210,8 +221,9 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 						publicProperties(Object.fromEntries(input[key].map(name => { if (typeof name !== 'string') throw bad('Invalid deletion'); return [name, []]; })), true);
 						operations.delete = input[key] as string[];
 					} else {
-						const values = record(input[key]) as Properties;
+						const values = structuredClone(record(input[key])) as Properties;
 						publicProperties(values, key === 'delete');
+						if (key !== 'delete') validateQuill(values);
 						Object.assign(operations, { [key]: values });
 					}
 				}
@@ -222,11 +234,14 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 					try { requested = requestedSyndication(requestedValue, config); } catch { throw bad('Syndication target is not configured'); }
 					operations.replace = { ...operations.replace, syndicationTargets: [...new Set([...(doc.properties.syndicationTargets ?? []), ...requested])] };
 				}
-				if (!Object.keys(operations).length) throw bad('No update operations');
+				const selectedChannel = channelValue(input['mp-channel'] ?? formProperties['mp-channel']);
+				if (!Object.keys(operations).length && selectedChannel === undefined) throw bad('No update operations');
 				const status = operations.replace?.['post-status']?.[0];
 				if (status === 'draft') await authorize(request, 'draft', config, upstream, parsed.bodyToken);
 				if (status === 'published' && (doc.properties['post-status']?.[0] === 'draft' || doc.properties.draft?.[0] === true)) await authorize(request, 'create', config, upstream, parsed.bodyToken);
 				next = updateDocument(file.content, operations);
+				if (selectedChannel !== undefined) next = documentMetadata(next, doc.type, selectedChannel);
+				validateQuill(readDocument(next).properties, doc.type);
 				// Explicit publication also clears legacy draft metadata.
 				if (status === 'published') next = updateDocument(next, { delete: ['draft'] });
 			}

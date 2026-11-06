@@ -10,7 +10,7 @@ const schema = {
  attributes: {
   ...defaultSchema.attributes,
   '*': [...(defaultSchema.attributes?.['*'] ?? []), 'className'],
-  a: [...(defaultSchema.attributes?.a ?? []), 'rel'],
+  a: [...(defaultSchema.attributes?.a ?? []).filter(attribute => !(Array.isArray(attribute) && attribute[0] === 'className')), 'className', 'rel'],
   time: ['dateTime', 'className'],
   video: ['src', 'poster', 'controls', 'preload', 'width', 'height'],
   audio: ['src', 'controls', 'preload'],

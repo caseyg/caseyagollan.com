@@ -8,7 +8,7 @@ export interface MediaItem {
 
 export interface Post {
 	slug: string;
-	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media';
+	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media' | 'like' | 'repost' | 'event' | 'review' | 'itinerary' | 'food' | 'drink';
 	date: string;
 	updated?: string;
 	syndicationTargets?: string[];
@@ -26,10 +26,13 @@ export interface Post {
 	syndication?: string[];
 	photo?: MediaItem[];
 	video?: MediaItem[];
+	microformatType?: string;
+	channel?: string;
+	properties?: Record<string, unknown[]>;
 	filePath: string;
 }
 
-export const POST_TYPES = ['note', 'article', 'bookmark', 'photo', 'video', 'reply', 'media'] as const;
+export const POST_TYPES = ['note', 'article', 'bookmark', 'photo', 'video', 'reply', 'media', 'like', 'repost', 'event', 'review', 'itinerary', 'food', 'drink'] as const;
 export const POST_TYPE_PLURALS: Record<string, string> = {
 	note: 'notes',
 	article: 'articles',
@@ -37,7 +40,14 @@ export const POST_TYPE_PLURALS: Record<string, string> = {
 	photo: 'photos',
 	video: 'videos',
 	reply: 'replies',
-	media: 'media'
+	media: 'media',
+	like: 'likes',
+	repost: 'reposts',
+	event: 'events',
+	review: 'reviews',
+	itinerary: 'itineraries',
+	food: 'foods',
+	drink: 'drinks'
 };
 
 export function getPostPermalink(post: { date: string; slug: string }): string {
