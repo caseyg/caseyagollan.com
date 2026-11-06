@@ -11,6 +11,7 @@ declare global {
 		interface Platform {
 			env?: {
 				INSIGHT_CACHE: KVNamespace;
+				GITHUB_CONTENT_TOKEN?: string;
 				INFERENCE_COOP_API_KEY: string;
 				KAGI_API_KEY: string;
 				NODE_ENV: string;
