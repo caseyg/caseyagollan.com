@@ -90,6 +90,7 @@ export async function getAllPosts(): Promise<Post[]> {
 					type: PLURAL_TO_SINGULAR[type] as Post['type'],
 					date: dateStr,
 					title: data.title,
+					bookmarkOf: data.bookmarkOf,
 					summary: data.summary,
 					category: data.category,
 					content,

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import PostMeta from './PostMeta.svelte';
+	import BookmarkTitle from './BookmarkTitle.svelte';
 	import PostContent from './PostContent.svelte';
 	import PostMedia from './PostMedia.svelte';
 	import type { Post } from '$lib/posts-types';
@@ -47,14 +48,20 @@
 		{activeTag}
 	/>
 
-	{#if post.title}
-		<h3 class="p-name post-title">
-			{#if isArticle}
+	{#if post.title || (post.type === 'bookmark' && post.bookmarkOf)}
+		<h3 class="p-name post-title" class:bookmark-title={post.type === 'bookmark' && !!post.bookmarkOf}>
+			{#if post.type === 'bookmark' && post.bookmarkOf}
+				<BookmarkTitle url={post.bookmarkOf} title={post.title} />
+			{:else if isArticle}
 				<a href={permalink} class="title-link">{post.title}</a>
 			{:else}
 				{post.title}
 			{/if}
 		</h3>
+	{/if}
+
+	{#if post.type === 'bookmark' && post.bookmarkOf}
+		<p class="bookmark-url"><small><a href={post.bookmarkOf}>{post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 	{/if}
 
 	{#if isArticle}
@@ -95,6 +102,25 @@
 
 	.title-link:hover {
 		text-decoration: underline;
+	}
+
+	.post-title.bookmark-title {
+		margin-bottom: 0.1rem;
+	}
+
+	.bookmark-url a {
+		color: rgba(255, 255, 255, 0.6);
+		text-decoration: none;
+		text-underline-offset: 0.15em;
+	}
+
+	.bookmark-url a:hover {
+		text-decoration: underline;
+	}
+
+	.bookmark-url {
+		margin: 0 0 0.75rem;
+		overflow-wrap: anywhere;
 	}
 
 	.preview {

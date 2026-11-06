@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import BookmarkTitle from '$lib/components/posts/BookmarkTitle.svelte';
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
 	import { PostsLayout, DateArchiveHeader, PostMeta, PostContent, PostMedia } from '$lib/components/posts';
@@ -32,8 +33,18 @@
 			category={data.post.category}
 		/>
 
-		{#if data.post.title}
-			<h1 class="p-name post-title">{data.post.title}</h1>
+		{#if data.post.title || (data.post.type === 'bookmark' && data.post.bookmarkOf)}
+			<h1 class="p-name post-title" class:bookmark-title={data.post.type === 'bookmark' && !!data.post.bookmarkOf}>
+				{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
+					<BookmarkTitle url={data.post.bookmarkOf} title={data.post.title} />
+				{:else}
+					{data.post.title}
+				{/if}
+			</h1>
+		{/if}
+
+		{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
+			<p class="bookmark-url"><small><a href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 		{/if}
 
 		<PostMedia photos={data.post.photo} videos={data.post.video} />
@@ -46,6 +57,25 @@
 <style>
 	.post {
 		margin-bottom: 2rem;
+	}
+
+	.post-title.bookmark-title {
+		margin-bottom: 0.1rem;
+	}
+
+	.bookmark-url a {
+		color: rgba(255, 255, 255, 0.6);
+		text-decoration: none;
+		text-underline-offset: 0.15em;
+	}
+
+	.bookmark-url a:hover {
+		text-decoration: underline;
+	}
+
+	.bookmark-url {
+		margin: 0 0 1rem;
+		overflow-wrap: anywhere;
 	}
 
 	.post-title {
