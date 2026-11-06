@@ -91,6 +91,7 @@
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
 	let shelfFramePending = false;
+	const shelfDraggedPositions = new Map<string, { x: number; y: number }>();
 
 	// Book detail overlay state
 	let selectedBook: Node | null = $state(null);
@@ -156,54 +157,36 @@
 			return materialCache.get(cacheKey)!;
 		}
 
-		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
-			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
-			materialCache.set(cacheKey, simpleMaterial);
-			return simpleMaterial;
-		}
-
-		// Match canvas aspect ratio to actual spine geometry
-		// Spine face is (depthVal x height) where depthVal = depth/10
-		// Use resolution multiplier for crisp text
-		const resolution = 8;
-		const spineWidth = Math.max(depth / 10, 0.5); // Match depthVal from createBookObject
+		// Size lettering in texture pixels, proportional to the physical spine width.
+		// A fixed 14px font became microscopic on a canvas thousands of pixels tall.
+		const spineWidth = Math.max(depth / 10, 0.1);
 		const spineHeight = bookHeight || 25;
-
-		spineCanvas.width = Math.round(spineWidth * resolution * 10);
-		spineCanvas.height = Math.round(spineHeight * resolution * 10);
-
+		const pixelsPerUnit = Math.min(40, 2048 / spineHeight);
+		spineCanvas.width = Math.max(8, Math.round(spineWidth * pixelsPerUnit));
+		spineCanvas.height = Math.max(8, Math.round(spineHeight * pixelsPerUnit));
 		spineCtx.fillStyle = averageColor;
 		spineCtx.fillRect(0, 0, spineCanvas.width, spineCanvas.height);
 
-		spineCtx.fillStyle = 'white';
-		spineCtx.strokeStyle = 'black';
-
-		// Font size relative to spine width
-		const baseFontSize = Math.max(8, Math.min(14, spineCanvas.width * 0.25));
-		spineCtx.font = `bold ${baseFontSize}px Arial`;
-		spineCtx.textAlign = 'left';
-		spineCtx.textBaseline = 'top';
-
-		// Draw text vertically (rotated 90 degrees) - left aligned from top
-		const padding = 10;
+		const color = new THREE.Color(averageColor);
+		const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+		spineCtx.fillStyle = luminance > 0.18 ? '#111111' : '#ffffff';
+		const padding = spineCanvas.width * 0.2;
 		const maxTextWidth = spineCanvas.height - padding * 2;
-
-		// Truncate title if too long
+		const preferredSize = spineCanvas.width * 0.65;
+		spineCtx.font = `600 ${preferredSize}px Arial`;
+		const fontSize = Math.max(preferredSize * 0.65,
+			Math.min(preferredSize, preferredSize * maxTextWidth / Math.max(1, spineCtx.measureText(node.id).width)));
+		spineCtx.font = `600 ${fontSize}px Arial`;
+		spineCtx.textAlign = 'center';
+		spineCtx.textBaseline = 'middle';
 		let title = node.id;
-		let metrics = spineCtx.measureText(title);
-		while (metrics.width > maxTextWidth && title.length > 10) {
-			title = title.slice(0, -4) + '…';
-			metrics = spineCtx.measureText(title);
+		if (spineCtx.measureText(title).width > maxTextWidth) {
+			while (title.length && spineCtx.measureText(title + '…').width > maxTextWidth) title = title.slice(0, -1);
+			title += '…';
 		}
-
-		// Draw text rotated 90 degrees (reading from bottom to top)
 		spineCtx.save();
-		spineCtx.translate(spineCanvas.width / 2 + baseFontSize / 3, spineCanvas.height - padding);
+		spineCtx.translate(spineCanvas.width / 2, spineCanvas.height / 2);
 		spineCtx.rotate(-Math.PI / 2);
-		spineCtx.lineWidth = 2;
-		spineCtx.strokeStyle = 'rgba(0,0,0,0.5)';
-		spineCtx.strokeText(title, 0, 0);
 		spineCtx.fillText(title, 0, 0);
 		spineCtx.restore();
 
@@ -217,6 +200,10 @@
 		);
 		texture.needsUpdate = true;
 		texture.flipY = true;
+		texture.colorSpace = THREE.SRGBColorSpace;
+		texture.generateMipmaps = true;
+		texture.minFilter = THREE.LinearMipmapLinearFilter;
+		texture.magFilter = THREE.LinearFilter;
 
 		const material = new THREE.MeshBasicMaterial({ map: texture });
 		materialCache.set(cacheKey, material);
@@ -868,10 +855,20 @@
 
 		Graph = ForceGraph3D()(graphContainer)
 			.graphData(graphData)
+			.nodeLabel((node: Node) => {
+				const label = document.createElement('span');
+				label.textContent = node.id;
+				return label;
+			})
 			.onEngineTick(() => {
 				if (isGridModeActive && shelfFramePending) {
 					shelfFramePending = false;
 					frameShelves();
+				}
+			})
+			.onNodeDrag((node: Node) => {
+				if (isGridModeActive && node.group === 'book') {
+					shelfDraggedPositions.set(node.id, { x: node.x || 0, y: node.y || 0 });
 				}
 			})
 			.onNodeClick((node: Node) => {
@@ -1092,6 +1089,7 @@
 	}
 
 	function refreshShelves() {
+		shelfDraggedPositions.clear();
 		// Recreate labels when changing modes; graph labels use popularity-based sizes.
 		Graph.nodeThreeObject(Graph.nodeThreeObject());
 		customForce();
@@ -1104,6 +1102,7 @@
 		if (!Graph) return;
 
 		deselectBook();
+		shelfDraggedPositions.clear();
 		isGridModeActive = !isGridModeActive;
 
 		if (isGridModeActive) {
@@ -1495,6 +1494,15 @@
 					node.__threeObj.rotation.set(0, Math.PI / 2, 0);
 				}
 			});
+		}
+		// Keep manual shelf placements until the next sort or view change.
+		for (const node of nodes) {
+			const dragged = shelfDraggedPositions.get(node.id);
+			if (dragged) {
+				node.x = node.fx = dragged.x;
+				node.y = node.fy = dragged.y;
+				node.z = node.fz = 0;
+			}
 		}
 	}
 </script>
