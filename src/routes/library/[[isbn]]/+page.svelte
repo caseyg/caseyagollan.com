@@ -3,6 +3,7 @@
 	import type * as Three from 'three';
 	import { browser } from '$app/environment';
 	import Nav from '$lib/components/Nav.svelte';
+	import { spineTextureSize } from '$lib/library/textures';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -90,12 +91,15 @@
 	let originalGraphData: GraphData;
 
 	// Book detail overlay state
-	let selectedBook: Node | null = $state(null);
+	let selectedBook: Node | null = $state.raw(null);
 	let bookDetails: GoogleBookVolumeInfo | null = $state(null);
 	let isLoadingBookDetails = $state(false);
 	let bookDetailError: string | null = $state(null);
 	let orbitAnimationId: number | null = null;
 	let orbitPaused = false;
+	let removeOrbitListener: (() => void) | undefined;
+	let orbitStartTimeoutId: ReturnType<typeof setTimeout> | undefined;
+	let initialSelectionTimeoutId: ReturnType<typeof setTimeout> | undefined;
 	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	let orbitDirection = 1; // 1 or -1 for clockwise/counter-clockwise
 
@@ -121,12 +125,23 @@
 
 	// Cleanup tracking
 	const animationFrameIds = new Set<number>();
+	function scheduleFrame(callback: FrameRequestCallback) {
+		const id = requestAnimationFrame((time) => {
+			animationFrameIds.delete(id);
+			if (!isDestroyed) callback(time);
+		});
+		animationFrameIds.add(id);
+		return id;
+	}
 	let isDestroyed = false;
 
 	// Mobile detection and limits
 	const isMobile = browser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-	const maxTexturesOnMobile = 100; // Limit textures on mobile to prevent crashes
+	// Reserve capacity for real covers even when placeholders appear first.
+	const maxCoverTexturesOnMobile = 64;
+	const maxGeneratedTexturesOnMobile = 36;
 	let textureCount = 0;
+	let coverTextureCount = 0;
 
 	// Performance: Reusable canvas for texture generation
 	let spineCanvas: HTMLCanvasElement;
@@ -154,7 +169,7 @@
 		}
 
 		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
+		if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) {
 			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
 			materialCache.set(cacheKey, simpleMaterial);
 			return simpleMaterial;
@@ -162,13 +177,12 @@
 
 		// Match canvas aspect ratio to actual spine geometry
 		// Spine face is (depthVal x height) where depthVal = depth/10
-		// Use resolution multiplier for crisp text
-		const resolution = 8;
-		const spineWidth = Math.max(depth / 10, 0.5); // Match depthVal from createBookObject
+		// Bound pixel dimensions while preserving the spine aspect ratio
+		const spineWidth = Math.max(depth / 10, 0.5);
 		const spineHeight = bookHeight || 25;
-
-		spineCanvas.width = Math.round(spineWidth * resolution * 10);
-		spineCanvas.height = Math.round(spineHeight * resolution * 10);
+		const size = spineTextureSize(spineWidth, spineHeight);
+		spineCanvas.width = size.width;
+		spineCanvas.height = size.height;
 
 		spineCtx.fillStyle = averageColor;
 		spineCtx.fillRect(0, 0, spineCanvas.width, spineCanvas.height);
@@ -221,38 +235,16 @@
 		return material;
 	}
 
-	// Performance: Create back cover with cached canvas
+	// Reuse plain materials for solid-color book backs
 	function createBackCoverMaterial(averageColor: string): Three.MeshBasicMaterial {
 		const cacheKey = `back_${averageColor}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
 
-		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
-			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
-			materialCache.set(cacheKey, simpleMaterial);
-			return simpleMaterial;
-		}
-
-		coverCanvas.width = 256;
-		coverCanvas.height = 384;
-		coverCtx.fillStyle = averageColor;
-		coverCtx.fillRect(0, 0, coverCanvas.width, coverCanvas.height);
-
-		const imageData = coverCtx.getImageData(0, 0, coverCanvas.width, coverCanvas.height);
-		const texture = new THREE.DataTexture(
-			imageData.data,
-			coverCanvas.width,
-			coverCanvas.height,
-			THREE.RGBAFormat
-		);
-		texture.needsUpdate = true;
-		texture.flipY = true;
-
-		const material = new THREE.MeshBasicMaterial({ map: texture });
+		// A solid-color back needs no canvas, pixel buffer, or GPU texture.
+		const material = new THREE.MeshBasicMaterial({ color: averageColor });
 		materialCache.set(cacheKey, material);
-		textureCount++;
 		return material;
 	}
 
@@ -265,7 +257,7 @@
 		const loader = new THREE.TextureLoader();
 		const texture = loader.load(url);
 		textureCache.set(url, texture);
-		textureCount++;
+		coverTextureCount++;
 		return texture;
 	}
 
@@ -296,7 +288,7 @@
 		}
 
 		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
+		if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) {
 			const simpleMaterial = new THREE.MeshBasicMaterial({ color: bgColor });
 			materialCache.set(cacheKey, simpleMaterial);
 			return {
@@ -374,8 +366,16 @@
 		let averageColor = node.averageColor || '#666666';
 
 		if (node.img && node.w && node.h && !isNaN(node.w) && !isNaN(node.h)) {
-			const imgTexture = loadTexture('/library/' + node.img);
-			frontMaterial = new THREE.MeshBasicMaterial({ map: imgTexture });
+			const cacheKey = `front_${node.img}`;
+			if (!materialCache.has(cacheKey)) {
+				const map = !isMobile || coverTextureCount < maxCoverTexturesOnMobile
+					? loadTexture('/library/' + node.img)
+					: null;
+				materialCache.set(cacheKey, new THREE.MeshBasicMaterial(
+					map ? { map } : { color: averageColor }
+				));
+			}
+			frontMaterial = materialCache.get(cacheKey)!;
 			width = Math.max(0.1, node.w / 10);
 			height = Math.max(0.1, node.h / 10);
 			spineMaterial = createSpineTexture(node, depth, averageColor, height);
@@ -511,8 +511,7 @@
 
 			// Skip position update if paused, but keep animation frame running
 			if (orbitPaused) {
-				orbitAnimationId = requestAnimationFrame(orbitCamera);
-				animationFrameIds.add(orbitAnimationId);
+				orbitAnimationId = scheduleFrame(orbitCamera);
 				return;
 			}
 
@@ -532,8 +531,7 @@
 				0 // Instant update for smooth orbit
 			);
 
-			orbitAnimationId = requestAnimationFrame(orbitCamera);
-			animationFrameIds.add(orbitAnimationId);
+			orbitAnimationId = scheduleFrame(orbitCamera);
 		}
 
 		// Start the orbit with a zoom-in first
@@ -564,19 +562,22 @@
 		};
 
 		// Listen for user interaction
+		removeOrbitListener?.();
 		controls.addEventListener('start', pauseOrbit);
+		removeOrbitListener = () => controls.removeEventListener('start', pauseOrbit);
 
 		// Start orbiting after zoom completes
-		setTimeout(() => {
-			if (selectedBook && selectedBook.id === node.id) {
-				orbitAnimationId = requestAnimationFrame(orbitCamera);
-				animationFrameIds.add(orbitAnimationId);
+		clearTimeout(orbitStartTimeoutId);
+		orbitStartTimeoutId = setTimeout(() => {
+			if (!isDestroyed && selectedBook === node) {
+				orbitAnimationId = scheduleFrame(orbitCamera);
 			}
 		}, 1000);
 
 		// Fetch book details (tries ISBN first, then falls back to title)
 		isLoadingBookDetails = true;
 		const details = await fetchBookDetails(node.isbn, node.id);
+		if (isDestroyed || selectedBook !== node) return;
 		if (details) {
 			bookDetails = details;
 		} else {
@@ -688,6 +689,10 @@
 	// Deselect book and restore view
 	function deselectBook() {
 		if (!Graph || !selectedBook) return;
+
+		removeOrbitListener?.();
+		removeOrbitListener = undefined;
+		clearTimeout(orbitStartTimeoutId);
 
 		// Stop orbit animation
 		if (orbitAnimationId !== null) {
@@ -833,6 +838,7 @@
 			import('three-spritetext')
 		]);
 
+		if (isDestroyed) return;
 		const ForceGraph3D = ForceGraph3DModule.default;
 		THREE = THREEModule;
 		const SpriteText = SpriteTextModule.default;
@@ -852,12 +858,14 @@
 			graphData = expandGraphData(rawData);
 		}
 
+		if (isDestroyed) return;
 		const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
 		loadingProgress = `Organizing ${bookCount} books…`;
 
 		// Allow UI to update before heavy graph creation
 		await new Promise((resolve) => requestAnimationFrame(resolve));
 
+		if (isDestroyed) return;
 		Graph = new ForceGraph3D(graphContainer)
 			.graphData(graphData)
 			.onNodeClick((graphNode) => {
@@ -930,7 +938,7 @@
 		originalGraphData = { ...Graph.graphData() };
 
 		// Mark loading complete after a short delay to ensure render is visible
-		requestAnimationFrame(() => {
+		scheduleFrame(() => {
 			isLoading = false;
 
 			// Check for ISBN from route params and select that book
@@ -940,7 +948,9 @@
 				);
 				if (bookNode) {
 					// Small delay to let the graph render first
-					setTimeout(() => selectBook(bookNode, false), 100);
+					initialSelectionTimeoutId = setTimeout(() => {
+						if (!isDestroyed) selectBook(bookNode, false);
+					}, 100);
 				}
 			}
 		});
@@ -957,6 +967,10 @@
 
 		// Set destroyed flag to stop any ongoing animations
 		isDestroyed = true;
+		removeOrbitListener?.();
+		clearTimeout(orbitStartTimeoutId);
+		clearTimeout(initialSelectionTimeoutId);
+		if (orbitResumeTimeoutId) clearTimeout(orbitResumeTimeoutId);
 
 		// Cancel all pending animation frames
 		animationFrameIds.forEach((id) => cancelAnimationFrame(id));
@@ -1174,13 +1188,11 @@
 								startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
 
 							if (progress < 1) {
-								const frameId = requestAnimationFrame(animateRotation);
-								animationFrameIds.add(frameId);
+								scheduleFrame(animateRotation);
 							}
 						}
 
-						const initialFrameId = requestAnimationFrame(animateRotation);
-						animationFrameIds.add(initialFrameId);
+						scheduleFrame(animateRotation);
 					}
 				}
 			} else {
@@ -1433,8 +1445,8 @@
 <div bind:this={graphContainer} class="graph-container"></div>
 <Nav currentPage="library" />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" onclick={toggleMode}>{isGridModeActive ? '🕸️' : '📚'}</button>
-	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
+	<button id="modeToggle" onclick={toggleMode} aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'}>{isGridModeActive ? '🕸️' : '📚'}</button>
+	<button id="sortToggle" onclick={toggleSort} aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]}</button
 	>
 </div>
