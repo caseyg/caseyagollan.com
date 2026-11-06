@@ -1,113 +1,27 @@
-// Server-only module - contains file system operations
+// Server-only module - parses the Markdown snapshot bundled by Vite
 // For client-safe types and constants, import from '$lib/posts-types'
 
-import { readdir, readFile } from 'fs/promises';
-import { join } from 'path';
-import matter from 'gray-matter';
+import { parsePost, PLURAL_TO_SINGULAR } from './server/parse-post';
 
-import type { Post, MediaItem } from './posts-types';
+import type { Post } from './posts-types';
 
 // Re-export client-safe types and functions
 export type { Post, MediaItem } from './posts-types';
 export { POST_TYPES, POST_TYPE_PLURALS, getPostPermalink, getPostsByDay } from './posts-types';
 
-function normalizeMedia(
-	value: unknown,
-	altFallbacks?: unknown
-): MediaItem[] | undefined {
-	if (!value) return undefined;
-	const items = Array.isArray(value) ? value : [value];
-	const altList = Array.isArray(altFallbacks) ? altFallbacks : [];
-
-	const normalized = items
-		.map((item, i): MediaItem | null => {
-			if (typeof item === 'string') {
-				return { url: item, alt: typeof altList[i] === 'string' ? altList[i] : undefined };
-			}
-			if (item && typeof item === 'object' && typeof (item as any).url === 'string') {
-				const m = item as Record<string, unknown>;
-				return {
-					url: m.url as string,
-					alt:
-						typeof m.alt === 'string'
-							? m.alt
-							: typeof altList[i] === 'string'
-								? (altList[i] as string)
-								: undefined,
-					type: typeof m.type === 'string' ? m.type : undefined
-				};
-			}
-			return null;
-		})
-		.filter((m): m is MediaItem => m !== null);
-
-	return normalized.length > 0 ? normalized : undefined;
-}
-
-// Mapping from plural folder names to singular type names
-const PLURAL_TO_SINGULAR: Record<string, string> = {
-	notes: 'note',
-	articles: 'article',
-	bookmarks: 'bookmark',
-	photos: 'photo',
-	videos: 'video',
-	replies: 'reply',
-	media: 'media'
-};
+// Vite reads these files at build time; no filesystem APIs run in the Worker.
+const markdownFiles = import.meta.glob<string>('/content/*/*.md', {
+	query: '?raw',
+	import: 'default',
+	eager: true
+});
 
 export async function getAllPosts(): Promise<Post[]> {
-	const contentDir = join(process.cwd(), 'content');
-	const postTypes = ['notes', 'articles', 'bookmarks', 'photos', 'videos', 'replies', 'media'];
 	const posts: Post[] = [];
-
-	for (const type of postTypes) {
-		try {
-			const typeDir = join(contentDir, type);
-			const files = await readdir(typeDir);
-
-			for (const file of files) {
-				if (!file.endsWith('.md')) continue;
-
-				const filePath = join(typeDir, file);
-				const fileContent = await readFile(filePath, 'utf-8');
-				const { data, content } = matter(fileContent);
-
-				// Remove .md extension and strip date prefix (YYYY-MM-DD-) from slug
-			const slug = file.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '');
-
-				// Extract the original date string from frontmatter to preserve timezone
-				// Gray-matter converts dates to Date objects (UTC), losing local date info
-				const dateMatch = fileContent.match(/^date:\s*(.+)$/m);
-				const rawDateStr = dateMatch ? dateMatch[1].trim() : '';
-
-				// Use raw date string if available, otherwise fall back to parsed date
-				const dateStr = rawDateStr || (data.date instanceof Date
-					? data.date.toISOString()
-					: (data.date || ''));
-
-				posts.push({
-					slug,
-					type: PLURAL_TO_SINGULAR[type] as Post['type'],
-					date: dateStr,
-					title: data.title,
-					bookmarkOf: data.bookmarkOf,
-					summary: data.summary,
-					category: data.category,
-					content,
-					visibility: data.visibility,
-					syndication: data.syndication,
-					photo: normalizeMedia(data.photo, data['mp-photo-alt']),
-					video: normalizeMedia(data.video),
-					filePath: `${type}/${file}`
-				});
-			}
-		} catch (error) {
-			// Directory doesn't exist or is empty, skip
-			console.warn(`Could not read ${type} directory:`, error);
-		}
+	for (const [path, markdown] of Object.entries(markdownFiles)) {
+		const [, , type, file] = path.split('/');
+		if (Object.hasOwn(PLURAL_TO_SINGULAR, type)) posts.push(parsePost(markdown, type, file));
 	}
-
-	// Sort by date, newest first
 	return posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
