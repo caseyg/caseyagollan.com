@@ -7,6 +7,7 @@
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
 	import { libraryText } from '$lib/library-text';
+	import { shelfCoverCamera } from '$lib/library-selection';
 	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
 
 	interface PageData {
@@ -100,6 +101,10 @@
 	let shelfFramePending = false;
 	let shelfBounds: ShelfBounds | null = null;
 	let shelfFramingUntil = 0;
+	interface BookPose { x: number; y: number; z: number; rotationY: number }
+	const shelfBookPresentations = new Map<string, { node: Node; pose: BookPose; frame: number | null; open: boolean }>();
+	let shelfSavedCamera: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; minDistance: number; maxDistance: number } | null = null;
+	let shelfCameraAnimation: number | null = null;
 	const shelfDraggedPositions = new Map<string, { x: number; y: number }>();
 
 	// Book detail overlay state
@@ -461,6 +466,92 @@
 		}
 	}
 
+	function stopShelfCameraAnimation() {
+		if (shelfCameraAnimation !== null) {
+			cancelAnimationFrame(shelfCameraAnimation);
+			animationFrameIds.delete(shelfCameraAnimation);
+			shelfCameraAnimation = null;
+		}
+	}
+
+	function clearShelfPresentations() {
+		stopShelfCameraAnimation();
+		for (const state of shelfBookPresentations.values()) {
+			if (state.frame !== null) { cancelAnimationFrame(state.frame); animationFrameIds.delete(state.frame); }
+			state.node.__threeObj?.position.set(state.node.x || 0, state.node.y || 0, 0);
+			state.node.__threeObj?.rotation.set(0, Math.PI / 2, 0);
+		}
+		shelfBookPresentations.clear();
+		shelfSavedCamera = null;
+	}
+
+	function animateShelfCamera(position: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }) {
+		stopShelfCameraAnimation();
+		const startPosition = { ...Graph.camera().position };
+		const startTarget = { ...Graph.controls().target };
+		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const started = performance.now();
+		shelfFramingUntil = started + duration + 50;
+		function step(now: number) {
+			if (shelfCameraAnimation !== null) animationFrameIds.delete(shelfCameraAnimation);
+			if (isDestroyed) return;
+			const progress = duration ? Math.min((now - started) / duration, 1) : 1;
+			const t = 1 - Math.pow(1 - progress, 3);
+			const blend = (from: { x: number; y: number; z: number }, to: { x: number; y: number; z: number }) => ({
+				x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, z: from.z + (to.z - from.z) * t
+			});
+			Graph.cameraPosition(blend(startPosition, position), blend(startTarget, target), 0);
+			shelfCameraAnimation = progress < 1 ? requestAnimationFrame(step) : null;
+			if (shelfCameraAnimation !== null) animationFrameIds.add(shelfCameraAnimation);
+		}
+		shelfCameraAnimation = requestAnimationFrame(step);
+		animationFrameIds.add(shelfCameraAnimation);
+	}
+
+	function animateShelfBook(node: Node, open: boolean) {
+		const book = node.__threeObj;
+		if (!book) return;
+		const previous = shelfBookPresentations.get(node.id);
+		if (previous?.frame != null) {
+			cancelAnimationFrame(previous.frame);
+			animationFrameIds.delete(previous.frame);
+		}
+		const from: BookPose = { x: book.position.x, y: book.position.y, z: book.position.z, rotationY: book.rotation.y };
+		const pullDistance = Math.max(book.geometry.parameters.width, book.geometry.parameters.height) * 1.4;
+		const to: BookPose = { x: node.x || 0, y: node.y || 0, z: open ? pullDistance : 0, rotationY: open ? 0 : Math.PI / 2 };
+		const state = { node, pose: { ...from }, frame: null as number | null, open };
+		shelfBookPresentations.set(node.id, state);
+		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const started = performance.now();
+		function step(now: number) {
+			if (state.frame !== null) animationFrameIds.delete(state.frame);
+			if (isDestroyed) return;
+			const progress = duration ? Math.min((now - started) / duration, 1) : 1;
+			const t = 1 - Math.pow(1 - progress, 3);
+			state.pose = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t,
+				z: from.z + (to.z - from.z) * t, rotationY: from.rotationY + (to.rotationY - from.rotationY) * t };
+			book.position.set(state.pose.x, state.pose.y, state.pose.z);
+			book.rotation.set(0, state.pose.rotationY, 0);
+			state.frame = progress < 1 ? requestAnimationFrame(step) : null;
+			if (state.frame !== null) animationFrameIds.add(state.frame);
+			else if (!open) shelfBookPresentations.delete(node.id);
+		}
+		state.frame = requestAnimationFrame(step);
+		animationFrameIds.add(state.frame);
+		if (open) {
+			const view = shelfCoverCamera({ ...to, width: book.geometry.parameters.width, height: book.geometry.parameters.height },
+				{ width: graphContainer.clientWidth, height: graphContainer.clientHeight }, Graph.camera().fov);
+			animateShelfCamera(view.position, view.target);
+		}
+	}
+
+	function presentShelfBook(node: Node) {
+		if (!shelfSavedCamera) shelfSavedCamera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target },
+			minDistance: Graph.controls().minDistance, maxDistance: Graph.controls().maxDistance };
+		for (const state of shelfBookPresentations.values()) if (state.open && state.node.id !== node.id) animateShelfBook(state.node, false);
+		animateShelfBook(node, true);
+	}
+
 	// Select a book and show its details
 	async function selectBook(node: Node, updateUrl = true) {
 		if (!Graph) return;
@@ -469,6 +560,7 @@
 		const request = new AbortController();
 		detailsRequest = request;
 		selectedBook = node;
+		if (isGridModeActive) presentShelfBook(node);
 		Graph.controls().minDistance = 0.1;
 		Graph.controls().maxDistance = Infinity;
 		const catalogDetails: GoogleBookVolumeInfo = {
@@ -503,91 +595,94 @@
 			}
 		});
 
-		// Start orbit animation around the selected book
-		const bookX = node.x || 0;
-		const bookY = node.y || 0;
-		const bookZ = node.z || 0;
-		const orbitRadius = 40;
-		const orbitSpeed = 0.0003; // radians per millisecond
-		let startTime: number | null = null;
+		if (!isGridModeActive) {
+			// Start orbit animation around the selected book
+			const bookX = node.x || 0;
+			const bookY = node.y || 0;
+			const bookZ = node.z || 0;
+			const orbitRadius = 40;
+			const orbitSpeed = 0.0003; // radians per millisecond
+			let startTime: number | null = null;
 
-		// Random orbit direction each time
-		orbitDirection = Math.random() > 0.5 ? 1 : -1;
-		orbitPaused = false;
+			// Random orbit direction each time
+			orbitDirection = Math.random() > 0.5 ? 1 : -1;
+			orbitPaused = false;
 
-		// Clear any existing resume timeout
-		if (orbitResumeTimeoutId) {
-			clearTimeout(orbitResumeTimeoutId);
-			orbitResumeTimeoutId = null;
-		}
-
-		function orbitCamera(timestamp: number) {
-			if (isDestroyed || !selectedBook || selectedBook.id !== node.id) return;
-
-			// Skip position update if paused, but keep animation frame running
-			if (orbitPaused) {
-				orbitAnimationId = requestAnimationFrame(orbitCamera);
-				animationFrameIds.add(orbitAnimationId);
-				return;
-			}
-
-			if (!startTime) startTime = timestamp;
-
-			const elapsed = timestamp - startTime;
-			const angle = elapsed * orbitSpeed * orbitDirection;
-
-			// Orbit in XZ plane around the book
-			const cameraX = bookX + orbitRadius * Math.cos(angle);
-			const cameraZ = bookZ + orbitRadius * Math.sin(angle);
-			const cameraY = bookY + 10; // Slightly above
-
-			Graph.cameraPosition(
-				{ x: cameraX, y: cameraY, z: cameraZ },
-				{ x: bookX, y: bookY, z: bookZ },
-				0 // Instant update for smooth orbit
-			);
-
-			orbitAnimationId = requestAnimationFrame(orbitCamera);
-			animationFrameIds.add(orbitAnimationId);
-		}
-
-		// Start the orbit with a zoom-in first
-		Graph.cameraPosition(
-			{ x: bookX + orbitRadius, y: bookY + 10, z: bookZ },
-			{ x: bookX, y: bookY, z: bookZ },
-			1000
-		);
-
-		// Set up pause on user interaction
-		const controls = Graph.controls();
-		const pauseOrbit = () => {
-			if (!selectedBook) return;
-			orbitPaused = true;
-
-			// Clear existing timeout
+			// Clear any existing resume timeout
 			if (orbitResumeTimeoutId) {
 				clearTimeout(orbitResumeTimeoutId);
+				orbitResumeTimeoutId = null;
 			}
 
-			// Resume after 5 seconds of inactivity
-			orbitResumeTimeoutId = setTimeout(() => {
-				if (selectedBook) {
-					orbitPaused = false;
-					startTime = null; // Reset start time so orbit continues smoothly
+			function orbitCamera(timestamp: number) {
+				if (isDestroyed || !selectedBook || selectedBook.id !== node.id) return;
+
+				// Skip position update if paused, but keep animation frame running
+				if (orbitPaused) {
+					orbitAnimationId = requestAnimationFrame(orbitCamera);
+					animationFrameIds.add(orbitAnimationId);
+					return;
 				}
-			}, 5000);
-		};
 
-		// Listen for user interaction
-		controls.addEventListener('start', pauseOrbit);
+				if (!startTime) startTime = timestamp;
 
-		// Start orbiting after zoom completes
-		setTimeout(() => {
-			if (selectedBook && selectedBook.id === node.id) {
+				const elapsed = timestamp - startTime;
+				const angle = elapsed * orbitSpeed * orbitDirection;
+
+				// Orbit in XZ plane around the book
+				const cameraX = bookX + orbitRadius * Math.cos(angle);
+				const cameraZ = bookZ + orbitRadius * Math.sin(angle);
+				const cameraY = bookY + 10; // Slightly above
+
+				Graph.cameraPosition(
+					{ x: cameraX, y: cameraY, z: cameraZ },
+					{ x: bookX, y: bookY, z: bookZ },
+					0 // Instant update for smooth orbit
+				);
+
 				orbitAnimationId = requestAnimationFrame(orbitCamera);
 				animationFrameIds.add(orbitAnimationId);
 			}
-		}, 1000);
+
+			// Start the orbit with a zoom-in first
+			Graph.cameraPosition(
+				{ x: bookX + orbitRadius, y: bookY + 10, z: bookZ },
+				{ x: bookX, y: bookY, z: bookZ },
+				1000
+			);
+
+			// Set up pause on user interaction
+			const controls = Graph.controls();
+			const pauseOrbit = () => {
+				if (!selectedBook) return;
+				orbitPaused = true;
+
+				// Clear existing timeout
+				if (orbitResumeTimeoutId) {
+					clearTimeout(orbitResumeTimeoutId);
+				}
+
+				// Resume after 5 seconds of inactivity
+				orbitResumeTimeoutId = setTimeout(() => {
+					if (selectedBook) {
+						orbitPaused = false;
+						startTime = null; // Reset start time so orbit continues smoothly
+					}
+				}, 5000);
+			};
+
+			// Listen for user interaction
+			controls.addEventListener('start', pauseOrbit);
+
+			// Start orbiting after zoom completes
+			setTimeout(() => {
+				if (selectedBook && selectedBook.id === node.id) {
+					orbitAnimationId = requestAnimationFrame(orbitCamera);
+					animationFrameIds.add(orbitAnimationId);
+				}
+			}, 1000);
+
+		}
 
 		// Catalog metadata is available immediately; Google Books only enriches it.
 		isLoadingBookDetails = true;
@@ -738,8 +833,16 @@
 			}
 		});
 
-		// Reset camera
-		if (isGridModeActive) frameShelves();
+		// Return the book and camera to the shelf position the reader was browsing.
+		if (isGridModeActive && shelfSavedCamera) {
+			const state = shelfBookPresentations.get(selectedBook.id);
+			if (state) animateShelfBook(state.node, false);
+			const saved = shelfSavedCamera;
+			shelfSavedCamera = null;
+			Graph.controls().minDistance = saved.minDistance;
+			Graph.controls().maxDistance = saved.maxDistance;
+			animateShelfCamera(saved.position, saved.target);
+		} else if (isGridModeActive) frameShelves();
 		else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 
 		// Remove ISBN from URL
@@ -899,6 +1002,13 @@
 				label.textContent = libraryText(node.id);
 				return label;
 			})
+			.nodePositionUpdate((object: NonNullable<Node['__threeObj']>, _position: unknown, node: Node) => {
+				const state = shelfBookPresentations.get(node.id);
+				if (!state || !isGridModeActive) return false;
+				object.position.set(state.pose.x, state.pose.y, state.pose.z);
+				object.rotation.set(0, state.pose.rotationY, 0);
+				return true;
+			})
 			.onEngineTick(() => {
 				if (isGridModeActive && shelfFramePending) {
 					shelfFramePending = false;
@@ -907,6 +1017,13 @@
 			})
 			.onNodeDrag((node: Node) => {
 				if (isGridModeActive && node.group === 'book') {
+					const presentation = shelfBookPresentations.get(node.id);
+					if (presentation?.open) {
+						if (presentation.frame !== null) { cancelAnimationFrame(presentation.frame); animationFrameIds.delete(presentation.frame); presentation.frame = null; }
+						presentation.pose.x = node.x || 0;
+						presentation.pose.y = node.y || 0;
+						return;
+					}
 					shelfDraggedPositions.set(node.id, { x: node.x || 0, y: node.y || 0 });
 				}
 			})
@@ -922,7 +1039,7 @@
 							deselectBook();
 						} else {
 							// Tapping a different book - deselect first, then select new one
-							deselectBook();
+							if (!isGridModeActive) deselectBook();
 							selectBook(node);
 						}
 					} else {
@@ -978,6 +1095,7 @@
 		controls.zoomSpeed = 1.2;
 		controls.panSpeed = 0.8;
 		controls.addEventListener('change', constrainShelfCamera);
+		controls.addEventListener('start', stopShelfCameraAnimation);
 		window.addEventListener('resize', resizeLibrary);
 		// Enable touch gestures: one finger = rotate, two fingers = pan/zoom
 		controls.touches = {
@@ -1019,6 +1137,7 @@
 		detailsRequest?.abort();
 		window.removeEventListener('resize', resizeLibrary);
 		Graph?.controls().removeEventListener('change', constrainShelfCamera);
+		Graph?.controls().removeEventListener('start', stopShelfCameraAnimation);
 		window.removeEventListener('keydown', handleKeydown);
 		window.removeEventListener('popstate', restoreLibraryView);
 
@@ -1138,6 +1257,7 @@
 	}
 
 	function frameShelves(duration = 0) {
+		stopShelfCameraAnimation();
 		if (!Graph || !Graph.graphData().nodes.length) return;
 		shelfBounds = getShelfBounds();
 		const camera = Graph.camera();
@@ -1173,6 +1293,7 @@
 	}
 
 	function refreshShelves() {
+		clearShelfPresentations();
 		shelfDraggedPositions.clear();
 		// Recreate labels when changing modes; graph labels use popularity-based sizes.
 		Graph.nodeThreeObject(Graph.nodeThreeObject());
@@ -1187,6 +1308,7 @@
 
 		deselectBook();
 		shelfDraggedPositions.clear();
+		clearShelfPresentations();
 		isGridModeActive = !isGridModeActive;
 
 		if (isGridModeActive) {
@@ -1426,7 +1548,7 @@
 					book.x = book.fx = shelfStartX + rowWidth + depth / 2;
 					book.y = book.fy = -(shelfRow + Math.floor(index / booksPerShelf)) * shelfHeight;
 					book.z = book.fz = 0;
-					book.__threeObj?.rotation.set(0, Math.PI / 2, 0);
+					if (!shelfBookPresentations.has(book.id)) book.__threeObj?.rotation.set(0, Math.PI / 2, 0);
 					rowWidth += depth + 0.5;
 				});
 				shelfRow += Math.ceil(books.length / booksPerShelf) + 0.7;
@@ -1510,7 +1632,7 @@
 						book.fy = book.y;
 						book.fz = book.z;
 
-						if (book.__threeObj) {
+						if (book.__threeObj && !shelfBookPresentations.has(book.id)) {
 							book.__threeObj.rotation.set(0, Math.PI / 2, 0);
 						}
 					});
@@ -1540,7 +1662,7 @@
 				node.fy = node.y;
 				node.fz = node.z;
 
-				if (node.__threeObj) {
+				if (node.__threeObj && !shelfBookPresentations.has(node.id)) {
 					node.__threeObj.rotation.set(0, Math.PI / 2, 0);
 				}
 			});
