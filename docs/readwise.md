@@ -16,8 +16,9 @@ are private/no-store and noindex. External preview images are deliberately not
 loaded, so reviewing the queue does not contact source websites.
 
 Only **Import selected** publishes posts, through the existing Micropub handler.
-The public fields are the approved title, source URL, and saved timestamp. Personal
-notes, summaries, tags, and Readwise content are never included. No automatic
+The public fields are the approved title, source URL, saved timestamp, edited summary
+as post content, and selected tags. Personal notes and full Readwise document content
+are never included. Existing site tags are suggested while adding tags. No automatic
 syndication is requested. The UI sends explicit selections in chunks of ten.
 
 `integrations/readwise.json` in the configured GitHub content repository stores
@@ -27,7 +28,10 @@ previews. Dismissals, including day/batch dismissals, write IDs only. GitHub SHA
 conflicts re-read and merge the arrays, retaining concurrent changes. Read failures
 fail closed rather than treating the ledger as empty.
 
-Posts use a deterministic `readwise-ID` slug and saved date. If publishing succeeds
+New posts use the document ID as a deterministic slug, without a Readwise prefix,
+and the saved date. Retries also recognize the legacy `readwise-ID` path. Successful
+imports remain in the queue as links; the existing GitHub fallback serves those
+permalinks before the next site build. If publishing succeeds
 but the response or ledger update fails, retrying checks the existing bookmark
 before completing the ledger. Partial failures preserve remaining selections.
 There is no scheduled Readwise import and no import-on-fetch behavior.
