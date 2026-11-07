@@ -8,9 +8,11 @@ const config = {
 	preprocess: [vitePreprocess(), mdsvex({ extensions: ['.md'] })],
 
 	kit: {
-		adapter: adapter({ config: 'wrangler.sveltekit.jsonc', platformProxy: { configPath: 'wrangler.jsonc' } }),
+		// The adapter proxy cannot run our custom Worker or its Durable Object class.
+		// Use `bun run preview` for the full Worker with local bindings.
+		adapter: adapter({ config: 'wrangler.sveltekit.jsonc', platformProxy: { configPath: 'wrangler.sveltekit.jsonc' } }),
 		// The hook retains form-origin checks everywhere except the token-only Micropub API.
-		csrf: { checkOrigin: false },
+		csrf: { trustedOrigins: ['*'] },
 		prerender: {
 			handleHttpError: ({ path, referrer, message }) => {
 				// Ignore 404s for pages we haven't migrated yet

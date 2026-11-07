@@ -1746,7 +1746,7 @@
 </div>
 
 {#if selectedBook}
-	<aside class="book-sidebar" role="complementary" aria-label="Book details">
+	<aside class="book-sidebar" aria-label="Book details">
 		<button class="close-button" onclick={deselectBook} aria-label="Close">×</button>
 
 		<h2 class="book-title">{libraryText(selectedBook.id)}</h2>
@@ -2036,24 +2036,6 @@
 		background: blue;
 		padding: 3px 8px;
 		border-radius: 10px;
-	}
-
-	.book-rating {
-		margin-bottom: 16px;
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.stars {
-		color: gold;
-		font-size: 1rem;
-		letter-spacing: 1px;
-	}
-
-	.rating-count {
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.7);
 	}
 
 	.book-description {
