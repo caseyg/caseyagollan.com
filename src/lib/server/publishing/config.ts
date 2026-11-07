@@ -40,5 +40,5 @@ export function publishingConfig(env: PublishingEnvironment = {}): PublishingCon
 		...(env.PUBLISHING_MASTODON_TOKEN?.trim() ? { mastodon: { instance: env.PUBLISHING_MASTODON_INSTANCE ?? 'https://social.coop', token: env.PUBLISHING_MASTODON_TOKEN } } : {}),
 		...(env.PUBLISHING_BLUESKY_IDENTIFIER?.trim() && env.PUBLISHING_BLUESKY_PASSWORD?.trim() ? { bluesky: { service: env.PUBLISHING_BLUESKY_SERVICE ?? 'https://bsky.social', identifier: env.PUBLISHING_BLUESKY_IDENTIFIER, password: env.PUBLISHING_BLUESKY_PASSWORD } } : {})
 	};
-	return { ...config, ...(store ? { introspect: (token: string) => store.invoke('introspectToken', { token }) } : {}), state: env.PUBLISHING_STATE, syndication, deliveryEnabled: env.PUBLISHING_DELIVERY_ENABLED === 'true', mediaEnabled: Boolean(env.PUBLISHING_MEDIA), mediaBaseUrl: env.PUBLISHING_MEDIA_BASE_URL, introspectionToken: env.PUBLISHING_INTROSPECTION_TOKEN } as PublishingConfig;
+	return { ...config, ...(store ? { introspect: (token: string) => store.invoke('introspectToken', { token }) } : {}), state: env.PUBLISHING_STATE, syndication, deliveryEnabled: env.PUBLISHING_DELIVERY_ENABLED === 'true', mediaBucket: env.PUBLISHING_MEDIA, mediaEnabled: Boolean(env.PUBLISHING_MEDIA), mediaBaseUrl: env.PUBLISHING_MEDIA_BASE_URL, introspectionToken: env.PUBLISHING_INTROSPECTION_TOKEN } as PublishingConfig;
 }

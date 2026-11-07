@@ -1,4 +1,5 @@
 import type { Post } from '../posts-types';
+import { renderSocialSnapshot } from '../social-snapshots';
 import { sanitizePublishingHtml } from './sanitizeHtml';
 import { renderContentSync } from './renderContent';
 
@@ -47,7 +48,11 @@ function event(p: Properties, depth = 0): string {
 export function renderPostDetails(post: Post): string {
  const p = post.properties ?? {};
  let html = '';
- for (const [key,label] of [['like-of','Liked'],['repost-of','Reposted']]) for (const value of p[key] ?? []) if (typeof value === 'string') html += `<p>${label} ${link(value, value, `u-${key}`)}</p>`;
+ for (const [key,label] of [['like-of','Liked'],['repost-of','Reposted']]) for (const value of p[key] ?? []) if (typeof value === 'string') {
+  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === value);
+  html += `<p>${label} ${link(value, snapshot ? 'post' : value, `u-${key}`)}</p>`;
+  if (snapshot) html += renderSocialSnapshot(snapshot);
+ }
  const reply = post.inReplyTo || text(p, 'in-reply-to');
  if (reply) html += `<p>In reply to ${link(reply, reply, 'u-in-reply-to')}</p>`;
  if (p.rsvp) html += `<p>RSVP: <span class="p-rsvp">${escape(text(p, 'rsvp'))}</span></p>`;

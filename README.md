@@ -44,3 +44,22 @@ Export JSON from [LibraryThing](https://www.librarything.com/export) to `utils/l
 - `docs/`: implementation plans and evidence.
 
 Legacy Eleventy source/output, the nested starter app, duplicate content trees, and obsolete agent workspaces were removed. Tracked historical versions remain in Git history.
+
+### Saved Bluesky and Mastodon posts
+
+Likes and reposts fetch a public post once during Micropub publication and save a snapshot in `_micropubSocialSnapshots` in the same GitHub Markdown commit. Archive cards, permalinks and feeds render the saved text, author, timestamp and images without social widgets or browser API requests. The author/avatar layout follows Bluesky while retaining the site’s colors and white underlined links. Unrelated edits preserve the snapshot; changing/removing the target discards its old snapshot. Failed fetches retain a plain link. Private and unlisted Mastodon posts are not archived.
+
+Avatars and attached raster images are saved in the existing `PUBLISHING_MEDIA` R2 bucket under immutable content-hash keys (`publishing/social/…`), served through `PUBLISHING_MEDIA_BASE_URL` or the existing `/media/` route. Git stores only their URLs. Fetches are bounded to 1 MiB per image and 5 MiB per post; oversized/unavailable media and video are omitted, with the original post linked. Saved post text is excluded from outgoing syndication text and additional Webmention targets.
+
+Backfill the canonical content checkout, then commit its changes in the content repository and update the site's submodule pointer:
+
+```sh
+# Dry run all likes and reposts
+bun run backfill-social-snapshots
+# Save one existing post
+bun run backfill-social-snapshots content/likes/2026-11-06-c1d5be8d.md --write --remote-media
+# Explicitly refresh a previously saved snapshot
+bun run backfill-social-snapshots content/likes/2026-11-06-c1d5be8d.md --refresh --write --remote-media
+```
+
+Dry runs do not write to R2. Saving requires `--write --remote-media`, which uploads public images to the configured remote R2 bucket before saving their URLs in Markdown. Failed refreshes retain each unavailable original snapshot. The backfill command never commits, pushes, or deploys. Rendering and ordinary builds use the saved snapshot; they do not refresh social content.

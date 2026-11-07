@@ -9,6 +9,7 @@ const types: Record<string, string> = {
 	'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
 	'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/webm': 'webm', 'audio/flac': 'flac'
 };
+const socialKeyPattern = /^social\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/;
 const keyPattern = /^\d{4}\/(?:0[1-9]|1[0-2])\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(?:jpg|png|gif|webp|avif|mp4|mov|webm|mp3|m4a|ogg|wav|flac)$/;
 const error = (status: number, message: string) => new ProtocolError(status, status === 503 ? 'temporarily_unavailable' : 'invalid_request', message);
 
@@ -96,7 +97,7 @@ export function createMediaHandler(config: PublishingConfig | undefined, bucket:
 
 /** Public, immutable media only. Publishing disablement must not break existing media URLs. */
 export async function serveMedia(request: Request, key: string, bucket?: R2Bucket): Promise<Response> {
-	if (!keyPattern.test(key)) return new Response(null, { status: 404 });
+	if (!keyPattern.test(key) && !socialKeyPattern.test(key)) return new Response(null, { status: 404 });
 	if (!bucket) return new Response(null, { status: 503 });
 	if (!['GET', 'HEAD'].includes(request.method)) return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
 	try {

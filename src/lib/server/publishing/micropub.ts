@@ -1,4 +1,7 @@
 import { marked } from 'marked';
+import { socialImageStore } from './social-media';
+import { enrichSocialSnapshots } from './social-snapshots';
+import type { PublicFetcher } from './public-fetch';
 import { sanitizePublishingHtml } from '../../utils/sanitizeHtml';
 import { queuePublication, requestedSyndication, syndicationTargets } from './delivery';
 import type { SyndicationConfig } from './syndication';
@@ -10,9 +13,9 @@ import { POST_TYPE_PLURALS } from '../../posts-types';
 import { channels, channelValue, postFolder, QUILL_TYPES, validateQuill } from './quill';
 
 export interface PublishingConfig extends AuthConfig {
-	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaEnabled?: boolean; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
+	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaBucket?: R2Bucket; mediaEnabled?: boolean; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
 }
-interface Dependencies { fetcher?: Fetcher; now?: () => Date; id?: () => string }
+interface Dependencies { snapshotFetcher?: PublicFetcher; fetcher?: Fetcher; now?: () => Date; id?: () => string }
 
 const folders = Object.values(POST_TYPE_PLURALS);
 const bad = (message: string) => new ProtocolError(400, 'invalid_request', message);
@@ -197,7 +200,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				const folder = postFolder(properties, root);
 				if (!['content','name','bookmark-of','in-reply-to','like-of','repost-of','photo','video','item','itinerary','ate','drank'].some(key => properties[key]?.length)) throw bad('Post is empty');
 				const path = `${folder}/${target.date}-${slug}.md`;
-				const markdown = documentMetadata(createDocument(properties), root, channel);
+				const markdown = await enrichSocialSnapshots(documentMetadata(createDocument(properties), root, channel), dependencies.snapshotFetcher, {storeImage:socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl)});
 				const saved = await store.write(path, markdown, { expectedHead, message: `Publish ${target.slug}` });
 				const queued = await queuePublication(config, path, markdown, undefined, saved.commit);
 				return new Response(null, { status: 202, headers: { ...headers, Location: target.url, ...(!queued ? { Warning: '199 - "Post saved; delivery will retry after publication"' } : {}) } });
@@ -253,6 +256,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				if (beforeDraft && !afterDraft) await authorize(request, 'create', config, upstream, parsed.bodyToken);
 			}
 			if (next !== file.content) {
+				if (action === 'update') next = await enrichSocialSnapshots(next, dependencies.snapshotFetcher, {storeImage:socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl)});
 				next = updateDocument(next, { replace: { updated: [timestamp(now, config.timeZone)] } });
 				const saved = await store.write(file.path, next, { sha: file.sha, expectedHead, message: `${action} post` });
 				await queuePublication(config, file.path, next, file.content, saved.commit);

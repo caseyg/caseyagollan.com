@@ -9,11 +9,11 @@ const config: PublishingConfig = {
 const b64 = (value: string) => btoa(Array.from(new TextEncoder().encode(value), x => String.fromCharCode(x)).join(''));
 const unb64 = (value: string) => new TextDecoder().decode(Uint8Array.from(atob(value), x => x.charCodeAt(0)));
 
-function setup(scope = 'create update delete undelete', options: Partial<PublishingConfig> = {}) {
+function setup(scope = 'create update delete undelete', options: Partial<PublishingConfig> = {}, snapshotFetcher?: (url: string) => Promise<Response>) {
   const files = new Map<string, { content: string; sha: string }>();
   let writes = 0;
   const handler = createMicropubHandler({ ...config, ...options }, {
-    now: () => new Date('2026-11-06T17:00:00Z'), id: () => 'abc123',
+    now: () => new Date('2026-11-06T17:00:00Z'), id: () => 'abc123', snapshotFetcher,
     fetcher: async (url, init) => {
       if (url === config.introspectionEndpoint) return Response.json({ active: true, me: config.me, client_id: 'https://quill.example/', scope });
       if (url.includes('/git/ref/')) return Response.json({ object: { sha: `head-${writes}` } });
@@ -330,4 +330,26 @@ test('accepts Quill conference references without event dates', async () => {
  const app = setup();
  const created = await app.send({ type: ['h-event'], properties: { name: ['Talk'], start: ['2026-11-06T09:00-05:00'], conference: [{ type: ['h-event'], properties: { name: ['Conference'], url: ['https://example.org/conference'] } }] } });
  expect(created.status).toBe(202);
+});
+
+test('saves fetched likes and reposts in the same GitHub Markdown write and preserves snapshots on edits', async () => {
+ for (const [key,folder] of [['like-of','likes'],['repost-of','reposts']]) {
+  const image = Uint8Array.from([137,80,78,71,13,10,26,10]);
+  const uploads: string[] = [];
+  const app = setup(undefined,{mediaBucket:{put:async(key:string)=>{uploads.push(key);return {key};}} as unknown as R2Bucket,mediaBaseUrl:'https://files.caseyagollan.com/'}, async url=> url.includes('getPostThread') ? Response.json({thread:{post:{author:{displayName:'Saved author',handle:'author.example',avatar:'https://cdn.example/avatar.png'},record:{text:'Saved original',createdAt:'2026-11-06T12:00:00Z'},embed:{images:[{fullsize:'https://cdn.example/image.png',alt:'Saved image'}]}}}}) : new Response(image,{headers:{'content-type':'image/png'}}));
+  expect((await app.send({type:['h-entry'],properties:{[key]:['https://bsky.app/profile/author.example/post/abc'],'mp-slug':['saved']}})).status).toBe(202);
+  const path = `${folder}/2026-11-06-saved.md`;
+  expect(app.files.get(path)!.content).toContain('_micropubSocialSnapshots');
+  expect(app.files.get(path)!.content).toContain('Saved original');
+  expect(app.files.get(path)!.content).toContain('https://files.caseyagollan.com/publishing/social/');
+  expect(app.files.get(path)!.content).not.toContain('base64,');
+  expect(uploads).toHaveLength(2);
+  expect(app.writes()).toBe(1);
+  const query = await app.query('q=source&url=https://example.com/2026/11/06/saved/');
+  expect(JSON.stringify(await query.json())).not.toContain('_micropubSocialSnapshots');
+  expect((await app.send({action:'update',url:'https://example.com/2026/11/06/saved/',replace:{content:['My note']}})).status).toBe(204);
+  expect(app.files.get(path)!.content).toContain('Saved original');
+  expect((await app.send({action:'update',url:'https://example.com/2026/11/06/saved/',replace:{[key]:['https://example.net/other']}})).status).toBe(204);
+  expect(app.files.get(path)!.content).not.toContain('Saved original');
+ }
 });

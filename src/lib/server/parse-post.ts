@@ -1,4 +1,5 @@
 import { parse } from 'yaml';
+import { socialSnapshots } from '../social-snapshots';
 import type { Post, MediaItem } from '../posts-types';
 
 function normalizeMedia(
@@ -72,6 +73,7 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		syndicationTargets: data.syndicationTargets === undefined ? undefined : [...new Set((Array.isArray(data.syndicationTargets) ? data.syndicationTargets : [data.syndicationTargets]).filter((value: unknown): value is string => typeof value === 'string' && value.length > 0))] as string[],
 		title: data.title,
 		bookmarkOf: data.bookmarkOf,
+		socialSnapshots: socialSnapshots(data._micropubSocialSnapshots),
 		inReplyTo: data.inReplyTo,
 		summary: data.summary,
 		category: data.category,
