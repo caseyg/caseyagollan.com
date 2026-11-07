@@ -3,7 +3,7 @@ import { readFile, rm } from 'node:fs/promises';
 import * as pagefind from 'pagefind';
 import { parsePost, isPublicPost, PLURAL_TO_SINGULAR } from '../src/lib/server/parse-post';
 import { getPostPermalink } from '../src/lib/posts-types';
-import { searchDocument, postSearchContent, postSearchTitle, escapeSearchHtml as escape } from './search-document';
+import { searchDocument, postSearchContent, postSearchTitle, postSearchImage, escapeSearchHtml as escape } from './search-document';
 import { bookTags, bookAuthors, postAuthors, uniqueLabels, yearFilter } from './search-filters';
 
 function assertSuccess(result: { errors: string[] }) {
@@ -26,7 +26,7 @@ try {
 		const authors = postAuthors(post);
 		const title = postSearchTitle(post);
 		const displayAuthors = post.socialSnapshots?.length ? uniqueLabels(post.socialSnapshots.map(snapshot => snapshot.author.handle)) : ['Casey Gollan'];
-		await add(getPostPermalink(post), title, post.type, { date: post.date, tags, author: displayAuthors.join(', '), bookmark: post.bookmarkOf ?? '' }, `${post.title ? `<h1>${escape(post.title)}</h1>` : ''}${postSearchContent(post)}`, { Author: authors, Year: yearFilter(post.date) });
+		await add(getPostPermalink(post), title, post.type, { ...postSearchImage(post), date: post.date, tags, author: displayAuthors.join(', '), bookmark: post.bookmarkOf ?? '' }, `${post.title ? `<h1>${escape(post.title)}</h1>` : ''}${postSearchContent(post)}`, { Author: authors, Year: yearFilter(post.date) });
 	}
 	const graph = JSON.parse(await readFile('static/library/graph.json', 'utf8'));
 	const catalog = JSON.parse(await readFile('utils/librarything_caseygollan.json', 'utf8'));
@@ -36,7 +36,8 @@ try {
 		const url = book.n ? `/library/${encodeURIComponent(book.n)}` : `/library/?book=${book.b}`;
 		const tags = bookTags(details);
 		const authors = bookAuthors(details);
-		const metadata = { author: authors.join(', '), isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: tags.join(', ') };
+		const cover = book.img || book.m;
+		const metadata = { ...(cover ? { image: `/library/${cover}`, image_alt: `Cover of ${book.i}` } : {}), author: authors.join(', '), isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: tags.join(', ') };
 		await add(url, book.i, 'book', metadata, `<h1>${escape(book.i)}</h1><p>${escape([details.summary, details.publication, details.review, details.comments, Object.values(details.subject ?? {}).flat().join(', ')].filter(Boolean).join(' '))}</p><p>${escape([authors.join('; '), metadata.year, metadata.isbn, metadata.tags].filter(Boolean).join(' · '))}</p>`, { Tag: tags, Author: authors, Year: yearFilter(book.y) });
 	}
 	await rm('static/pagefind', { recursive: true, force: true });
