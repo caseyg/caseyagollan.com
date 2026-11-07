@@ -72,7 +72,11 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}=
   if (snapshot) html += renderSocialSnapshot(snapshot);
  }
  const reply = post.inReplyTo || text(p, 'in-reply-to');
- if (reply) html += `<p>In reply to ${link(reply, reply, 'u-in-reply-to')}</p>`;
+ if (reply) {
+  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
+  html += `<p>In reply to ${link(reply, snapshot ? 'post' : reply, 'u-in-reply-to')}</p>`;
+  if (snapshot) html += renderSocialSnapshot(snapshot);
+ }
  if (p.rsvp) html += `<p>RSVP: <span class="p-rsvp">${escape(text(p, 'rsvp'))}</span></p>`;
  if (post.type === 'event' || post.microformatType === 'h-event') html += event(p);
  else for (const value of p.location ?? []) html += `<p>${location(value)}</p>`;

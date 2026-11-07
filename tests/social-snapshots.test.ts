@@ -20,8 +20,8 @@ const fetcher = async (url: string) => {
  throw new Error('Unexpected URL '+url);
 };
 
-test('saves Bluesky text and R2 image references in Markdown and renders likes and reposts statically', async () => {
- for (const [key,folder] of [['like-of','likes'],['repost-of','reposts']]) {
+test('saves Bluesky text and R2 image references in Markdown and renders likes, reposts and reply parents statically', async () => {
+ for (const [key,folder] of [['like-of','likes'],['repost-of','reposts'],['in-reply-to','replies']]) {
   const saved = await enrichSocialSnapshots(source(key), fetcher);
   expect(saved).toContain('_micropubSocialSnapshots:');
   expect(saved).toContain(imageUrl); expect(saved).not.toContain('base64,');
@@ -279,4 +279,18 @@ test('authored photos are archived without resizing or changing alt text and dat
  expect(result.photo).toEqual([{url:imageUrl,alt:'Full resolution',width:2000}]);
  expect(original.photo[0].url).toBe('https://cdn.example/full.png');
  expect((await archivePhotoProperties(original,async()=>{throw new Error('must not store SVG');},async()=>new Response('<svg/>',{headers:{'content-type':'image/svg+xml'}}))).photo).toEqual(original.photo);
+});
+
+test('reply parents retain a semantic URL fallback when no saved snapshot is available', () => {
+ const post = parsePost(source('in-reply-to'), 'replies', '2026-11-06-test.md');
+ const html = renderPostDetails(post);
+ expect(html).toContain(`In reply to <a class="u-in-reply-to" href="${blue}">${blue}</a>`);
+ expect(html).not.toContain('social-snapshot');
+});
+
+test('legacy reply targets are enriched with the same saved parent card', async () => {
+ const saved = await enrichSocialSnapshots(source('inReplyTo').replace('inReplyTo:\n  - ', 'inReplyTo: '), fetcher);
+ const post = parsePost(saved, 'replies', '2026-11-06-test.md');
+ expect(renderPostDetails(post)).toContain(`In reply to <a class="u-in-reply-to" href="${blue}">post</a>`);
+ expect(renderPostDetails(post)).toContain('Grant');
 });

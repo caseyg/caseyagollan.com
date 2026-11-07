@@ -50,7 +50,7 @@
 			<p class="bookmark-url"><small><a class="u-bookmark-of" href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 		{/if}
 
-		{#if data.post.type === 'note'}
+		{#if data.post.type === 'note' || data.post.type === 'reply'}
 			<PostDetails post={data.post} />
 			<NoteCard post={data.post} />
 		{:else}
