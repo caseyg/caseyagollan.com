@@ -66,7 +66,12 @@
 
 <div class="site-search">
 	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
-	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts and books"></pagefind-modal-trigger>
+	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts and books">
+		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->
+		<button class="pf-trigger-btn" type="button" aria-label="Search posts and books" aria-haspopup="dialog" aria-expanded="false">
+			<span class="pf-trigger-icon" aria-hidden="true"></span>
+		</button>
+	</pagefind-modal-trigger>
 	<pagefind-modal>
 		<pagefind-modal-header>
 			<div class="search-heading">
@@ -117,12 +122,19 @@
 		--pf-result-title-font-size: 22px;
 		--pf-result-excerpt-font-size: 16px;
 		display: flex;
+		flex: 0 0 60px;
+		width: 60px;
+		height: 48px;
 	}
+	/* The unupgraded modal's children must never participate in the nav layout. */
+	pagefind-modal:not(:defined) { display: none; }
 	pagefind-modal-trigger {
 		--pf-background: var(--accent);
 		--pf-border: var(--accent);
 		--pf-border-focus: var(--accent-hover);
 		width: 60px;
+		height: 48px;
+		flex: none;
 	}
 	pagefind-modal-trigger:hover { --pf-background: var(--accent-hover); }
 	/* Pagefind's generated styles have elevated specificity and some hardcoded radii. */
