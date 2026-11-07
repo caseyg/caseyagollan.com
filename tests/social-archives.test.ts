@@ -11,11 +11,12 @@ test('archive action dates take precedence, with original dates as fallback',()=
 test('locked accounts and restricted Bluesky originals are excluded',async()=>{
  expect(mastodonActivity({id:'1',url:object.id,created_at:object.published,visibility:'public',account:{locked:true}},'like','')).toBeUndefined();
  const uri='at://did:plc:a/app.bsky.feed.post/a';
- for (const labels of [[{val:'!no-unauth'}],[{val:'!hide'}],[{val:'!takedown'}]]) {
-  expect(await blueskyPublic(async()=>({data:{thread:{post:{uri,record:{text:'text'},author:{labels}}}}}),uri)).toBe(false);
+ for (const labels of [[{val:'!no-unauthenticated'}],[{val:'!no-unauth'}],[{val:'!hide'}],[{val:'!takedown'}]]) {
+  expect(await blueskyPublic(async()=>({data:{thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri,record:{text:'text'},author:{did:'did:plc:a',labels}}}}}),uri)).toBe(false);
  }
  expect(await blueskyPublic(async()=>({data:{thread:{$type:'blockedPost'}}}),uri)).toBe(false);
- expect(await blueskyPublic(async()=>({data:{thread:{post:{uri,record:{text:'text'},author:{}}}}}),uri)).toBe(true);
+ expect(await blueskyPublic(async url=>({data:url.includes('getProfile') ? {did:'did:plc:a'} : {thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri,record:{text:'text'},author:{did:'did:plc:a'}}}}}),uri)).toBe(true);
+ expect(await blueskyPublic(async url=>({data:url.includes('getProfile') ? {did:'did:plc:a',labels:[{val:'!no-unauthenticated'}]} : {thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri,record:{text:'text'},author:{did:'did:plc:a'}}}}}),uri)).toBe(false);
 });
 
 test('URL-only favourites use original timestamps; boosts use archive action timestamps and source IDs', async()=>{

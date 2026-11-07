@@ -193,7 +193,8 @@ test('Bluesky imports public repository records without a password or authentica
  const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>{
   const u=String(input);
   if(u.includes('resolveHandle')) return Response.json({did});
-  if(u.includes('getPostThread')) return Response.json({thread:{post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{}}}});
+  if(u.includes('getPostThread')) return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{did}}}});
+  if(u.includes('getProfile')) return Response.json({did});
   if(u.includes('listRecords')) {
    expect(init?.headers).not.toHaveProperty('Authorization');
    const collection=new URL(u).searchParams.get('collection');
@@ -209,7 +210,8 @@ test('a large post backfill leaves capacity for new activity in other feeds',asy
   const u=String(input);
   if(u.includes('/accounts/1/statuses')) return Response.json(Array.from({length:40},(_,i)=>({...mastodon,id:String(1000+i),url:`https://social.coop/@caseyg/${1000+i}`})));
   if(u.includes('resolveHandle')) return Response.json({did});
-  if(u.includes('getPostThread')) return Response.json({thread:{post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{}}}});
+  if(u.includes('getPostThread')) return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{did}}}});
+  if(u.includes('getProfile')) return Response.json({did});
   if(u.includes('listRecords')) return Response.json({records:new URL(u).searchParams.get('collection') === 'app.bsky.feed.post' ? [{uri:`at://${did}/app.bsky.feed.post/newest`,value:{createdAt:activity.published,text:'New Bluesky post'}}] : []});
   return h.fetcher(input,init);
  }) as typeof fetch;
@@ -249,7 +251,7 @@ test('Mastodon interactions require public visibility and an explicitly unlocked
 });
 
 test('Bluesky interactions validate public target and author before importing, retaining pagination for skipped records',async()=>{
- for (const kind of ['like','repost'] as const) for (const restriction of ['none','missing','blocked','post-label','author-label','profile-label','private','unavailable']) {
+ for (const kind of ['like','repost'] as const) for (const restriction of ['none','missing','blocked','post-label','author-label','profile-label','private','deleted','unavailable']) {
   const record = {uri:`at://${did}/app.bsky.feed.${kind}/xyz`,value:{createdAt:activity.published,subject:{uri:`at://${did}/app.bsky.feed.post/abc123`}}};
   const post:any = {uri:record.value.subject.uri,record:{text:'Target'},author:{did}};
   const profile:any = {did};
@@ -261,6 +263,7 @@ test('Bluesky interactions validate public target and author before importing, r
    expect(headers).toBeUndefined();
    if(u.includes('listRecords')) return {data:{records:[record],cursor:'next'}};
    if(restriction === 'unavailable') throw new Error('Unavailable');
+   if(restriction === 'deleted') throw Object.assign(new Error('Deleted'),{status:404});
    if(u.includes('getProfile')) return {data:profile};
    return {data:{thread:restriction === 'missing' ? {$type:'app.bsky.feed.defs#notFoundPost'} : restriction === 'blocked' ? {$type:'app.bsky.feed.defs#blockedPost'} : {$type:'app.bsky.feed.defs#threadViewPost',post}}};
   };

@@ -92,16 +92,7 @@ export async function blueskyPage(get: GetJson, service: string, did: string, ki
  for (const record of data.records) {
   const activity = blueskyActivity(record,kind);
   if (!activity) continue;
-  if (kind !== 'post') {
-   const uri = record.value.subject.uri;
-   // Repository likes/reposts reveal a reference, not the target's current visibility.
-   // Resolve through the unauthenticated public AppView before archiving the action.
-   const {data:thread} = await get(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?${new URLSearchParams({uri,depth:'0',parentHeight:'0'})}`);
-   const post = thread?.thread?.post;
-   if (thread?.thread?.$type !== 'app.bsky.feed.defs#threadViewPost' || post?.uri !== uri || typeof post?.author?.did !== 'string' || typeof post?.record?.text !== 'string') continue;
-   const {data:profile} = await get(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?${new URLSearchParams({actor:post.author.did})}`);
-   if (profile?.did !== post.author.did || !publicBluesky(post) || !publicBluesky(post.author) || !publicBluesky(profile)) continue;
-  }
+  if (kind !== 'post' && !await blueskyPublic(get,record.value.subject.uri)) continue;
   activities.push(activity);
  }
  return {ids:data.records.map((r:any)=>r.uri),activities,cursor:data.cursor};
@@ -116,9 +107,15 @@ function publicBluesky(value: any): boolean {
 
 /** Fail closed when public access cannot be established, including no-unauth labels. */
 export async function blueskyPublic(get: GetJson, uri: string): Promise<boolean> {
- const {data} = await get(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=0&parentHeight=0`);
- const post = data?.thread?.post;
- if (!post || post.uri !== uri || typeof post.record?.text !== 'string' || typeof post.author?.did !== 'string' || !publicBluesky(post) || !publicBluesky(post.author)) return false;
- const {data:profile} = await get(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?${new URLSearchParams({actor:post.author.did})}`);
- return profile?.did === post.author.did && publicBluesky(profile);
+ try {
+  const {data} = await get(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=0&parentHeight=0`);
+  const post = data?.thread?.post;
+  if (data?.thread?.$type !== 'app.bsky.feed.defs#threadViewPost' || !post || post.uri !== uri || typeof post.record?.text !== 'string' || typeof post.author?.did !== 'string' || !publicBluesky(post) || !publicBluesky(post.author)) return false;
+  const {data:profile} = await get(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?${new URLSearchParams({actor:post.author.did})}`);
+  return profile?.did === post.author.did && publicBluesky(profile);
+ } catch (error) {
+  // Deleted targets must not stall the rest of a likes/reposts page forever.
+  if (error && typeof error === 'object' && 'status' in error && [400,404,410].includes(Number(error.status))) return false;
+  throw error;
+ }
 }

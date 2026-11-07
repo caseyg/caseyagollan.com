@@ -76,7 +76,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   const data = await response.json() as any;
   const post = data?.thread?.post;
   if(typeof post?.record?.text !== 'string' || typeof post?.author?.handle !== 'string' || !post.author.handle) return;
-  if ([...(post.labels ?? []),...(post.author.labels ?? [])].some((l:any)=>['!no-unauth','!hide','!takedown'].includes(l.val))) return;
+  if ([...(post.labels ?? []),...(post.author.labels ?? [])].some((l:any)=>['!no-unauth','!no-unauthenticated','!hide','!takedown'].includes(l.val))) return;
   const handle = post.author.handle;
   avatar = typeof post.author.avatar === 'string' ? post.author.avatar : undefined;
   result = {version:1,url,platform:'bluesky',author:{name:post.author.displayName || handle,handle:`@${handle}`,url:`https://bsky.app/profile/${encodeURIComponent(handle)}`},published:post.record.createdAt,fetchedAt:new Date().toISOString(),html:blueskyHtml(post.record.text,post.record.facets)};
