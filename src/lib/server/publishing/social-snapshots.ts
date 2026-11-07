@@ -57,6 +57,15 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
  let result: Omit<SocialSnapshot,'images'>;
  let media: {url:string;alt:string}[] = [];
  let avatar: string | undefined;
+ let previewImage: string | undefined;
+ const preview = (value: any, blue = false) => {
+  if (!value || typeof (blue ? value.uri : value.url) !== 'string') return;
+  try {
+   result.preview = {url:publicUrl(blue ? value.uri : value.url).href, title:typeof value.title === 'string' ? value.title.slice(0,2000) : '', description:typeof value.description === 'string' ? value.description.slice(0,5000) : '', ...(!blue && typeof value.provider_name === 'string' ? {site:value.provider_name.slice(0,500)} : {})};
+   const image = blue ? value.thumb : value.image;
+   if(typeof image === 'string' && image) previewImage = publicUrl(image).href;
+  } catch { /* Invalid preview URLs or images are omitted. */ }
+ };
  const blue = target.hostname === 'bsky.app' && target.pathname.match(/^\/profile\/([^/]+)\/post\/([a-zA-Z0-9]+)\/?$/);
  const mastodon = target.pathname.match(/^\/@[^/]+\/(\d+)\/?$/) ?? target.pathname.match(/^\/users\/[^/]+\/statuses\/(\d+)\/?$/);
  if (blue) {
@@ -72,9 +81,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   result = {version:1,url,platform:'bluesky',author:{name:post.author.displayName || handle,handle:`@${handle}`,url:`https://bsky.app/profile/${encodeURIComponent(handle)}`},published:post.record.createdAt,fetchedAt:new Date().toISOString(),html:blueskyHtml(post.record.text,post.record.facets)};
   const embed = post.embed?.$type === 'app.bsky.embed.recordWithMedia#view' ? post.embed.media : post.embed;
   media = (embed?.images ?? []).slice(0,4).filter((i:any)=>typeof i.fullsize === 'string').map((i:any)=>({url:i.fullsize,alt:typeof i.alt === 'string' ? i.alt : ''}));
-  if(embed?.external && typeof embed.external.uri === 'string') {
-   try { const link = publicUrl(embed.external.uri); result.html += `<p><a href="${escape(link.href)}">${escape(String(embed.external.title || link.href))}</a></p>`; } catch { /* Invalid preview links are omitted. */ }
-  }
+  preview(embed?.external, true);
  } else if(mastodon) {
   const response = await get(`${target.origin}/api/v1/statuses/${mastodon[1]}`);
   if(!response.ok) return;
@@ -86,13 +93,14 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   const handle = account.acct.includes('@') ? `@${account.acct}` : `@${account.acct}@${target.hostname}`;
   result = {version:1,url,platform:'mastodon',author:{name:account.display_name || account.acct,handle,url:publicUrl(account.url).href},published:post.created_at,fetchedAt:new Date().toISOString(),html:cleanHtml(post.content),...(post.spoiler_text ? {warning:post.spoiler_text} : {})};
   media = (post.media_attachments ?? []).slice(0,4).filter((i:any)=>i.type === 'image' && typeof i.url === 'string').map((i:any)=>({url:i.preview_url || i.url,alt:typeof i.description === 'string' ? i.description : ''}));
+  preview(post.card);
   if(post.sensitive && !result.warning) result.warning = 'Sensitive content';
  } else return;
  const saved: SocialSnapshot = {...result,images:[]};
  if(!socialSnapshots([saved]).length) return;
  if(!storeImage) return previous ?? saved;
  let mediaComplete = true;
- const assets = [...(avatar ? [{url:avatar,alt:'',avatar:true}] : []),...media.map(image=>({...image,avatar:false}))];
+ const assets = [...(avatar ? [{url:avatar,alt:'',kind:'avatar'}] : []),...(previewImage ? [{url:previewImage,alt:'',kind:'preview'}] : []),...media.map(image=>({...image,kind:'attachment'}))];
  for(const image of assets) {
   try {
    if(signal.aborted) {mediaComplete=false; break;}
@@ -105,7 +113,8 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
    if(!bytes.length || bytes.length > MAX_IMAGE_BYTES || budget.bytes + bytes.length > MAX_SAVED_IMAGE_BYTES || !raster(bytes,type)) {mediaComplete=false;continue;}
    budget.bytes += bytes.length;
    const src = await storeImage(bytes,type);
-   if(image.avatar) saved.author.avatar = src;
+   if(image.kind === 'avatar') saved.author.avatar = src;
+   else if(image.kind === 'preview' && saved.preview) saved.preview.image = src;
    else saved.images.push({src,alt:image.alt});
   } catch { mediaComplete=false; /* Keep the last complete snapshot during refresh. */ }
  }

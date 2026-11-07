@@ -158,3 +158,31 @@ test('saved photo galleries retain all images, alt text and full-size links thro
   }
  }
 });
+
+test('saves platform link cards with escaped text and archived preview images', async () => {
+ for (const platform of ['mastodon','bluesky']) {
+  const card = {url:'https://news.example/story',uri:'https://news.example/story',title:'Story <script>bad</script>',description:'A & B',provider_name:'News',image:'https://cdn.example/card.png',thumb:'https://cdn.example/card.png'};
+  const saved = await enrichSocialSnapshots(source('like-of',platform === 'mastodon' ? masto : blue),async url=> {
+   if(url.includes('/api/v1/statuses/')) return Response.json({visibility:'public',account:{acct:'writer',url:masto},content:'<p>Read this</p>',created_at:'2026-11-06T12:00:00Z',card});
+   if(url.includes('getPostThread')) return Response.json({thread:{post:{...blueskyPost,embed:{$type:'app.bsky.embed.recordWithMedia#view',media:{$type:'app.bsky.embed.external#view',external:card}}}}});
+   return new Response(png,{headers:{'content-type':'image/png'}});
+  });
+  const post = parsePost(saved,'likes','2026-11-06-test.md');
+  expect(post.socialSnapshots![0].preview?.image).toBe(imageUrl);
+  const html = renderPostDetails(post);
+  expect(html).toContain('class="social-link-preview"');
+  expect(html).toContain('href="https://news.example/story"');
+  expect(html).toContain('Story &#x3C;script>bad&#x3C;/script>');
+  expect(html).toContain('A &#x26; B');
+  expect(html).not.toContain('https://cdn.example/card.png');
+ }
+});
+
+test('card text survives image failures and unsafe destinations are omitted', async () => {
+ for(const uri of ['https://news.example/story','javascript:alert(1)']) {
+  const saved = await enrichSocialSnapshots(source(),async url=>url.includes('getPostThread') ? Response.json({thread:{post:{...blueskyPost,embed:{$type:'app.bsky.embed.external#view',external:{uri,title:'Story',description:'Description',thumb:'https://cdn.example/broken.png'}}}}}) : new Response(null,{status:404}));
+  const html = renderPostDetails(parsePost(saved,'likes','2026-11-06-test.md'));
+  expect(html.includes('class="social-link-preview"')).toBe(uri.startsWith('https:'));
+  expect(html).not.toContain('javascript:');
+ }
+});

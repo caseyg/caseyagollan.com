@@ -34,6 +34,12 @@
  .post-details :global(.social-attachment) { display: block; width: 100%; height: auto; box-sizing: border-box; border: 1px solid rgba(255,255,255,0.18); border-radius: 0.7rem; }
  .post-details :global(.social-snapshot footer) { margin-top: 0.85rem; opacity: 0.65; font-size: 0.8rem; }
  .post-details :global(.social-snapshot summary) { cursor: pointer; margin-bottom: 0.75rem; }
+ .post-details :global(a.social-link-preview) { display: block; overflow: hidden; margin-top: 0.85rem; border: 1px solid rgba(255,255,255,0.22); border-radius: 0.7rem; text-decoration: none; }
+ .post-details :global(.social-link-preview:hover) { background: rgba(255,255,255,0.05); }
+ .post-details :global(.social-link-preview img) { display: block; width: 100%; max-height: 24rem; object-fit: cover; }
+ .post-details :global(.social-link-preview-text) { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.85rem; }
+ .post-details :global(.social-link-preview-site) { opacity: 0.65; font-size: 0.8rem; }
+ .post-details :global(.social-link-preview-description) { opacity: 0.75; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
  @media (max-width: 480px) {
   .post-details :global(.social-snapshot) { padding: 0.85rem; }
   .post-details :global(.social-platform) { font-size: 0.65rem; }
