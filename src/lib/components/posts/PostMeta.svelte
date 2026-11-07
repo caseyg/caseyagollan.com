@@ -29,7 +29,7 @@
 	}
 
 	const TYPE_ICONS: Record<string, string> = {
-		book: '📚', like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
+		wiki: '📖', book: '📚', like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
 		note: '📝',
 		article: '📄',
 		bookmark: '🔖',
@@ -59,7 +59,7 @@
 <div class="post-meta">
 	<div class="meta-primary">
 		{#if showType}
-			<a href={type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type">{getTypeIcon(type)} {type}</a>
+			<a href={type === 'wiki' ? 'https://cag.wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type">{getTypeIcon(type)} {type}</a>
 		{/if}
 		{#if date}
 			<a href={permalink} class="u-url permalink" title={formatAbsoluteDate(date)}>

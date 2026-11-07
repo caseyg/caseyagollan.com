@@ -1,3 +1,4 @@
+import { renderSocialCardHeader, renderSocialCardFooter } from './social-card';
 import { sanitizePublishingHtml } from './utils/sanitizeHtml';
 
 export interface SocialSnapshot {
@@ -44,8 +45,5 @@ export function renderSocialSnapshot(snapshot: SocialSnapshot): string {
  const preview = s.preview;
  const card = preview ? `<a class="social-link-preview" href="${escape(preview.url)}">${preview.image ? `<img src="${escape(preview.image)}" alt="" loading="lazy">` : ''}<span class="social-link-preview-text"><span class="social-link-preview-site">${escape(preview.site || new URL(preview.url).hostname)}</span><strong>${escape(preview.title || preview.url)}</strong>${preview.description ? `<span class="social-link-preview-description">${escape(preview.description)}</span>` : ''}</span></a>` : '';
  const content = `<div class="social-post-content">${body}</div>${gallery}${card}`;
- const date = new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'America/New_York'}).format(new Date(s.published));
- const clock = new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'}).format(new Date(s.published));
- const avatar = s.author.avatar ? `<img class="social-avatar" src="${escape(s.author.avatar)}" alt="" loading="lazy">` : '';
- return `<blockquote class="social-snapshot"><header><a class="social-author" href="${escape(s.author.url)}">${avatar}<span class="social-author-details"><strong class="social-author-name">${escape(s.author.name)}</strong><span class="social-author-handle">${escape(s.author.handle)}</span></span></a><a class="social-platform" href="${escape(s.sourceUrl ?? s.url)}" aria-label="View original post">${s.platform === 'bluesky' ? 'Bluesky' : 'Mastodon'} ↗</a></header>${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}<footer><a href="${escape(s.url)}"><time datetime="${escape(s.published)}">${escape(clock)} · ${escape(date)}</time></a></footer></blockquote>`;
+ return `<blockquote class="social-snapshot">${renderSocialCardHeader(s.author, {url: s.sourceUrl ?? s.url, label: s.platform === 'bluesky' ? 'Bluesky' : 'Mastodon'})}${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}${renderSocialCardFooter(s.published, s.url)}</blockquote>`;
 }

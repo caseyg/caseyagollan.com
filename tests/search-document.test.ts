@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { parsePost } from '../src/lib/server/parse-post';
-import { postSearchContent, postSearchTitle, searchDocument } from '../utils/search-document';
+import { postSearchContent, postSearchImage, postSearchTitle, searchDocument } from '../utils/search-document';
 import type { SocialSnapshot } from '../src/lib/social-snapshots';
 
 const post = parsePost('---\ndate: 2026-11-06T21:32:38-05:00\nlike-of:\n - https://mas.to/@TodePond/117113125625102664\n---\n', 'likes', '2026-11-06-example.md');
@@ -35,3 +35,10 @@ test('facets and metadata are separate from body prose, with escaped values', ()
  expect(html).toContain('data-pagefind-filter="Author">A &amp; B');
  expect(html).toContain('<div data-pagefind-ignore>');
 });
+
+ test('search thumbnails pair content images with alt text and exclude social avatars', () => {
+  expect(postSearchImage({...post, photo: [{url: '/photo.jpg', alt: 'A & B'}]})).toEqual({image: '/photo.jpg', image_alt: 'A & B'});
+  expect(postSearchImage({...post, contentFormat: 'markdown', content: '![An inline image](/inline.jpg)'})).toEqual({image: '/inline.jpg', image_alt: 'An inline image'});
+  expect(postSearchImage({...post, socialSnapshots: [{...snapshot, author: {...snapshot.author, avatar: 'https://files.caseyagollan.com/publishing/social/' + 'b'.repeat(64) + '.png'}}]})).toEqual({});
+  expect(postSearchImage({...post, socialSnapshots: [{...snapshot, images: [{src: 'https://files.caseyagollan.com/publishing/social/' + 'a'.repeat(64) + '.png', alt: 'Diagram'}]}]})).toEqual({image: 'https://files.caseyagollan.com/publishing/social/' + 'a'.repeat(64) + '.png', image_alt: 'Diagram'});
+ });

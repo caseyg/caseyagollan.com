@@ -2,6 +2,7 @@
 	import { onMount, mount, unmount } from 'svelte';
 	import PostMeta from './posts/PostMeta.svelte';
 	import '@pagefind/component-ui/css';
+	import { updateFilterDisplay } from '$lib/search-filter-display';
 
 	// Register browser-only custom elements after Svelte has hydrated the markup.
 	let filterPane: HTMLElement;
@@ -28,10 +29,16 @@
 				}
 			});
 		}
+		const filterObserver = new MutationObserver(() => updateFilterDisplay(filterPane));
+		filterObserver.observe(filterPane, { childList: true, subtree: true });
+		updateFilterDisplay(filterPane);
 		void import('@pagefind/component-ui');
 		// Pagefind moves its modal outside the navigation markup.
 		document.addEventListener('click', handleResultClick);
-		return () => document.removeEventListener('click', handleResultClick);
+		return () => {
+			filterObserver.disconnect();
+			document.removeEventListener('click', handleResultClick);
+		};
 	});
 
 	let { onResultClick }: { onResultClick?: (url: URL) => boolean } = $props();
@@ -49,24 +56,32 @@
 
 	const resultTemplate = `<script type="text/pagefind-template">
 		<li class="search-result" id="{{ aria.result_id }}">
+			{{#if meta.image}}<img class="search-thumbnail" src="{{ meta.image | resolveUrl(url) | safeUrl }}" alt="{{ meta.image_alt }}" loading="lazy" decoding="async">{{/if}}
+			<div class="search-result-text">
 			<search-result-meta class="search-meta" type="{{ meta.type }}" date="{{ meta.date }}" year="{{ meta.year }}" permalink="{{ url | safeUrl }}"></search-result-meta>
 			<a class="search-title" data-sveltekit-reload href="{{ url | safeUrl }}" id="{{ aria.title_id }}">{{ meta.title }}</a>
 			{{#if meta.author}}<div class="search-author">{{ meta.author }}</div>{{/if}}
 			<p id="{{ aria.excerpt_id }}">{{+ excerpt +}}</p>
+			</div>
 		</li>
 	<\/script>`;
 </script>
 
 <div class="site-search">
 	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
-	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts and books"></pagefind-modal-trigger>
+	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts, books, and wiki">
+		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->
+		<button class="pf-trigger-btn" type="button" aria-label="Search posts, books, and wiki" aria-haspopup="dialog" aria-expanded="false">
+			<span class="pf-trigger-icon" aria-hidden="true"></span>
+		</button>
+	</pagefind-modal-trigger>
 	<pagefind-modal>
 		<pagefind-modal-header>
 			<div class="search-heading">
 				<h2>Search</h2>
-				<p>Posts &amp; library</p>
+				<p>Posts, library &amp; wiki</p>
 			</div>
-			<pagefind-input placeholder="Search posts and books…"></pagefind-input>
+			<pagefind-input placeholder="Search posts, books, and wiki…"></pagefind-input>
 		</pagefind-modal-header>
 		<pagefind-modal-body>
 			<div class="search-layout">
@@ -110,12 +125,19 @@
 		--pf-result-title-font-size: 22px;
 		--pf-result-excerpt-font-size: 16px;
 		display: flex;
+		flex: 0 0 60px;
+		width: 60px;
+		height: 48px;
 	}
+	/* The unupgraded modal's children must never participate in the nav layout. */
+	pagefind-modal:not(:defined) { display: none; }
 	pagefind-modal-trigger {
 		--pf-background: var(--accent);
 		--pf-border: var(--accent);
 		--pf-border-focus: var(--accent-hover);
 		width: 60px;
+		height: 48px;
+		flex: none;
 	}
 	pagefind-modal-trigger:hover { --pf-background: var(--accent-hover); }
 	/* Pagefind's generated styles have elevated specificity and some hardcoded radii. */
@@ -158,6 +180,9 @@
 	.site-search :global(.pf-filter-checkbox-count) { margin-left: auto !important; padding-left: 8px !important; font-variant-numeric: tabular-nums; opacity: .65; }
 	.site-search :global(.pf-summary) { margin: 0 0 8px !important; font-size: 13px !important; }
 	.site-search :global(.search-result) { color: white; font-family: var(--pf-font); font-weight: 400; padding: 24px 0; border-top: 1px solid var(--border); list-style: none; overflow-wrap: break-word; }
+	.site-search :global(.search-result) { display: flex; gap: 20px; align-items: flex-start; }
+	.site-search :global(.search-result-text) { flex: 1; min-width: 0; }
+	.site-search :global(.search-thumbnail) { width: 88px; max-height: 120px; object-fit: contain; object-position: top; flex-shrink: 0; }
 	.site-search :global(.search-meta) { display: block; margin-bottom: 10px; }
 	.site-search :global(.search-meta .post-type) { background: rgba(255, 255, 255, 0.15); color: white; }
 
@@ -180,6 +205,8 @@
 		.site-search :global(.pf-filter-options) { max-height: 132px !important; }
 		.site-search :global(.pf-filter-checkbox) { min-height: 40px !important; }
 		.search-content { padding: 20px 0; }
+		.site-search :global(.search-result) { gap: 14px; }
+		.site-search :global(.search-thumbnail) { width: 60px; max-height: 84px; }
 		.site-search :global(.search-title) { font-size: 22px; }
 		.site-search :global(.search-result) { padding: 22px 0; }
 	}

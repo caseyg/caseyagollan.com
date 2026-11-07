@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import NoteCard from '$lib/components/posts/NoteCard.svelte';
 	import PostDetails from '$lib/components/posts/PostDetails.svelte';
 	import BookmarkTitle from '$lib/components/posts/BookmarkTitle.svelte';
 	import Nav from '$lib/components/Nav.svelte';
@@ -49,11 +50,16 @@
 			<p class="bookmark-url"><small><a class="u-bookmark-of" href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 		{/if}
 
-		<PostMedia photos={data.post.photo} videos={data.post.video} />
-		<PostDetails post={data.post} />
-		{#if data.post.summary}<p class="p-summary">{data.post.summary}</p>{/if}
+		{#if data.post.type === 'note'}
+			<PostDetails post={data.post} />
+			<NoteCard post={data.post} />
+		{:else}
+			<PostMedia photos={data.post.photo} videos={data.post.video} />
+			<PostDetails post={data.post} />
+			{#if data.post.summary}<p class="p-summary">{data.post.summary}</p>{/if}
 
-		<PostContent content={data.post.content} format={data.post.contentFormat} />
+			<PostContent content={data.post.content} format={data.post.contentFormat} />
+		{/if}
 
 		<Webmentions url={permalink} />
 	</article>

@@ -37,6 +37,23 @@ export function postSearchContent(post: Post): string {
  ].join('\n');
 }
 
+/** Explicitly pair custom image metadata with alt text; never use social avatars. */
+export function postSearchImage(post: Post): Record<string, string> {
+ const photo = post.photo?.find(photo => photo.url);
+ if (photo) return {image: photo.url, image_alt: photo.alt ?? ''};
+ const tree = fromHtml(postSearchContent(post), {fragment: true});
+ function find(node: Root | Element): Element | undefined {
+  if (node.type === 'element' && node.tagName === 'img' && node.properties.src && !(node.properties.className as string[] | undefined)?.includes('social-avatar')) return node;
+  for (const child of node.children) {
+   if (child.type !== 'element') continue;
+   const image = find(child);
+   if (image) return image;
+  }
+ }
+ const image = find(tree);
+ return image ? {image: String(image.properties.src), image_alt: String(image.properties.alt ?? '')} : {};
+}
+
 export function postSearchTitle(post: Post): string {
  if (post.title || post.summary) return post.title || post.summary!;
  const social = post.socialSnapshots?.[0];

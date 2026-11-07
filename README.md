@@ -22,7 +22,7 @@ bun run preview:remote
 
 Use Vite for fast development and Wrangler preview when testing KV/R2 bindings. See `.env.example` for configuration names; keep credentials in ignored files.
 
-Search uses Pagefind, generated automatically before the Vite production build from public posts and the local book catalog. Run `bun run build:search` before `bun run dev` to enable search locally, and rerun it after content changes. Pagefind’s official Component UI supplies the magnifying-glass trigger, modal, input, results, and type filter. ⌘/Ctrl K opens the overlay and Escape closes it. Results can be filtered by post type or book. Book search covers available catalog text and metadata, not the contents of the books. Generated `static/pagefind/` files are ignored by Git and copied into the Worker assets during the build.
+Search uses Pagefind, generated automatically before the Vite production build from public posts, the local book catalog, and published cag.wiki Markdown pages. Run `bun run build:search` before `bun run dev` to enable search locally, and rerun it after content changes. Pagefind’s official Component UI supplies the magnifying-glass trigger, modal, input, results, and type filter. ⌘/Ctrl K opens the overlay and Escape closes it. Results can be filtered by post type, book, or wiki. Wiki indexing fetches fresh Obsidian Publish metadata and Markdown at build time, includes only URLs listed in the cag.wiki sitemap, and links results to cag.wiki. A wiki fetch failure fails the build to avoid publishing an incomplete index. Book search covers available catalog text and metadata, not the contents of the books. Generated `static/pagefind/` files are ignored by Git and copied into the Worker assets during the build.
 
 ## Deployment
 
@@ -89,3 +89,28 @@ pending account review or reconciliation by the existing delivery workflow.
 Successful social URLs are added to the source Markdown's `syndication` metadata
 in the GitHub content repo. If the GitHub update fails, **Sync links to original
 post** retries that update from saved receipts without sending another social post.
+
+### Import social archives
+
+Run `bun utils/import-social-archive.ts /path/to/repo.car` for a Bluesky repository
+export, or pass an extracted Mastodon `outbox.json` or `likes.json`. Multiple archive paths can be passed in one run. The command
+previews changes; add `--write` to apply them to the initialized `content/`
+checkout. ZIP files must be extracted first. Review and commit content changes
+separately before publishing.
+
+Imports share the polling job's source/action identities and normalize Bluesky
+handle aliases. Likes and reposts remain separate actions. Matching imported
+likes/reposts have their date corrected in place, preserving their filename,
+body, and other metadata. Archive activity timestamps take precedence; otherwise
+the original post timestamp is used. No outbound syndication is requested.
+
+Every new import must pass an anonymous live public-access check. Mastodon
+unlisted/private/direct posts and locked accounts are excluded; Bluesky blocked,
+missing, hidden, taken-down, and no-unauth posts/accounts are excluded. Failures
+are skipped and can be retried by rerunning the archive. A public archive entry
+alone is insufficient evidence: missing/deleted live posts are never restored
+from archive content. URL-only Mastodon likes use the original post time;
+Announce records retain the actual repost time. Live absolute media URLs replace
+archive-relative attachment paths. Previously published content is not removed by
+this command. The CLI should run against a fresh content checkout while the
+polling job is paused; its local writes do not acquire the production R2 lease.
