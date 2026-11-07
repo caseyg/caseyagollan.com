@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, mount, unmount } from 'svelte';
+	import PostMeta from './posts/PostMeta.svelte';
 	import '@pagefind/component-ui/css';
 
 	// Register browser-only custom elements after Svelte has hydrated the markup.
@@ -7,16 +8,32 @@
 	onMount(() => {
 		// Keep the mobile pane compact while preserving the same visible filter groups.
 		filterPane.setAttribute('open', window.matchMedia('(max-width: 640px)').matches ? '' : 'Type');
+		// Pagefind owns result DOM; mount the site's real metadata component into each result.
+		if (!customElements.get('search-result-meta')) {
+			customElements.define('search-result-meta', class extends HTMLElement {
+				component?: ReturnType<typeof mount>;
+				connectedCallback() {
+					if (this.component) return;
+					this.component = mount(PostMeta, { target: this, props: {
+						type: this.getAttribute('type') ?? '',
+						date: this.getAttribute('date') ?? '',
+						year: this.getAttribute('year') ?? '',
+						permalink: this.getAttribute('permalink') ?? '',
+						showInteractions: false
+					} });
+				}
+				disconnectedCallback() {
+					if (this.component) void unmount(this.component);
+					this.component = undefined;
+				}
+			});
+		}
 		void import('@pagefind/component-ui');
 	});
 
 	const resultTemplate = `<script type="text/pagefind-template">
 		<li class="search-result" id="{{ aria.result_id }}">
-			<div class="search-meta">
-				<span class="search-type">{{ meta.type }}</span>
-				{{#if meta.date}}<span>{{ meta.date }}</span>{{/if}}
-				{{#if meta.year}}<span>{{ meta.year }}</span>{{/if}}
-			</div>
+			<search-result-meta class="search-meta" type="{{ meta.type }}" date="{{ meta.date }}" year="{{ meta.year }}" permalink="{{ url | safeUrl }}"></search-result-meta>
 			<a class="search-title" data-sveltekit-reload href="{{ url | safeUrl }}" id="{{ aria.title_id }}">{{ meta.title }}</a>
 			{{#if meta.author}}<div class="search-author">{{ meta.author }}</div>{{/if}}
 			<p id="{{ aria.excerpt_id }}">{{+ excerpt +}}</p>
@@ -106,7 +123,7 @@
 	.search-heading h2 { margin: 0; font-size: 36px; font-weight: 400; line-height: 1.1; letter-spacing: -.03em; }
 	.search-heading p { margin: 8px 0 0; font-size: 14px; font-weight: 400; color: var(--text-secondary); }
 	.site-search :global(.pf-input) { background: rgb(0 0 0 / 8%) !important; border: 1px solid var(--border) !important; font-weight: 400 !important; }
-	.site-search :global(.pf-input:focus) { border-color: white !important; box-shadow: inset 3px 0 0 blue !important; }
+	.site-search :global(.pf-input:focus) { border-color: white !important; box-shadow: none !important; }
 	.site-search :global(.pf-modal-body) { padding: 0 32px !important; }
 	.site-search :global(.pf-modal-footer) { padding: 12px 32px !important; }
 	.search-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 36px; align-items: start; }
@@ -125,8 +142,9 @@
 	.site-search :global(.pf-filter-checkbox-count) { margin-left: auto !important; padding-left: 8px !important; font-variant-numeric: tabular-nums; opacity: .65; }
 	.site-search :global(.pf-summary) { margin: 0 0 8px !important; font-size: 13px !important; }
 	.site-search :global(.search-result) { color: white; font-family: var(--pf-font); font-weight: 400; padding: 24px 0; border-top: 1px solid var(--border); list-style: none; overflow-wrap: break-word; }
-	.site-search :global(.search-meta) { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.4; font-variant-numeric: tabular-nums; }
-	.site-search :global(.search-type) { text-transform: uppercase; font-size: 10px; font-weight: 500; letter-spacing: .08em; padding: 3px 6px; border: 1px solid var(--border); }
+	.site-search :global(.search-meta) { display: block; margin-bottom: 10px; }
+	.site-search :global(.search-meta .post-type) { background: rgba(255, 255, 255, 0.15); color: white; }
+
 	.site-search :global(.search-title) { display: block; color: white; font-size: 23px; font-weight: 400; line-height: 1.25; letter-spacing: -.015em; text-decoration: none; }
 	.site-search :global(.search-title:hover) { text-decoration: underline; text-underline-offset: .15em; }
 	.site-search :global(.search-author) { margin-top: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }

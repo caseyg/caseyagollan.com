@@ -26,7 +26,7 @@ try {
 		const authors = postAuthors(post);
 		const title = postSearchTitle(post);
 		const displayAuthors = post.socialSnapshots?.length ? uniqueLabels(post.socialSnapshots.map(snapshot => snapshot.author.handle)) : ['Casey Gollan'];
-		await add(getPostPermalink(post), title, post.type, { date: post.date.slice(0, 10), tags, author: displayAuthors.join(', '), bookmark: post.bookmarkOf ?? '' }, `${post.title ? `<h1>${escape(post.title)}</h1>` : ''}${postSearchContent(post)}`, { Author: authors, Year: yearFilter(post.date) });
+		await add(getPostPermalink(post), title, post.type, { date: post.date, tags, author: displayAuthors.join(', '), bookmark: post.bookmarkOf ?? '' }, `${post.title ? `<h1>${escape(post.title)}</h1>` : ''}${postSearchContent(post)}`, { Author: authors, Year: yearFilter(post.date) });
 	}
 	const graph = JSON.parse(await readFile('static/library/graph.json', 'utf8'));
 	const catalog = JSON.parse(await readFile('utils/librarything_caseygollan.json', 'utf8'));
