@@ -1,4 +1,4 @@
-import { test, expect } from 'bun:test';
+import { test, expect, spyOn } from 'bun:test';
 import { identity, indexIdentities, alreadyRepresented, activityDocument, processPesos } from '../src/lib/server/publishing/pesos/importer';
 import { mastodonActivity, blueskyActivity, mastodonPage, blueskyPage, type Activity } from '../src/lib/server/publishing/pesos/providers';
 import { readDocument } from '../src/lib/server/publishing/document';
@@ -363,4 +363,82 @@ test('future authored Bluesky quote posts save quoted content with their origina
  expect((await processPesos(h.env,{fetcher})).imported).toBe(1);
  const content=atob(h.writes[0].variables.input.fileChanges.additions[0].contents);
  expect(content).toContain('quotation-of:');expect(content).toContain('My response');expect(content).toContain('Quoted original');
+});
+
+test('scan diagnostics identify failing stage and HTTP status without logging secrets or arbitrary errors',async()=>{
+ const h=harness();
+ const logs:string[]=[];
+ const info=spyOn(console,'log').mockImplementation(value=>{logs.push(String(value));});
+ const errors=spyOn(console,'error').mockImplementation(value=>{logs.push(String(value));});
+ try {
+  await expect(processPesos(h.env,{fetcher:async()=>new Response('sensitive upstream body',{status:401})})).rejects.toThrow();
+  expect(logs.map(line=>JSON.parse(line))).toContainEqual(expect.objectContaining({event:'pesos_request_failed',stage:'content_head',status:401,host:'api.github.com'}));
+  logs.length=0;
+  await expect(processPesos(h.env,{fetcher:async()=>{throw new Error('secret-token-and-url');}})).rejects.toThrow();
+  expect(logs.join(' ')).not.toMatch(/secret-token-and-url|git-secret|mastodon-secret|sensitive upstream body/);
+  expect(logs.map(line=>JSON.parse(line))).toContainEqual(expect.objectContaining({event:'pesos_failed',stage:'content_head',code:'internal'}));
+ } finally {info.mockRestore();errors.mockRestore();}
+});
+
+test('a historical Mastodon alias outage preserves its checkpoints and still imports a new Bluesky like',async()=>{
+ const h=harness({existing:'---\ndate: 2020-01-01\nlike-of: [https://tilde.zone/@someone/123]\n---\n'});
+ h.env.PUBLISHING_BLUESKY_IDENTIFIER='caseyagollan.com';
+ const checkpoint={pending:['older'],seen:['mastodon:post:old']};
+ h.files.set('private/pesos/state.json',{etag:'old',value:JSON.stringify({feeds:{'mastodon:post':checkpoint}})});
+ const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>{
+  const u=String(input);
+  if(u.includes('tilde.zone/api/v1/statuses/')) return new Response(null,{status:525});
+  if(u.includes('verify_credentials')) throw new Error('Mastodon must remain paused until aliases resolve');
+  if(u.includes('resolveHandle')) return Response.json({did});
+  if(u.includes('listRecords')) return Response.json({records:new URL(u).searchParams.get('collection') === 'app.bsky.feed.like' ? [{uri:activity.id,value:{createdAt:activity.published,subject:{uri:`at://${did}/app.bsky.feed.post/abc123`}}}] : []});
+  if(u.includes('getPostThread')) return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:`at://${did}/app.bsky.feed.post/abc123`,record:{text:'New public like',createdAt:activity.published},author:{did,handle:'someone.example'}}}});
+  if(u.includes('getProfile')) return Response.json({did});
+  return h.fetcher(input,init);
+ }) as typeof fetch;
+ const result=await processPesos(h.env,{fetcher});
+ expect(result.imported).toBe(1);expect(result.failedFeeds).toBe(1);
+ const additions=h.writes[0].variables.input.fileChanges.additions;
+ expect(additions[0].path).toStartWith('likes/');
+ expect(atob(additions[0].contents)).toContain(activity.id);
+ const state=JSON.parse(h.files.get('private/pesos/state.json')!.value);
+ expect(state.feeds['mastodon:post']).toEqual(checkpoint);
+ expect(state.feeds['bluesky:like'].seen).toContain(activity.id);
+});
+
+test('content and receipt reads use bounded concurrency while preserving imports',async()=>{
+ const h=harness({existing:'---\ndate: 2020-01-01\n---\nExisting note'});
+ let active=0,maximum=0;
+ const original=h.bucket.get.bind(h.bucket);
+ h.bucket.get=(async(key:string)=>{
+  active++;maximum=Math.max(maximum,active);
+  try {await new Promise(resolve=>setTimeout(resolve,1));return await original(key);}
+  finally {active--;}
+ }) as typeof h.bucket.get;
+ const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>{
+  if(String(input).includes('/git/trees/'))return Response.json({tree:Array.from({length:12},(_,i)=>({type:'blob',path:`notes/2020-01-01-existing-${i}.md`,sha:'initial'}))});
+  return h.fetcher(input,init);
+ }) as typeof fetch;
+ expect((await processPesos(h.env,{fetcher})).imported).toBe(1);
+ expect(maximum).toBe(4);expect(active).toBe(0);expect(h.writes).toHaveLength(1);
+});
+
+test('a failed concurrent index read drains remaining reads before releasing the scan lease',async()=>{
+ const h=harness();let active=0,reads=0,releasedWhileReading=false;
+ const get=h.bucket.get.bind(h.bucket),put=h.bucket.put.bind(h.bucket);
+ h.bucket.get=(async(key:string)=>{
+  if(!key.startsWith('private/pesos/index/'))return get(key);
+  const number=++reads;active++;
+  try {
+   await new Promise(resolve=>setTimeout(resolve,number===1?1:10));
+   if(number===1)throw new Error('index unavailable');
+   return null;
+  } finally {active--;}
+ }) as typeof h.bucket.get;
+ h.bucket.put=(async(key:string,value:string,options:any)=>{
+  if(key==='private/pesos/lease.json'&&JSON.parse(value).until===0)releasedWhileReading=active>0;
+  return put(key,value,options);
+ }) as typeof h.bucket.put;
+ const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>String(input).includes('/git/trees/') ? Response.json({tree:Array.from({length:8},(_,i)=>({type:'blob',path:`notes/2020-01-01-${i}.md`,sha:String(i)}))}) : h.fetcher(input,init)) as typeof fetch;
+ await expect(processPesos(h.env,{fetcher})).rejects.toThrow('index unavailable');
+ expect(reads).toBe(4);expect(active).toBe(0);expect(releasedWhileReading).toBe(false);expect(h.writes).toHaveLength(0);
 });

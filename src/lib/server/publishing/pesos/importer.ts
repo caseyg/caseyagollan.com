@@ -2,7 +2,7 @@ import { readDocument, createDocument, updateDocument, type Properties } from '.
 import { duplicateOriginal } from './duplicates';
 import { getPostPermalink, POST_TYPE_PLURALS } from '../../../posts-types';
 import { parsePost } from '../../parse-post';
-import { publicUrl, safePublicFetch, type PublicFetcher } from '../public-fetch';
+import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from '../public-fetch';
 import { enrichSocialSnapshots } from '../social-snapshots';
 import { socialImageStore, archivePhotoProperties } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
@@ -82,6 +82,22 @@ export async function activityDocument(activity: Activity, timeZone: string, occ
  return {path:`${folder}/${date.slice(0,10)}-${slug}.md`,content:createDocument(properties)};
 }
 
+/** Bound concurrent reads and finish in-flight work before releasing the scan lease. */
+async function mapReads<T,R>(items: T[], read: (item:T)=>Promise<R>): Promise<R[]> {
+ const results = new Array<R>(items.length);
+ let next = 0;
+ let failure: {error:unknown} | undefined;
+ await Promise.all(Array.from({length:Math.min(4,items.length)},async()=>{
+  while (!failure && next < items.length) {
+   const index = next++;
+   try { results[index] = await read(items[index]); }
+   catch (error) { failure ??= {error}; }
+  }
+ }));
+ if (failure) throw failure.error;
+ return results;
+}
+
 export async function processPesos(env: PesosEnvironment, dependencies: Dependencies = {}) {
  const result = {imported:0,merged:0,skipped:0,feeds:0,failedFeeds:0,dryRun:!!dependencies.dryRun};
  if (env.PESOS_ENABLED !== 'true') return result;
@@ -90,12 +106,28 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
  const bucket = config.state;
  const now = dependencies.now ?? Date.now;
  const fetcher = dependencies.fetcher ?? safePublicFetch;
+ const started = now();
+ let stage = 'lease';
+ let requests = 0;
+ let indexed = 0;
+ const diagnostic = (event: string, error?: unknown, extra: Record<string,unknown> = {}) => {
+  // Never log arbitrary exception text, URLs, headers, or upstream response bodies.
+  const code = error instanceof UpstreamError ? 'upstream_status' : error instanceof DeliveryError ? 'public_fetch' : error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : error ? 'internal' : undefined;
+  const reasons = ['Public DNS lookup failed','Public DNS has no addresses','DNS destination is not public','Public fetch timed out','Public fetch failed','Response exceeds body limit','Syndication outcome pending reconciliation','PESOS checkpoint raced','PESOS commit conflicted or outcome unknown','PESOS commit unavailable','Incomplete content tree','Content index exceeds safety limit','Invalid content blob','Unable to resolve Bluesky identity'];
+  const reason = error instanceof Error && reasons.includes(error.message) ? error.message : undefined;
+  const log = error ? console.error : console.log;
+  log(JSON.stringify({event,stage,elapsedMs:now()-started,requests,indexed,...(code ? {code} : {}),...(reason ? {reason} : {}),...(error instanceof UpstreamError ? {status:error.status} : {}),...extra}));
+ };
+ const progress = (next: string) => { stage = next; diagnostic('pesos_stage'); };
  const deadline = AbortSignal.timeout(7 * 60_000);
  const request: GetJson = async (url,headers = {}) => {
-  publicUrl(url);
-  const response = await fetcher(url,{headers:{Accept:'application/json',...headers},cache:'no-store',redirect:'error',signal:AbortSignal.any([deadline,AbortSignal.timeout(15_000)])});
-  if (!response.ok) throw new UpstreamError(response.status);
-  return {data:await response.json(),link:response.headers.get('link') ?? undefined};
+  const target = publicUrl(url);
+  requests++;
+  try {
+   const response = await fetcher(url,{headers:{Accept:'application/json',...headers},cache:'no-store',redirect:'error',signal:AbortSignal.any([deadline,AbortSignal.timeout(15_000)])});
+   if (!response.ok) throw new UpstreamError(response.status);
+   return {data:await response.json(),link:response.headers.get('link') ?? undefined};
+  } catch (error) { diagnostic('pesos_request_failed',error,{host:target.hostname}); throw error; }
  };
  const leaseKey = 'private/pesos/lease.json';
  const previous = await bucket.get(leaseKey);
@@ -103,16 +135,18 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
  const lease = await bucket.put(leaseKey,JSON.stringify({until:now()+8*60_000}),{onlyIf:previous ? {etagMatches:previous.etag} : {etagDoesNotMatch:'*'}});
  if (!lease) return result;
  try {
+  progress('content_head');
   const githubHeaders = {Authorization:`Bearer ${config.token}`,'User-Agent':'caseyagollan-pesos','X-GitHub-Api-Version':'2022-11-28'};
   const repo = `https://api.github.com/repos/${config.owner}/${config.repo}`;
   const head = (await request(`${repo}/git/ref/heads/${encodeURIComponent(config.branch)}`,githubHeaders)).data.object.sha as string;
+  progress('content_tree');
   const tree = (await request(`${repo}/git/trees/${head}?recursive=1`,githubHeaders)).data;
   if (tree.truncated || !Array.isArray(tree.tree)) throw new Error('Incomplete content tree');
   const folders = new Set(Object.values(POST_TYPE_PLURALS));
   const files = tree.tree.filter((f:any)=>f.type === 'blob' && folders.has(f.path.split('/')[0]) && /^[^/]+\/[^/]+\.md$/.test(f.path));
   if (files.length > 5000) throw new Error('Content index exceeds safety limit');
-  const entries: IndexEntry[] = [];
-  for (const file of files) {
+  progress('content_index');
+  const entries: IndexEntry[] = await mapReads(files,async (file: {path:string;sha:string}) => {
    const key = `private/pesos/index/${file.sha}.json`;
    const cached = await bucket.get(key);
    let entry: IndexEntry;
@@ -134,8 +168,11 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
     entry = {path:file.path,sha:file.sha,properties:readDocument(content).properties,permalink:new URL(getPostPermalink(post),config.me).href};
     await bucket.put(key,JSON.stringify(entry));
    }
-   entries.push(entry);
-  }
+   indexed++;
+   if (indexed % 200 === 0) diagnostic('pesos_progress');
+   return entry;
+  });
+  progress('bluesky_handles');
   const actors: Record<string,string> = {};
   const handles = new Set<string>();
   for (const entry of entries) for (const values of Object.values(entry.properties)) for (const url of strings(values)) {
@@ -150,6 +187,9 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
    if (typeof data.did !== 'string') throw new Error('Unable to resolve Bluesky identity');
    actors[handle] = data.did;
   }
+  progress('mastodon_aliases');
+  let mastodonAliasesReady = true;
+  try {
   // Mastodon local URLs for federated posts carry a different status ID from
   // the author's canonical URL. Resolve those aliases before comparing likes/reposts.
   for (const entry of entries) for (const url of [...strings(entry.properties['like-of']),...strings(entry.properties['repost-of']),...strings(entry.properties.syndication)]) {
@@ -172,11 +212,19 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
     if (!(error instanceof UpstreamError) || ![404,410].includes(error.status)) throw error;
    }
   }
+  } catch (error) {
+   // Unresolved Mastodon identities must pause that provider, not Bluesky.
+   // Leave its checkpoints unchanged rather than risk duplicate imports.
+   mastodonAliasesReady = false;
+   result.failedFeeds++;
+   diagnostic('pesos_feed_failed',error,{feed:'mastodon:aliases'});
+  }
+  progress('syndication_receipts');
   const keys = indexIdentities(entries,actors);
   // An outbound send can succeed before its Git bookkeeping lands. Never import in that gap.
-  for (const entry of entries) for (const service of ['mastodon','bluesky'] as const) {
+  await mapReads(entries.flatMap(entry=>(['mastodon','bluesky'] as const).map(service=>({entry,service}))),async ({entry,service}) => {
    const receipt = await bucket.get(`private/syndication/${await digest(`${entry.permalink}\0${service}`)}.json`);
-   if (!receipt) continue;
+   if (!receipt) return;
    const data = await receipt.json<{status:string;url?:string}>();
    if (data.status === 'sending') throw new Error('Syndication outcome pending reconciliation');
    if (data.url) {
@@ -184,18 +232,20 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
     keys.add(identity('post',data.url,actors));
     keys.add(identity(kind,data.url,actors));
    }
-  }
+  });
+  progress('feed_setup');
   const stored = await bucket.get('private/pesos/state.json');
   const state: State = stored ? await stored.json<State>() : {feeds:{}};
   const feeds: {name:string;page:(cursor?:string)=>Promise<Page>}[] = [];
   const mastodon = config.syndication?.mastodon;
-  if (mastodon) {
+  if (mastodon && mastodonAliasesReady) {
    try {
    const base = publicUrl(mastodon.instance).origin;
    const account = (await request(`${base}/api/v1/accounts/verify_credentials`,{Authorization:`Bearer ${mastodon.token}`})).data;
    if (typeof account.id !== 'string') throw new Error('Invalid Mastodon identity');
    for (const kind of ['post','like'] as const) feeds.push({name:`mastodon:${kind}`,page:cursor=>mastodonPage(request,base,mastodon.token,account.id,kind,cursor,new Date(now()).toISOString())});
-   } catch {
+   } catch (error) {
+    diagnostic('pesos_feed_failed',error);
     result.failedFeeds++;
     console.warn(JSON.stringify({event:'pesos_provider_failed',feed:'mastodon:identity'}));
    }
@@ -205,6 +255,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
   const additions: {path:string;content:string}[] = [];
   const updates = new Map<string,{path:string;content:string}>();
   for (const feed of feeds) {
+   progress(feed.name);
    try {
    let full = false;
    let feedImports = 0;
@@ -260,11 +311,13 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
    if (full) continue;
    state.feeds[feed.name] = {pending,seen:[...seen]};
    result.feeds++;
-   } catch {
+   } catch (error) {
+    diagnostic('pesos_feed_failed',error);
     result.failedFeeds++;
     console.warn(JSON.stringify({event:'pesos_provider_failed',feed:feed.name}));
    }
   }
+  progress('content_commit');
   const changes = [...updates.values(),...additions];
   if (changes.length && !dependencies.dryRun) {
    // Compare-and-swap against the exact Git revision used for deduplication.
@@ -274,12 +327,17 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
    const data = await response.json() as {errors?:unknown[];data?:{createCommitOnBranch?:{commit?:{oid?:string}}}};
    if (data.errors?.length || !data.data?.createCommitOnBranch?.commit?.oid) throw new Error('PESOS commit conflicted or outcome unknown');
   }
+  progress('checkpoint');
   if (!dependencies.dryRun) {
    const saved = await bucket.put('private/pesos/state.json',JSON.stringify(state),{onlyIf:stored ? {etagMatches:stored.etag} : {etagDoesNotMatch:'*'}});
    if (!saved) throw new Error('PESOS checkpoint raced');
   }
   result.imported = additions.length;
+  diagnostic('pesos_complete',undefined,result);
   return result;
+ } catch (error) {
+  diagnostic('pesos_failed',error);
+  throw error;
  } finally {
   // Keep the lease object and conditionally expire it; never delete a successor's lease.
   await bucket.put(leaseKey,JSON.stringify({until:0}),{onlyIf:{etagMatches:lease.etag}});
