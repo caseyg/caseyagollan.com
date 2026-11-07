@@ -36,8 +36,9 @@ export function renderSocialSnapshot(snapshot: SocialSnapshot): string {
  const s = socialSnapshots([snapshot])[0];
  if (!s) return '';
  const body = sanitizePublishingHtml(s.html).replace(/<(?:img|iframe|video|audio|source)\b[^>]*>(?:<\/(?:iframe|video|audio)>)?/gi,'');
- const images = s.images.map(i=>`<img class="social-attachment" src="${escape(i.src)}" alt="${escape(i.alt)}" loading="lazy">`).join('');
- const content = `<div class="social-post-content">${body}</div>${images}`;
+ const images = s.images.map(i=>`<a class="social-image-link" href="${escape(i.src)}"><img class="social-attachment" src="${escape(i.src)}" alt="${escape(i.alt)}" loading="lazy"></a>`).join('');
+ const gallery = images ? `<div class="social-images social-images-${s.images.length}">${images}</div>` : '';
+ const content = `<div class="social-post-content">${body}</div>${gallery}`;
  const date = new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'America/New_York'}).format(new Date(s.published));
  const clock = new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'}).format(new Date(s.published));
  const avatar = s.author.avatar ? `<img class="social-avatar" src="${escape(s.author.avatar)}" alt="" loading="lazy">` : '';
