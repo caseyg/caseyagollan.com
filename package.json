@@ -41,6 +41,8 @@
 	},
 	"dependencies": {
 		"3d-force-graph": "^1.79.0",
+		"@ipld/car": "5.4.7",
+		"@ipld/dag-cbor": "10.0.2",
 		"@pagefind/component-ui": "1.6.0",
 		"@simplewebauthn/browser": "14.0.0",
 		"@simplewebauthn/server": "14.0.3",

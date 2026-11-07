@@ -5,7 +5,7 @@ import { publicUrl, safePublicFetch, type PublicFetcher } from '../public-fetch'
 import { enrichSocialSnapshots } from '../social-snapshots';
 import { socialImageStore } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
-import { mastodonPage, blueskyPage, type Activity, type GetJson, type Page } from './providers';
+import { mastodonPage, blueskyPage, blueskyPublic, type Activity, type GetJson, type Page } from './providers';
 
 export type PesosEnvironment = PublishingEnvironment;
 interface IndexEntry { path: string; sha: string; properties: Properties; permalink: string }
@@ -60,7 +60,7 @@ export async function activityDocument(activity: Activity, timeZone: string, occ
  const folder = activity.kind === 'like' ? 'likes' : activity.kind === 'repost' ? 'reposts' : activity.properties['in-reply-to'] ? 'replies' : activity.properties.photo ? 'photos' : activity.properties.video ? 'videos' : 'notes';
  const properties: Properties = {...activity.properties,published:[date],'pesos-source':[activity.id]};
  if (activity.kind === 'post' || (activity.kind === 'repost' && activity.url !== activity.target)) properties.syndication = [activity.url];
- if (activity.service === 'mastodon' && activity.kind === 'like') properties['pesos-date-source'] = ['first-observed'];
+ if (activity.dateSource) properties['pesos-date-source'] = [activity.dateSource];
  if (activity.target) properties[activity.kind === 'like' ? 'like-of' : 'repost-of'] = [activity.target];
  // Deliberately omit mp-syndicate-to: imports must never be syndicated back out.
  const target = new URL(activity.target ?? activity.url);
@@ -215,6 +215,10 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
      if (alreadyRepresented(activity,keys,actors)) { result.skipped++; seen.add(activity.id); continue; }
      // Give every feed capacity during a large historical backfill.
      if (feedImports >= 2 || additions.length >= 12) { full = true; break; }
+     if (activity.service === 'bluesky' && activity.kind === 'post') {
+      const uri = activity.kind === 'post' ? activity.id : activity.target!.replace(/^https:\/\/bsky.app\/profile\/([^/]+)\/post\/(.+)$/, 'at://$1/app.bsky.feed.post/$2');
+      if (!await blueskyPublic(request,uri)) { result.skipped++; seen.add(activity.id); continue; }
+     }
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
      if (activity.kind !== 'post') file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
      additions.push(file);

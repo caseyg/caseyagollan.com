@@ -43,7 +43,7 @@ test('Mastodon filters non-public originals and boosts, sanitizes HTML, and pres
  expect(mastodonActivity({...mastodon,reblog:{...mastodon,visibility:'unlisted'}},'post','now')).toBeUndefined();
  const boost = mastodonActivity({...mastodon,id:'456',reblog:mastodon},'post','now')!;
  expect(boost.kind).toBe('repost'); expect(boost.target).toBe(mastodon.url);
- expect(mastodonActivity(mastodon,'like','2026-11-08T00:00:00Z')!.published).toBe('2026-11-08T00:00:00Z');
+ expect(mastodonActivity(mastodon,'like','2026-11-08T00:00:00Z')!.published).toBe(mastodon.created_at);
 });
 test('Bluesky reads distinct post/like/repost records and preserves facets, replies, and media',()=>{
  const record = {uri:`at://${did}/app.bsky.feed.post/abc123`,value:{createdAt:activity.published,text:'a link',facets:[{features:[{$type:'app.bsky.richtext.facet#link',uri:'https://example.com/full-link'}]}],reply:{parent:{uri:`at://${did}/app.bsky.feed.post/parent`}},embed:{$type:'app.bsky.embed.images',images:[{alt:'Alt',image:{ref:{$link:'cid'}}}]}}};
@@ -193,6 +193,7 @@ test('Bluesky imports public repository records without a password or authentica
  const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>{
   const u=String(input);
   if(u.includes('resolveHandle')) return Response.json({did});
+  if(u.includes('getPostThread')) return Response.json({thread:{post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{}}}});
   if(u.includes('listRecords')) {
    expect(init?.headers).not.toHaveProperty('Authorization');
    const collection=new URL(u).searchParams.get('collection');
@@ -208,6 +209,7 @@ test('a large post backfill leaves capacity for new activity in other feeds',asy
   const u=String(input);
   if(u.includes('/accounts/1/statuses')) return Response.json(Array.from({length:40},(_,i)=>({...mastodon,id:String(1000+i),url:`https://social.coop/@caseyg/${1000+i}`})));
   if(u.includes('resolveHandle')) return Response.json({did});
+  if(u.includes('getPostThread')) return Response.json({thread:{post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{}}}});
   if(u.includes('listRecords')) return Response.json({records:new URL(u).searchParams.get('collection') === 'app.bsky.feed.post' ? [{uri:`at://${did}/app.bsky.feed.post/newest`,value:{createdAt:activity.published,text:'New Bluesky post'}}] : []});
   return h.fetcher(input,init);
  }) as typeof fetch;
