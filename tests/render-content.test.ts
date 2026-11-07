@@ -48,3 +48,26 @@ test('plain text links cannot introduce attributes or interpret surrounding HTML
  expect(html).toContain('<a href="https://example.org/path">https://example.org/path</a>).');
  expect(html).not.toContain(' onclick="attack"');
 });
+
+
+test('Markdown links, images, and captions retain their destinations', () => {
+ const html = renderContent('[#77](https://github.com/caseyg/caseyagollan.com/pull/77)\n\n![Library shelves](https://files.caseyagollan.com/publishing/2026/11/shelves.png)\n\n*The [recently acquired shelves](https://caseyagollan.com/library?view=shelves&sort=color).*');
+ expect(html).toContain('<a href="https://github.com/caseyg/caseyagollan.com/pull/77">#77</a>');
+ expect(html).toContain('<img src="https://files.caseyagollan.com/publishing/2026/11/shelves.png" alt="Library shelves">');
+ expect(html).toContain('href="https://caseyagollan.com/library?view=shelves&#x26;sort=color"');
+ expect(html).not.toContain('](');
+});
+
+test('autolinking leaves code, link labels, and image attributes literal', () => {
+ const html = renderContent('`https://example.com @casey@example.com`\n\n[Contact @casey@example.com](https://example.com)\n\n![Contact @casey@example.com](https://example.com/photo.png)\n\n```\nhttps://youtu.be/dQw4w9WgXcQ\n```');
+ expect(html).toContain('<code>https://example.com @casey@example.com</code>');
+ expect(html).toContain('<a href="https://example.com">Contact @casey@example.com</a>');
+ expect(html).toContain('alt="Contact @casey@example.com"');
+ expect(html).not.toContain('<iframe');
+});
+
+test('only bare video links embed; explicit video link labels survive', () => {
+ const html = renderContent('[Watch this](https://youtu.be/dQw4w9WgXcQ)\n\nhttps://vimeo.com/12345678');
+ expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ">Watch this</a>');
+ expect(html).toContain('src="https://player.vimeo.com/video/12345678"');
+});
