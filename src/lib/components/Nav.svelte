@@ -42,7 +42,7 @@
 		width: auto;
 		font-size: 2rem;
 		height: auto;
-		border-radius: 5px;
+		border-radius: 0;
 		cursor: pointer;
 		padding: 0 10px;
 		line-height: 1.5;

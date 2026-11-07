@@ -5,7 +5,9 @@
 
 	interface Props {
 		type: string;
-		date: string;
+		date?: string;
+		year?: string;
+		showInteractions?: boolean;
 		permalink: string;
 		syndication?: string[];
 		showType?: boolean;
@@ -13,7 +15,7 @@
 		activeTag?: string;
 	}
 
-	let { type, date, permalink, syndication = [], showType = true, category, activeTag }: Props = $props();
+	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag }: Props = $props();
 
 	function getCategories(cat: string | string[] | undefined): string[] {
 		if (!cat) return [];
@@ -27,7 +29,7 @@
 	}
 
 	const TYPE_ICONS: Record<string, string> = {
-		like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
+		book: '📚', like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
 		note: '📝',
 		article: '📄',
 		bookmark: '🔖',
@@ -57,17 +59,24 @@
 <div class="post-meta">
 	<div class="meta-primary">
 		{#if showType}
-			<a href="/type/{getTypePlural(type).toLowerCase()}/" class="post-type">{getTypeIcon(type)} {type}</a>
+			<a href={type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type">{getTypeIcon(type)} {type}</a>
 		{/if}
-		<a href={permalink} class="u-url permalink" title={formatAbsoluteDate(date)}>
-			<span class="permalink-icon">🔗</span>
-			<time class="dt-published" datetime={date}>{formatRelativeDate(date)}</time>
-		</a>
+		{#if date}
+			<a href={permalink} class="u-url permalink" title={formatAbsoluteDate(date)}>
+				<span class="permalink-icon">🔗</span>
+				<time class="dt-published" datetime={date}>{formatRelativeDate(date)}</time>
+			</a>
+		{:else if year}
+			<a href={permalink} class="u-url permalink" title="Publication year">
+				<span class="permalink-icon">🔗</span>
+				<time datetime={year}>{year}</time>
+			</a>
+		{/if}
 		{#each categories as cat (cat)}
 			<a href="/tag/{cat.toLowerCase()}/" class="p-category category-tag" class:active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</a>
 		{/each}
 	</div>
-	{#if (syndication && syndication.length > 0)}
+	{#if showInteractions && (syndication && syndication.length > 0)}
 		<div class="meta-secondary">
 			{#each syndication as link (link)}
 				{@const synInfo = getSyndicationInfo(link)}
@@ -77,7 +86,7 @@
 			{/each}
 			<WebmentionCounts url={permalink} />
 		</div>
-	{:else}
+	{:else if showInteractions}
 		<WebmentionCounts url={permalink} />
 	{/if}
 </div>
