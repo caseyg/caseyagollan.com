@@ -78,13 +78,13 @@
 			</ul>
 		</details>
 	{/if}
-	{#if post.summary && !isArticle && post.type !== 'note'}<p class="p-summary">{post.summary}</p>{/if}
+	{#if post.summary && !isArticle && post.type !== 'note' && post.type !== 'reply'}<p class="p-summary">{post.summary}</p>{/if}
 	{#if isArticle}
 		<p class="p-summary preview">
 			{post.summary || getPreview(post.content)}
 		</p>
 		<a href={permalink} class="read-more">Read more</a>
-	{:else if post.type === 'note'}
+	{:else if post.type === 'note' || post.type === 'reply'}
 		<NoteCard {post} />
 	{:else}
 		<PostMedia photos={post.photo} videos={post.video} />

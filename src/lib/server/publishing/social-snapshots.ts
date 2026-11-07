@@ -161,7 +161,7 @@ export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFet
  const doc = parseDocument(match[1]);
  if(doc.errors.length) return markdown;
  const data = doc.toJS({maxAliasCount:0});
- const urls = [...new Set(['like-of','repost-of','quotation-of'].flatMap(k=> Array.isArray(data[k]) ? data[k] : typeof data[k] === 'string' ? [data[k]] : []).filter((u): u is string=> typeof u === 'string'))];
+ const urls = [...new Set(['like-of','repost-of','in-reply-to','inReplyTo','quotation-of'].flatMap(k=> Array.isArray(data[k]) ? data[k] : typeof data[k] === 'string' ? [data[k]] : []).filter((u): u is string=> typeof u === 'string'))];
  const before = socialSnapshots(data[key]);
  const after: SocialSnapshot[] = [];
  const signal = AbortSignal.timeout(options.timeoutMs ?? 6000);
