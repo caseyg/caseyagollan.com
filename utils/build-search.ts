@@ -4,6 +4,7 @@ import * as pagefind from 'pagefind';
 import { marked } from 'marked';
 import { parsePost, PLURAL_TO_SINGULAR } from '../src/lib/server/parse-post';
 import { getPostPermalink } from '../src/lib/posts-types';
+import { bookTags, bookAuthors, postAuthors, uniqueLabels, yearFilter } from './search-filters';
 
 const escape = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 function assertSuccess(result: { errors: string[] }) {
@@ -12,9 +13,10 @@ function assertSuccess(result: { errors: string[] }) {
 const { index, errors } = await pagefind.createIndex();
 if (!index) throw new Error(errors.join('\n'));
 let count = 0;
-async function add(url: string, title: string, type: string, metadata: Record<string, unknown>, html: string) {
+async function add(url: string, title: string, type: string, metadata: Record<string, unknown>, html: string, filters: Record<string, string[]> = {}) {
+	const filterHtml = Object.entries(filters).flatMap(([key, values]) => uniqueLabels(values).map(value => `<span data-pagefind-filter="${escape(key)}">${escape(value)}</span>`)).join(' ');
 	const meta = Object.entries(metadata).map(([key, value]) => `<span data-pagefind-meta="${key}">${escape(value)}</span>`).join(' ');
-	assertSuccess(await index!.addHTMLFile({ url, content: `<html lang="en"><body><article data-pagefind-body><h1 data-pagefind-meta="title">${escape(title)}</h1> <p data-pagefind-filter="Type" data-pagefind-meta="type">${escape(type)}</p> ${meta} ${html}</article></body></html>` }));
+	assertSuccess(await index!.addHTMLFile({ url, content: `<html lang="en"><body><article data-pagefind-body><h1 data-pagefind-meta="title">${escape(title)}</h1> <p data-pagefind-filter="Type" data-pagefind-meta="type">${escape(type)}</p> ${meta} ${filterHtml} ${html}</article></body></html>` }));
 	count++;
 }
 try {
@@ -24,8 +26,9 @@ try {
 		const post = parsePost(await readFile(`content/${path}`, 'utf8'), folder, file);
 		if (post.visibility && post.visibility !== 'public') continue;
 		const tags = [post.category ?? []].flat().join(', ');
+		const authors = postAuthors(post);
 		const title = post.title || post.summary || `${post.type[0].toUpperCase() + post.type.slice(1)} · ${post.date.slice(0, 10)}`;
-		await add(getPostPermalink(post), title, post.type, { date: post.date.slice(0, 10), tags, bookmark: post.bookmarkOf ?? '' }, await marked.parse(post.content + '\n\n' + (post.summary ?? '') + '\n\n' + [...(post.photo ?? []), ...(post.video ?? [])].map(m => m.alt ?? '').join(' ')));
+		await add(getPostPermalink(post), title, post.type, { date: post.date.slice(0, 10), tags, author: authors.join(', '), bookmark: post.bookmarkOf ?? '' }, await marked.parse(post.content + '\n\n' + (post.summary ?? '') + '\n\n' + [...(post.photo ?? []), ...(post.video ?? [])].map(m => m.alt ?? '').join(' ') + '\n\n' + (post.socialSnapshots ?? []).map(snapshot => snapshot.html).join(' ')), { Author: authors, Year: yearFilter(post.date) });
 	}
 	const graph = JSON.parse(await readFile('static/library/graph.json', 'utf8'));
 	const catalog = JSON.parse(await readFile('utils/librarything_caseygollan.json', 'utf8'));
@@ -33,8 +36,10 @@ try {
 		const details = catalog[String(book.b)] ?? {};
 		if (details.public === 'false') continue;
 		const url = book.n ? `/library/${encodeURIComponent(book.n)}` : `/library/?book=${book.b}`;
-		const metadata = { author: details.primaryauthor ?? '', isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: [...(details.genre ?? []), ...(details.ddc?.wording ?? [])].join(', ') };
-		await add(url, book.i, 'book', metadata, `<p>${escape([details.summary, details.publication, details.review, details.comments, Object.values(details.subject ?? {}).flat().join(', ')].filter(Boolean).join(' '))}</p>`);
+		const tags = bookTags(details);
+		const authors = bookAuthors(details);
+		const metadata = { author: authors.join(', '), isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: tags.join(', ') };
+		await add(url, book.i, 'book', metadata, `<p>${escape([details.summary, details.publication, details.review, details.comments, Object.values(details.subject ?? {}).flat().join(', ')].filter(Boolean).join(' '))}</p>`, { Tag: tags, Author: authors, Year: yearFilter(book.y) });
 	}
 	await rm('static/pagefind', { recursive: true, force: true });
 	assertSuccess(await index.writeFiles({ outputPath: 'static/pagefind' }));

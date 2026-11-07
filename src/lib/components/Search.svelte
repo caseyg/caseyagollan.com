@@ -7,31 +7,39 @@
 
 	const resultTemplate = `<script type="text/pagefind-template">
 		<li class="search-result" id="{{ aria.result_id }}">
-			<a data-sveltekit-reload href="{{ url | safeUrl }}" id="{{ aria.title_id }}">{{ meta.title }}</a>
 			<div class="search-meta">
-				<span>{{ meta.type }}</span>
+				<span class="search-type">{{ meta.type }}</span>
 				{{#if meta.date}}<span>{{ meta.date }}</span>{{/if}}
-				{{#if meta.author}}<span>{{ meta.author }}</span>{{/if}}
 				{{#if meta.year}}<span>{{ meta.year }}</span>{{/if}}
-				{{#if meta.isbn}}<span>ISBN {{ meta.isbn }}</span>{{/if}}
 			</div>
+			<a class="search-title" data-sveltekit-reload href="{{ url | safeUrl }}" id="{{ aria.title_id }}">{{ meta.title }}</a>
+			{{#if meta.author}}<div class="search-author">{{ meta.author }}</div>{{/if}}
 			<p id="{{ aria.excerpt_id }}">{{+ excerpt +}}</p>
-			{{#if meta.tags}}<small>{{ meta.tags }}</small>{{/if}}
 		</li>
 	<\/script>`;
 </script>
 
 <div class="site-search">
-	<pagefind-config bundle-path="/pagefind/"></pagefind-config>
+	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
 	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts and books"></pagefind-modal-trigger>
 	<pagefind-modal>
 		<pagefind-modal-header>
+			<div class="search-heading">
+				<h2>Search</h2>
+				<p>Posts, books &amp; things worth keeping.</p>
+			</div>
 			<pagefind-input placeholder="Search posts and books…"></pagefind-input>
 		</pagefind-modal-header>
 		<pagefind-modal-body>
-			<pagefind-filter-dropdown filter="Type" label="Type" single-select></pagefind-filter-dropdown>
-			<pagefind-summary></pagefind-summary>
-			<pagefind-results hide-sub-results>{@html resultTemplate}</pagefind-results>
+			<div class="search-layout">
+				<aside class="search-filters" aria-label="Search filters">
+					<pagefind-filter-pane open="Type,Tag" sort="count-desc"></pagefind-filter-pane>
+				</aside>
+				<div class="search-content">
+					<pagefind-summary></pagefind-summary>
+					<pagefind-results hide-sub-results>{@html resultTemplate}</pagefind-results>
+				</div>
+			</div>
 		</pagefind-modal-body>
 		<pagefind-modal-footer>
 			<pagefind-keyboard-hints></pagefind-keyboard-hints>
@@ -41,29 +49,95 @@
 
 <style>
 	.site-search {
-		--pf-text: #111;
-		--pf-background: white;
-		--pf-outline-focus: blue;
-		--pf-modal-max-width: 760px;
+		--pf-font: ff-dagny-web-pro, system-ui, -apple-system, sans-serif;
+		--pf-text: var(--text-primary);
+		--pf-text-secondary: var(--text-secondary);
+		--pf-text-muted: var(--text-secondary);
+		--pf-background: var(--bg-primary);
+		--pf-border: var(--border);
+		--pf-border-focus: var(--text-primary);
+		--pf-hover: var(--accent);
+		--pf-mark: var(--text-primary);
+		--pf-skeleton: rgb(255 255 255 / 8%);
+		--pf-skeleton-shine: rgb(255 255 255 / 16%);
+		--pf-outline-focus: var(--text-primary);
+		--pf-border-radius: 0;
+		--pf-modal-max-width: 1080px;
+		--pf-modal-max-height: 86dvh;
+		--pf-modal-top: 7dvh;
 		--pf-modal-backdrop: rgb(0 0 0 / 60%);
-		--pf-input-height: 44px;
-		--pf-result-title-font-size: 18px;
+		--pf-input-height: 48px;
+		--pf-input-font-size: 18px;
+		--pf-summary-font-size: 14px;
+		--pf-result-title-font-size: 22px;
+		--pf-result-excerpt-font-size: 16px;
 		display: flex;
 	}
 	pagefind-modal-trigger {
-		--pf-background: blue;
-		--pf-text-muted: white;
-		--pf-border: blue;
-		--pf-border-focus: rgb(73, 73, 255);
-		--pf-input-height: 48px;
-		--pf-border-radius: 5px;
-		width: 47px;
+		--pf-background: var(--accent);
+		--pf-border: var(--accent);
+		--pf-border-focus: var(--accent-hover);
+		width: 60px;
 	}
-	pagefind-modal-trigger:hover { --pf-background: rgb(73, 73, 255); }
-	.site-search :global(.search-result) { padding: 18px 0; border-top: 1px solid #ddd; list-style: none; }
-	.site-search :global(.search-result a) { color: blue; font-size: 1.15rem; }
-	.site-search :global(.search-meta) { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; color: #555; font-size: .85rem; }
-	.site-search :global(.search-result p) { line-height: 1.5; margin: 12px 0; }
-	.site-search :global(.search-result small) { color: #555; }
-	.site-search :global(.search-result mark) { background: #ffff88; color: #111; }
+	pagefind-modal-trigger:hover { --pf-background: var(--accent-hover); }
+	/* Pagefind's generated styles have elevated specificity and some hardcoded radii. */
+	.site-search :global(.pf-trigger-btn) { justify-content: center !important; padding: 0 10px !important; }
+	.site-search :global(.pf-trigger-icon) {
+		width: auto !important;
+		height: auto !important;
+		background: none !important;
+		mask-image: none !important;
+		-webkit-mask-image: none !important;
+		font-size: 2rem !important;
+		line-height: 1.5 !important;
+	}
+	.site-search :global(.pf-trigger-icon::before) { content: '🔍'; }
+	.site-search :global(dialog),
+	.site-search :global(dialog *),
+	.site-search :global(.pf-trigger-btn) { border-radius: 0 !important; }
+	/* Structure stays quiet; blue is reserved for actions and selected states. */
+	.site-search :global(.pf-modal-header) { display: block !important; padding: 28px 32px 20px !important; position: relative; }
+	.search-heading { margin-bottom: 20px; color: var(--text-primary); }
+	.search-heading h2 { margin: 0; font-size: 36px; font-weight: 400; line-height: 1.1; letter-spacing: -.03em; }
+	.search-heading p { margin: 8px 0 0; font-size: 14px; font-weight: 400; color: var(--text-secondary); }
+	.site-search :global(.pf-input) { background: rgb(0 0 0 / 8%) !important; border: 1px solid var(--border) !important; font-weight: 400 !important; }
+	.site-search :global(.pf-input:focus) { border-color: white !important; box-shadow: inset 3px 0 0 blue !important; }
+	.site-search :global(.pf-modal-body) { padding: 0 32px !important; }
+	.site-search :global(.pf-modal-footer) { padding: 12px 32px !important; }
+	.search-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 36px; align-items: start; }
+	.search-filters { position: sticky; top: 0; max-height: 58dvh; overflow-y: auto; padding: 24px 24px 24px 0; border-right: 1px solid var(--border); }
+	.search-content { min-width: 0; padding: 24px 0; }
+	.site-search :global(.pf-filter-pane) { padding: 0 !important; border: 0 !important; background: transparent !important; gap: 24px !important; }
+	.site-search :global(.pf-filter-group-title) { font-size: 13px !important; text-transform: none !important; letter-spacing: 0 !important; font-weight: 500 !important; color: white !important; }
+	.site-search :global(.pf-filter-options) { max-height: 196px !important; overflow-y: auto !important; margin-top: 12px !important; scrollbar-width: thin; }
+	.site-search :global(.pf-filter-checkbox) { overflow-wrap: anywhere !important; flex-shrink: 0 !important; line-height: 1.5 !important; min-height: 34px !important; font-size: 13px !important; gap: 10px !important; padding: 3px 0 !important; }
+	.site-search :global(.pf-checkbox-input) { width: 14px !important; height: 14px !important; accent-color: blue !important; }
+	.site-search :global(.pf-filter-checkbox:has(input:checked)) { color: white !important; }
+	.site-search :global(.pf-filter-checkbox-count) { margin-left: auto !important; padding-left: 8px !important; font-variant-numeric: tabular-nums; opacity: .65; }
+	.site-search :global(.pf-summary) { margin: 0 0 8px !important; font-size: 13px !important; }
+	.site-search :global(.search-result) { color: white; font-family: var(--pf-font); font-weight: 400; padding: 24px 0; border-top: 1px solid var(--border); list-style: none; overflow-wrap: break-word; }
+	.site-search :global(.search-meta) { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; color: var(--text-secondary); font-size: 12px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+	.site-search :global(.search-type) { text-transform: uppercase; font-size: 10px; font-weight: 500; letter-spacing: .08em; padding: 3px 6px; border: 1px solid var(--border); }
+	.site-search :global(.search-title) { display: block; color: white; font-size: 23px; font-weight: 400; line-height: 1.25; letter-spacing: -.015em; text-decoration: none; }
+	.site-search :global(.search-title:hover) { text-decoration: underline; text-underline-offset: .15em; }
+	.site-search :global(.search-author) { margin-top: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+	.site-search :global(.search-result p) { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.6; margin: 12px 0 0; color: var(--text-secondary); }
+	.site-search :global(.search-result mark) { background: var(--accent); color: white; }
+	@media (max-width: 640px) {
+		.site-search :global(.pf-modal-header) { padding: 24px 20px 16px !important; }
+		.site-search :global(.pf-modal-close) { position: absolute !important; top: 16px !important; right: 12px !important; }
+		.search-heading { margin-bottom: 20px; }
+		.search-heading h2 { font-size: 32px; }
+		.search-heading p { font-size: 13px; }
+		.site-search :global(.pf-modal-body) { padding: 0 20px !important; }
+		.site-search :global(.pf-modal-footer) { padding: 10px 20px !important; }
+		.search-layout { display: block; }
+		.search-filters { position: static; max-height: none; overflow: visible; padding: 18px 0; border-right: 0; border-bottom: 1px solid var(--border); }
+		.site-search :global(.pf-filter-pane) { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 18px 24px !important; align-items: start; }
+		.site-search :global(.pf-filter-options) { max-height: 132px !important; }
+		.site-search :global(.pf-filter-checkbox) { min-height: 40px !important; }
+		.search-content { padding: 20px 0; }
+		.site-search :global(.search-title) { font-size: 22px; }
+		.site-search :global(.search-result) { padding: 22px 0; }
+	}
 </style>
