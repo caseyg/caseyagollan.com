@@ -67,3 +67,25 @@ bun run backfill-social-snapshots content/likes/2026-11-06-c1d5be8d.md --refresh
 Dry runs do not write to R2. Saving requires `--write --remote-media`, which uploads public images to the configured remote R2 bucket before saving their URLs in Markdown. Failed refreshes retain each unavailable original snapshot. The backfill command never commits, pushes, or deploys. Rendering and ordinary builds use the saved snapshot; they do not refresh social content.
 
 Scheduled Mastodon and Bluesky imports are documented in [PESOS](docs/indieweb-publishing/PESOS.md), including ten-minute polling, deduplication, credentials, and historical backfill.
+
+### Manual syndication
+
+Append `/syndicate` to any dated post permalink to open its syndication editor.
+Sign in through `/account` with your existing passkey, choose Bluesky, Mastodon,
+or both, edit the separate drafts, and send. The editor reads current GitHub
+content and saved delivery receipts to show existing social links. Independently
+published copies without saved links are not discovered by searching social accounts.
+This uses the native text-and-link syndicators; photos, video, and audio stay on
+the original page. Only published public posts can be syndicated here.
+
+The editor requires the existing internal owner authentication, `PUBLISHING_STATE`,
+GitHub publishing credentials, and credentials for each offered social destination.
+Manual sends work independently of the automatic delivery cron's enable switch.
+They share the automatic syndication receipts, so simultaneous/manual/automatic
+requests do not create duplicate posts. Drafts are recorded before sending and
+retained for any safe delivery retry. Uncertain sends remain blocked in the editor
+pending account review or reconciliation by the existing delivery workflow.
+
+Successful social URLs are added to the source Markdown's `syndication` metadata
+in the GitHub content repo. If the GitHub update fails, **Sync links to original
+post** retries that update from saved receipts without sending another social post.
