@@ -7,7 +7,7 @@ import type { PesosEnvironment } from '../src/lib/server/publishing/pesos/import
 const did = 'did:plc:abcdef';
 const url = `https://bsky.app/profile/${did}/post/abc123`;
 const activity: Activity = {id:`at://${did}/app.bsky.feed.like/xyz`,service:'bluesky',kind:'like',url,target:url,published:'2026-11-07T01:00:00Z',properties:{}};
-const mastodon = {id:'123',url:'https://social.coop/@caseyg/123',created_at:'2026-11-07T01:00:00Z',visibility:'public',content:'<p>Hello<script>alert(1)</script></p>',media_attachments:[{type:'image',url:'https://social.coop/image.jpg',description:'An image'}]};
+const mastodon = {account:{locked:false},id:'123',url:'https://social.coop/@caseyg/123',created_at:'2026-11-07T01:00:00Z',visibility:'public',content:'<p>Hello<script>alert(1)</script></p>',media_attachments:[{type:'image',url:'https://social.coop/image.jpg',description:'An image'}]};
 
 test('deduplication checks all existing site content, normalizes aliases, and keeps action identities separate',()=>{
  const actors = {'caseyagollan.com':did};
@@ -236,4 +236,39 @@ test('renamed captured posts refresh cached paths and permalinks without importi
  expect(cached.path).toBe('notes/2026-11-06-0.md');
  expect(cached.permalink).toBe('https://caseyagollan.com/2026/11/06/0/');
  expect(cached.properties['pesos-source']).toEqual(['mastodon:post:123']);
+});
+
+test('Mastodon interactions require public visibility and an explicitly unlocked original author',()=>{
+ for (const kind of ['like','post'] as const) for (const visibility of ['public','unlisted','private','direct',undefined]) for (const locked of [true,false,undefined]) {
+  const original = {...mastodon,visibility,account:locked === undefined ? undefined : {locked}};
+  const status = kind === 'post' ? {...mastodon,id:'boost',reblog:original} : original;
+  expect(!!mastodonActivity(status,kind,activity.published)).toBe(visibility === 'public' && locked === false);
+ }
+});
+
+test('Bluesky interactions validate public target and author before importing, retaining pagination for skipped records',async()=>{
+ for (const kind of ['like','repost'] as const) for (const restriction of ['none','missing','blocked','post-label','author-label','profile-label','private','unavailable']) {
+  const record = {uri:`at://${did}/app.bsky.feed.${kind}/xyz`,value:{createdAt:activity.published,subject:{uri:`at://${did}/app.bsky.feed.post/abc123`}}};
+  const post:any = {uri:record.value.subject.uri,record:{text:'Target'},author:{did}};
+  const profile:any = {did};
+  if(restriction === 'post-label') post.labels = [{val:'!no-unauthenticated'}];
+  if(restriction === 'author-label') post.author.labels = [{val:'!no-unauthenticated'}];
+  if(restriction === 'profile-label') profile.labels = [{val:'!no-unauthenticated'}];
+  if(restriction === 'private') profile.private = true;
+  const get = async(u:string,headers?:Record<string,string>)=>{
+   expect(headers).toBeUndefined();
+   if(u.includes('listRecords')) return {data:{records:[record],cursor:'next'}};
+   if(restriction === 'unavailable') throw new Error('Unavailable');
+   if(u.includes('getProfile')) return {data:profile};
+   return {data:{thread:restriction === 'missing' ? {$type:'app.bsky.feed.defs#notFoundPost'} : restriction === 'blocked' ? {$type:'app.bsky.feed.defs#blockedPost'} : {$type:'app.bsky.feed.defs#threadViewPost',post}}};
+  };
+  if(restriction === 'unavailable') {
+   await expect(blueskyPage(get,'https://bsky.social',did,kind)).rejects.toThrow('Unavailable');
+  } else {
+   const page = await blueskyPage(get,'https://bsky.social',did,kind);
+   expect(page.activities).toHaveLength(restriction === 'none' ? 1 : 0);
+   expect(page.ids).toEqual([record.uri]);
+   expect(page.cursor).toBe('next');
+  }
+ }
 });
