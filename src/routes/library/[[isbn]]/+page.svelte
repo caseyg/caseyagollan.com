@@ -574,6 +574,48 @@
 		return true;
 	}
 
+	let touchListeners: AbortController | undefined;
+
+	function installTouchSelection() {
+		touchListeners = new AbortController();
+		const options = { capture: true, signal: touchListeners.signal };
+		const pointers = new Set<number>();
+		let tap: { x: number; y: number } | null = null;
+		graphContainer.addEventListener('pointerdown', (event) => {
+			if (event.pointerType === 'mouse') return;
+			pointers.add(event.pointerId);
+			tap = pointers.size === 1 ? { x: event.clientX, y: event.clientY } : null;
+		}, options);
+		graphContainer.addEventListener('pointermove', (event) => {
+			if (tap && pointers.has(event.pointerId) && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) tap = null;
+		}, options);
+		graphContainer.addEventListener('pointercancel', (event) => {
+			pointers.delete(event.pointerId);
+			tap = null;
+		}, options);
+		graphContainer.addEventListener('pointerup', (event) => {
+			if (event.pointerType === 'mouse') return;
+			// Bypass the graph's stale hover-based touch click detection.
+			const isTap = tap && pointers.size === 1 && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) <= 8;
+			pointers.delete(event.pointerId);
+			tap = null;
+			if (!isTap) return;
+			const rect = Graph.renderer().domElement.getBoundingClientRect();
+			const raycaster = new THREE.Raycaster();
+			raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
+				1 - (event.clientY - rect.top) / rect.height * 2), Graph.camera());
+			const books: Node[] = Graph.graphData().nodes.filter((node: Node) => node.group === 'book' && node.__threeObj);
+			const hit = raycaster.intersectObjects(books.map((node) => node.__threeObj!), true)[0];
+			let object = hit?.object;
+			while (object && !books.some((node) => node.__threeObj === object)) object = object.parent || undefined;
+			const node = books.find((node) => node.__threeObj === object);
+			if (node && node.id !== selectedBook?.id) void selectBook(node);
+			else if (selectedBook) deselectBook();
+			else if (isGridModeActive) frameShelves();
+			else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+		}, options);
+	}
+
 	// Select a book and show its details
 	async function selectBook(node: Node, updateUrl = true) {
 		detailsRequest?.abort();
@@ -1046,7 +1088,8 @@
 			await new Promise((resolve) => requestAnimationFrame(resolve));
 
 			if (isDestroyed) return;
-			Graph = new ForceGraph3D(graphContainer)
+			Graph = new ForceGraph3D(graphContainer, { controlType: 'orbit' })
+				.enableNodeDrag(!isMobile)
 				.graphData(graphData)
 				.nodeLabel((graphNode) => {
 					const node = graphNode as Node;
@@ -1084,7 +1127,8 @@
 				.onNodeDragEnd(() => {
 					if (isGridModeActive) shelfBounds = getShelfBounds();
 				})
-				.onNodeClick((graphNode) => {
+				.onNodeClick((graphNode, event) => {
+					if (event instanceof PointerEvent && event.pointerType !== 'mouse') return;
 					const node = graphNode as Node;
 					if (node.group === 'book') {
 						// If a book is already selected
@@ -1103,7 +1147,8 @@
 						}
 					}
 				})
-				.onBackgroundClick(() => {
+				.onBackgroundClick((event) => {
+					if (event instanceof PointerEvent && event.pointerType !== 'mouse') return;
 					if (selectedBook) {
 						deselectBook();
 					} else {
@@ -1160,6 +1205,8 @@
 				TWO: THREE.TOUCH.DOLLY_PAN
 			};
 
+			installTouchSelection();
+
 			// Store original data for mode switching
 			originalGraphData = { ...Graph.graphData() };
 
@@ -1193,6 +1240,7 @@
 		if (!browser) return;
 
 		// Remove keyboard event listener
+		touchListeners?.abort();
 		detailsRequest?.abort();
 		window.removeEventListener('resize', resizeLibrary);
 		Graph?.controls().removeEventListener('change', constrainShelfCamera);
@@ -1388,6 +1436,8 @@
 
 			Graph.d3Force('custom', customForce);
 			Graph.numDimensions(2);
+			// Shelf gestures navigate the camera, even when they start over a book.
+			Graph.enableNodeDrag(false);
 
 			const filteredNodes = shelfNodes(currentData.nodes);
 
@@ -1419,6 +1469,7 @@
 		} else {
 			Graph.d3Force('custom', null);
 			Graph.numDimensions(3);
+			Graph.enableNodeDrag(!isMobile);
 
 			// Restore all original nodes and links
 			// Build a map for faster lookups instead of using .find() in a loop
