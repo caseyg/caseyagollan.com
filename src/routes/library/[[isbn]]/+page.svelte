@@ -1544,6 +1544,10 @@
 		const shelfWidth = booksPerShelf * spacingX;
 		const shelfStartX = -shelfWidth / 2; // Left edge of shelf
 		const labelOffsetX = shelfStartX; // Position for DDC label (left of shelf)
+		// Offset centered geometries so every book shares the row's bottom edge.
+		const shelfBookY = (node: Node, row: number) =>
+			-row * shelfHeight - bookHeight / 2 +
+			(node.__threeObj?.geometry?.parameters?.height || bookHeight) / 2;
 
 		if (sortModes[sortIndex] === 'dateacquired' || sortModes[sortIndex] === 'publicationYear') {
 			const sort = sortModes[sortIndex];
@@ -1570,7 +1574,7 @@
 					if (index % booksPerShelf === 0) rowWidth = 0;
 					const depth = book.__threeObj?.geometry?.parameters?.depth || bookDepth;
 					book.x = book.fx = shelfStartX + rowWidth + depth / 2;
-					book.y = book.fy = -(shelfRow + Math.floor(index / booksPerShelf)) * shelfHeight;
+					book.y = book.fy = shelfBookY(book, shelfRow + Math.floor(index / booksPerShelf));
 					book.z = book.fz = 0;
 					if (!shelfBookPresentations.has(book.id)) book.__threeObj?.rotation.set(0, Math.PI / 2, 0);
 					rowWidth += depth + 0.5;
@@ -1645,7 +1649,7 @@
 						const precedingWidth = booksInCategory.slice(rowStart, idx).reduce(
 							(sum, n) => sum + (n.__threeObj?.geometry?.parameters?.depth || bookDepth) + 0.5, 0);
 						const targetX = shelfStartX + precedingWidth + (book.__threeObj?.geometry?.parameters?.depth || bookDepth) / 2;
-						const targetY = -(currentShelfRow + rowWithinCategory) * shelfHeight;
+						const targetY = shelfBookY(book, currentShelfRow + rowWithinCategory);
 						const targetZ = 0;
 
 						book.x = (book.x || 0) + (targetX - (book.x || 0)) * easing;
@@ -1675,7 +1679,7 @@
 					(sum, n) => sum + (n.__threeObj?.geometry?.parameters?.depth || bookDepth) + 0.5, 0);
 
 				const targetX = shelfStartX + precedingWidth + (node.__threeObj?.geometry?.parameters?.depth || bookDepth) / 2;
-				const targetY = -row * shelfHeight;
+				const targetY = shelfBookY(node, row);
 				const targetZ = 0;
 
 				node.x = (node.x || 0) + (targetX - (node.x || 0)) * easing;
