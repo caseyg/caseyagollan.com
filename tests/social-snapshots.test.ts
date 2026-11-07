@@ -141,3 +141,20 @@ test('saved R2 images are served by the existing media route without publishing 
  expect(response.status).toBe(200); expect(response.headers.get('Content-Type')).toBe('image/png');
  expect(response.headers.get('Cache-Control')).toContain('immutable');
 });
+
+test('saved photo galleries retain all images, alt text and full-size links through sanitization', async () => {
+ const saved = await enrichSocialSnapshots(source(),fetcher);
+ const post = parsePost(saved,'likes','2026-11-06-test.md');
+ for (const count of [0,1,2,3,4,5]) {
+  const snapshot = post.socialSnapshots![0];
+  const images = Array.from({length:count},(_,i)=>({src:imageUrl,alt:`Photo ${i+1} <detail>`}));
+  const html = renderPostDetails({...post,socialSnapshots:[{...snapshot,images}]});
+  expect(html.includes(`social-images-${count}`)).toBe(count > 0);
+  expect(html.match(/class="social-attachment"/g)?.length ?? 0).toBe(count);
+  expect(html.match(/class="social-image-link"/g)?.length ?? 0).toBe(count);
+  if (count) {
+   expect(html).toContain(`href="${imageUrl}"`);
+   expect(html).toContain('alt="Photo 1 <detail>"');
+  }
+ }
+});
