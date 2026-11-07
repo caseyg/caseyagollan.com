@@ -93,7 +93,9 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   const account = post.account;
   avatar = typeof account.avatar_static === 'string' ? account.avatar_static : account.avatar;
   const handle = account.acct.includes('@') ? `@${account.acct}` : `@${account.acct}@${target.hostname}`;
-  result = {version:1,url,platform:'mastodon',author:{name:account.display_name || account.acct,handle,url:publicUrl(account.url).href},published:post.created_at,fetchedAt:new Date().toISOString(),html:cleanHtml(post.content),...(post.spoiler_text ? {warning:post.spoiler_text} : {})};
+  const localId = typeof post.id === 'string' && /^\d+$/.test(post.id) ? post.id : mastodonSource?.id;
+  const sourceUrl = mastodonSource && localId ? `${target.origin}/@${encodeURIComponent(account.acct).replace(/%40/g,'@')}/${localId}` : undefined;
+  result = {version:1,url,...(sourceUrl ? {sourceUrl} : {}),platform:'mastodon',author:{name:account.display_name || account.acct,handle,url:publicUrl(account.url).href},published:post.created_at,fetchedAt:new Date().toISOString(),html:cleanHtml(post.content),...(post.spoiler_text ? {warning:post.spoiler_text} : {})};
   media = (post.media_attachments ?? []).slice(0,4).filter((i:any)=>i.type === 'image' && typeof i.url === 'string').map((i:any)=>({url:i.preview_url || i.url,alt:typeof i.description === 'string' ? i.description : ''}));
   preview(post.card);
   if(post.sensitive && !result.warning) result.warning = 'Sensitive content';

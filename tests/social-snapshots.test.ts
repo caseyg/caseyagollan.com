@@ -191,7 +191,7 @@ test('archives federated website posts via the importing Mastodon instance while
  const canonical = 'https://rmendes.net/notes/2026/08/16/971cf';
  for (const kind of ['like','repost']) {
   const original = source(`${kind}-of`,canonical).replace('date:', `pesos-source: [mastodon:${kind}:117105821716778870]\ndate:`);
-  const status = {url:canonical,visibility:'public',account:{display_name:'Ricardo',acct:'rick@rmendes.net',url:'https://rmendes.net/'},content:'<p>Federated website post</p>',created_at:'2026-08-16T15:08:59.683Z',media_attachments:[]};
+  const status = {id:'117105821716778870',url:canonical,visibility:'public',account:{display_name:'Ricardo',acct:'rick@rmendes.net',url:'https://rmendes.net/'},content:'<p>Federated website post</p>',created_at:'2026-08-16T15:08:59.683Z',media_attachments:[]};
   const get = async (url:string) => {
    expect(url).toBe('https://social.coop/api/v1/statuses/117105821716778870');
    return Response.json(kind === 'repost' ? {reblog:status} : status);
@@ -199,10 +199,23 @@ test('archives federated website posts via the importing Mastodon instance while
   const saved = await enrichSocialSnapshots(original,get,{mastodonInstance:'https://social.coop'});
   const post = parsePost(saved,kind === 'like' ? 'likes' : 'reposts','2026-11-06-971cf.md');
   expect(post.socialSnapshots![0].url).toBe(canonical);
+  expect(post.socialSnapshots![0].sourceUrl).toBe('https://social.coop/@rick@rmendes.net/117105821716778870');
+  expect(renderPostDetails(post)).toContain('class="social-platform" href="https://social.coop/@rick@rmendes.net/117105821716778870"');
+  expect(renderPostDetails(post)).toContain(`class="u-${kind}-of" href="${canonical}"`);
   expect(renderPostDetails(post)).toContain('Federated website post');
   expect(renderPostDetails(post)).toContain('Ricardo');
   for(const changed of [{...status,url:'https://other.example/post'},{...status,visibility:'unlisted'},{...status,visibility:'private'}]) {
    expect(await enrichSocialSnapshots(original,async()=>Response.json(changed),{mastodonInstance:'https://social.coop'})).toBe(original);
   }
  }
+});
+
+
+test('rejects unsafe platform source links and keeps older snapshots renderable', async () => {
+ const saved = await enrichSocialSnapshots(source('like-of',masto),fetcher);
+ const post = parsePost(saved,'likes','2026-11-06-test.md');
+ expect(renderPostDetails(post)).toContain(`class="social-platform" href="${masto}"`);
+ const snapshot = post.socialSnapshots![0];
+ const { renderSocialSnapshot } = await import('../src/lib/social-snapshots');
+ expect(renderSocialSnapshot({...snapshot,sourceUrl:'javascript:alert(1)'})).toBe('');
 });
