@@ -2,6 +2,7 @@
 	import { onMount, mount, unmount } from 'svelte';
 	import PostMeta from './posts/PostMeta.svelte';
 	import '@pagefind/component-ui/css';
+	import { updateFilterDisplay } from '$lib/search-filter-display';
 
 	// Register browser-only custom elements after Svelte has hydrated the markup.
 	let filterPane: HTMLElement;
@@ -28,10 +29,16 @@
 				}
 			});
 		}
+		const filterObserver = new MutationObserver(() => updateFilterDisplay(filterPane));
+		filterObserver.observe(filterPane, { childList: true, subtree: true });
+		updateFilterDisplay(filterPane);
 		void import('@pagefind/component-ui');
 		// Pagefind moves its modal outside the navigation markup.
 		document.addEventListener('click', handleResultClick);
-		return () => document.removeEventListener('click', handleResultClick);
+		return () => {
+			filterObserver.disconnect();
+			document.removeEventListener('click', handleResultClick);
+		};
 	});
 
 	let { onResultClick }: { onResultClick?: (url: URL) => boolean } = $props();
