@@ -64,7 +64,7 @@ bun run backfill-social-snapshots content/likes/2026-11-06-c1d5be8d.md --write -
 bun run backfill-social-snapshots content/likes/2026-11-06-c1d5be8d.md --refresh --write --remote-media
 ```
 
-Dry runs do not write to R2. Saving requires `--write --remote-media`, which uploads public images to the configured remote R2 bucket before saving their URLs in Markdown. Failed refreshes retain each unavailable original snapshot. The backfill command never commits, pushes, or deploys. Rendering and ordinary builds use the saved snapshot; they do not refresh social content.
+Dry runs do not write to R2. Saving requires `--write --remote-media`, which uploads public images to the configured remote R2 bucket before saving their URLs in Markdown. Temporary network failures retain saved outer snapshots; confirmed deleted or restricted originals are removed on refresh. Missing or restricted quoted posts never reuse archived copies. The backfill command never commits, pushes, or deploys. Rendering and ordinary builds use the saved snapshot; they do not refresh social content.
 
 Scheduled Mastodon and Bluesky imports are documented in [PESOS](docs/indieweb-publishing/PESOS.md), including ten-minute polling, deduplication, credentials, and historical backfill.
 
@@ -114,3 +114,26 @@ Announce records retain the actual repost time. Live absolute media URLs replace
 archive-relative attachment paths. Previously published content is not removed by
 this command. The CLI should run against a fresh content checkout while the
 polling job is paused; its local writes do not acquire the production R2 lease.
+
+
+Social snapshots include native quoted posts (up to three nested levels), with
+independent public-author checks, R2 images and link previews at every level.
+Quoted text and authors are included in site search without creating another
+like, repost or site entry. New polling imports use this same capture path,
+including quotations in your authored posts.
+
+To upgrade existing cards and archive original photos:
+
+```sh
+bun run backfill-social-snapshots --write --remote-media --refresh --concurrency 8
+bun run backfill-social-snapshots --write --remote-media --own-images --concurrency 8
+```
+
+Backfill requests share job-local caches and per-host API budgets, honor quota
+reset headers, and reuse content-addressed R2 objects. Use `--platform bluesky`
+or `--platform mastodon` to narrow the work, `--limit N` for a sample, and
+`--resume-after ISO_TIMESTAMP` to skip already-refreshed snapshots. Remote uploads
+use the configured Cloudflare account and an existing token with R2 object-write
+permission; no media bytes are written to Git. Original photos retain their
+quality and alt text; photos that cannot be safely fetched remain at their
+existing URL. Review and commit Markdown separately before publishing.

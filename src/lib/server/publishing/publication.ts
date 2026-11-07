@@ -63,7 +63,9 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
   url: new URL(getPostPermalink(post), site).href,
   revision: await publicationRevision(post), targets: [...targets], text,
   title: post.title, published: post.date, sourcePath: post.filePath,
-  syndicateTo: [...new Set(post.syndicationTargets ?? [])]
+  // Imported activities may carry historical destination metadata. Never let a
+  // polling import or later snapshot refresh trigger another automatic POSSE send.
+  syndicateTo: post.properties?.['pesos-source']?.length ? [] : [...new Set(post.syndicationTargets ?? [])]
  };
 }
 

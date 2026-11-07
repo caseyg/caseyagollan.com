@@ -45,12 +45,30 @@ function event(p: Properties, depth = 0): string {
  return html;
 }
 /** Shared semantic HTML for archive cards, permalinks, feeds and delivery text. */
-export function renderPostDetails(post: Post): string {
+export function renderPostQuotations(post: Post): string {
+ return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):'';}).join('');
+}
+export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}={}): string {
  const p = post.properties ?? {};
  let html = '';
+ const reactions = new Map<string, {labels: string[]; classes: string[]}>();
  for (const [key,label] of [['like-of','Liked'],['repost-of','Reposted']]) for (const value of p[key] ?? []) if (typeof value === 'string') {
+  const reaction = reactions.get(value) ?? {labels:[],classes:[]};
+  if (!reaction.labels.includes(label)) { reaction.labels.push(label); reaction.classes.push(`u-${key}`); }
+  reactions.set(value,reaction);
+ }
+ if (post.indexActivities) {
+  const snapshot = post.socialSnapshots?.[0];
+  const target = snapshot?.url ?? post.indexActivities[0].target ?? [...reactions.keys()][0];
+  const kinds = new Set(post.indexActivities.map(activity=>activity.type));
+  const label = kinds.has('like') ? kinds.has('repost') ? 'Liked and reposted' : 'Liked' : 'Reposted';
+  const classes = [...reactions.keys()].length === 1 ? [...reactions.values()][0].classes.join(' ') : '';
+  html += `<p>${label} ${link(target,snapshot ? 'post' : target,classes)}</p>`;
+  if (snapshot) html += renderSocialSnapshot(snapshot);
+ } else for (const [value,reaction] of reactions) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === value);
-  html += `<p>${label} ${link(value, snapshot ? 'post' : value, `u-${key}`)}</p>`;
+  const label = reaction.labels.join(' and ').replace('and Reposted','and reposted');
+  html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
  }
  const reply = post.inReplyTo || text(p, 'in-reply-to');
@@ -68,5 +86,6 @@ export function renderPostDetails(post: Post): string {
   html += `<section class="p-itinerary h-leg"><p>${['transit-type','operator','number'].map(key => text(leg,key) ? `<span class="p-${key}">${escape(text(leg,key))}</span>` : '').filter(Boolean).join(' ')} · <span class="p-origin">${escape(text(leg,'origin'))}</span> → <span class="p-destination">${escape(text(leg,'destination'))}</span></p><p>${time(text(leg,'departure'),'departure')} – ${time(text(leg,'arrival'),'arrival')}</p></section>`;
  }
  for (const [key,label] of [['ate','Ate'],['drank','Drank']]) for (const value of p[key] ?? []) html += `<p>${label}: <span class="p-${key} h-food"><span class="p-name">${escape(text(properties(value),'name'))}</span></span></p>`;
+ if(!options.omitQuotations)html+=renderPostQuotations(post);
  return sanitizePublishingHtml(html);
 }

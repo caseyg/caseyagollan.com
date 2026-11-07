@@ -88,6 +88,7 @@
 			const response = await startAuthentication({ optionsJSON: challenge.options });
 			await api('/auth/passkey/login/verify', { id: challenge.id, response });
 			await refresh(); notice = 'You are signed in.';
+			if (page.url.searchParams.get('returnTo') === '/readwise') window.location.assign('/readwise');
 		});
 	}
 	async function register() {
@@ -159,6 +160,7 @@
 		</section>
 	{/if}
 	{#if session?.authenticated}
+		<p><a href="/readwise">Review Readwise bookmarks →</a></p>
 		<section aria-labelledby="passkeys-title">
 			<h2 id="passkeys-title">Passkeys</h2>
 			<p>Keep a second passkey so you can sign in if a device is unavailable.</p>

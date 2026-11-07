@@ -1,10 +1,10 @@
-import { getAllPosts, getPostsByDay } from '$lib/posts';
+import { getAllPosts, getPostsByDay, rollupIndexPosts } from '$lib/posts';
 import { error } from '@sveltejs/kit';
 
 export const PAGE_SIZE = 20;
 
 export async function loadPostsPage(pageParam = '1') {
-	const posts = await getAllPosts();
+	const posts = rollupIndexPosts(await getAllPosts());
 	const page = Number(pageParam);
 	const totalPages = Math.max(1, Math.ceil(posts.length / PAGE_SIZE));
 	if (!/^[1-9]\d*$/.test(pageParam) || !Number.isSafeInteger(page) || page > totalPages) {

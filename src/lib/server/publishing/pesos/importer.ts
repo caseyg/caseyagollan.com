@@ -1,9 +1,10 @@
-import { readDocument, createDocument, type Properties } from '../document';
+import { readDocument, createDocument, updateDocument, type Properties } from '../document';
+import { duplicateOriginal } from './duplicates';
 import { getPostPermalink, POST_TYPE_PLURALS } from '../../../posts-types';
 import { parsePost } from '../../parse-post';
 import { publicUrl, safePublicFetch, type PublicFetcher } from '../public-fetch';
 import { enrichSocialSnapshots } from '../social-snapshots';
-import { socialImageStore } from '../social-media';
+import { socialImageStore, archivePhotoProperties } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
 import { mastodonPage, blueskyPage, blueskyPublic, type Activity, type GetJson, type Page } from './providers';
 
@@ -33,9 +34,10 @@ export function identity(kind: Activity['kind'], value: string, actors: Record<s
   return `${kind}:${url.href}`;
  } catch { return `${kind}:${value}`; }
 }
-export function indexIdentities(entries: Pick<IndexEntry,'properties'>[], actors: Record<string,string> = {}): Set<string> {
+export function indexIdentities(entries: (Pick<IndexEntry,'properties'> & Partial<Pick<IndexEntry,'permalink'>>)[], actors: Record<string,string> = {}): Set<string> {
  const result = new Set<string>();
- for (const {properties:p} of entries) {
+ for (const {properties:p,permalink} of entries) {
+  if (permalink) result.add(identity('post',permalink,actors));
   const kind = p['like-of']?.length ? 'like' : p['repost-of']?.length ? 'repost' : 'post';
   for (const url of strings(p.syndication)) {
    result.add(identity('post',url,actors));
@@ -48,6 +50,9 @@ export function indexIdentities(entries: Pick<IndexEntry,'properties'>[], actors
  return result;
 }
 export function alreadyRepresented(activity: Activity, keys: Set<string>, actors: Record<string,string> = {}): boolean {
+ // Likes and reposts of a site's own post (including its syndicated copies)
+ // must not create another site entry. Other actions keep separate identities.
+ if (activity.kind !== 'post' && keys.has(identity('post',activity.target ?? activity.url,actors))) return true;
  return keys.has(`source:${activity.id}`) || keys.has(identity(activity.kind,activity.target ?? activity.url,actors)) || keys.has(identity(activity.kind,activity.url,actors));
 }
 function localTimestamp(value: string, timeZone: string): string {
@@ -78,7 +83,7 @@ export async function activityDocument(activity: Activity, timeZone: string, occ
 }
 
 export async function processPesos(env: PesosEnvironment, dependencies: Dependencies = {}) {
- const result = {imported:0,skipped:0,feeds:0,failedFeeds:0,dryRun:!!dependencies.dryRun};
+ const result = {imported:0,merged:0,skipped:0,feeds:0,failedFeeds:0,dryRun:!!dependencies.dryRun};
  if (env.PESOS_ENABLED !== 'true') return result;
  const config = publishingConfig(env);
  if (!config?.state) throw new Error('PESOS requires publishing configuration and state');
@@ -198,6 +203,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
   if (blue) for (const kind of ['post','like','repost'] as const) feeds.push({name:`bluesky:${kind}`,page:cursor=>blueskyPage(request,publicUrl(blue.service).origin,actors[blue.identifier.toLowerCase()],kind,cursor)});
   if (!feeds.length) throw new Error('No PESOS providers configured');
   const additions: {path:string;content:string}[] = [];
+  const updates = new Map<string,{path:string;content:string}>();
   for (const feed of feeds) {
    try {
    let full = false;
@@ -214,13 +220,32 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
      if (seen.has(activity.id)) continue;
      if (alreadyRepresented(activity,keys,actors)) { result.skipped++; seen.add(activity.id); continue; }
      // Give every feed capacity during a large historical backfill.
-     if (feedImports >= 2 || additions.length >= 12) { full = true; break; }
+     if (feedImports >= 2 || additions.length + updates.size >= 12) { full = true; break; }
      if (activity.service === 'bluesky' && activity.kind === 'post') {
       const uri = activity.kind === 'post' ? activity.id : activity.target!.replace(/^https:\/\/bsky.app\/profile\/([^/]+)\/post\/(.+)$/, 'at://$1/app.bsky.feed.post/$2');
       if (!await blueskyPublic(request,uri)) { result.skipped++; seen.add(activity.id); continue; }
      }
+     const match = duplicateOriginal(activity,[...entries,...additions.map(file=>({path:file.path,sha:'',permalink:'',properties:readDocument(file.content).properties}))]);
+     if (match) {
+      const staged = additions.find(file=>file.path === match.path);
+      let content = staged?.content ?? updates.get(match.path)?.content;
+      if (content === undefined) {
+       const blob = (await request(`${repo}/git/blobs/${match.sha}`,githubHeaders)).data;
+       if (blob.encoding !== 'base64' || typeof blob.content !== 'string' || blob.size > 1024*1024) throw new Error('Invalid content blob');
+       content = new TextDecoder('utf-8',{fatal:true}).decode(Uint8Array.from(atob(blob.content.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+      }
+      content = updateDocument(content,{add:{'pesos-source':[activity.id],syndication:[activity.url]}});
+      if (staged) staged.content = content;
+      else { updates.set(match.path,{path:match.path,content}); match.properties = readDocument(content).properties; }
+      keys.add(`source:${activity.id}`);
+      keys.add(identity('post',activity.url,actors));
+      seen.add(activity.id);
+      feedImports++; result.merged++;
+      continue;
+     }
+     if(activity.kind==='post'&&!dependencies.dryRun)activity.properties=await archivePhotoProperties(activity.properties,socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
-     if (activity.kind !== 'post') file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
+     if (activity.kind !== 'post' || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
      additions.push(file);
      feedImports++;
      keys.add(`source:${activity.id}`);
@@ -240,10 +265,11 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
     console.warn(JSON.stringify({event:'pesos_provider_failed',feed:feed.name}));
    }
   }
-  if (additions.length && !dependencies.dryRun) {
+  const changes = [...updates.values(),...additions];
+  if (changes.length && !dependencies.dryRun) {
    // Compare-and-swap against the exact Git revision used for deduplication.
    // A concurrent site post forces the entire scan to retry with a fresh index.
-   const response = await fetcher('https://api.github.com/graphql',{method:'POST',headers:{...githubHeaders,'Content-Type':'application/json'},redirect:'error',signal:AbortSignal.any([deadline,AbortSignal.timeout(15_000)]),body:JSON.stringify({query:'mutation Import($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }',variables:{input:{branch:{repositoryNameWithOwner:`${config.owner}/${config.repo}`,branchName:config.branch},expectedHeadOid:head,message:{headline:`Import ${additions.length} social activities (PESOS)`},fileChanges:{additions:additions.map(file=>({path:file.path,contents:btoa(Array.from(new TextEncoder().encode(file.content),b=>String.fromCharCode(b)).join(''))}))}}}})});
+   const response = await fetcher('https://api.github.com/graphql',{method:'POST',headers:{...githubHeaders,'Content-Type':'application/json'},redirect:'error',signal:AbortSignal.any([deadline,AbortSignal.timeout(15_000)]),body:JSON.stringify({query:'mutation Import($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }',variables:{input:{branch:{repositoryNameWithOwner:`${config.owner}/${config.repo}`,branchName:config.branch},expectedHeadOid:head,message:{headline:`Import ${additions.length} and consolidate ${result.merged} social activities (PESOS)`},fileChanges:{additions:changes.map(file=>({path:file.path,contents:btoa(Array.from(new TextEncoder().encode(file.content),b=>String.fromCharCode(b)).join(''))}))}}}})});
    if (!response.ok) throw new Error('PESOS commit unavailable');
    const data = await response.json() as {errors?:unknown[];data?:{createCommitOnBranch?:{commit?:{oid?:string}}}};
    if (data.errors?.length || !data.data?.createCommitOnBranch?.commit?.oid) throw new Error('PESOS commit conflicted or outcome unknown');

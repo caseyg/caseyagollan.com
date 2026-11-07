@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
 import libraryData from '../../../../static/library/graph.json';
 
-// Keep the library index prerendered while serving arbitrary ISBN deep links.
-export const prerender = 'auto';
+// Book-ID query links also need request-time HTML with their selected book.
+export const prerender = false;
 
 interface MinifiedNode {
 	i: string; // id
@@ -24,14 +24,9 @@ interface MinifiedNode {
 	t?: number; // points
 }
 
-interface MinifiedLink {
-	s: string; // source
-	t: string; // target
-}
-
 interface MinifiedGraphData {
 	nodes: MinifiedNode[];
-	links: MinifiedLink[];
+	links: { s: string; t: string }[];
 }
 
 interface Node {
@@ -52,16 +47,6 @@ interface Node {
 	h?: number;
 	averageColor?: string;
 	points?: number;
-}
-
-interface Link {
-	source: string;
-	target: string;
-}
-
-interface GraphData {
-	nodes: Node[];
-	links: Link[];
 }
 
 // Expand minified keys back to full names
@@ -85,32 +70,15 @@ function expandNode(n: MinifiedNode): Node {
 	return node;
 }
 
-function expandLink(l: MinifiedLink): Link {
-	return { source: l.s, target: l.t };
-}
-
-export const load: PageServerLoad = async ({ params, platform }) => {
-	let graphData: GraphData | null = null;
-
-	try {
-		// In Cloudflare, fetch from static path
-		// In dev/build, read from filesystem
-		if (platform?.env) {
-			// Running on Cloudflare - data will be loaded client-side
-			return { graphData: null, isbn: params.isbn || null };
-		}
-
-		// Development/build - read from static folder
-		const minified: MinifiedGraphData = libraryData;
-
-		graphData = {
-			nodes: minified.nodes.map(expandNode),
-			links: minified.links.map(expandLink)
-		};
-	} catch {
-		// Fallback - client will fetch
-		return { graphData: null, isbn: params.isbn || null };
-	}
-
-	return { graphData, isbn: params.isbn || null };
+// Resolve the requested book without sending or waiting for the full graph.
+export const load: PageServerLoad = async ({ params, url }) => {
+	const bookId = url.searchParams.get('book');
+	const match = (libraryData as MinifiedGraphData).nodes.find(
+		(node) => node.g === 'book' && (params.isbn ? node.n === params.isbn : bookId !== null && String(node.b) === bookId)
+	);
+	return {
+		graphData: null,
+		isbn: params.isbn || null,
+		initialBook: match ? expandNode(match) : null
+	};
 };

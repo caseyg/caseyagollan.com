@@ -21,6 +21,8 @@ function object(value: unknown): Record<string, unknown> {
 }
 
 function validatePath(path: string): void {
+	// Private integration ledger: IDs only, never preview data.
+	if (path === 'integrations/readwise.json') return;
 	const match = path.match(/^([^/]+)\/(\d{4})-(\d{2})-(\d{2})-(.+)\.md$/u);
 	if (!match || !folders.has(match[1]) || /[%?#]/.test(path) || !validPostParams({
 		year: match[2], month: match[3], day: match[4], slug: match[5]
