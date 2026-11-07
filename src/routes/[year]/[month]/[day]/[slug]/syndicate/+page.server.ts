@@ -9,7 +9,8 @@ import { editorSession, editorDestinations, sendEditorDrafts, validateEditorSubm
 export const prerender = false;
 
 export const load: PageServerLoad = async ({ request, params, platform, setHeaders, fetch }) => {
- setHeaders({ 'cache-control': 'no-store', 'content-security-policy': "frame-ancestors 'none'; base-uri 'self'; form-action 'self'", 'referrer-policy': 'no-referrer', 'x-robots-tag': 'noindex, nofollow' });
+ // Native form POSTs send Origin: null under no-referrer; preserve same-site origins.
+ setHeaders({ 'cache-control': 'no-store', 'content-security-policy': "frame-ancestors 'none'; base-uri 'self'; form-action 'self'", 'referrer-policy': 'same-origin', 'x-robots-tag': 'noindex, nofollow' });
  if (!validPostParams(params)) error(404, 'Post not found');
  const session = await editorSession(request, platform?.env ?? {});
  if (!session) return { signedIn: false as const };

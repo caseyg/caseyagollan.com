@@ -47,6 +47,7 @@ test('owner sessions and CSRF reject unauthenticated, expired, and cross-origin 
  await expect(validateEditorSubmission(request, session, 'secret')).resolves.toBeUndefined();
  await expect(validateEditorSubmission(request, null, 'secret')).rejects.toMatchObject({ status: 401 });
  await expect(validateEditorSubmission(request, session, 'wrong')).rejects.toMatchObject({ status: 403 });
+ await expect(validateEditorSubmission(new Request(request, { headers: { origin: 'null' } }), session, 'secret')).rejects.toMatchObject({ status: 403 });
  await expect(validateEditorSubmission(new Request(request, { headers: { origin: 'https://evil.example' } }), session, 'secret')).rejects.toMatchObject({ status: 403 });
 });
 
