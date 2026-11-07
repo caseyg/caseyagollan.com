@@ -1,3 +1,4 @@
+import { flattenSocialSnapshots } from '../src/lib/social-snapshots';
 import { Glob } from 'bun';
 import { loadWikiDocuments } from './wiki-search';
 import { readFile, rm } from 'node:fs/promises';
@@ -26,7 +27,7 @@ try {
 		const tags = [post.category ?? []].flat().join(', ');
 		const authors = postAuthors(post);
 		const title = postSearchTitle(post);
-		const displayAuthors = post.socialSnapshots?.length ? uniqueLabels(post.socialSnapshots.map(snapshot => snapshot.author.handle)) : ['Casey Gollan'];
+		const displayAuthors = post.socialSnapshots?.length ? uniqueLabels(flattenSocialSnapshots(post.socialSnapshots).map(snapshot => snapshot.author.handle)) : ['Casey Gollan'];
 		await add(getPostPermalink(post), title, post.type, { ...postSearchImage(post), date: post.date, tags, author: displayAuthors.join(', '), bookmark: post.bookmarkOf ?? '' }, `${post.title ? `<h1>${escape(post.title)}</h1>` : ''}${postSearchContent(post)}`, { Author: authors, Year: yearFilter(post.date) });
 	}
 	const graph = JSON.parse(await readFile('static/library/graph.json', 'utf8'));

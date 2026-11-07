@@ -3,7 +3,7 @@ import { getPostPermalink, POST_TYPE_PLURALS } from '../../../posts-types';
 import { parsePost } from '../../parse-post';
 import { publicUrl, safePublicFetch, type PublicFetcher } from '../public-fetch';
 import { enrichSocialSnapshots } from '../social-snapshots';
-import { socialImageStore } from '../social-media';
+import { socialImageStore, archivePhotoProperties } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
 import { mastodonPage, blueskyPage, blueskyPublic, type Activity, type GetJson, type Page } from './providers';
 
@@ -219,8 +219,9 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
       const uri = activity.kind === 'post' ? activity.id : activity.target!.replace(/^https:\/\/bsky.app\/profile\/([^/]+)\/post\/(.+)$/, 'at://$1/app.bsky.feed.post/$2');
       if (!await blueskyPublic(request,uri)) { result.skipped++; seen.add(activity.id); continue; }
      }
+     if(activity.kind==='post'&&!dependencies.dryRun)activity.properties=await archivePhotoProperties(activity.properties,socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
-     if (activity.kind !== 'post') file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
+     if (activity.kind !== 'post' || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
      additions.push(file);
      feedImports++;
      keys.add(`source:${activity.id}`);

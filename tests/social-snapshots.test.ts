@@ -5,16 +5,17 @@ import { renderPostDetails } from '../src/lib/utils/post-details';
 import { readDocument, updateDocument } from '../src/lib/server/publishing/document';
 
 const imageUrl = 'https://files.caseyagollan.com/publishing/social/' + 'a'.repeat(64) + '.png';
-const enrichSocialSnapshots = (markdown: string, fetcher?: Parameters<typeof enrich>[1], options: Parameters<typeof enrich>[2] = {}) => enrich(markdown,fetcher,{storeImage:async()=>imageUrl,...options});
+const enrichSocialSnapshots = (markdown: string, fetcher?: Parameters<typeof enrich>[1], options: Parameters<typeof enrich>[2] = {}) => enrich(markdown,fetcher ? async(url,init)=>url.includes('getProfile') ? Response.json({did:'did:plc:grant'}) : fetcher(url,init) : undefined,{storeImage:async()=>imageUrl,...options});
 
 const blue = 'https://bsky.app/profile/grantcuster.com/post/3mznoqvc3oc27';
 const masto = 'https://social.example/@writer/123';
 const source = (key = 'like-of', url = blue) => `---\n${key}:\n  - ${url}\ndate: 2026-11-06T19:08:30-05:00\n---\nMy note`;
 const png = Uint8Array.from([137,80,78,71,13,10,26,10,0]);
-const blueskyPost = { author: {displayName: 'Grant', handle: 'grantcuster.com'}, record: {text: 'Hello <world> 🌍', createdAt: '2026-11-06T12:00:00Z'}, embed: { $type: 'app.bsky.embed.images#view', images: [{fullsize: 'https://cdn.example/image.png',alt: 'An image'}] } };
+const blueskyPost = { author: {did:'did:plc:grant',displayName: 'Grant', handle: 'grantcuster.com'}, record: {text: 'Hello <world> 🌍', createdAt: '2026-11-06T12:00:00Z'}, embed: { $type: 'app.bsky.embed.images#view', images: [{fullsize: 'https://cdn.example/image.png',alt: 'An image'}] } };
 const fetcher = async (url: string) => {
+ if (url.includes('getProfile')) return Response.json({did:'did:plc:grant'});
  if (url.includes('getPostThread')) return Response.json({thread: {post: blueskyPost}});
- if (url.includes('/api/v1/statuses/')) return Response.json({visibility:'public', account:{display_name:'Writer',acct:'writer',url:'https://social.example/@writer'},content:'<p>Saved toot <script>bad()</script><a href="javascript:alert(1)">link</a></p>', created_at:'2026-11-06T12:00:00Z', spoiler_text:'CW', media_attachments:[]});
+ if (url.includes('/api/v1/statuses/')) return Response.json({visibility:'public', account:{locked:false,display_name:'Writer',acct:'writer',url:'https://social.example/@writer'},content:'<p>Saved toot <script>bad()</script><a href="javascript:alert(1)">link</a></p>', created_at:'2026-11-06T12:00:00Z', spoiler_text:'CW', media_attachments:[]});
  if(url === 'https://cdn.example/image.png') return new Response(png,{headers:{'content-type':'image/png'}});
  throw new Error('Unexpected URL '+url);
 };
@@ -57,7 +58,7 @@ test('failed, malformed and nonpublic responses retain plain links', async () =>
 test('does not save SVGs, oversized images or remote HTML image trackers', async () => {
  const saved = await enrichSocialSnapshots(source(),async(url)=>url.includes('getPostThread') ? Response.json({thread:{post:blueskyPost}}) : new Response('<svg/>',{headers:{'content-type':'image/svg+xml'}}));
  expect(saved).not.toContain('data:image');
- const mastodon = await enrichSocialSnapshots(source('like-of',masto),async()=>Response.json({visibility:'public',account:{acct:'a',display_name:'A',url:masto},content:'<p>Text</p><img src="https://tracker.example/pixel">',created_at:'2026-11-06T12:00:00Z',media_attachments:[]}));
+ const mastodon = await enrichSocialSnapshots(source('like-of',masto),async()=>Response.json({visibility:'public',account:{locked:false,acct:'a',display_name:'A',url:masto},content:'<p>Text</p><img src="https://tracker.example/pixel">',created_at:'2026-11-06T12:00:00Z',media_attachments:[]}));
  expect(renderPostDetails(parsePost(mastodon,'likes','2026-11-06-test.md'))).not.toContain('tracker.example');
 });
 test('ignores corrupt stored snapshots rather than rendering unsafe data', () => {
@@ -86,14 +87,14 @@ test('preserves Bluesky links and mentions using UTF-8 facet offsets', async () 
  expect(html).toContain('🌍 video ');
 });
 
-test('refresh retains each unavailable original when another target succeeds', async () => {
+test('refresh removes a deleted original when another target succeeds', async () => {
  const both = source().replace(`  - ${blue}`,`  - ${blue}\n  - ${masto}`);
  const before = await enrichSocialSnapshots(both,fetcher);
  const refreshed = await enrichSocialSnapshots(before,async url=>url.includes('getPostThread') ? Response.json({thread:{post:{...blueskyPost,record:{...blueskyPost.record,text:'Updated blue'}}}}) : url === 'https://cdn.example/image.png' ? fetcher(url) : new Response(null,{status:404}),{refresh:true});
  const post = parsePost(refreshed,'likes','2026-11-06-test.md');
- expect(post.socialSnapshots).toHaveLength(2);
+ expect(post.socialSnapshots).toHaveLength(1);
  expect(post.socialSnapshots!.find(s=>s.url===blue)!.html).toContain('Updated blue');
- expect(post.socialSnapshots!.find(s=>s.url===masto)!.html).toContain('Saved toot');
+ expect(post.socialSnapshots!.find(s=>s.url===masto)).toBeUndefined();
 });
 
 test('saves the author avatar and renders a Bluesky-style author header and readable timestamp', async () => {
@@ -163,7 +164,7 @@ test('saves platform link cards with escaped text and archived preview images', 
  for (const platform of ['mastodon','bluesky']) {
   const card = {url:'https://news.example/story',uri:'https://news.example/story',title:'Story <script>bad</script>',description:'A & B',provider_name:'News',image:'https://cdn.example/card.png',thumb:'https://cdn.example/card.png'};
   const saved = await enrichSocialSnapshots(source('like-of',platform === 'mastodon' ? masto : blue),async url=> {
-   if(url.includes('/api/v1/statuses/')) return Response.json({visibility:'public',account:{acct:'writer',url:masto},content:'<p>Read this</p>',created_at:'2026-11-06T12:00:00Z',card});
+   if(url.includes('/api/v1/statuses/')) return Response.json({visibility:'public',account:{locked:false,acct:'writer',url:masto},content:'<p>Read this</p>',created_at:'2026-11-06T12:00:00Z',card});
    if(url.includes('getPostThread')) return Response.json({thread:{post:{...blueskyPost,embed:{$type:'app.bsky.embed.recordWithMedia#view',media:{$type:'app.bsky.embed.external#view',external:card}}}}});
    return new Response(png,{headers:{'content-type':'image/png'}});
   });
@@ -191,7 +192,7 @@ test('archives federated website posts via the importing Mastodon instance while
  const canonical = 'https://rmendes.net/notes/2026/08/16/971cf';
  for (const kind of ['like','repost']) {
   const original = source(`${kind}-of`,canonical).replace('date:', `pesos-source: [mastodon:${kind}:117105821716778870]\ndate:`);
-  const status = {id:'117105821716778870',url:canonical,visibility:'public',account:{display_name:'Ricardo',acct:'rick@rmendes.net',url:'https://rmendes.net/'},content:'<p>Federated website post</p>',created_at:'2026-08-16T15:08:59.683Z',media_attachments:[]};
+  const status = {id:'117105821716778870',url:canonical,visibility:'public',account:{locked:false,display_name:'Ricardo',acct:'rick@rmendes.net',url:'https://rmendes.net/'},content:'<p>Federated website post</p>',created_at:'2026-08-16T15:08:59.683Z',media_attachments:[]};
   const get = async (url:string) => {
    expect(url).toBe('https://social.coop/api/v1/statuses/117105821716778870');
    return Response.json(kind === 'repost' ? {reblog:status} : status);
@@ -218,4 +219,64 @@ test('rejects unsafe platform source links and keeps older snapshots renderable'
  const snapshot = post.socialSnapshots![0];
  const { renderSocialSnapshot } = await import('../src/lib/social-snapshots');
  expect(renderSocialSnapshot({...snapshot,sourceUrl:'javascript:alert(1)'})).toBe('');
+});
+
+test('quoted Bluesky posts are independently fetched, rendered, stored and indexed',async()=>{
+ const quoteUri='at://did:plc:quote/app.bsky.feed.post/quoted1';
+ const outer={...blueskyPost,record:{...blueskyPost.record,embed:{$type:'app.bsky.embed.record',record:{uri:quoteUri}}},embed:undefined};
+ const quote={...blueskyPost,author:{did:'did:plc:quote',handle:'quote.example',displayName:'Quoted author'},record:{text:'Nested searchable text',createdAt:blueskyPost.record.createdAt},embed:{$type:'app.bsky.embed.external#view',external:{uri:'https://article.example/story',title:'Nested article',description:'Nested description',thumb:'https://cdn.example/image.png'}}};
+ const saved=await enrich(source(),async(url)=>url.includes('getProfile')?Response.json({did:new URL(url).searchParams.get('actor')}):url.includes('getPostThread')?Response.json({thread:{post:new URL(url).searchParams.get('uri')===quoteUri?quote:outer}}):new Response(png,{headers:{'content-type':'image/png'}}),{storeImage:async()=>imageUrl});
+ const post=parsePost(saved,'likes','2026-11-06-quote.md');
+ expect(post.socialSnapshots![0].quote?.author.name).toBe('Quoted author');
+ expect(post.socialSnapshots![0].quote?.preview?.image).toBe(imageUrl);
+ expect(renderPostDetails(post)).toContain('Nested searchable text');
+ expect(renderPostDetails(post)).toContain('social-quoted-post');
+ const {postSearchContent}=await import('../utils/search-document');
+ const {postAuthors}=await import('../utils/search-filters');
+ expect(postSearchContent(post)).toContain('Nested article');
+ expect(postAuthors(post)).toContain('@quote.example');
+});
+
+test('missing and restricted quoted originals never reuse a saved quote on refresh',async()=>{
+ const uri='at://did:plc:quote/app.bsky.feed.post/quoted1';
+ const outer={...blueskyPost,record:{...blueskyPost.record,embed:{record:{uri}}}};
+ const quote={...blueskyPost,author:{did:'did:plc:quote',handle:'quote.example'},record:{text:'Must disappear',createdAt:blueskyPost.record.createdAt},embed:undefined};
+ const run=(blocked:boolean,status=200)=>async(url:string)=>{
+  if(url.includes('getProfile'))return Response.json({did:new URL(url).searchParams.get('actor')});
+  if(url.includes('getPostThread'))return new URL(url).searchParams.get('uri')===uri ? status!==200?new Response(null,{status}):Response.json({thread:{post:{...quote,...(blocked?{labels:[{val:'!no-unauthenticated'}]}:{})}}}) : Response.json({thread:{post:outer}});
+  return new Response(png,{headers:{'content-type':'image/png'}});
+ };
+ const saved=await enrich(source(),run(false),{storeImage:async()=>imageUrl});expect(saved).toContain('Must disappear');
+ for(const [blocked,status] of [[true,200],[false,404]] as const){
+  const after=await enrich(saved,run(blocked,status),{refresh:true,storeImage:async()=>imageUrl});
+  expect(after).not.toContain('Must disappear');expect(after).toContain('Hello');
+ }
+});
+
+test('nested saved data has a finite depth and rejects cycles',async()=>{
+ const {socialSnapshots}=await import('../src/lib/social-snapshots');
+ const saved=await enrichSocialSnapshots(source(),fetcher);const outer=parsePost(saved,'likes','2026-11-06-test.md').socialSnapshots![0];
+ const cyclic={...outer};cyclic.quote=cyclic;expect(socialSnapshots([cyclic])).toEqual([]);
+ let deep=outer;for(let i=0;i<5;i++)deep={...outer,quote:deep};expect(socialSnapshots([deep])).toEqual([]);
+});
+
+test('native Mastodon quotes preserve the original author, text, and public preview',async()=>{
+ const outer={id:'123',url:masto,visibility:'public',account:{locked:false,acct:'writer',url:'https://social.example/@writer'},content:'<p>Outer</p>',created_at:'2026-11-06T12:00:00Z',media_attachments:[],quote:{state:'accepted',quoted_status:{id:'456',url:'https://remote.example/@quoted/99'}}};
+ const quote={id:'456',url:'https://remote.example/@quoted/99',visibility:'public',account:{locked:false,acct:'quoted@remote.example',url:'https://remote.example/@quoted'},content:'<p>Mastodon quoted text</p>',created_at:'2026-11-05T12:00:00Z',media_attachments:[]};
+ const saved=await enrich(source('repost-of',masto),async url=>Response.json(url.endsWith('/456')?quote:outer),{storeImage:async()=>imageUrl});
+ expect(parsePost(saved,'reposts','2026-11-06-test.md').socialSnapshots![0].quote?.html).toContain('Mastodon quoted text');
+ const privateQuote=await enrich(saved,async url=>Response.json(url.endsWith('/456')?{...quote,account:{...quote.account,locked:true}}:outer),{refresh:true,storeImage:async()=>imageUrl});
+ expect(privateQuote).toContain('Outer');expect(privateQuote).not.toContain('Mastodon quoted text');
+});
+
+test('authored photos are archived without resizing or changing alt text and dates',async()=>{
+ const {archivePhotoProperties}=await import('../src/lib/server/publishing/social-media');
+ const bytes=new Uint8Array(2*1024*1024);bytes.set(png);
+ const original={published:['2026-01-01T12:00:00Z'],photo:[{url:'https://cdn.example/full.png',alt:'Full resolution',width:2000}]};
+ let stored=0;
+ const result=await archivePhotoProperties(original,async(data)=>{stored=data.length;return imageUrl;},async()=>new Response(bytes,{headers:{'content-type':'image/png'}}));
+ expect(stored).toBe(bytes.length);expect(result.published).toEqual(original.published);
+ expect(result.photo).toEqual([{url:imageUrl,alt:'Full resolution',width:2000}]);
+ expect(original.photo[0].url).toBe('https://cdn.example/full.png');
+ expect((await archivePhotoProperties(original,async()=>{throw new Error('must not store SVG');},async()=>new Response('<svg/>',{headers:{'content-type':'image/svg+xml'}}))).photo).toEqual(original.photo);
 });
