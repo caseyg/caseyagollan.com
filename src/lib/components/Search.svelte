@@ -3,7 +3,12 @@
 	import '@pagefind/component-ui/css';
 
 	// Register browser-only custom elements after Svelte has hydrated the markup.
-	onMount(() => { void import('@pagefind/component-ui'); });
+	let filterPane: HTMLElement;
+	onMount(() => {
+		// Keep the mobile pane compact while preserving the same visible filter groups.
+		filterPane.setAttribute('open', window.matchMedia('(max-width: 640px)').matches ? '' : 'Type');
+		void import('@pagefind/component-ui');
+	});
 
 	const resultTemplate = `<script type="text/pagefind-template">
 		<li class="search-result" id="{{ aria.result_id }}">
@@ -26,14 +31,14 @@
 		<pagefind-modal-header>
 			<div class="search-heading">
 				<h2>Search</h2>
-				<p>Posts, books &amp; things worth keeping.</p>
+				<p>Posts &amp; library</p>
 			</div>
 			<pagefind-input placeholder="Search posts and books…"></pagefind-input>
 		</pagefind-modal-header>
 		<pagefind-modal-body>
 			<div class="search-layout">
 				<aside class="search-filters" aria-label="Search filters">
-					<pagefind-filter-pane open="Type,Tag" sort="count-desc"></pagefind-filter-pane>
+					<pagefind-filter-pane bind:this={filterPane} open="Type" sort="count-desc"></pagefind-filter-pane>
 				</aside>
 				<div class="search-content">
 					<pagefind-summary></pagefind-summary>
@@ -108,6 +113,10 @@
 	.search-filters { position: sticky; top: 0; max-height: 58dvh; overflow-y: auto; padding: 24px 24px 24px 0; border-right: 1px solid var(--border); }
 	.search-content { min-width: 0; padding: 24px 0; }
 	.site-search :global(.pf-filter-pane) { padding: 0 !important; border: 0 !important; background: transparent !important; gap: 24px !important; }
+	.site-search :global([data-filter-name="Type"]) { order: 0 !important; }
+	.site-search :global([data-filter-name="Year"]) { order: 1 !important; }
+	.site-search :global([data-filter-name="Tag"]) { order: 2 !important; }
+	.site-search :global([data-filter-name="Author"]) { order: 3 !important; }
 	.site-search :global(.pf-filter-group-title) { font-size: 13px !important; text-transform: none !important; letter-spacing: 0 !important; font-weight: 500 !important; color: white !important; }
 	.site-search :global(.pf-filter-options) { max-height: 196px !important; overflow-y: auto !important; margin-top: 12px !important; scrollbar-width: thin; }
 	.site-search :global(.pf-filter-checkbox) { overflow-wrap: anywhere !important; flex-shrink: 0 !important; line-height: 1.5 !important; min-height: 34px !important; font-size: 13px !important; gap: 10px !important; padding: 3px 0 !important; }
@@ -121,8 +130,8 @@
 	.site-search :global(.search-title) { display: block; color: white; font-size: 23px; font-weight: 400; line-height: 1.25; letter-spacing: -.015em; text-decoration: none; }
 	.site-search :global(.search-title:hover) { text-decoration: underline; text-underline-offset: .15em; }
 	.site-search :global(.search-author) { margin-top: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-	.site-search :global(.search-result p) { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.6; margin: 12px 0 0; color: var(--text-secondary); }
-	.site-search :global(.search-result mark) { background: var(--accent); color: white; }
+	.site-search :global(.search-result p) { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.6; margin: 12px 0 0; color: var(--text-secondary); }
+	.site-search :global(.search-result mark) { background: transparent; color: white; font-weight: 600; text-decoration: underline; text-underline-offset: .15em; text-decoration-color: rgb(255 255 255 / 45%); }
 	@media (max-width: 640px) {
 		.site-search :global(.pf-modal-header) { padding: 24px 20px 16px !important; }
 		.site-search :global(.pf-modal-close) { position: absolute !important; top: 16px !important; right: 12px !important; }
