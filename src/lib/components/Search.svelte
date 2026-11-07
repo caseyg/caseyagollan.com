@@ -66,9 +66,9 @@
 
 <div class="site-search">
 	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
-	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts and books">
+	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts, books, and wiki">
 		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->
-		<button class="pf-trigger-btn" type="button" aria-label="Search posts and books" aria-haspopup="dialog" aria-expanded="false">
+		<button class="pf-trigger-btn" type="button" aria-label="Search posts, books, and wiki" aria-haspopup="dialog" aria-expanded="false">
 			<span class="pf-trigger-icon" aria-hidden="true"></span>
 		</button>
 	</pagefind-modal-trigger>
@@ -76,9 +76,9 @@
 		<pagefind-modal-header>
 			<div class="search-heading">
 				<h2>Search</h2>
-				<p>Posts &amp; library</p>
+				<p>Posts, library &amp; wiki</p>
 			</div>
-			<pagefind-input placeholder="Search posts and books…"></pagefind-input>
+			<pagefind-input placeholder="Search posts, books, and wiki…"></pagefind-input>
 		</pagefind-modal-header>
 		<pagefind-modal-body>
 			<div class="search-layout">

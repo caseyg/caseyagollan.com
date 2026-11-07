@@ -1,4 +1,5 @@
 import { Glob } from 'bun';
+import { loadWikiDocuments } from './wiki-search';
 import { readFile, rm } from 'node:fs/promises';
 import * as pagefind from 'pagefind';
 import { parsePost, isPublicPost, PLURAL_TO_SINGULAR } from '../src/lib/server/parse-post';
@@ -39,9 +40,13 @@ try {
 		const metadata = { author: authors.join(', '), isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: tags.join(', ') };
 		await add(url, book.i, 'book', metadata, `<h1>${escape(book.i)}</h1><p>${escape([details.summary, details.publication, details.review, details.comments, Object.values(details.subject ?? {}).flat().join(', ')].filter(Boolean).join(' '))}</p><p>${escape([authors.join('; '), metadata.year, metadata.isbn, metadata.tags].filter(Boolean).join(' · '))}</p>`, { Tag: tags, Author: authors, Year: yearFilter(book.y) });
 	}
+	const wiki = await loadWikiDocuments();
+	for (const page of wiki) {
+		await add(page.url, page.title, 'wiki', { author: 'Casey Gollan', tags: page.tags.join(', '), year: page.year[0] ?? '' }, `<h1>${escape(page.title)}</h1>${page.html}`, { Tag: page.tags, Author: ['Casey Gollan'], Year: page.year });
+	}
 	await rm('static/pagefind', { recursive: true, force: true });
 	assertSuccess(await index.writeFiles({ outputPath: 'static/pagefind' }));
-	console.log(`Pagefind indexed ${count} posts and books.`);
+	console.log(`Pagefind indexed ${count} posts, books, and wiki pages (${wiki.length} wiki pages).`);
 } finally {
 	await pagefind.close();
 }
