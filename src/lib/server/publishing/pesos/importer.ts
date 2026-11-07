@@ -33,9 +33,10 @@ export function identity(kind: Activity['kind'], value: string, actors: Record<s
   return `${kind}:${url.href}`;
  } catch { return `${kind}:${value}`; }
 }
-export function indexIdentities(entries: Pick<IndexEntry,'properties'>[], actors: Record<string,string> = {}): Set<string> {
+export function indexIdentities(entries: (Pick<IndexEntry,'properties'> & Partial<Pick<IndexEntry,'permalink'>>)[], actors: Record<string,string> = {}): Set<string> {
  const result = new Set<string>();
- for (const {properties:p} of entries) {
+ for (const {properties:p,permalink} of entries) {
+  if (permalink) result.add(identity('post',permalink,actors));
   const kind = p['like-of']?.length ? 'like' : p['repost-of']?.length ? 'repost' : 'post';
   for (const url of strings(p.syndication)) {
    result.add(identity('post',url,actors));
@@ -48,6 +49,9 @@ export function indexIdentities(entries: Pick<IndexEntry,'properties'>[], actors
  return result;
 }
 export function alreadyRepresented(activity: Activity, keys: Set<string>, actors: Record<string,string> = {}): boolean {
+ // Likes and reposts of a site's own post (including its syndicated copies)
+ // must not create another site entry. Other actions keep separate identities.
+ if (activity.kind !== 'post' && keys.has(identity('post',activity.target ?? activity.url,actors))) return true;
  return keys.has(`source:${activity.id}`) || keys.has(identity(activity.kind,activity.target ?? activity.url,actors)) || keys.has(identity(activity.kind,activity.url,actors));
 }
 function localTimestamp(value: string, timeZone: string): string {

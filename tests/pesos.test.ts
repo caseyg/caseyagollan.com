@@ -17,9 +17,21 @@ test('deduplication checks all existing site content, normalizes aliases, and ke
  expect(alreadyRepresented({...activity,kind:'post'},keys,actors)).toBe(false);
  const postKeys = indexIdentities([{properties:{syndication:[url]}}]);
  expect(alreadyRepresented({...activity,kind:'post'},postKeys)).toBe(true);
- expect(alreadyRepresented(activity,postKeys)).toBe(false);
+ expect(alreadyRepresented(activity,postKeys)).toBe(true);
+ expect(alreadyRepresented({...activity,kind:'repost'},postKeys)).toBe(true);
  expect(identity('like','https://social.coop/users/caseyg/statuses/123?x=y')).toBe(identity('like',mastodon.url));
  expect(identity('like',`at://${did}/app.bsky.feed.post/abc123`)).toBe(identity('like',url));
+});
+test('self-likes match site permalinks and federated aliases without suppressing unrelated likes',()=>{
+ const permalink = 'https://caseyagollan.com/2025/09/07/indiekit-progress/';
+ const canonical = 'https://social.coop/@caseyg/115164254382519869';
+ const alias = 'https://other.example/@caseyg@social.coop/456';
+ const actors = {[alias]:canonical};
+ const keys = indexIdentities([{permalink,properties:{syndication:[canonical]}}],actors);
+ for (const target of [permalink.slice(0,-1),canonical,alias]) {
+  expect(alreadyRepresented({...activity,target},keys,actors)).toBe(true);
+ }
+ expect(alreadyRepresented(activity,keys,actors)).toBe(false);
 });
 test('source record identity survives changes to target URLs and deleted site entries remain represented',()=>{
  expect(alreadyRepresented(activity,indexIdentities([{properties:{'pesos-source':[activity.id],deleted:['true']}}]))).toBe(true);
@@ -109,6 +121,21 @@ test('site-originated social posts are skipped before any commit',async()=>{
  const h=harness({existing:`---\ndate: 2026-11-06T20:00:00-05:00\nsyndication:\n  - ${mastodon.url}\n---\nSite original`});
  const result=await processPesos(h.env,{fetcher:h.fetcher});
  expect(result.imported).toBe(0); expect(result.skipped).toBe(1);expect(h.writes).toHaveLength(0);
+});
+test('self-likes are skipped by live syndication metadata and outbound receipts',async()=>{
+ for (const receipt of [false,true]) {
+  const h=harness({existing:`---\ndate: 2026-11-06T20:00:00-05:00\n${receipt ? '' : `syndication: [${mastodon.url}]\n`}---\nSite original`});
+  if (receipt) {
+   const source='https://caseyagollan.com/2026/11/06/0/';
+   const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${source}\0mastodon`))),b=>b.toString(16).padStart(2,'0')).join('');
+   h.files.set(`private/syndication/${hash}.json`,{etag:'receipt',value:JSON.stringify({status:'sent',url:mastodon.url})});
+  }
+  const fetcher = (async(input,init)=>String(input).includes('/favourites') ? Response.json([mastodon]) : h.fetcher(input,init)) as typeof fetch;
+  const result=await processPesos(h.env,{fetcher});
+  expect(result.imported).toBe(0);
+  expect(result.skipped).toBe(2);
+  expect(h.writes).toHaveLength(0);
+ }
 });
 test('a concurrent site write fails closed and leaves scan cursors unadvanced',async()=>{
  const h=harness({conflict:true});
