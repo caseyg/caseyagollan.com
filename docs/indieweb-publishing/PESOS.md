@@ -103,8 +103,17 @@ an import permanently.
 Worker logs include `pesos_scan` counts, `pesos_scan_failed`, and
 `pesos_provider_failed` with a feed name. Provider feed failures preserve their
 checkpoints and allow other feeds to proceed. A missing/invalid Mastodon token
-therefore need not stop Bluesky. Credentials and upstream response bodies are
-never logged. `processPesos(env, {dryRun: true})` runs the same planning and identity
+therefore need not stop Bluesky. An unavailable historical Mastodon alias also
+pauses Mastodon feeds with their checkpoints intact while Bluesky continues.
+Content index and delivery receipt reads use at most four concurrent operations;
+in-flight reads finish before a failed scan releases its lease. Credentials and upstream response bodies are
+never logged. Structured `pesos_stage` and `pesos_progress` events identify the
+current phase, elapsed milliseconds, request count, and indexed file count.
+`pesos_request_failed` adds the destination hostname and HTTP status when available;
+`pesos_failed` and `pesos_feed_failed` retain the phase and a fixed error category.
+Only explicitly allowed internal failure reasons are logged; arbitrary exception
+messages, full URLs, headers, and response bodies are omitted.
+`processPesos(env, {dryRun: true})` runs the same planning and identity
 checks without committing, advancing checkpoints, or uploading snapshot images;
 it can populate private index caches and acquire/release the scan lease.
 
