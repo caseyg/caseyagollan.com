@@ -3,6 +3,7 @@ import { sanitizePublishingHtml } from './utils/sanitizeHtml';
 export interface SocialSnapshot {
  version: 1;
  url: string;
+ sourceUrl?: string;
  platform: 'bluesky' | 'mastodon';
  author: { name: string; handle: string; url: string; avatar?: string };
  published: string;
@@ -25,7 +26,7 @@ export function savedImageUrl(value: unknown): value is string {
 }
 export function socialSnapshots(value: unknown): SocialSnapshot[] {
  if (!Array.isArray(value)) return [];
- return value.filter((s): s is SocialSnapshot => !!s && typeof s === 'object' && s.version === 1 && https(s.url) && ['bluesky','mastodon'].includes(s.platform) &&
+ return value.filter((s): s is SocialSnapshot => !!s && typeof s === 'object' && s.version === 1 && https(s.url) && (s.sourceUrl === undefined || https(s.sourceUrl)) && ['bluesky','mastodon'].includes(s.platform) &&
   s.author && typeof s.author.name === 'string' && typeof s.author.handle === 'string' && https(s.author.url) && typeof s.html === 'string' && (s.author.avatar === undefined || savedImageUrl(s.author.avatar)) &&
   typeof s.published === 'string' && Number.isFinite(Date.parse(s.published)) && typeof s.fetchedAt === 'string' &&
   (s.warning === undefined || typeof s.warning === 'string') && Array.isArray(s.images) && s.images.length <= 5 &&
@@ -46,5 +47,5 @@ export function renderSocialSnapshot(snapshot: SocialSnapshot): string {
  const date = new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'America/New_York'}).format(new Date(s.published));
  const clock = new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'}).format(new Date(s.published));
  const avatar = s.author.avatar ? `<img class="social-avatar" src="${escape(s.author.avatar)}" alt="" loading="lazy">` : '';
- return `<blockquote class="social-snapshot"><header><a class="social-author" href="${escape(s.author.url)}">${avatar}<span class="social-author-details"><strong class="social-author-name">${escape(s.author.name)}</strong><span class="social-author-handle">${escape(s.author.handle)}</span></span></a><a class="social-platform" href="${escape(s.url)}" aria-label="View original post">${s.platform === 'bluesky' ? 'Bluesky' : 'Mastodon'} ↗</a></header>${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}<footer><a href="${escape(s.url)}"><time datetime="${escape(s.published)}">${escape(clock)} · ${escape(date)}</time></a></footer></blockquote>`;
+ return `<blockquote class="social-snapshot"><header><a class="social-author" href="${escape(s.author.url)}">${avatar}<span class="social-author-details"><strong class="social-author-name">${escape(s.author.name)}</strong><span class="social-author-handle">${escape(s.author.handle)}</span></span></a><a class="social-platform" href="${escape(s.sourceUrl ?? s.url)}" aria-label="View original post">${s.platform === 'bluesky' ? 'Bluesky' : 'Mastodon'} ↗</a></header>${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}<footer><a href="${escape(s.url)}"><time datetime="${escape(s.published)}">${escape(clock)} · ${escape(date)}</time></a></footer></blockquote>`;
 }
