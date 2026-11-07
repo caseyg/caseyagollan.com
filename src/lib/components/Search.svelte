@@ -23,7 +23,12 @@
 
 <div class="site-search">
 	<pagefind-config bundle-path="/pagefind/"></pagefind-config>
-	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts and books"></pagefind-modal-trigger>
+	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts and books">
+		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->
+		<button class="pf-trigger-btn" type="button" aria-label="Search posts and books" aria-haspopup="dialog" aria-expanded="false">
+			<span class="pf-trigger-icon" aria-hidden="true"></span>
+		</button>
+	</pagefind-modal-trigger>
 	<pagefind-modal>
 		<pagefind-modal-header>
 			<pagefind-input placeholder="Search posts and books…"></pagefind-input>
@@ -49,7 +54,12 @@
 		--pf-input-height: 44px;
 		--pf-result-title-font-size: 18px;
 		display: flex;
+		flex: 0 0 47px;
+		width: 47px;
+		height: 48px;
 	}
+	/* The unupgraded modal's children must never participate in the nav layout. */
+	pagefind-modal:not(:defined) { display: none; }
 	pagefind-modal-trigger {
 		--pf-background: blue;
 		--pf-text-muted: white;
@@ -58,6 +68,8 @@
 		--pf-input-height: 48px;
 		--pf-border-radius: 5px;
 		width: 47px;
+		height: 48px;
+		flex: none;
 	}
 	pagefind-modal-trigger:hover { --pf-background: rgb(73, 73, 255); }
 	.site-search :global(.search-result) { padding: 18px 0; border-top: 1px solid #ddd; list-style: none; }
