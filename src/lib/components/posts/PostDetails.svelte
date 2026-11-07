@@ -25,6 +25,10 @@
  .post-details :global(.social-post-content p) { margin: 0 0 0.85rem; }
  .post-details :global(.social-snapshot a) { color: inherit; text-decoration: underline; text-underline-offset: 0.15em; }
  .post-details :global(.social-snapshot a:hover) { text-decoration: underline; }
+ .post-details :global(.social-snapshot header a),
+ .post-details :global(.social-snapshot footer a) { text-decoration: none; }
+ .post-details :global(.social-snapshot header a:hover),
+ .post-details :global(.social-snapshot footer a:hover) { text-decoration: underline; }
  .post-details :global(.social-images) { margin-top: 0.75rem; }
  .post-details :global(.social-image-link) { display: block; min-width: 0; min-height: 0; }
  .post-details :global(.social-image-link:focus-visible) { outline: 3px solid currentColor; outline-offset: -3px; }
