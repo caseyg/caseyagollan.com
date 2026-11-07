@@ -31,7 +31,7 @@ export interface Post {
 	channel?: string;
 	socialSnapshots?: SocialSnapshot[];
 	properties?: Record<string, unknown[]>;
-	indexActivities?: { type: 'like' | 'repost'; date: string; permalink: string; target?: string; network?: string; dateSource?: string }[];
+	indexActivities?: { type: 'like' | 'repost'; date: string; permalink: string; target?: string; network?: string; author?: string; dateSource?: string }[];
 	filePath: string;
 }
 
@@ -135,6 +135,7 @@ export function rollupIndexPosts(posts: Post[]): Post[] {
    const target = String(p.properties?.[p.type === 'like' ? 'like-of' : 'repost-of']?.[0]);
    const saved = p.socialSnapshots?.find(s => targetSnapshot(s,indexContentUrl(target)!));
    return {type:p.type as 'like' | 'repost',date:p.date,permalink:getPostPermalink(p),target,
+    author:saved?.author.name,
     dateSource:typeof p.properties?.['pesos-date-source']?.[0] === 'string' ? p.properties['pesos-date-source'][0] : undefined,
     network:saved ? saved.platform === 'bluesky' ? 'Bluesky' : 'Mastodon' : new URL(target).hostname === 'bsky.app' ? 'Bluesky' : new URL(target).hostname};
   }).sort((a,b) => a.type.localeCompare(b.type) || Date.parse(b.date)-Date.parse(a.date));

@@ -73,7 +73,7 @@
 			<summary>{post.indexActivities.length} activities</summary>
 			<ul>
 				{#each post.indexActivities as activity (activity.permalink)}
-					<li><a href={activity.permalink}>{activity.type === 'like' ? 'Liked' : 'Reposted'}{activity.network ? ` on ${activity.network}` : ''}</a> · {activity.dateSource === 'original-post' ? 'post dated ' : ''}<time datetime={activity.date}>{activity.date.slice(0, 10)}</time></li>
+					<li><a href={activity.permalink}>{activity.type === 'like' ? 'Liked' : 'Reposted'}{activity.author ? ` ${activity.author}’s post` : ''}{activity.network ? ` on ${activity.network}` : ''}</a> · {activity.dateSource === 'original-post' ? 'post dated ' : ''}<time datetime={activity.date}>{activity.date.slice(0, 10)}</time></li>
 				{/each}
 			</ul>
 		</details>
