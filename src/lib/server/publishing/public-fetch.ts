@@ -24,19 +24,19 @@ function publicAddress(address: string): boolean {
  const [a,b,c] = octets;
  return !(a===0 || a===10 || a===127 || a>=224 || (a===100 && b>=64 && b<=127) || (a===169 && b===254) || (a===172 && b>=16 && b<=31) || (a===192 && (b===168 || b===0 || (b===88 && c===99))) || (a===198 && (b===18 || b===19 || (b===51 && c===100))) || (a===203 && b===0 && c===113));
 }
-async function bounded(response: Response, signal?: AbortSignal): Promise<Response> {
- if (Number(response.headers.get('content-length')) > MAX_BYTES) { await response.body?.cancel(); throw new DeliveryError('Response exceeds body limit', false); }
+async function bounded(response: Response, signal?: AbortSignal, maximumBytes=MAX_BYTES): Promise<Response> {
+ if (Number(response.headers.get('content-length')) > maximumBytes) { await response.body?.cancel(); throw new DeliveryError('Response exceeds body limit', false); }
  if (!response.body) return response;
  const reader=response.body.getReader(); const chunks: Uint8Array[]=[]; let size=0;
  const abort=()=>{ void reader.cancel(); }; signal?.addEventListener('abort',abort,{once:true});
- try { while(true) { if(signal?.aborted) throw new DeliveryError('Public fetch timed out',true); const {value,done}=await reader.read(); if(signal?.aborted) throw new DeliveryError('Public fetch timed out',true); if(done) break; size+=value.length; if(size>MAX_BYTES) throw new DeliveryError('Response exceeds body limit',false); chunks.push(value); } }
+ try { while(true) { if(signal?.aborted) throw new DeliveryError('Public fetch timed out',true); const {value,done}=await reader.read(); if(signal?.aborted) throw new DeliveryError('Public fetch timed out',true); if(done) break; size+=value.length; if(size>maximumBytes) throw new DeliveryError('Response exceeds body limit',false); chunks.push(value); } }
  catch(error) { await reader.cancel().catch(()=>{}); throw error; }
  finally { signal?.removeEventListener('abort',abort); }
  const bytes=new Uint8Array(size); let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
  const result=new Response(bytes,{status:response.status,statusText:response.statusText,headers:response.headers});
  Object.defineProperty(result,'url',{value:response.url,configurable:true}); return result;
 }
-export async function safePublicFetch(value: string, init: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<Response> {
+export async function safePublicFetch(value: string, init: RequestInit = {}, fetcher: typeof fetch = fetch, maximumBytes=MAX_BYTES): Promise<Response> {
  const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),15000);
  const abort=()=>controller.abort(); init.signal?.addEventListener('abort',abort,{once:true}); if(init.signal?.aborted) controller.abort();
  try {
@@ -62,9 +62,12 @@ export async function safePublicFetch(value: string, init: RequestInit = {}, fet
     if(next.origin!==url.origin) {const headers=new Headers(options.headers); headers.delete('authorization');headers.delete('cookie');options={...options,headers};}
     url=next;continue;
    }
-   const result=await bounded(response,controller.signal); Object.defineProperty(result,'url',{value:url.href,configurable:true});return result;
+   const result=await bounded(response,controller.signal,maximumBytes); Object.defineProperty(result,'url',{value:url.href,configurable:true});return result;
   }
   throw new DeliveryError('Too many redirects',false);
  } catch(error) { if(error instanceof DeliveryError) throw error; throw new DeliveryError('Public fetch failed',true); }
  finally { clearTimeout(timer);init.signal?.removeEventListener('abort',abort); }
 }
+
+/** Imported full-resolution photos get a separate bounded allowance. */
+export const safePublicImageFetch: PublicFetcher = (url,init)=>safePublicFetch(url,init,fetch,10*1024*1024);

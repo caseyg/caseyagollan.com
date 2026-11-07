@@ -45,7 +45,10 @@ function event(p: Properties, depth = 0): string {
  return html;
 }
 /** Shared semantic HTML for archive cards, permalinks, feeds and delivery text. */
-export function renderPostDetails(post: Post): string {
+export function renderPostQuotations(post: Post): string {
+ return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):'';}).join('');
+}
+export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}={}): string {
  const p = post.properties ?? {};
  let html = '';
  for (const [key,label] of [['like-of','Liked'],['repost-of','Reposted']]) for (const value of p[key] ?? []) if (typeof value === 'string') {
@@ -68,5 +71,6 @@ export function renderPostDetails(post: Post): string {
   html += `<section class="p-itinerary h-leg"><p>${['transit-type','operator','number'].map(key => text(leg,key) ? `<span class="p-${key}">${escape(text(leg,key))}</span>` : '').filter(Boolean).join(' ')} · <span class="p-origin">${escape(text(leg,'origin'))}</span> → <span class="p-destination">${escape(text(leg,'destination'))}</span></p><p>${time(text(leg,'departure'),'departure')} – ${time(text(leg,'arrival'),'arrival')}</p></section>`;
  }
  for (const [key,label] of [['ate','Ate'],['drank','Drank']]) for (const value of p[key] ?? []) html += `<p>${label}: <span class="p-${key} h-food"><span class="p-name">${escape(text(properties(value),'name'))}</span></span></p>`;
+ if(!options.omitQuotations)html+=renderPostQuotations(post);
  return sanitizePublishingHtml(html);
 }

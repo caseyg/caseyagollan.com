@@ -336,7 +336,7 @@ test('saves fetched likes and reposts in the same GitHub Markdown write and pres
  for (const [key,folder] of [['like-of','likes'],['repost-of','reposts']]) {
   const image = Uint8Array.from([137,80,78,71,13,10,26,10]);
   const uploads: string[] = [];
-  const app = setup(undefined,{mediaBucket:{put:async(key:string)=>{uploads.push(key);return {key};}} as unknown as R2Bucket,mediaBaseUrl:'https://files.caseyagollan.com/'}, async url=> url.includes('getPostThread') ? Response.json({thread:{post:{author:{displayName:'Saved author',handle:'author.example',avatar:'https://cdn.example/avatar.png'},record:{text:'Saved original',createdAt:'2026-11-06T12:00:00Z'},embed:{images:[{fullsize:'https://cdn.example/image.png',alt:'Saved image'}]}}}}) : new Response(image,{headers:{'content-type':'image/png'}}));
+  const app = setup(undefined,{mediaBucket:{put:async(key:string)=>{uploads.push(key);return {key};}} as unknown as R2Bucket,mediaBaseUrl:'https://files.caseyagollan.com/'}, async url=> url.includes('getProfile') ? Response.json({did:'did:plc:author'}) : url.includes('getPostThread') ? Response.json({thread:{post:{author:{did:'did:plc:author',displayName:'Saved author',handle:'author.example',avatar:'https://cdn.example/avatar.png'},record:{text:'Saved original',createdAt:'2026-11-06T12:00:00Z'},embed:{images:[{fullsize:'https://cdn.example/image.png',alt:'Saved image'}]}}}}) : new Response(image,{headers:{'content-type':'image/png'}}));
   expect((await app.send({type:['h-entry'],properties:{[key]:['https://bsky.app/profile/author.example/post/abc'],'mp-slug':['saved']}})).status).toBe(202);
   const path = `${folder}/2026-11-06-saved.md`;
   expect(app.files.get(path)!.content).toContain('_micropubSocialSnapshots');

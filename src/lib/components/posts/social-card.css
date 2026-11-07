@@ -33,3 +33,5 @@
   .social-card-scope :is(.social-snapshot) { padding: 0.85rem; }
   .social-card-scope :is(.social-platform) { font-size: 0.65rem; }
  }
+
+ .social-card-scope .social-quoted-post > .social-snapshot { margin-bottom: 0; font-size: 0.95em; }

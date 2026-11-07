@@ -35,6 +35,8 @@ export function mastodonActivity(status: any, kind: Activity['kind'], now: strin
    const key = media.type === 'image' ? 'photo' : ['video','gifv'].includes(media.type) ? 'video' : media.type === 'audio' ? 'audio' : undefined;
    if (key) (properties[key] ??= []).push({url: media.url, alt: String(media.description ?? '')});
   }
+  const quoted=status.quote?.state==='accepted'?status.quote.quoted_status:undefined;
+  if(typeof quoted?.url==='string')properties['quotation-of']=[quoted.url];
   if (status.spoiler_text) properties.summary = [status.spoiler_text];
  }
  return {id:`mastodon:${action}:${status.id}`,service:'mastodon',kind:action,url:status.url ?? original.url,target:action === 'post' ? undefined : original.url,published,...(action === 'like' ? {dateSource:'original-post' as const} : {}),properties};
@@ -63,7 +65,7 @@ export function blueskyActivity(record: any, kind: Activity['kind']): Activity |
   const links: string[] = (value.facets ?? []).flatMap((f: any)=>(f.features ?? []).filter((x:any)=>x.$type === 'app.bsky.richtext.facet#link' && typeof x.uri === 'string').map((x:any)=>x.uri));
   if (embed?.external?.uri) links.push(embed.external.uri);
   const quote = value.embed?.record?.record?.uri ?? value.embed?.record?.uri;
-  if (quote) links.push(blueUrl(quote));
+  if (quote) {links.push(blueUrl(quote));properties['quotation-of']=[blueUrl(quote)];}
   const missing = [...new Set(links)].filter(link=>!value.text.includes(link));
   if (missing.length) properties.content = [value.text + '\n\n' + missing.join('\n')];
   if (embed?.video?.ref?.$link) properties.video = [{url:`https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(actor)}&cid=${encodeURIComponent(embed.video.ref.$link)}`,alt:String(embed.alt ?? '')}];
@@ -99,7 +101,7 @@ export async function blueskyPage(get: GetJson, service: string, did: string, ki
 }
 
 /** Respect public-access opt-outs as well as explicit account/post restrictions. */
-function publicBluesky(value: any): boolean {
+export function publicBluesky(value: any): boolean {
  return value && value.visibility === undefined && value.locked !== true && value.private !== true &&
   !(value.labels ?? []).some((label: any)=>['!no-unauth','!no-unauthenticated','!hide','!takedown'].includes(label.val)) &&
   !value.viewer?.blockedBy && !value.viewer?.blocking && !value.deactivated;
