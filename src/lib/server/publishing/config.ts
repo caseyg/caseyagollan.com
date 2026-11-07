@@ -2,6 +2,7 @@ import { authSettings, authStore, type IndieAuthEnvironment } from '../indieauth
 import type { PublishingConfig } from './micropub';
 
 export interface PublishingEnvironment extends IndieAuthEnvironment {
+	READWISE_ACCESS_TOKEN?: string;
 	PESOS_ENABLED?: string;
 	PUBLISHING_AUTH_MODE?: string;
 	PUBLISHING_ENABLED?: string;
