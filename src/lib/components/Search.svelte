@@ -56,10 +56,13 @@
 
 	const resultTemplate = `<script type="text/pagefind-template">
 		<li class="search-result" id="{{ aria.result_id }}">
+			{{#if meta.image}}<img class="search-thumbnail" src="{{ meta.image | resolveUrl(url) | safeUrl }}" alt="{{ meta.image_alt }}" loading="lazy" decoding="async">{{/if}}
+			<div class="search-result-text">
 			<search-result-meta class="search-meta" type="{{ meta.type }}" date="{{ meta.date }}" year="{{ meta.year }}" permalink="{{ url | safeUrl }}"></search-result-meta>
 			<a class="search-title" data-sveltekit-reload href="{{ url | safeUrl }}" id="{{ aria.title_id }}">{{ meta.title }}</a>
 			{{#if meta.author}}<div class="search-author">{{ meta.author }}</div>{{/if}}
 			<p id="{{ aria.excerpt_id }}">{{+ excerpt +}}</p>
+			</div>
 		</li>
 	<\/script>`;
 </script>
@@ -177,6 +180,9 @@
 	.site-search :global(.pf-filter-checkbox-count) { margin-left: auto !important; padding-left: 8px !important; font-variant-numeric: tabular-nums; opacity: .65; }
 	.site-search :global(.pf-summary) { margin: 0 0 8px !important; font-size: 13px !important; }
 	.site-search :global(.search-result) { color: white; font-family: var(--pf-font); font-weight: 400; padding: 24px 0; border-top: 1px solid var(--border); list-style: none; overflow-wrap: break-word; }
+	.site-search :global(.search-result) { display: flex; gap: 20px; align-items: flex-start; }
+	.site-search :global(.search-result-text) { flex: 1; min-width: 0; }
+	.site-search :global(.search-thumbnail) { width: 88px; max-height: 120px; object-fit: contain; object-position: top; flex-shrink: 0; }
 	.site-search :global(.search-meta) { display: block; margin-bottom: 10px; }
 	.site-search :global(.search-meta .post-type) { background: rgba(255, 255, 255, 0.15); color: white; }
 
@@ -199,6 +205,8 @@
 		.site-search :global(.pf-filter-options) { max-height: 132px !important; }
 		.site-search :global(.pf-filter-checkbox) { min-height: 40px !important; }
 		.search-content { padding: 20px 0; }
+		.site-search :global(.search-result) { gap: 14px; }
+		.site-search :global(.search-thumbnail) { width: 60px; max-height: 84px; }
 		.site-search :global(.search-title) { font-size: 22px; }
 		.site-search :global(.search-result) { padding: 22px 0; }
 	}
