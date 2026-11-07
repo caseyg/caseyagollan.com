@@ -22,6 +22,8 @@ bun run preview:remote
 
 Use Vite for fast development and Wrangler preview when testing KV/R2 bindings. See `.env.example` for configuration names; keep credentials in ignored files.
 
+Search uses Pagefind, generated automatically before the Vite production build from public posts and the local book catalog. Run `bun run build:search` before `bun run dev` to enable search locally, and rerun it after content changes. Pagefind’s official Component UI supplies the magnifying-glass trigger, modal, input, results, and type filter. ⌘/Ctrl K opens the overlay and Escape closes it. Results can be filtered by post type or book. Book search covers available catalog text and metadata, not the contents of the books. Generated `static/pagefind/` files are ignored by Git and copied into the Worker assets during the build.
+
 ## Deployment
 
 Cloudflare Workers Builds watches this repository. Production uses `bun run build`, followed by `bun run wrangler deploy`; branches use `bun run wrangler versions upload`. SvelteKit generates its fetch handler and static assets in `.svelte-kit/cloudflare/`; `worker.mjs` delegates requests to that handler and adds the publishing-delivery cron. `wrangler.sveltekit.jsonc` controls adapter output so it cannot overwrite the source wrapper. `wrangler.jsonc` defines routes and runtime bindings.

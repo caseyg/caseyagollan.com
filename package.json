@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"prebuild": "git submodule update --init --recursive || true",
-		"build": "vite build",
+		"build": "bun run build:search && vite build",
 		"preview": "bun run build && wrangler dev",
 		"preview:remote": "bun run build && wrangler dev --remote",
 		"deploy": "bun run build && wrangler deploy",
@@ -15,7 +15,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"backfill-social-snapshots": "bun utils/backfill-social-snapshots.ts",
-		"update-library": "bun utils/librarything-to-graph.js"
+		"update-library": "bun utils/librarything-to-graph.js",
+		"build:search": "bun utils/build-search.ts"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20251011.0",
@@ -35,10 +36,12 @@
 		"svelte-check": "^4.3.2",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.7",
-		"wrangler": "^4.43.0"
+		"wrangler": "^4.43.0",
+		"pagefind": "1.6.0"
 	},
 	"dependencies": {
 		"3d-force-graph": "^1.79.0",
+		"@pagefind/component-ui": "1.6.0",
 		"@simplewebauthn/browser": "14.0.0",
 		"@simplewebauthn/server": "14.0.3",
 		"d3-drag": "^3.0.0",
