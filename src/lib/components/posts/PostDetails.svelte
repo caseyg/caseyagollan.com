@@ -39,7 +39,7 @@
  .post-details :global(.social-link-preview img) { display: block; width: 100%; max-height: 24rem; object-fit: cover; }
  .post-details :global(.social-link-preview-text) { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.85rem; }
  .post-details :global(.social-link-preview-site) { opacity: 0.65; font-size: 0.8rem; }
- .post-details :global(.social-link-preview-description) { opacity: 0.75; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+ .post-details :global(.social-link-preview-description) { opacity: 0.75; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
  @media (max-width: 480px) {
   .post-details :global(.social-snapshot) { padding: 0.85rem; }
   .post-details :global(.social-platform) { font-size: 0.65rem; }
