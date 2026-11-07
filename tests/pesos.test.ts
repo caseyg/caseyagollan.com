@@ -26,7 +26,7 @@ test('source record identity survives changes to target URLs and deleted site en
 });
 test('imported files use current document conventions, local dates, stable slugs, and no outbound syndication request',async()=>{
  const first = await activityDocument(activity,'America/New_York');
- expect(first.path).toMatch(/^likes\/2026-11-06-pesos-[a-f0-9]{24}\.md$/);
+ expect(first.path).toBe('likes/2026-11-06-abc123.md');
  expect(await activityDocument(activity,'America/New_York')).toEqual(first);
  const p = readDocument(first.content).properties;
  expect(p.published).toEqual(['2026-11-06T20:00:00-05:00']);
@@ -215,4 +215,25 @@ test('a large post backfill leaves capacity for new activity in other feeds',asy
  expect(result.imported).toBe(3);
  const additions=h.writes[0].variables.input.fileChanges.additions;
  expect(additions.some((a:any)=>atob(a.contents).includes('New Bluesky post'))).toBe(true);
+});
+
+ test('slugs use original post IDs for Mastodon likes and reposts and avoid cross-folder collisions',async()=>{
+ const like = {...activity,service:'mastodon' as const,url:mastodon.url,target:mastodon.url};
+ expect((await activityDocument(like,'America/New_York')).path).toBe('likes/2026-11-06-123.md');
+ expect((await activityDocument({...like,kind:'repost'},'America/New_York',['likes/2026-11-06-123.md'])).path).toBe('reposts/2026-11-06-123-repost.md');
+ expect((await activityDocument(activity,'America/New_York',['notes/2026-11-06-abc123.md'])).path).toBe('likes/2026-11-06-abc123-like.md');
+ });
+
+test('renamed captured posts refresh cached paths and permalinks without importing again',async()=>{
+ const existing = `---\ndate: 2026-11-06T20:00:00-05:00\npesos-source: [mastodon:post:123]\nsyndication: [${mastodon.url}]\n---\nSaved`;
+ const h = harness({existing});
+ const old = {path:'notes/2026-11-06-pesos-old.md',sha:'initial',properties:readDocument(existing).properties,permalink:'https://caseyagollan.com/2026/11/06/pesos-old/'};
+ await h.bucket.put('private/pesos/index/initial.json',JSON.stringify(old));
+ const result = await processPesos(h.env,{fetcher:h.fetcher});
+ expect(result.imported).toBe(0);
+ expect(h.writes).toHaveLength(0);
+ const cached = JSON.parse(h.files.get('private/pesos/index/initial.json')!.value);
+ expect(cached.path).toBe('notes/2026-11-06-0.md');
+ expect(cached.permalink).toBe('https://caseyagollan.com/2026/11/06/0/');
+ expect(cached.properties['pesos-source']).toEqual(['mastodon:post:123']);
 });

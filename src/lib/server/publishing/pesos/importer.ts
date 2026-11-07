@@ -55,7 +55,7 @@ function localTimestamp(value: string, timeZone: string): string {
  const get = (key: string) => parts.find(p=>p.type === key)?.value ?? '';
  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}${get('timeZoneName').replace('GMT','') || '+00:00'}`;
 }
-export async function activityDocument(activity: Activity, timeZone: string): Promise<{path:string;content:string}> {
+export async function activityDocument(activity: Activity, timeZone: string, occupied: Iterable<string> = []): Promise<{path:string;content:string}> {
  const date = localTimestamp(activity.published,timeZone);
  const folder = activity.kind === 'like' ? 'likes' : activity.kind === 'repost' ? 'reposts' : activity.properties['in-reply-to'] ? 'replies' : activity.properties.photo ? 'photos' : activity.properties.video ? 'videos' : 'notes';
  const properties: Properties = {...activity.properties,published:[date],'pesos-source':[activity.id]};
@@ -63,7 +63,17 @@ export async function activityDocument(activity: Activity, timeZone: string): Pr
  if (activity.service === 'mastodon' && activity.kind === 'like') properties['pesos-date-source'] = ['first-observed'];
  if (activity.target) properties[activity.kind === 'like' ? 'like-of' : 'repost-of'] = [activity.target];
  // Deliberately omit mp-syndicate-to: imports must never be syndicated back out.
- const slug = `pesos-${(await digest(activity.id)).slice(0,24)}`;
+ const target = new URL(activity.target ?? activity.url);
+ const id = target.pathname.replace(/\/$/,'').split('/').pop() ?? '';
+ if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid social post ID');
+ // Permalinks omit folders, so detect collisions across every post type.
+ const used = new Set([...occupied].map(path=>path.split('/').pop()));
+ let slug = id;
+ const prefix = date.slice(0,10);
+ if (used.has(`${prefix}-${slug}.md`)) slug = `${id}-${activity.kind}`;
+ if (used.has(`${prefix}-${slug}.md`)) slug = `${id}-${activity.kind}-${target.hostname.replace(/[^a-zA-Z0-9-]/g,'-')}`;
+ const base = slug;
+ for(let n=2;used.has(`${prefix}-${slug}.md`);n++) slug = `${base}-${n}`;
  return {path:`${folder}/${date.slice(0,10)}-${slug}.md`,content:createDocument(properties)};
 }
 
@@ -102,9 +112,12 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
    const cached = await bucket.get(key);
    let entry: IndexEntry;
    if (cached) {
-    entry = {...await cached.json<IndexEntry>(),path:file.path,sha:file.sha};
+    const cachedEntry = await cached.json<IndexEntry>();
+    entry = {...cachedEntry,path:file.path,sha:file.sha};
     const name = file.path.split('/')[1];
     entry.permalink = new URL(getPostPermalink({date:strings(entry.properties.published)[0] ?? '',slug:name.replace(/\.md$/,'').replace(/^\d{4}-\d{2}-\d{2}-/,'')}),config.me).href;
+    // Blob hashes survive renames; refresh cached locations from the current tree.
+    if(cachedEntry.path !== entry.path || cachedEntry.permalink !== entry.permalink) await bucket.put(key,JSON.stringify(entry));
    }
    else {
     const blob = (await request(`${repo}/git/blobs/${file.sha}`,githubHeaders)).data;
@@ -202,7 +215,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
      if (alreadyRepresented(activity,keys,actors)) { result.skipped++; seen.add(activity.id); continue; }
      // Give every feed capacity during a large historical backfill.
      if (feedImports >= 2 || additions.length >= 12) { full = true; break; }
-     let file = await activityDocument(activity,config.timeZone);
+     let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
      if (activity.kind !== 'post') file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000});
      additions.push(file);
      feedImports++;

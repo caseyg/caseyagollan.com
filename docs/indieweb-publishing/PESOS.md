@@ -60,6 +60,27 @@ URLs and alt text. Like/repost previews use the same saved snapshot mechanism as
 the publishing endpoint. Original post media remains referenced by source URL;
 it is not copied into permanent storage by this importer.
 
+## Imported URLs and migration
+
+New imports use the original social post ID as their slug, including likes and
+reposts. There is no `pesos-` prefix. If another post on the same date already
+uses that ID, a readable action/host suffix distinguishes the URL.
+
+To rename existing imports without redirects, run
+`bun utils/rename-social-imports.ts` to review, then repeat with `--write`.
+The script changes filenames only, preserving dates, source IDs, snapshots and
+capture checkpoints. Commit the renamed files in the content repository and
+rebuild the site to regenerate archive pages, feeds and permalink listings.
+The importer reads the current Git tree on every scan and updates cached paths
+and permalinks even when a rename leaves the blob SHA unchanged; source IDs
+continue to prevent duplicate imports.
+
+Mastodon `card` and Bluesky external embeds are saved with their title,
+description, site name (when supplied), and archived preview image. Existing
+snapshots can be refreshed with
+`bun run backfill-social-snapshots --refresh --write --remote-media`.
+No metadata or image requests are made during page rendering.
+
 ## Backfill and archive behavior
 
 Every feed checks its newest page on each run. A durable queue also drains one
