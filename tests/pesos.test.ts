@@ -347,3 +347,20 @@ test('Bluesky interactions validate public target and author before importing, r
   }
  }
 });
+
+test('future authored Bluesky quote posts save quoted content with their original body',async()=>{
+ const h=harness();h.env.PUBLISHING_MASTODON_TOKEN=undefined;h.env.PUBLISHING_BLUESKY_IDENTIFIER='caseyagollan.com';
+ const ownUri=`at://${did}/app.bsky.feed.post/ownquote`;
+ const quotedUri=`at://${did}/app.bsky.feed.post/quoted1`;
+ const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>{
+  const u=String(input);
+  if(u.includes('resolveHandle'))return Response.json({did});
+  if(u.includes('getProfile'))return Response.json({did});
+  if(u.includes('getPostThread'))return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:new URL(u).searchParams.get('uri'),author:{did,handle:'writer.example'},record:{text:'Quoted original',createdAt:activity.published}}}});
+  if(u.includes('listRecords'))return Response.json({records:new URL(u).searchParams.get('collection')==='app.bsky.feed.post'?[{uri:ownUri,value:{text:'My response',createdAt:activity.published,embed:{$type:'app.bsky.embed.record',record:{uri:quotedUri}}}}]:[]});
+  return h.fetcher(input,init);
+ }) as typeof fetch;
+ expect((await processPesos(h.env,{fetcher})).imported).toBe(1);
+ const content=atob(h.writes[0].variables.input.fileChanges.additions[0].contents);
+ expect(content).toContain('quotation-of:');expect(content).toContain('My response');expect(content).toContain('Quoted original');
+});

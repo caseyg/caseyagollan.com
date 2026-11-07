@@ -3,7 +3,7 @@
  import type { Post } from '$lib/posts-types';
  import { renderPostDetails } from '$lib/utils/post-details';
  let { post }: { post: Post } = $props();
- const details = $derived(renderPostDetails(post));
+ const details = $derived(renderPostDetails(post,{omitQuotations:post.type==='note'}));
 </script>
 
 {#if details}

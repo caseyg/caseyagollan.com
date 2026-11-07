@@ -1,3 +1,4 @@
+import { flattenSocialSnapshots } from '../src/lib/social-snapshots';
 import type { Post } from '../src/lib/posts-types';
 
 export const uniqueLabels = (values: unknown[]): string[] => [...new Set(values
@@ -29,7 +30,7 @@ export function postAuthors(post: Post): string[] {
 		'Casey Gollan',
 		...(post.syndication ?? []).map(socialHandle),
 		...targets.filter((value): value is string => typeof value === 'string').map(socialHandle),
-		...(post.socialSnapshots ?? []).map(snapshot => `@${snapshot.author.handle.replace(/^@/, '')}`)
+		...flattenSocialSnapshots(post.socialSnapshots ?? []).map(snapshot => `@${snapshot.author.handle.replace(/^@/, '')}`)
 	]);
 }
 
