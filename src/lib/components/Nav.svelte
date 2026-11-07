@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Search from './Search.svelte';
 	let {
 		currentPage = 'home',
 		showPostsLink = false
@@ -9,6 +10,7 @@
 </script>
 
 <div class="nav-toggles">
+	<Search />
 	{#if currentPage !== 'home'}
 		<a href="/">👋</a>
 	{/if}

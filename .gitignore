@@ -42,3 +42,6 @@ vite.config.ts.timestamp-*
 
 # Downloaded research repository snapshots (keep local)
 /docs/indieweb-publishing/research/repos/
+
+# Generated search index
+static/pagefind/

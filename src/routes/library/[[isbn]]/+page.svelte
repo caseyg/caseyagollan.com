@@ -790,6 +790,7 @@
 
 	// Handle keyboard navigation
 	function handleKeydown(event: KeyboardEvent) {
+		if (event.target instanceof Element && event.target.closest('dialog[open]')) return;
 		if (!selectedBook) return;
 
 		if (event.key === 'ArrowLeft') {
@@ -1135,9 +1136,10 @@
 			isLoading = false;
 
 			// Check for ISBN from route params and select that book
-			if (data.isbn) {
+			const bookId = new URL(window.location.href).searchParams.get('book');
+			if (data.isbn || bookId) {
 				const bookNode = graphData.nodes.find(
-					(n: Node) => n.group === 'book' && n.isbn === data.isbn
+					(n: Node) => n.group === 'book' && (data.isbn ? n.isbn === data.isbn : String(n.bookid) === bookId)
 				);
 				if (bookNode) {
 					// Small delay to let the graph render first
