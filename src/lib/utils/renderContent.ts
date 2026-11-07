@@ -1,4 +1,7 @@
 import { marked } from 'marked';
+import { fromHtml } from 'hast-util-from-html';
+import { toHtml } from 'hast-util-to-html';
+import type { Element, Root, RootContent } from 'hast';
 import { sanitizePublishingHtml } from './sanitizeHtml';
 
 // Configure Markdown formatting; the final HTML is sanitized below.
@@ -6,6 +9,18 @@ marked.setOptions({
 	gfm: true,
 	breaks: true
 });
+
+// Recognize full social handles before GFM treats their suffix as an email address.
+// Leave them as text until the parsed-tree pass can respect link/code boundaries.
+marked.use({ extensions: [{
+ name: 'socialHandle', level: 'inline',
+ start: (source: string) => source.indexOf('@'),
+ tokenizer(source: string) {
+  const match = /^@(?:[a-zA-Z0-9_]+@[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9][a-zA-Z0-9.-]*\.bsky\.social)/.exec(source);
+  if (match) return { type: 'socialHandle', raw: match[0] };
+ },
+ renderer: (token) => escapeText(token.raw)
+}] });
 
 // oEmbed patterns for common providers
 const OEMBED_PATTERNS: Array<{
@@ -30,36 +45,11 @@ const OEMBED_PATTERNS: Array<{
 	}
 ];
 
-// URL pattern for auto-linking plain URLs
-const URL_PATTERN = /(?<!["'=])(https?:\/\/[^\s<>[\]()]+)(?![^<]*>|[^<>]*<\/a>)/g;
-
 // Mastodon handle pattern: @user@instance.tld
 const MASTODON_HANDLE_PATTERN = /(?<![a-zA-Z0-9])@([a-zA-Z0-9_]+)@([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?![^<]*>|[^<>]*<\/a>)/g;
 
 // Bluesky handle pattern: @user.bsky.social or @handle.tld
 const BLUESKY_HANDLE_PATTERN = /(?<![a-zA-Z0-9@])@([a-zA-Z0-9][a-zA-Z0-9.-]*\.bsky\.social)(?![^<]*>|[^<>]*<\/a>)/g;
-
-/**
- * Extract domain from URL for display
- */
-function getDomain(url: string): string {
-	try {
-		const parsed = new URL(url);
-		return parsed.hostname.replace(/^www\./, '');
-	} catch {
-		return url;
-	}
-}
-
-/**
- * Check if a URL matches an oEmbed pattern
- */
-function matchesOembedPattern(url: string): boolean {
-	return OEMBED_PATTERNS.some(({ pattern }) => {
-		pattern.lastIndex = 0;
-		return pattern.test(url);
-	});
-}
 
 /**
  * Process oEmbed URLs in content
@@ -102,18 +92,25 @@ function autoLinkBlueskyHandles(content: string): string {
 	});
 }
 
-/**
- * Auto-link plain URLs that aren't already linked and aren't oEmbed-able
- */
-function autoLinkUrls(content: string): string {
-	return content.replace(URL_PATTERN, (url) => {
-		// Skip if it matches an oEmbed pattern (those get embedded instead)
-		if (matchesOembedPattern(url)) {
-			return url;
-		}
-		const domain = getDomain(url);
-		return `<a href="${url}" target="_blank" rel="noopener">${domain}</a>`;
-	});
+/** Enhance parsed text without modifying Markdown destinations, HTML attributes, or code. */
+function enhanceMarkdown(node: Root | Element): void {
+ if (node.type === 'element' && ['a', 'code', 'pre', 'script', 'style', 'iframe'].includes(node.tagName)) return;
+ node.children = node.children.flatMap((child): RootContent[] => {
+  if (child.type === 'element') {
+   // Marked autolinks bare URLs. Embed those while preserving descriptive link labels.
+   if (child.tagName === 'a' && child.children.length === 1 && child.children[0].type === 'text' && child.children[0].value === child.properties.href) {
+    const url = child.children[0].value;
+    const embedded = processOembeds(url);
+    if (embedded !== url) return fromHtml(embedded, { fragment: true }).children;
+   }
+   enhanceMarkdown(child);
+  } else if (child.type === 'text') {
+   const escaped = escapeText(child.value);
+   const linked = autoLinkBlueskyHandles(autoLinkMastodonHandles(escaped));
+   if (linked !== escaped) return fromHtml(linked, { fragment: true }).children;
+  }
+  return [child];
+ });
 }
 
 function escapeText(value: string): string {
@@ -155,18 +152,10 @@ export function renderContent(content: string, format: 'text' | 'html' | 'markdo
 	if (format === 'html') return sanitizePublishingHtml(content);
 	if (format === 'text') return renderPlainText(content);
 
-	// Step 1: Process oEmbeds first (before markdown to avoid interference)
-	let processed = processOembeds(content);
-
-	// Step 2: Auto-link social handles (before URLs to avoid conflicts)
-	processed = autoLinkMastodonHandles(processed);
-	processed = autoLinkBlueskyHandles(processed);
-
-	// Step 3: Auto-link remaining URLs
-	processed = autoLinkUrls(processed);
-
-	// Step 4: Run through marked for markdown processing
-	const html = marked.parse(processed, { async: false }) as string;
+	// Parse Markdown first so explicit links, images, and code keep their structure.
+ const tree = fromHtml(marked.parse(content, { async: false }) as string, { fragment: true });
+ enhanceMarkdown(tree);
+ const html = toHtml(tree);
 
 	return sanitizePublishingHtml(html);
 }
