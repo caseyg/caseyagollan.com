@@ -23,6 +23,7 @@
 		"AUTH_ME": "https://caseyagollan.com/",
 		"PUBLISHING_AUTH_MODE": "internal",
 		"PUBLISHING_ENABLED": "true",
+		"PESOS_ENABLED": "true",
 		"PUBLISHING_DELIVERY_ENABLED": "false",
 		"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
 		"PUBLISHING_ME": "https://caseyagollan.com/",

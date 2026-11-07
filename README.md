@@ -63,3 +63,5 @@ bun run backfill-social-snapshots content/likes/2026-11-06-c1d5be8d.md --refresh
 ```
 
 Dry runs do not write to R2. Saving requires `--write --remote-media`, which uploads public images to the configured remote R2 bucket before saving their URLs in Markdown. Failed refreshes retain each unavailable original snapshot. The backfill command never commits, pushes, or deploys. Rendering and ordinary builds use the saved snapshot; they do not refresh social content.
+
+Scheduled Mastodon and Bluesky imports are documented in [PESOS](docs/indieweb-publishing/PESOS.md), including ten-minute polling, deduplication, credentials, and historical backfill.
