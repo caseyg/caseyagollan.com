@@ -22,7 +22,7 @@ bun run preview:remote
 
 Use Vite for fast development and Wrangler preview when testing KV/R2 bindings. See `.env.example` for configuration names; keep credentials in ignored files.
 
-Search uses Pagefind, generated automatically before the Vite production build from public posts and the local book catalog. Run `bun run build:search` before `bun run dev` to enable search locally, and rerun it after content changes. The magnifying glass opens the search overlay; ⌘/Ctrl K also toggles it and Escape closes it. Results can be filtered by post type or book. Book search covers available catalog text and metadata, not the contents of the books. Generated `static/pagefind/` files are ignored by Git and copied into the Worker assets during the build.
+Search uses Pagefind, generated automatically before the Vite production build from public posts and the local book catalog. Run `bun run build:search` before `bun run dev` to enable search locally, and rerun it after content changes. Pagefind’s official Component UI supplies the magnifying-glass trigger, modal, input, results, and type filter. ⌘/Ctrl K opens the overlay and Escape closes it. Results can be filtered by post type or book. Book search covers available catalog text and metadata, not the contents of the books. Generated `static/pagefind/` files are ignored by Git and copied into the Worker assets during the build.
 
 ## Deployment
 
