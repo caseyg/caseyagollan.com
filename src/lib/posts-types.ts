@@ -31,6 +31,7 @@ export interface Post {
 	channel?: string;
 	socialSnapshots?: SocialSnapshot[];
 	properties?: Record<string, unknown[]>;
+	indexActivities?: { type: 'like' | 'repost'; date: string; permalink: string }[];
 	filePath: string;
 }
 
@@ -68,10 +69,52 @@ export function getPostPermalink(post: { date: string; slug: string }): string {
 	return `/${year}/${month}/${day}/${post.slug}/`;
 }
 
+/** Presentation only: retain source records and permalinks, render shared content once. */
+export function rollupIndexPosts(posts: Post[]): Post[] {
+	const result: Post[] = [];
+	const candidates = new Map<string, number>();
+	for (const post of posts) {
+		const key = post.type === 'like' ? 'like-of' : post.type === 'repost' ? 'repost-of' : '';
+		const targets = post.properties?.[key];
+		if (!key || targets?.length !== 1 || typeof targets[0] !== 'string') {
+			result.push(post);
+			continue;
+		}
+		let target: string;
+		try {
+			const url = new URL(targets[0]);
+			url.hash = '';
+			url.pathname = url.pathname.replace(/\/$/, '');
+			target = url.href;
+		} catch { result.push(post); continue; }
+		// Different commentary or media deserves a separate entry.
+		const signature = JSON.stringify([target, post.content.trim(), post.title, post.summary, post.photo, post.video]);
+		const index = candidates.get(signature);
+		const previous = index === undefined ? undefined : result[index];
+		if (!previous || previous.type === post.type || previous.indexActivities) {
+			candidates.set(signature, result.length);
+			result.push(post);
+			continue;
+		}
+		const primary = Date.parse(post.date) > Date.parse(previous.date) ? post : previous;
+		const snapshot = [primary, previous, post].flatMap(p => p.socialSnapshots ?? []).find(s => {
+			try { const url = new URL(s.url); url.hash = ''; url.pathname = url.pathname.replace(/\/$/, ''); return url.href === target; } catch { return false; }
+		});
+		result[index!] = {
+			...primary,
+			properties: { ...primary.properties, 'like-of': [target], 'repost-of': [target] },
+			socialSnapshots: snapshot ? [{ ...snapshot, url: target }] : primary.socialSnapshots,
+			category: [...new Set([previous.category, post.category].flatMap(c => c ? Array.isArray(c) ? c : [c] : []))],
+			indexActivities: [previous, post].map(p => ({type: p.type as 'like' | 'repost', date: p.date, permalink: getPostPermalink(p)})).sort((a,b) => a.type.localeCompare(b.type))
+		};
+	}
+	return result;
+}
+
 export function getPostsByDay(posts: Post[]): Map<string, Post[]> {
 	const byDay = new Map<string, Post[]>();
 
-	for (const post of posts) {
+	for (const post of rollupIndexPosts(posts)) {
 		// Extract date from ISO string directly to preserve local date
 		const match = post.date.match(/^(\d{4})-(\d{2})-(\d{2})/);
 		const dateKey = match ? `${match[1]}-${match[2]}-${match[3]}` : post.date.slice(0, 10);

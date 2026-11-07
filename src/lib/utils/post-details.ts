@@ -48,9 +48,16 @@ function event(p: Properties, depth = 0): string {
 export function renderPostDetails(post: Post): string {
  const p = post.properties ?? {};
  let html = '';
+ const reactions = new Map<string, {labels: string[]; classes: string[]}>();
  for (const [key,label] of [['like-of','Liked'],['repost-of','Reposted']]) for (const value of p[key] ?? []) if (typeof value === 'string') {
+  const reaction = reactions.get(value) ?? {labels:[],classes:[]};
+  if (!reaction.labels.includes(label)) { reaction.labels.push(label); reaction.classes.push(`u-${key}`); }
+  reactions.set(value,reaction);
+ }
+ for (const [value,reaction] of reactions) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === value);
-  html += `<p>${label} ${link(value, snapshot ? 'post' : value, `u-${key}`)}</p>`;
+  const label = reaction.labels.join(' and ').replace('and Reposted','and reposted');
+  html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
  }
  const reply = post.inReplyTo || text(p, 'in-reply-to');

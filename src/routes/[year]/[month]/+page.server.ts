@@ -26,6 +26,6 @@ export const load: PageServerLoad = async ({ params }) => {
 		year,
 		month,
 		postsByDay: postsByDayArray,
-		totalPosts: postsInMonth.length
+		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)
 	};
 };

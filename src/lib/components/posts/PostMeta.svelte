@@ -13,9 +13,10 @@
 		showType?: boolean;
 		category?: string | string[];
 		activeTag?: string;
+		indexActivities?: import('$lib/posts-types').Post['indexActivities'];
 	}
 
-	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag }: Props = $props();
+	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag, indexActivities }: Props = $props();
 
 	function getCategories(cat: string | string[] | undefined): string[] {
 		if (!cat) return [];
@@ -59,7 +60,14 @@
 <div class="post-meta">
 	<div class="meta-primary">
 		{#if showType}
+			{#if indexActivities}
+				{#each indexActivities as activity, i (activity.permalink)}
+					{#if i > 0}<span>and</span>{/if}
+					<a href={activity.permalink} class="post-type" title={formatAbsoluteDate(activity.date)}>{getTypeIcon(activity.type)} {activity.type === 'like' ? 'liked' : 'reposted'}</a>
+				{/each}
+			{:else}
 			<a href={type === 'wiki' ? 'https://cag.wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type">{getTypeIcon(type)} {type}</a>
+			{/if}
 		{/if}
 		{#if date}
 			<a href={permalink} class="u-url permalink" title={formatAbsoluteDate(date)}>

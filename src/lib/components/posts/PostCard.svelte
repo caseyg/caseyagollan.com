@@ -48,6 +48,7 @@
 		{showType}
 		category={post.category}
 		{activeTag}
+		indexActivities={post.indexActivities}
 	/>
 
 	{#if post.title || (post.type === 'bookmark' && post.bookmarkOf)}

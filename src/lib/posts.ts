@@ -8,7 +8,7 @@ import type { Post } from './posts-types';
 
 // Re-export client-safe types and functions
 export type { Post, MediaItem } from './posts-types';
-export { POST_TYPES, POST_TYPE_PLURALS, getPostPermalink, getPostsByDay } from './posts-types';
+export { POST_TYPES, POST_TYPE_PLURALS, getPostPermalink, getPostsByDay, rollupIndexPosts } from './posts-types';
 
 // Vite reads these files at build time; no filesystem APIs run in the Worker.
 const markdownFiles = import.meta.glob<string>('/content/*/*.md', {

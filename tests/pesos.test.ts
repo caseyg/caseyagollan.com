@@ -33,6 +33,15 @@ test('self-likes match site permalinks and federated aliases without suppressing
  }
  expect(alreadyRepresented(activity,keys,actors)).toBe(false);
 });
+test('consolidated cross-network originals retain every source identity',()=>{
+ const keys = indexIdentities([{properties:{
+  syndication:[url,mastodon.url],
+  'pesos-source':['mastodon:post:123',`at://${did}/app.bsky.feed.post/abc123`]
+ }}]);
+ expect(alreadyRepresented({...activity,kind:'post'},keys)).toBe(true);
+ expect(alreadyRepresented({...activity,kind:'post',id:'mastodon:post:123',url:mastodon.url,target:undefined},keys)).toBe(true);
+ expect(alreadyRepresented({...activity,target:mastodon.url},keys)).toBe(true);
+});
 test('source record identity survives changes to target URLs and deleted site entries remain represented',()=>{
  expect(alreadyRepresented(activity,indexIdentities([{properties:{'pesos-source':[activity.id],deleted:['true']}}]))).toBe(true);
 });

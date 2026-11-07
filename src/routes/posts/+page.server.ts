@@ -10,6 +10,6 @@ export const load: PageServerLoad = async () => {
 
 	return {
 		postsByDay: postsByDayArray,
-		totalPosts: posts.length
+		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)
 	};
 };

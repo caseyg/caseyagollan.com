@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { getAllPosts } from '$lib/posts';
+import { getAllPosts, rollupIndexPosts } from '$lib/posts';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		month,
 		day,
 		dateKey,
-		posts: postsOnDay,
-		totalPosts: postsOnDay.length
+		posts: rollupIndexPosts(postsOnDay),
+		totalPosts: rollupIndexPosts(postsOnDay).length
 	};
 };
