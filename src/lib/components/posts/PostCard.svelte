@@ -1,4 +1,5 @@
 <script lang="ts">
+	import NoteCard from './NoteCard.svelte';
 	import PostDetails from './PostDetails.svelte';
 	import PostMeta from './PostMeta.svelte';
 	import BookmarkTitle from './BookmarkTitle.svelte';
@@ -66,12 +67,14 @@
 	{/if}
 
 	<PostDetails {post} />
-	{#if post.summary && !isArticle}<p class="p-summary">{post.summary}</p>{/if}
+	{#if post.summary && !isArticle && post.type !== 'note'}<p class="p-summary">{post.summary}</p>{/if}
 	{#if isArticle}
 		<p class="p-summary preview">
 			{post.summary || getPreview(post.content)}
 		</p>
 		<a href={permalink} class="read-more">Read more</a>
+	{:else if post.type === 'note'}
+		<NoteCard {post} />
 	{:else}
 		<PostMedia photos={post.photo} videos={post.video} />
 		<PostContent content={post.content} format={post.contentFormat} />
