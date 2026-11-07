@@ -51,8 +51,8 @@ function raster(bytes: Uint8Array, type: string): boolean {
   (type === 'image/webp' && ascii(0,4) === 'RIFF' && ascii(8,12) === 'WEBP');
 }
 /** Fetching is bounded by safePublicFetch and a single deadline shared by metadata and images. */
-async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal, budget: {bytes: number}, storeImage?: SocialImageStore, previous?: SocialSnapshot): Promise<SocialSnapshot | undefined> {
- const target = publicUrl(url);
+async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal, budget: {bytes: number}, storeImage?: SocialImageStore, previous?: SocialSnapshot, mastodonSource?: {instance:string;id:string}): Promise<SocialSnapshot | undefined> {
+ const target = publicUrl(mastodonSource?.instance ?? url);
  const get = (u: string) => { publicUrl(u); return fetcher(u, {headers:{accept:'application/json'},signal}); };
  let result: Omit<SocialSnapshot,'images'>;
  let media: {url:string;alt:string}[] = [];
@@ -67,7 +67,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   } catch { /* Invalid preview URLs or images are omitted. */ }
  };
  const blue = target.hostname === 'bsky.app' && target.pathname.match(/^\/profile\/([^/]+)\/post\/([a-zA-Z0-9]+)\/?$/);
- const mastodon = target.pathname.match(/^\/@[^/]+\/(\d+)\/?$/) ?? target.pathname.match(/^\/users\/[^/]+\/statuses\/(\d+)\/?$/);
+ const mastodon = mastodonSource ? [undefined,mastodonSource.id] : target.pathname.match(/^\/@[^/]+\/(\d+)\/?$/) ?? target.pathname.match(/^\/users\/[^/]+\/statuses\/(\d+)\/?$/);
  if (blue) {
   const actor = decodeURIComponent(blue[1]);
   const uri = `at://${actor}/app.bsky.feed.post/${blue[2]}`;
@@ -85,7 +85,9 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
  } else if(mastodon) {
   const response = await get(`${target.origin}/api/v1/statuses/${mastodon[1]}`);
   if(!response.ok) return;
-  const post = await response.json() as any;
+  const status = await response.json() as any;
+  const post = status.reblog ?? status;
+  if(mastodonSource && post.url !== url) return;
   // Unlisted posts deliberately excluded from this public archive.
   if(post.visibility !== 'public' || typeof post.content !== 'string' || typeof post.account?.acct !== 'string') return;
   const account = post.account;
@@ -122,7 +124,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
 }
 
 /** Enrich only at publication/backfill, never during reads or page rendering. */
-export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFetcher = safePublicFetch, options: { refresh?: boolean; storeImage?: SocialImageStore; timeoutMs?: number } = {}): Promise<string> {
+export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFetcher = safePublicFetch, options: { refresh?: boolean; storeImage?: SocialImageStore; timeoutMs?: number; mastodonInstance?: string } = {}): Promise<string> {
  const match = markdown.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
  if(!match) return markdown;
  const doc = parseDocument(match[1]);
@@ -140,7 +142,11 @@ export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFet
   const existing = before.find(s=>s.url===url);
   if(existing && !options.refresh) {retain(existing);continue;}
   let fresh: SocialSnapshot | undefined;
-  if(!signal.aborted) try { fresh = await snapshot(url,fetcher,signal,budget,options.storeImage,existing); } catch { /* Preserve saved originals when the platform is unavailable. */ }
+  if(!signal.aborted) try {
+   const source = Array.isArray(data['pesos-source']) ? data['pesos-source'][0] : undefined;
+   const id = typeof source === 'string' ? source.match(/^mastodon:(?:like|repost):(\d+)$/)?.[1] : undefined;
+   const mastodonSource = id && options.mastodonInstance ? {instance:publicUrl(options.mastodonInstance).origin,id} : undefined;
+   fresh = await snapshot(url,fetcher,signal,budget,options.storeImage,existing,mastodonSource); } catch { /* Preserve saved originals when the platform is unavailable. */ }
   if(fresh) after.push(fresh);
   else if(existing) retain(existing);
  }

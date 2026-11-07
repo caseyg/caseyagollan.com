@@ -11,10 +11,11 @@ if (args.includes('--help')) {
  process.exit(0);
 }
 if(args.includes('--write') && !args.includes('--remote-media')) throw new Error('--write requires --remote-media to save associated images to R2');
+const { unstable_readConfig } = await import('wrangler');
+const config = unstable_readConfig({config:resolve('wrangler.jsonc')});
+const mastodonInstance = config.vars.PUBLISHING_MASTODON_INSTANCE as string | undefined;
 let storeImage: SocialImageStore | undefined;
 if(args.includes('--write')) {
- const { unstable_readConfig } = await import('wrangler');
- const config = unstable_readConfig({config:resolve('wrangler.jsonc')});
  const bucket = config.r2_buckets.find(binding=>binding.binding === 'PUBLISHING_MEDIA')?.bucket_name;
  const base = config.vars.PUBLISHING_MEDIA_BASE_URL;
  if(!bucket || typeof base !== 'string') throw new Error('Configure PUBLISHING_MEDIA and PUBLISHING_MEDIA_BASE_URL in Wrangler');
@@ -42,7 +43,7 @@ for(const path of paths) {
  const inside = relative(root,full);
  if(inside.startsWith('..') || isAbsolute(inside) || !/^(likes|reposts)\/[^/]+\.md$/.test(inside)) throw new Error('Use Markdown files in content/likes or content/reposts');
  const before = await Bun.file(full).text();
- const after = await enrichSocialSnapshots(before, undefined, {refresh:args.includes('--refresh'),storeImage,timeoutMs:30_000});
+ const after = await enrichSocialSnapshots(before, undefined, {refresh:args.includes('--refresh'),storeImage,mastodonInstance,timeoutMs:30_000});
  if(after === before) { console.log(`Unchanged: ${inside} (already saved, unsupported, or unavailable)`); continue; }
  changed++;
  if(args.includes('--write')) await Bun.write(full,after);

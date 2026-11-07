@@ -216,7 +216,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
      // Give every feed capacity during a large historical backfill.
      if (feedImports >= 2 || additions.length >= 12) { full = true; break; }
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
-     if (activity.kind !== 'post') file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000});
+     if (activity.kind !== 'post') file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
      additions.push(file);
      feedImports++;
      keys.add(`source:${activity.id}`);
