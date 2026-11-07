@@ -23,7 +23,7 @@
 			const response = await fetch(apiUrl);
 			if (!response.ok) return;
 
-			const data = await response.json();
+			const data = await response.json() as { type?: Partial<Record<'like' | 'repost' | 'reply' | 'mention', number>> };
 			likes = data.type?.like || 0;
 			reposts = data.type?.repost || 0;
 			replies = (data.type?.reply || 0) + (data.type?.mention || 0);

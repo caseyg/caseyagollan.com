@@ -46,7 +46,7 @@
 				throw new Error(await response.text());
 			}
 
-			const data = await response.json();
+			const data = await response.json() as { keys: KVKey[] };
 			keys = data.keys;
 		} catch (e: any) {
 			error = `Failed to load keys: ${e.message}`;
@@ -66,7 +66,7 @@
 				throw new Error(await response.text());
 			}
 
-			selectedValue = await response.json();
+			selectedValue = await response.json() as KVValue;
 			editedValue = typeof selectedValue.value === 'string'
 				? selectedValue.value
 				: JSON.stringify(selectedValue.value, null, 2);
@@ -324,6 +324,7 @@
 							</button>
 							<button on:click={() => {
 								isEditing = false;
+								if (!selectedValue) return;
 								editedValue = typeof selectedValue.value === 'string'
 									? selectedValue.value
 									: JSON.stringify(selectedValue.value, null, 2);
@@ -334,7 +335,7 @@
 							<button on:click={() => isEditing = true} class="btn-primary">
 								Edit
 							</button>
-							<button on:click={() => deleteKey(selectedValue.key)} class="btn-danger">
+							<button on:click={() => selectedValue && deleteKey(selectedValue.key)} class="btn-danger">
 								Delete
 							</button>
 						{/if}

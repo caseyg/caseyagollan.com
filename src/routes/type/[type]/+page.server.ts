@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 const TYPE_ICONS: Record<string, string> = {
+	like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
 	note: '📝',
 	article: '📄',
 	bookmark: '🔖',

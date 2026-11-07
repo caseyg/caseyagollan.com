@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html class="client-nojs" lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8"/>
+<title>h-card - Microformats Wiki</title>
+<script>document.documentElement.className="client-js";RLCONF={"wgBreakFrames":false,"wgSeparatorTransformTable":["",""],"wgDigitTransformTable":["",""],"wgDefaultDateFormat":"dmy","wgMonthNames":["","January","February","March","April","May","June","July","August","September","October","November","December"],"wgRequestId":"8a047148cfd9170a26d813c0","wgCSPNonce":false,"wgCanonicalNamespace":"","wgCanonicalSpecialPageName":false,"wgNamespaceNumber":0,"wgPageName":"h-card","wgTitle":"h-card","wgCurRevisionId":70686,"wgRevisionId":70686,"wgArticleId":8918,"wgIsArticle":true,"wgIsRedirect":false,"wgAction":"view","wgUserName":null,"wgUserGroups":["*"],"wgCategories":["Draft Specifications"],"wgPageContentLanguage":"en","wgPageContentModel":"wikitext","wgRelevantPageName":"h-card","wgRelevantArticleId":8918,"wgIsProbablyEditable":false,"wgRelevantPageIsProbablyEditable":false,"wgRestrictionEdit":[],"wgRestrictionMove":["sysop"]};RLSTATE={"site.styles":"ready","user.styles":"ready","user":"ready",
+"user.options":"loading","ext.pygments":"ready","skins.vector.styles.legacy":"ready"};RLPAGEMODULES=["site","mediawiki.page.ready","mediawiki.toc","skins.vector.legacy.js"];</script>
+<script>(RLQ=window.RLQ||[]).push(function(){mw.loader.implement("user.options@1i9g4",function($,jQuery,require,module){mw.user.tokens.set({"patrolToken":"+\\","watchToken":"+\\","csrfToken":"+\\"});});});</script>
+<link rel="stylesheet" href="/wiki/load.php?lang=en&amp;modules=ext.pygments%7Cskins.vector.styles.legacy&amp;only=styles&amp;skin=vector"/>
+<script async="" src="/wiki/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+<meta name="generator" content="MediaWiki 1.38.4"/>
+<meta name="format-detection" content="telephone=no"/>
+<link rel="shortcut icon" href="/favicon.ico"/>
+<link rel="search" type="application/opensearchdescription+xml" href="/wiki/opensearch_desc.php" title="Microformats Wiki (en)"/>
+<link rel="EditURI" type="application/rsd+xml" href="//microformats.org/wiki/api.php?action=rsd"/>
+<link rel="alternate" type="application/atom+xml" title="Microformats Wiki Atom feed" href="/wiki/index.php?title=Special:RecentChanges&amp;feed=atom"/>
+</head>
+<body class="mediawiki ltr sitedir-ltr mw-hide-empty-elt ns-0 ns-subject page-h-card rootpage-h-card skin-vector action-view skin-vector-legacy"><div id="mw-page-base" class="noprint"></div>
+<div id="mw-head-base" class="noprint"></div>
+<div id="content" class="mw-body" role="main">
+	<a id="top"></a>
+	<div id="siteNotice"></div>
+	<div class="mw-indicators">
+	</div>
+	<h1 id="firstHeading" class="firstHeading mw-first-heading">h-card</h1>
+	<div id="bodyContent" class="vector-body">
+		<div id="siteSub" class="noprint">From Microformats Wiki</div>
+		<div id="contentSub"></div>
+		<div id="contentSub2"></div>
+		
+		<div id="jump-to-nav"></div>
+		<a class="mw-jump-link" href="#mw-head">Jump to navigation</a>
+		<a class="mw-jump-link" href="#searchInput">Jump to search</a>
+		<div id="mw-content-text" class="mw-body-content mw-content-ltr" lang="en" dir="ltr"><div class="mw-parser-output"><p><dfn style="font-style:normal;font-weight:bold">h-card</dfn> is a simple, open format for publishing people and organisations on the web. h-card is often used on home pages and individual blog posts. h-card is one of several open <a href="/wiki/microformats" title="microformats">microformat</a> draft standards suitable for embedding data in HTML.
+</p><p>h-card is the <a href="/wiki/microformats2" title="microformats2">microformats2</a> update to <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a>.
+</p>
+<dl><dt><span id="status">Status</span></dt>
+<dd>This is a <b>Living Specification</b> yet mature enough to encourage additional implementations and <a rel="nofollow" class="external text" href="https://github.com/microformats/h-card/issues">feedback</a>.</dd>
+<dt><span id="participate">Participate</span></dt>
+<dd><a rel="nofollow" class="external text" href="https://github.com/microformats/h-card/issues">Open Issues</a></dd>
+<dd><a href="/wiki/IRC" class="mw-redirect" title="IRC">IRC</a></dd></dl>
+<div class="p-author h-card vcard">
+<dl><dt><span class="p-role role">Editor</span></dt>
+<dd><span class="p-name fn"><a href="/wiki/User:Tantek" title="User:Tantek">Tantek Çelik</a></span></dd></dl>
+</div>
+<dl><dt>License</dt>
+<dd><small>Per <a rel="nofollow" class="external text" href="http://creativecommons.org/publicdomain/zero/1.0/">CC0</a>, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the <a rel="nofollow" class="external text" href="https://www.openwebfoundation.org/the-agreements/the-owf-1-0-agreements-granted-claims/owfa-1-0">Open Web Foundation Agreement Version 1.0</a>.</small></dd></dl>
+<span style="float:right"><div id="toc" class="toc" role="navigation" aria-labelledby="mw-toc-heading"><input type="checkbox" role="button" id="toctogglecheckbox" class="toctogglecheckbox" style="display:none" /><div class="toctitle" lang="en" dir="ltr"><h2 id="mw-toc-heading">Contents</h2><span class="toctogglespan"><label class="toctogglelabel" for="toctogglecheckbox"></label></span></div>
+<ul>
+<li class="toclevel-1 tocsection-1"><a href="#Example"><span class="tocnumber">1</span> <span class="toctext">Example</span></a>
+<ul>
+<li class="toclevel-2 tocsection-2"><a href="#Get_started"><span class="tocnumber">1.1</span> <span class="toctext">Get started</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-3"><a href="#Properties"><span class="tocnumber">2</span> <span class="toctext">Properties</span></a></li>
+<li class="toclevel-1 tocsection-4"><a href="#Status"><span class="tocnumber">3</span> <span class="toctext">Status</span></a></li>
+<li class="toclevel-1 tocsection-5"><a href="#Property_Details"><span class="tocnumber">4</span> <span class="toctext">Property Details</span></a>
+<ul>
+<li class="toclevel-2 tocsection-6"><a href="#p-adr"><span class="tocnumber">4.1</span> <span class="toctext">p-adr</span></a></li>
+<li class="toclevel-2 tocsection-7"><a href="#p-tel"><span class="tocnumber">4.2</span> <span class="toctext">p-tel</span></a></li>
+<li class="toclevel-2 tocsection-8"><a href="#dt-bday"><span class="tocnumber">4.3</span> <span class="toctext">dt-bday</span></a></li>
+<li class="toclevel-2 tocsection-9"><a href="#Reserved_properties"><span class="tocnumber">4.4</span> <span class="toctext">Reserved properties</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-10"><a href="#Examples_in_the_wild"><span class="tocnumber">5</span> <span class="toctext">Examples in the wild</span></a>
+<ul>
+<li class="toclevel-2 tocsection-11"><a href="#offline"><span class="tocnumber">5.1</span> <span class="toctext">offline</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-12"><a href="#Validating"><span class="tocnumber">6</span> <span class="toctext">Validating</span></a></li>
+<li class="toclevel-1 tocsection-13"><a href="#Implementations"><span class="tocnumber">7</span> <span class="toctext">Implementations</span></a></li>
+<li class="toclevel-1 tocsection-14"><a href="#Backward_Compatibility"><span class="tocnumber">8</span> <span class="toctext">Backward Compatibility</span></a>
+<ul>
+<li class="toclevel-2 tocsection-15"><a href="#Publisher_Compatibility"><span class="tocnumber">8.1</span> <span class="toctext">Publisher Compatibility</span></a></li>
+<li class="toclevel-2 tocsection-16"><a href="#Parser_Compatibility"><span class="tocnumber">8.2</span> <span class="toctext">Parser Compatibility</span></a></li>
+</ul>
+</li>
+<li class="toclevel-1 tocsection-17"><a href="#Background"><span class="tocnumber">9</span> <span class="toctext">Background</span></a></li>
+<li class="toclevel-1 tocsection-18"><a href="#Design_Principles"><span class="tocnumber">10</span> <span class="toctext">Design Principles</span></a></li>
+<li class="toclevel-1 tocsection-19"><a href="#Additions"><span class="tocnumber">11</span> <span class="toctext">Additions</span></a></li>
+<li class="toclevel-1 tocsection-20"><a href="#See_Also"><span class="tocnumber">12</span> <span class="toctext">See Also</span></a></li>
+</ul>
+</div>
+</span>
+<h2><span class="mw-headline" id="Example">Example</span></h2>
+<p>Here are a couple of minimal examples:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">a</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-card&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://tantek.com/&quot;</span><span class="p">&gt;</span>Tantek Çelik<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>, 
+
+<span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-card&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">a</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name p-org u-url&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://microformats.org/&quot;</span><span class="p">&gt;</span>microformats.org<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</pre></div>
+<p>Parsed JSON: 
+</p>
+<div class="mw-highlight mw-highlight-lang-javascript mw-content-ltr" dir="ltr"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;items&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;h-card&quot;</span><span class="p">],</span>
+      <span class="s2">&quot;properties&quot;</span><span class="o">:</span> <span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;Tantek Çelik&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;url&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;https://tantek.com/&quot;</span><span class="p">]</span>
+      <span class="p">}</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+      <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;h-card&quot;</span><span class="p">],</span>
+      <span class="s2">&quot;properties&quot;</span><span class="o">:</span> <span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;microformats.org&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;org&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;microformats.org&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;url&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;https://microformats.org/&quot;</span><span class="p">]</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+<p>Note a single element was sufficient for the simple person example with implied name and URL properties, while for an organization, which requires a name and org, it needed explicit markup for the h-card and all properties, though still with only two elements.
+</p><p>Nested h-card example:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-card&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">a</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name u-url&quot;</span>
+     <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://blog.lizardwrangler.com/&quot;</span> 
+    <span class="p">&gt;</span>Mitchell Baker<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> 
+  (<span class="p">&lt;</span><span class="nt">a</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-org h-card&quot;</span> 
+      <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://mozilla.org/&quot;</span>
+     <span class="p">&gt;</span>Mozilla Foundation<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>)
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+<p>Parsed JSON:
+</p>
+<div class="mw-highlight mw-highlight-lang-javascript mw-content-ltr" dir="ltr"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;items&quot;</span><span class="o">:</span> <span class="p">[{</span> 
+    <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;h-card&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;properties&quot;</span><span class="o">:</span> <span class="p">{</span>
+      <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;Mitchell Baker&quot;</span><span class="p">],</span>
+      <span class="s2">&quot;url&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;https://blog.lizardwrangler.com/&quot;</span><span class="p">],</span>
+      <span class="s2">&quot;org&quot;</span><span class="o">:</span> <span class="p">[{</span>
+        <span class="s2">&quot;value&quot;</span><span class="o">:</span> <span class="s2">&quot;Mozilla Foundation&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;h-card&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;properties&quot;</span><span class="o">:</span> <span class="p">{</span>
+          <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;Mozilla Foundation&quot;</span><span class="p">],</span>
+          <span class="s2">&quot;url&quot;</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;https://mozilla.org/&quot;</span><span class="p">]</span>
+        <span class="p">}</span>
+      <span class="p">}]</span>
+    <span class="p">}</span>
+  <span class="p">}]</span>
+<span class="p">}</span>
+</pre></div>
+<p>Note: the nested h-card has implied 'name' and 'url' properties, just like any other root-class-name-only h-card on an <code>&lt;a href&gt;</code> would.
+</p>
+<h3><span class="mw-headline" id="Get_started">Get started</span></h3>
+<p>The class <b><code>h-card</code></b> is a <i>root class name</i> that indicates the presence of an h-card.
+</p><p>For minimal examples where at most <code>p-name</code>, <code>u-url</code> and <code>u-photo</code> are required (such as the first given above), only the root class name is needed — see <a href="/wiki/microformats-2-implied-properties" class="mw-redirect" title="microformats-2-implied-properties">implied properties</a>.
+</p><p>When more than those three minimal properties are needed, the root class name must be placed on an element which encloses all the desired properties, and then the properties themselves marked up using the classnames given below.
+</p><p>See <a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a> to learn more about property classnames.
+</p>
+<h2><span class="mw-headline" id="Properties">Properties</span></h2>
+<p>h-card properties, inside an element with class <b>h-card</b>. All properties are both optional and may have multiple instances, e.g. multiple name, url, photo etc. properties.
+</p>
+<ul><li>See <a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a> to learn more about property classnames.</li></ul>
+<div style="margin-top:-.4em; float:right;"><span>Example h-card with common properties:</span>
+<ul style="list-style:none"><li><code>&lt;div class="<b>h-card</b>"&gt;</code>
+<ul style="list-style:none; margin-top:-.02em">
+<li><code>&lt;span class="<b>p-name</b>"&gt;Sally Ride&lt;/span&gt;</code></li>
+<li><code>&lt;span class="<b>p-honorific-prefix</b>"&gt;Dr.&lt;/span&gt;</code></li>
+<li><code>&lt;span class="<b>p-given-name</b>"&gt;Sally&lt;/span&gt;</code></li>
+<li><code>&lt;abbr class="<b>p-additional-name</b>"&gt;K.&lt;/abbr&gt;</code></li>
+<li><code>&lt;span class="<b>p-family-name</b>"&gt;Ride&lt;/span&gt;</code></li>
+<li><code>&lt;span class="<b>p-honorific-suffix</b>"&gt;Ph.D.&lt;/span&gt;,</code></li>
+<li><code>&lt;span class="<b>p-nickname</b>"&gt;sallykride&lt;/span&gt; (IRC)</code></li>
+<li><code>&lt;div class="<b>p-org</b>"&gt;Sally Ride Science&lt;/div&gt;</code></li>
+<li><code>&lt;img class="<b>u-photo</b>" src="http://example.com/sk.jpg"/&gt; </code></li>
+<li><code>&lt;a class="<b>u-url</b>" href="http://sally.example.com"&gt;w&lt;/a&gt;,</code></li> 
+<li><code>&lt;a class="<b>u-email</b>" href="mailto:sally@example.com"&gt;e&lt;/a&gt; </code></li>
+<li><code>&lt;div class="<b>p-tel</b>"&gt;+1.818.555.1212&lt;/div&gt;</code></li>
+<li><code>&lt;div class="<b>p-street-address</b>"&gt;123 Main st.&lt;/div&gt;</code></li>
+<li><code>&lt;span class="<b>p-locality</b>"&gt;Los Angeles&lt;/span&gt;, </code></li>
+<li><code>&lt;abbr class="<b>p-region</b>" title="California"&gt;CA&lt;/abbr&gt;, </code></li>
+<li><code>&lt;span class="<b>p-postal-code</b>"&gt;91316&lt;/span&gt;</code></li>
+<li><code>&lt;div class="<b>p-country-name</b>"&gt;U.S.A&lt;/div&gt;</code></li>
+<li><code>&lt;time class="<b>dt-bday</b>"&gt;1951-05-26&lt;/time&gt; birthday</code></li>
+<li><code>&lt;div class="<b>p-category</b>"&gt;physicist&lt;/div&gt;</code></li>
+<li><code>&lt;div class="<b>p-note</b>"&gt;First American woman in space.&lt;/div&gt;</code></li></ul></li>
+<li><code>&lt;/div&gt;</code></li></ul>
+</div>
+<p>Core properties:
+</p>
+<ul><li><b><code>p-name</code></b> - The full/formatted name of the person or organization</li>
+<li><b><code>p-honorific-prefix</code></b> - e.g. Mrs., Mr. or Dr.</li>
+<li><b><code>p-given-name</code></b> - given (often first) name</li>
+<li><b><code>p-additional-name</code></b> - other (e.g. middle) name</li>
+<li><b><code>p-family-name</code></b> - family (often last) name</li>
+<li><b><code>p-sort-string</code></b> - string to sort by</li>
+<li><b><code>p-honorific-suffix</code></b> - e.g. Ph.D, Esq.</li>
+<li><b><code>p-nickname</code></b> - nickname/alias/handle</li>
+<li><b><code>u-email</code></b> - email address</li>
+<li><b><code>u-logo</code></b> - a logo representing the person or organization (e.g. a face icon)</li>
+<li><b><code>u-photo</code></b> - a photo of the person or organization</li>
+<li><b><code>u-url</code></b> - home page or other URL representing the person or organization</li>
+<li><b><code>u-uid</code></b> - universally unique identifier, preferably canonical URL</li>
+<li><b><code>p-category</code></b> - category/tag</li>
+<li><b><code>p-adr</code></b> - postal address, optionally embed an <a href="/wiki/h-adr" title="h-adr">h-adr</a> <div style="text-indent:2em;font-style:italic">Main article: <a href="/wiki/h-adr" title="h-adr">h-adr</a></div></li>
+<li><b><code>p-post-office-box</code></b> - post office box description if any</li>
+<li><b><code>p-extended-address</code></b> - apartment/suite/room name/number if any</li>
+<li><b><code>p-street-address</code></b> - street number + name</li>
+<li><b><code>p-locality</code></b> - city/town/village</li>
+<li><b><code>p-region</code></b> - state/county/province</li>
+<li><b><code>p-postal-code</code></b> - postal code, e.g. US ZIP</li>
+<li><b><code>p-country-name</code></b> - country name</li>
+<li><b><code>p-label</code></b></li>
+<li><b><code>p-geo</code></b> or <b><code>u-geo</code></b>, optionally embed an <a href="/wiki/h-geo" title="h-geo">h-geo</a> <div style="text-indent:2em;font-style:italic">Main article: <a href="/wiki/h-geo" title="h-geo">h-geo</a></div></li>
+<li><b><code>p-latitude</code></b> - decimal latitude</li>
+<li><b><code>p-longitude</code></b> - decimal longitude</li>
+<li><b><code>p-altitude</code></b> - decimal altitude</li>
+<li><b><code>p-tel</code></b> - telephone number</li>
+<li><b><code>p-note</code></b> - additional notes</li>
+<li><b><code>dt-bday</code></b> - birth date</li>
+<li><b><code>u-key</code></b> - cryptographic public key e.g. SSH or GPG</li>
+<li><b><code>p-org</code></b> - affiliated organization, optionally embed an <a class="mw-selflink selflink">h-card</a></li>
+<li><b><code>p-job-title</code></b> - job title, previously 'title' in <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a>, disambiguated.</li>
+<li><b><code>p-role</code></b> - description of role</li>
+<li><b><code>u-impp</code></b> per RFC4770, new in vCard4 (RFC 6350)</li>
+<li><b><code>p-sex</code></b> - biological sex, new in vCard4 (RFC 6350)</li>
+<li><b><code>p-gender-identity</code></b> - gender identity, new in vCard4 (RFC 6350)</li>
+<li><b><code>dt-anniversary</code></b></li></ul>
+<p>Experimental properties currently in use in the wild but not (yet) part of the official h-card spec.
+</p>
+<ul><li><b><code>u-sound</code></b> - sound file containing the proper pronunciation of the name property, per vCard (RFC 6350).
+<ul><li>Used by <a rel="nofollow" class="external text" href="https://vanderven.se/martijn/">Martijn van der Ven</a> with a clip of his given name.</li>
+<li>Needs a GitHub issue to track.</li></ul></li></ul>
+<h2><span class="mw-headline" id="Status">Status</span></h2>
+<p><b>h-card</b> is a microformats.org draft specification. Public discussion on h-card takes place on the <a href="/wiki/irc" title="irc">#microformats channel on irc.freenode.net</a> (<a rel="nofollow" class="external text" href="https://chat.indieweb.org/microformats">view recent discussions</a>), and specific issues <a rel="nofollow" class="external text" href="https://github.com/microformats/h-card/issues">may be filed on GitHub</a>.
+</p><p>h-card is ready to use and implemented in the wild. For backwards compatibility you should also mark up top-level h-cards as classic <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCards</a>.
+</p>
+<h2><span class="mw-headline" id="Property_Details">Property Details</span></h2>
+<p>(stub, to be expanded)
+</p>
+<h3><span class="mw-headline" id="p-adr">p-adr</span></h3>
+<p><code>p-adr</code> can optionally embed an <a href="/wiki/h-adr" title="h-adr">h-adr</a> to cluster associated structured address properties. E.g. adding "p-adr" to the example earlier:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-card&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name&quot;</span><span class="p">&gt;</span>Joe Bloggs<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-adr h-adr&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-street-address&quot;</span><span class="p">&gt;</span>17 Austerstræti<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-locality&quot;</span><span class="p">&gt;</span>Reykjavík<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-country-name&quot;</span><span class="p">&gt;</span>Iceland<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+<p>Q: Why would you use "p-adr" to cluster associated structured address properties?
+</p><p>A: Because if you have more than one structured address, clustering which properties go with which address keeps them deterministically together, instead of depending on array indices or other heuristics.
+</p>
+<h3><span class="mw-headline" id="p-tel">p-tel</span></h3>
+<p>Note: use of 'value' within 'p-tel' should be automatically handled by the support of the <a href="/wiki/value-class-pattern" title="value-class-pattern">value-class-pattern</a>. And for now, the former <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a> 'type' subproperty of 'tel' is dropped/ignored. If there is demonstrable documented need for additional tel types (e.g. fax), we can introduce new flat properties as needed (e.g. p-tel-fax).
+</p>
+<h3><span class="mw-headline" id="dt-bday">dt-bday</span></h3>
+<p>Using truncated representations of dates for birth date is often good practice as noted in <a rel="nofollow" class="external text" href="https://tools.ietf.org/html/rfc6350#section-4.3.1">the vcard spec</a> eg
+</p>
+<ul><li><code>1985-04</code> for April 1985</li>
+<li><code>1985</code> for the year 1985</li>
+<li><code>--04-12</code> for April 12th with no specified year</li></ul>
+<h3><span class="mw-headline" id="Reserved_properties">Reserved properties</span></h3>
+<p>The following properties were supported by the legacy hCard format, but were not carried over to h-card due to lack of real-world usage, or other problems. They are not part of h-card and should not be published, consumed, or proposed.
+</p>
+<ul><li><b><code>p-organization-name</code></b></li>
+<li><b><code>p-organization-unit</code></b></li>
+<li><b><code>p-tz</code></b> — timezone offset
+<ul><li><q>it's going to be a hard one to "get right", as the way timezones work in vcard/ical is very weird, and timezones as a whole are an iffy thing to denote (quite the disconnect between complexity, automated processing ability, actually representing what a user would want to show/display or already does on their homepage, and actually representing something useful to parse and do something with)</q></li>
+<li><q>there's certainly no ecosystem of publishers &amp; consumers supporting p-tz in any meaningful interoperable way</q> — <a rel="nofollow" class="external text" href="https://chat.indieweb.org/microformats/2021-06-22/1624385751126500">tantek in #microformats</a></li></ul></li>
+<li><b><code>dt-rev</code></b></li></ul>
+<h2><span class="mw-headline" id="Examples_in_the_wild">Examples in the wild</span></h2>
+<p>See also: <a rel="nofollow" class="external text" href="https://indieweb.org/h-card#IndieWeb_Examples">h-card Examples on indieweb.org</a>
+</p><p>Real world in the wild examples of sites and services that publish or consume h-card:
+</p>
+<ul><li>... add uses of h-card you see in the wild here.</li>
+<li><a rel="nofollow" class="external text" href="http://www.securityjobslondon.co.uk">Security Jobs London</a> uses h-card with legacy <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a> fallback markup (to satisfy <a rel="nofollow" class="external text" href="https://search.google.com/structured-data/testing-tool">Google's Structured Data Testing Tool</a>) in the footer of each page</li>
+<li>Brett Comnes marks up his posts with h-card (<a rel="nofollow" class="external text" href="http://bret.io/2013/06/29/getting-started-with-bower/">example</a>)</li>
+<li>Ben Werdmuller marks up his homepage and posts with h-card <a rel="nofollow" class="external text" href="http://werd.io/view/51d5097fbed7ded0633a5956">example</a>)</li>
+<li><a rel="nofollow" class="external text" href="https://joelpurra.com/">Joel Purra</a> uses a hidden h-card with legacy <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a> fallback markup (to satisfy <a rel="nofollow" class="external text" href="https://search.google.com/structured-data/testing-tool">Google's Structured Data Testing Tool</a>) on the front page</li>
+<li><a rel="nofollow" class="external text" href="http://eschnou.com/">Laurent Eschenauer</a> marks his homepage profile up using h-card</li>
+<li><a rel="nofollow" class="external text" href="http://tommorris.org/">Tom Morris</a> marks himself up with h-card as well as venues he’s checked into (<a rel="nofollow" class="external text" href="http://tommorris.org/posts/8408">example</a>)</li>
+<li><a rel="nofollow" class="external text" href="https://www.w3.org/conf/">W3Conf 2013</a> uses h-card for all the event speakers and notable attendees. The h-cards make particularly good use of implied name, url, and photo properties.</li>
+<li><a rel="nofollow" class="external text" href="http://wordpress.org/extend/themes/sempress">SemPress</a> is a WordPress theme that supports h-card, h-feed/h-entry and h-as-*</li>
+<li><a rel="nofollow" class="external text" href="http://the-pastry-box-project.net/">The Pastry Box Project</a> use h-card markup on their homepage and individual thoughts pages</li>
+<li>Tom Morris uses h-card and <a href="/wiki/XFN" class="mw-redirect" title="XFN">XFN</a> to markup <a rel="nofollow" class="external text" href="http://tommorris.org/pages/blogroll">his blogroll</a>.</li>
+<li>Aaron Parecki uses h-card to markup both authorship and references to people in his notes permalinks, e.g. <a rel="nofollow" class="external text" href="https://aaronparecki.com/2012/230/reply/1">2012/230/reply/1</a>.</li>
+<li><a rel="nofollow" class="external text" href="https://tantek.com/">Tantek Çelik</a> uses h-card  on his home page as well as within <a href="/wiki/h-entry" title="h-entry">h-entrys</a> on permalink pages to indicate authorship.</li>
+<li><a rel="nofollow" class="external text" href="http://waterpigs.co.uk/">Barnaby Walters</a> uses h-card on his home page, as well as within h-entries for notes and articles, both to indicate authorship and also when mentioning people within the body of the notes.</li>
+<li><a rel="nofollow" class="external text" href="https://tantek.com/presentations/2012/06/microformats">microformats.org at 7 years</a> presentation with and h-card markup for people and organizations.</li>
+<li><a rel="nofollow" class="external text" href="https://tantek.com/presentations/2012/06/pdf2012-indieweb.html">Rise of the Indie Web hCards</a> (from Personal Democracy Forum 2012 #pdf12 #pdf2012) has <a href="/wiki/microformats2" title="microformats2">microformats2</a> h-card markup</li>
+<li>WebMaker by Mozilla has <a href="/wiki/microformats2" title="microformats2">microformats2</a> h-card on event search (e.g. <a rel="nofollow" class="external text" href="https://webmaker.org/en-US/events/near/?lat=45.5234515&amp;lng=-122.6762071">search near Portland Oregon</a>) and event pages (e.g. <a rel="nofollow" class="external text" href="https://webmaker.org/en-US/events/192f56eb9/">IndieWebCamp 2012</a>).<a rel="nofollow" class="external autonumber" href="https://twitter.com/microformats/status/212207925643587585">[1]</a></li>
+<li>WebFWD by Mozilla has <a href="/wiki/microformats2" title="microformats2">microformats2</a> h-card markup on <a rel="nofollow" class="external text" href="https://webfwd.org/about/experts/">experts</a> and <a rel="nofollow" class="external text" href="https://webfwd.org/about/team/">team</a> pages</li>
+<li><a rel="nofollow" class="external text" href="https://indiewebcamp.com">IndieWebCamp</a> has <a href="/wiki/microformats2" title="microformats2">microformats2</a> h-event markup with embedded h-cards for the organizers and the location.</li>
+<li><a rel="nofollow" class="external text" href="https://wiki.mozilla.org/Events">Mozilla Events</a> page has <a href="/wiki/microformats2" title="microformats2">microformats2</a> h-event markup with attendees marked up with h-card.</li>
+<li><a rel="nofollow" class="external text" href="https://tristanthomas.me">Tristan Thomas</a> uses h-card on his home page</li>
+<li><a rel="nofollow" class="external text" href="http://cold32.com/about-the-author-and-contact.htm">Cold32.com</a> uses h-card (and h-geo) on its about-the-author-and-contact page</li>
+<li><a rel="nofollow" class="external text" href="https://workfrom.co/">Workfrom.co</a> renders h-cards for venues (e.g. <a rel="nofollow" class="external autonumber" href="https://workfrom.co/palio-dessert-and-espresso-house">[2]</a>)</li>
+<li><a rel="nofollow" class="external text" href="http://www.pcwdld.com/">PCWDLD.com</a> renders h-cards for download pages(e.g. <a rel="nofollow" class="external text" href="http://www.pcwdld.com/solarwinds-network-topology-mapper-review">Download page example</a>)</li></ul>
+<h3><span class="mw-headline" id="offline">offline</span></h3>
+<ul><li>spreadly marks up share permalink pages with minimal h-cards inside h-entry</li>
+<li>App.net rolled out support for h-card and h-entry on all profile pages and permalink pages as of 2013-08-06 (<a rel="nofollow" class="external text" href="https://alpha.app.net/voidfiles">example</a>)</li>
+<li>Sandeep Shetty marks his homepage and posts up with h-card and h-entry (<a rel="nofollow" class="external text" href="https://sandeep.io/101">example</a>)</li></ul>
+<h2><span class="mw-headline" id="Validating">Validating</span></h2>
+<ul><li><b><a rel="nofollow" class="external text" href="https://indiewebify.me/validate-h-card/">indiewebify.me h-card validator</a></b> parses <a class="mw-selflink selflink">h-card</a> markup and makes suggestions for things to add, with code samples</li></ul>
+<div style="text-indent:2em;font-style:italic">Main article: <a href="/wiki/validators" title="validators">validators</a></div>
+<p>Test and validate <a href="/wiki/microformats2" title="microformats2">microformats2</a> markup in general with: 
+</p>
+<ul><li><a rel="nofollow" class="external free" href="https://pin13.net/mf2/">https://pin13.net/mf2/</a> - enter your markup directly</li>
+<li><a rel="nofollow" class="external free" href="https://pin13.net/">https://pin13.net/</a> - enter a URL to a page to test where it says "Microformats Parser"</li></ul>
+<h2><span class="mw-headline" id="Implementations">Implementations</span></h2>
+<p>Software implementations that publish or consume h-card, including themes, plugins, or extensions:
+</p><p>(This section is a stub that needs expansion! In practice, nearly every CMS on every <a rel="nofollow" class="external text" href="https://indieweb.org/">indie web</a> site supports publishing h-card by default, and most sites which support receiving webmentions parse h-card for authorship data.)
+</p><p>When adding an implementation, please provide and link to its home page and open source repo if any.
+</p>
+<ul><li><a rel="nofollow" class="external text" href="https://gnu.io/social/">GNUsocial</a> <a rel="nofollow" class="external text" href="https://git.gnu.io/gnu/gnu-social/">source code</a></li>
+<li><a rel="nofollow" class="external text" href="https://hubzilla.org/hubzilla/">Hubzilla</a> <a rel="nofollow" class="external text" href="https://github.org/redmatrix/hubzilla">source code</a></li>
+<li><a rel="nofollow" class="external text" href="http://friendica.com/">Friendica</a> <a rel="nofollow" class="external text" href="https://github.org/friendica/friendica">source code</a></li>
+<li><a rel="nofollow" class="external text" href="https://github.com/dissolve/inkblot">InkBlot</a></li>
+<li><a rel="nofollow" class="external text" href="https://aperture.p3k.io/">Aperture</a> consumes h-card to show authorship information of feed posts (<a rel="nofollow" class="external text" href="https://github.com/aaronpk/Aperture/">source code</a>)</li>
+<li><a rel="nofollow" class="external text" href="https://xray.p3k.app/">XRay</a> consumes h-card and flattens it into a more minimal format (<a rel="nofollow" class="external text" href="https://github.com/aaronpk/XRay/">source code</a>)</li>
+<li><a rel="nofollow" class="external text" href="https://withknown.com/">Known</a> publishes and consumes h-card to show authorship of posts and responses</li>
+<li><a rel="nofollow" class="external text" href="https://brid.gy/">Bridgy</a> publishes microformats-2 versions of siloed content (including h-card for authorship) for consumption by mf2-consumers</li>
+<li><a rel="nofollow" class="external text" href="https://webmention.io/">webmention.io</a> consumes h-card for authorship data of incoming webmentions which it accepts on behalf of other sites</li>
+<li>...</li>
+<li>...</li></ul>
+<h2><span class="mw-headline" id="Backward_Compatibility">Backward Compatibility</span></h2>
+<h3><span class="mw-headline" id="Publisher_Compatibility">Publisher Compatibility</span></h3>
+<p>For backward compatibility, you may wish to use classic <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a> classnames in addition to the more future-proof h-card properties, for example:
+</p>
+<div class="mw-highlight mw-highlight-lang-html mw-content-ltr" dir="ltr"><pre><span></span><span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;h-card vcard&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-name fn&quot;</span><span class="p">&gt;</span>Joe Bloggs<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>,
+  <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;p-org org&quot;</span><span class="p">&gt;</span>Awesome Nonprofit<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+  ...
+<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre></div>
+<p>The class <b><code>vcard</code></b> is a <i>backward compatible root class name</i> that indicates the presence of an <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a>.
+</p><p><b>fn</b>, <b>org</b>, and all the other backward compatibility hCard property class names are listed below.
+</p>
+<h3><span class="mw-headline" id="Parser_Compatibility">Parser Compatibility</span></h3>
+<p>Microformats parsers <em title="SHOULD in &#82;FC 2119 context" style="text-transform: lowercase; font-style: italic;" class="&#82;FC2119">SHOULD</em> detect classic properties only if a classic root class name is found and parse them as microformats2 properties. 
+</p><p>If an "h-card" is found, don't look for a "vcard" on the same element.
+</p><p>Compat. root class name: <code id="vcard">vcard</code><br />
+Properties: (parsed as <b>p-</b> plain text unless otherwise specified)
+</p>
+<ul><li><code>fn</code> - parse as <b><code>p-name</code></b></li>
+<li><code>honorific-prefix</code></li>
+<li><code>given-name</code></li>
+<li><code>additional-name</code></li>
+<li><code>family-name</code></li>
+<li><code>honorific-suffix</code></li>
+<li><code>nickname</code></li>
+<li><code>email</code> - parse as <b>u-</b></li>
+<li><code>logo</code> - parse as <b>u-</b></li>
+<li><code>photo</code> - parse as <b>u-</b></li>
+<li><code>url</code> - parse as <b>u-</b></li>
+<li><code>uid</code> - parse as <b>u-</b></li>
+<li><code>category</code></li>
+<li><code>adr</code> - parse as <b><code>p-adr h-adr</code></b> including compat root class <code>adr</code></li>
+<li><code>extended-address</code></li>
+<li><code>street-address</code></li>
+<li><code>locality</code></li>
+<li><code>region</code></li>
+<li><code>postal-code</code></li>
+<li><code>country-name</code></li>
+<li><code>label</code></li>
+<li><code>geo</code> - parse as <b><code>p-geo h-geo</code></b> including compat root class <code>geo</code></li>
+<li><code>latitude</code></li>
+<li><code>longitude</code></li>
+<li><code>tel</code></li>
+<li><code>note</code></li>
+<li><code>bday</code> - parse as <b>dt-</b></li>
+<li><code>key</code> - parse as <b>u-</b></li>
+<li><code>org</code></li>
+<li><code>organization-name</code></li>
+<li><code>organization-unit</code></li>
+<li><code>title</code> - parse as <b>p-job-title</b></li>
+<li><code>role</code></li></ul>
+<p>Reserved: (backward compat properties that parsers <em title="MAY in &#82;FC 2119 context" style="text-transform: lowercase; font-style: italic;" class="&#82;FC2119">MAY</em> implement, if they do, they <em title="MUST in &#82;FC 2119 context" style="text-transform: lowercase; font-style: italic;" class="&#82;FC2119">MUST</em> implement in this way:
+</p>
+<ul><li><code>tz</code></li>
+<li><code>rev</code> - parse as <b>dt-</b></li></ul>
+<h2><span class="mw-headline" id="Background">Background</span></h2>
+<p>This work is based on the existing <a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a> and <a href="/wiki/vcard" title="vcard">vcard</a> specifications.
+</p>
+<h2><span class="mw-headline" id="Design_Principles">Design Principles</span></h2>
+<p>(stub, expand)
+</p>
+<h2><span class="mw-headline" id="Additions">Additions</span></h2>
+<p>We've tried very hard with h-card to stay compatible with the vCard4 vocabulary, and thus additions should be proposed on the vCard4 mailing list.
+</p><p>However, you may still use this wiki to capture additions for h-card here:
+</p>
+<ul><li><a href="/wiki/h-card-brainstorming" title="h-card-brainstorming">h-card-brainstorming</a></li></ul>
+<h2><span class="mw-headline" id="See_Also">See Also</span></h2>
+<ul><li><a href="/wiki/microformats2" title="microformats2">microformats2</a></li>
+<li><a href="/wiki/microformats2-parsing" title="microformats2-parsing">microformats2-parsing</a></li>
+<li><a href="/wiki/h-adr" title="h-adr">h-adr</a></li>
+<li><a href="/wiki/h-geo" title="h-geo">h-geo</a></li>
+<li><a href="/wiki/hCard" class="mw-redirect" title="hCard">hCard</a></li></ul>
+<!-- 
+NewPP limit report
+Cached time: 20261106135423
+Cache expiry: 3600
+Reduced expiry: true
+Complications: []
+CPU time usage: 0.060 seconds
+Real time usage: 3.558 seconds
+Preprocessor visited node count: 193/1000000
+Post‐expand include size: 1355/2097152 bytes
+Template argument size: 20/2097152 bytes
+Highest expansion depth: 4/100
+Expensive parser function count: 0/100
+Unstrip recursion depth: 0/20
+Unstrip post‐expand size: 9099/5000000 bytes
+-->
+<!--
+Transclusion expansion time report (%,ms,calls,template)
+100.00% 3468.735      1 -total
+  0.14%    4.779      1 Template:cc0-owfa-license
+  0.08%    2.661      1 Template:h-spec-section-validating
+  0.07%    2.314      1 Template:should
+  0.05%    1.869      1 Template:must
+  0.05%    1.678      3 Template:main
+  0.05%    1.629      1 Template:may
+-->
+
+<!-- Saved in parser cache with key wiki:pcache:idhash:8918-0!canonical and timestamp 20261106135419 and revision id 70686. Serialized with JSON.
+ -->
+</div>
+<div class="printfooter">Retrieved from "<a dir="ltr" href="http://microformats.org/wiki/index.php?title=h-card&amp;oldid=70686">http://microformats.org/wiki/index.php?title=h-card&amp;oldid=70686</a>"</div></div>
+		<div id="catlinks" class="catlinks" data-mw="interface"><div id="mw-normal-catlinks" class="mw-normal-catlinks"><a href="/wiki/Special:Categories" title="Special:Categories">Category</a>: <ul><li><a href="/wiki/Category:Draft_Specifications" title="Category:Draft Specifications">Draft Specifications</a></li></ul></div></div>
+	</div>
+</div>
+
+<div id="mw-navigation">
+	<h2>Navigation menu</h2>
+	<div id="mw-head">
+		
+<nav id="p-personal" class="mw-portlet mw-portlet-personal vector-user-menu-legacy vector-menu" aria-labelledby="p-personal-label" role="navigation" 
+	 >
+	<label id="p-personal-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Personal tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="pt-login" class="mw-list-item"><a href="/wiki/index.php?title=Special:UserLogin&amp;returnto=h-card" title="You are encouraged to log in; however, it is not mandatory [o]" accesskey="o"><span>Log in</span></a></li></ul>
+		
+	</div>
+</nav>
+
+		<div id="left-navigation">
+			
+<nav id="p-namespaces" class="mw-portlet mw-portlet-namespaces vector-menu vector-menu-tabs" aria-labelledby="p-namespaces-label" role="navigation" 
+	 >
+	<label id="p-namespaces-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Namespaces</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-nstab-main" class="selected mw-list-item"><a href="/wiki/h-card" title="View the content page [c]" accesskey="c"><span>Page</span></a></li><li id="ca-talk" class="new mw-list-item"><a href="/wiki/index.php?title=Talk:h-card&amp;action=edit&amp;redlink=1" rel="discussion" title="Discussion about the content page (page does not exist) [t]" accesskey="t"><span>Discussion</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-variants" class="mw-portlet mw-portlet-variants emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-variants-label" role="navigation" 
+	 >
+	<input type="checkbox"
+		id="p-variants-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-variants"
+		class="vector-menu-checkbox" aria-labelledby="p-variants-label" />
+	<label id="p-variants-label" aria-label="Change language variant" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">English</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+		</div>
+		<div id="right-navigation">
+			
+<nav id="p-views" class="mw-portlet mw-portlet-views vector-menu vector-menu-tabs" aria-labelledby="p-views-label" role="navigation" 
+	 >
+	<label id="p-views-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Views</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="ca-view" class="selected mw-list-item"><a href="/wiki/h-card"><span>Read</span></a></li><li id="ca-viewsource" class="mw-list-item"><a href="/wiki/index.php?title=h-card&amp;action=edit" title="This page is protected.&#10;You can view its source [e]" accesskey="e"><span>View source</span></a></li><li id="ca-history" class="mw-list-item"><a href="/wiki/index.php?title=h-card&amp;action=history" title="Past revisions of this page [h]" accesskey="h"><span>View history</span></a></li></ul>
+		
+	</div>
+</nav>
+
+			
+<nav id="p-cactions" class="mw-portlet mw-portlet-cactions emptyPortlet vector-menu-dropdown-noicon vector-menu vector-menu-dropdown" aria-labelledby="p-cactions-label" role="navigation"  title="More options"
+	 >
+	<input type="checkbox"
+		id="p-cactions-checkbox"
+		role="button"
+		aria-haspopup="true"
+		data-event-name="ui.dropdown-p-cactions"
+		class="vector-menu-checkbox" aria-labelledby="p-cactions-label" />
+	<label id="p-cactions-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">More</span>
+			<span class="vector-menu-checkbox-expanded">expanded</span>
+			<span class="vector-menu-checkbox-collapsed">collapsed</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"></ul>
+		
+	</div>
+</nav>
+
+			
+<div id="p-search" role="search" class="vector-search-box-vue  vector-search-box-show-thumbnail vector-search-box-auto-expand-width vector-search-box">
+	<div>
+			<h3 >
+				<label for="searchInput">Search</label>
+			</h3>
+		<form action="/wiki/index.php" id="searchform"
+			class="vector-search-box-form">
+			<div id="simpleSearch"
+				class="vector-search-box-inner"
+				 data-search-loc="header-navigation">
+				<input class="vector-search-box-input"
+					 type="search" name="search" placeholder="Search Microformats Wiki" aria-label="Search Microformats Wiki" autocapitalize="none" title="Search Microformats Wiki [f]" accesskey="f" id="searchInput"
+				/>
+				<input type="hidden" name="title" value="Special:Search"/>
+				<input id="mw-searchButton"
+					 class="searchButton mw-fallbackSearchButton" type="submit" name="fulltext" title="Search the pages for this text" value="Search" />
+				<input id="searchButton"
+					 class="searchButton" type="submit" name="go" title="Go to a page with this exact name if it exists" value="Go" />
+			</div>
+		</form>
+	</div>
+</div>
+
+		</div>
+	</div>
+	
+
+<div id="mw-panel">
+	<div id="p-logo" role="banner">
+		<a class="mw-wiki-logo" href="/wiki/Main_Page"
+			title="Visit the main page"></a>
+	</div>
+	
+<nav id="p-Microformats_Wiki" class="mw-portlet mw-portlet-Microformats_Wiki vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats_Wiki-label" role="navigation" 
+	 >
+	<label id="p-Microformats_Wiki-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats Wiki</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Front-Page" class="mw-list-item"><a href="/wiki/Main_Page"><span>Front Page</span></a></li><li id="n-recentchanges" class="mw-list-item"><a href="/wiki/Special:RecentChanges" icon="recentChanges" title="A list of recent changes in the wiki [r]" accesskey="r"><span>Recent changes</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+<nav id="p-Microformats" class="mw-portlet mw-portlet-Microformats vector-menu vector-menu-portal portal" aria-labelledby="p-Microformats-label" role="navigation" 
+	 >
+	<label id="p-Microformats-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Microformats</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="n-Blog" class="mw-list-item"><a href="http://microformats.org" rel="nofollow"><span>Blog</span></a></li><li id="n-Events" class="mw-list-item"><a href="/wiki/Microformats_Wiki:Current_events"><span>Events</span></a></li><li id="n-About" class="mw-list-item"><a href="/wiki/About"><span>About</span></a></li></ul>
+		
+	</div>
+</nav>
+
+<nav id="p-tb" class="mw-portlet mw-portlet-tb vector-menu vector-menu-portal portal" aria-labelledby="p-tb-label" role="navigation" 
+	 >
+	<label id="p-tb-label" aria-label="" class="vector-menu-heading">
+		<span class="vector-menu-heading-label">Tools</span>
+	</label>
+	<div class="vector-menu-content">
+		
+		<ul class="vector-menu-content-list"><li id="t-whatlinkshere" class="mw-list-item"><a href="/wiki/Special:WhatLinksHere/h-card" title="A list of all wiki pages that link here [j]" accesskey="j"><span>What links here</span></a></li><li id="t-recentchangeslinked" class="mw-list-item"><a href="/wiki/Special:RecentChangesLinked/h-card" rel="nofollow" title="Recent changes in pages linked from this page [k]" accesskey="k"><span>Related changes</span></a></li><li id="t-specialpages" class="mw-list-item"><a href="/wiki/Special:SpecialPages" title="A list of all special pages [q]" accesskey="q"><span>Special pages</span></a></li><li id="t-print" class="mw-list-item"><a href="javascript:print();" rel="alternate" title="Printable version of this page [p]" accesskey="p"><span>Printable version</span></a></li><li id="t-permalink" class="mw-list-item"><a href="/wiki/index.php?title=h-card&amp;oldid=70686" title="Permanent link to this revision of the page"><span>Permanent link</span></a></li><li id="t-info" class="mw-list-item"><a href="/wiki/index.php?title=h-card&amp;action=info" title="More information about this page"><span>Page information</span></a></li></ul>
+		
+	</div>
+</nav>
+
+	
+</div>
+
+</div>
+
+<footer id="footer" class="mw-footer" role="contentinfo" >
+	<ul id="footer-info">
+	<li id="footer-info-lastmod"> This page was last edited on 23 May 2024, at 17:09.</li>
+</ul>
+
+	<ul id="footer-places">
+	<li id="footer-places-privacy"><a href="/wiki/Microformats_Wiki:Privacy_policy" title="Microformats Wiki:Privacy policy">Privacy policy</a></li>
+	<li id="footer-places-about"><a href="/wiki/Microformats_Wiki:About" title="Microformats Wiki:About">About Microformats Wiki</a></li>
+	<li id="footer-places-disclaimer"><a href="/wiki/Microformats_Wiki:General_disclaimer" title="Microformats Wiki:General disclaimer">Disclaimers</a></li>
+</ul>
+
+	<ul id="footer-icons" class="noprint">
+	<li id="footer-poweredbyico"><a href="https://www.mediawiki.org/"><img src="/wiki/resources/assets/poweredby_mediawiki_88x31.png" alt="Powered by MediaWiki" srcset="/wiki/resources/assets/poweredby_mediawiki_132x47.png 1.5x, /wiki/resources/assets/poweredby_mediawiki_176x62.png 2x" width="88" height="31" loading="lazy"/></a></li>
+</ul>
+
+</footer>
+
+<script src="https://www.googletagmanager.com/gtag/js?id=UA-1889385-1" async=""></script><script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'UA-1889385-1');
+</script>
+
+<script>(RLQ=window.RLQ||[]).push(function(){mw.config.set({"wgPageParseReport":{"limitreport":{"cputime":"0.060","walltime":"3.558","ppvisitednodes":{"value":193,"limit":1000000},"postexpandincludesize":{"value":1355,"limit":2097152},"templateargumentsize":{"value":20,"limit":2097152},"expansiondepth":{"value":4,"limit":100},"expensivefunctioncount":{"value":0,"limit":100},"unstrip-depth":{"value":0,"limit":20},"unstrip-size":{"value":9099,"limit":5000000},"timingprofile":["100.00% 3468.735      1 -total","  0.14%    4.779      1 Template:cc0-owfa-license","  0.08%    2.661      1 Template:h-spec-section-validating","  0.07%    2.314      1 Template:should","  0.05%    1.869      1 Template:must","  0.05%    1.678      3 Template:main","  0.05%    1.629      1 Template:may"]},"cachereport":{"timestamp":"20261106135423","ttl":3600,"transientcontent":true}}});mw.config.set({"wgBackendResponseTime":195});});</script>
+</body>
+</html>

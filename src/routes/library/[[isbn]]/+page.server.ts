@@ -1,15 +1,20 @@
 import type { PageServerLoad } from './$types';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import libraryData from '../../../../static/library/graph.json';
+
+// Keep the library index prerendered while serving arbitrary ISBN deep links.
+export const prerender = 'auto';
 
 interface MinifiedNode {
 	i: string; // id
 	g: string; // group
+	au?: string; // author surname
+	af?: string; // full author name
 	w?: string; // workcode
 	b?: number; // bookid
 	n?: string; // isbn
 	p?: number; // pages
 	d?: string; // dateacquired
+	e?: string; // date added to LibraryThing
 	y?: number; // publicationYear
 	c?: string; // ddcCode
 	m?: string; // img
@@ -32,11 +37,14 @@ interface MinifiedGraphData {
 interface Node {
 	id: string;
 	group: string;
+	authorLastName?: string;
+	authorName?: string;
 	workcode?: string;
 	bookid?: number;
 	isbn?: string;
 	pages?: number;
 	dateacquired?: string;
+	entrydate?: string;
 	publicationYear?: number;
 	ddcCode?: string;
 	img?: string;
@@ -59,11 +67,14 @@ interface GraphData {
 // Expand minified keys back to full names
 function expandNode(n: MinifiedNode): Node {
 	const node: Node = { id: n.i, group: n.g };
+	if (n.au) node.authorLastName = n.au;
+	if (n.af) node.authorName = n.af;
 	if (n.w) node.workcode = n.w;
 	if (n.b) node.bookid = n.b;
 	if (n.n) node.isbn = n.n;
 	if (n.p) node.pages = n.p;
 	if (n.d) node.dateacquired = n.d;
+	if (n.e) node.entrydate = n.e;
 	if (n.y) node.publicationYear = n.y;
 	if (n.c) node.ddcCode = n.c;
 	if (n.m) node.img = n.m;
@@ -90,9 +101,7 @@ export const load: PageServerLoad = async ({ params, platform }) => {
 		}
 
 		// Development/build - read from static folder
-		const filePath = join(process.cwd(), 'static', 'library', 'graph.json');
-		const rawData = readFileSync(filePath, 'utf-8');
-		const minified: MinifiedGraphData = JSON.parse(rawData);
+		const minified: MinifiedGraphData = libraryData;
 
 		graphData = {
 			nodes: minified.nodes.map(expandNode),

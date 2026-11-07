@@ -1,0 +1,240 @@
+h-feed
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+h-feed is a simple, open format for publishing a stream or feed of h-entry posts, like complete posts on a home page or archive pages, or summaries or other brief lists of posts. h-feed is one of several open microformat draft standards suitable for embedding data in HTML.
+
+h-feed is the microformats2 update to hAtom, and in particular its "hfeed" root class.
+
+Status
+h-feed is a microformats.org draft specification.
+h-feed is ready to use and implemented in the wild, but for backwards compatibility you should also mark h-feed up as a classic hAtom "hfeed".
+Participate
+Open Issues
+IRC
+Editor
+Tantek Çelik (Editor)
+License
+Per CC0, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the Open Web Foundation Agreement Version 1.0.
+
+Contents
+
+1 Properties
+
+1.1 Core Properties
+
+1.2 Draft Properties
+
+1.3 Proposed Properties
+
+2 Proposed Additions
+
+3 Discovery
+
+3.1 Implied h-feed
+
+4 Examples in the wild
+
+5 Consumers
+
+6 Backward Compatibility
+
+6.1 Publisher Compatibility
+
+6.2 Parser Compatibility
+
+7 FAQ
+
+7.1 How do I avoid duplicating the page title
+
+8 See Also
+
+Properties
+
+h-feed properties, inside an element with class h-feed. All properties are both optional and may have multiple instances, e.g. multiple name, url, photo etc. properties.
+
+root class name: h-feed
+
+Core Properties
+
+The following core h-feed properties have broad consensus:
+
+p-name - name of the feed
+
+p-author - author of the feed, optionally embed an h-card
+Main article: h-card
+
+u-url - URL of the feed
+
+u-photo - representative photo / icon for the feed
+
+children:
+
+nested h-entry objects representing the items of the feed
+
+Draft Properties
+
+None currently.
+
+Proposed Properties
+
+The following properties are proposed additions based on various observed examples in the wild, but are awaiting at least one reader / real world consuming code example to become a draft property:
+
+p-summary - based on non-trivial actual content usage of "atom:subtitle" on Blogger and WordPress.com featured blogs's Atom feeds.
+
+p-entry - to be more consistent with the cascading of p-author or p-comment.
+
+Proposed Additions
+
+Proposal that h-feed not be limited to h-entry, due use cases for feeds of h-cards or h-events https://github.com/microformats/h-feed/issues/3
+
+Proposal to add implied h-feed in cases where no h-feed is explicitly marked up. https://github.com/microformats/h-feed/issues/1
+
+Discovery
+
+Implementations may discover one or more h-feeds in several ways.
+
+If the implementation is given a URL (e.g. from a user entering it) to do h-feed discovery, it:
+
+SHOULD do traditional feed discovery by looking through link elements with a rel value of "alternate"
+
+For each link alternate with a media type of text/mf2+html
+
+get its href,
+
+do any relative-URL resolution needed on that href to construct an absolute URL
+
+fetch that absolute URL and parse it (within a specific element matching a fragment in the URL if any) for microformats2 items,
+
+look for top-level items (within that fragment element subtree if any) of type "h-feed"
+
+ALSO implementations MAY parse the whole document and look in its top level items for those of type "h-feed"
+
+If the implementation has already parsed an HTML document, it may look for elements with a class name of "h-feed"
+
+Details:
+
+Implementations may fetch public h-feeds without having to pass cookies or any other user-identifying information
+
+Implementations should parse h-feed documents without executing any scripts (parse as if scripting is disabled or unimplemented)
+
+If an implementation needs only one h-feed, it should take the first one found per the above methods
+
+Implied h-feed
+
+In the absence of an explicit "h-feed" element, implementations may infer an h-feed of all top level microformats items in the document (as determined by microformats2-parsing the document). Among those top level items, if precisely one of them is an "h-card" then it is used to imply a "p-author h-card" property of the implied "h-feed" and is removed from the "children" array of the implied "h-feed".
+
+E.g. if an archive page has a collection of h-entry elements at the top level, implementations may imply an h-feed container for all of them and treat the entire document as a feed.
+
+Examples in the wild
+
+See https://indieweb.org/h-feed#IndieWeb_Examples for examples of h-feed in the wild.
+
+Consumers
+
+See https://indieweb.org/h-feed#Consumers_of_H-Feed for examples of implementations that consume h-feed.
+
+Backward Compatibility
+
+Publisher Compatibility
+
+For backward compatibility, you may wish to use classic hAtom classnames in addition to the more future-proof h-feed properties, for example:
+
+&lt;div class=&quot;h-feed hfeed&quot;&gt;
+  &lt;h1 class=&quot;p-name site-title&quot;&gt;The Markup Blog&lt;/h1&gt;
+  &lt;p class=&quot;p-summary site-description&quot;&gt;Stories of elements of their attributes.&lt;/p&gt;
+
+  &lt;article class=&quot;h-entry hentry&quot;&gt;
+    &lt;a class=&quot;u-url&quot; rel=&quot;bookmark&quot; href=&quot;2020/06/22/balanced-divisive-complementary&quot;&gt;
+      &lt;h2 class=&quot;p-name entry-title&quot;&gt;A Tale Of Two Tags: Part 2&lt;/h2&gt;
+    &lt;/a&gt;
+    &lt;address class=&quot;p-author author h-card vcard&quot;&gt;
+      &lt;a href=&quot;https://chandra.example.com/&quot; class=&quot;u-url url p-name fn&quot; rel=&quot;author&quot;&gt;Chandra&lt;/a&gt;
+    &lt;/address&gt;
+    &lt;time class=&quot;dt-published published&quot; datetime=&quot;2012-06-22T09:45:57-07:00&quot;&gt;June 21, 2012&lt;/time&gt;
+    &lt;div class=&quot;p-summary entry-summary&quot;&gt;
+      &lt;p&gt;From balanced harmony, to divisive misunderstandings, to complementary roles.&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;a href=&quot;/category/uncategorized/&quot; rel=&quot;category tag&quot; class=&quot;p-category&quot;&gt;General&lt;/a&gt;
+  &lt;/article&gt;
+
+  &lt;article class=&quot;h-entry hentry&quot;&gt;
+    &lt;a class=&quot;u-url&quot; rel=&quot;bookmark&quot; href=&quot;2020/06/20/best-visible-alternative-invisible&quot;&gt;
+      &lt;h2 class=&quot;p-name entry-title&quot;&gt;A Tale Of Two Tags: Part 1&lt;/h2&gt;
+    &lt;/a&gt;
+    &lt;address class=&quot;p-author author h-card vcard&quot;&gt;
+      &lt;a href=&quot;https://chandra.example.com/&quot; class=&quot;u-url url p-name fn&quot; rel=&quot;author&quot;&gt;Chandra&lt;/a&gt;
+    &lt;/address&gt;
+    &lt;time class=&quot;dt-published published&quot; datetime=&quot;2012-06-20T08:34:46-07:00&quot;&gt;June 20, 2012&lt;/time&gt;
+    &lt;div class=&quot;p-summary entry-summary&quot;&gt;
+      &lt;p&gt;It was the best of visible tags, it was the alternative invisible tags.&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;a href=&quot;/category/uncategorized/&quot; rel=&quot;category tag&quot; class=&quot;p-category&quot;&gt;General&lt;/a&gt;
+  &lt;/article&gt;
+
+&lt;/div&gt;
+
+ℹ️ Note: Note: you may use any valid HTML5 elements. The article h1 h2 address time elements are used in the example as semantically richer suggestions, however in general div span work fine too. The time element is special though in that its datetime attribute provides a more author/user friendly way of separating a machine readable ISO8601 datetime from a human readable summary.
+
+The class hfeed is a backward compatible root class name that indicates the presence of an hAtom feed.
+
+Backward compatibility hAtom property class names and rel values are listed below.
+
+Parser Compatibility
+
+Microformats parsers SHOULD detect classic properties only if a classic root class name is found and parse them as microformats2 properties.
+
+If an "h-feed" is found, don't look for an "hfeed" on the same element.
+
+Compat root class name: hfeed
+
+Properties: (parsed as p- plain text unless otherwise specified):
+
+(this section is a stub and needs review and citations to note what real world examples would each of these backcompat parsing rules actually help parse)
+
+rel=tag - parse as p-category. While not a class name nor typical microformats property, rel=tag was the defined way to tag an hfeed. Thus parsers should look for rel=tag hyperlinks inside an hfeed, and take the last path segment of their "href" value as a value for a p-category property.
+
+site-title - parse as p-name [WordPress (Core? Typical themes?) has this class name by default, and without it buggy parsers may imply p-name as the whole h-feed (implied properties only apply to actual h-x roots, not backcompat).]
+
+site-description - parse as p-summary [WordPress (Core? Typical themes?) has this class name by default]
+
+If no "h-feed" nor "hfeed" element is found, however multiple top-level h-entry elements (explicit or backcompat) are found, implementations may use:
+
+top level h-entry elements as items in a synthetic h-feed.
+
+&lt;title&gt; of the page or the URL of the page as p-name
+
+https://indieweb.org/authorship on the page to discover default authorship for any h-entry posts lacking explicit parsed author properties.
+
+FAQ
+
+How do I avoid duplicating the page title
+
+I want to use the name (title) of my page as the name of my feed, how do I avoid duplicating the page title somewhere invisibly on the page as the feed name?
+
+If you want re-use the &lt;title&gt; of your page as the name of your feed, you can do so by putting the h-feed root class name on the &lt;html&gt; element, and the p-name property class name on the &lt;title&gt; element, e.g. here's a snippet showing how those tags would look:
+
+&lt;html class=&quot;h-feed&quot;&gt;
+  …
+  &lt;title class=&quot;p-name&quot;&gt;The Markup Blog&lt;/title&gt;
+  …
+
+See Also
+
+h-entry
+
+microformats2
+
+hAtom
+
+Retrieved from "http://microformats.org/wiki/index.php?title=h-feed&amp;oldid=70688"
+
+Category:
+Draft Specifications
+
+Navigation menu
+
+				Search

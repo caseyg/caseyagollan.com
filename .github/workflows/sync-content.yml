@@ -1,0 +1,45 @@
+name: Sync published content
+on:
+  repository_dispatch:
+    types: [content-updated]
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: sync-published-content
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.CONTENT_SYNC_TOKEN || github.token }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.17'
+      - run: bun install --frozen-lockfile
+      - name: Validate latest content and select exact revision
+        id: content
+        run: bun utils/sync-content.ts
+      - name: Verify site with the selected content
+        if: steps.content.outputs.changed == 'true'
+        run: |
+          bun test
+          bun run check
+          bun run build
+      - name: Advance canonical content pointer
+        if: steps.content.outputs.changed == 'true'
+        env:
+          CONTENT_SHA: ${{ steps.content.outputs.content_sha }}
+        run: |
+          test "$(git -C content rev-parse HEAD)" = "$CONTENT_SHA"
+          test "$(git rev-parse :content)" = "$CONTENT_SHA"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "content: publish ${CONTENT_SHA}"
+          git push origin HEAD:main

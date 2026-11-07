@@ -1,7 +1,16 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import type * as Three from 'three';
 	import { browser } from '$app/environment';
+	import { pushState, replaceState } from '$app/navigation';
+	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
+	import { spineTextureSize } from '$lib/library/textures';
+	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
+	import { layoutSpine } from '$lib/library-spine';
+	import { libraryText } from '$lib/library-text';
+	import { shelfCoverCamera, adjacentShelfBook } from '$lib/library-selection';
+	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -14,8 +23,11 @@
 		workcode?: string;
 		bookid?: number;
 		isbn?: string;
+		authorLastName?: string;
+		authorName?: string;
 		pages?: number;
 		dateacquired?: string;
+		entrydate?: string;
 		publicationYear?: number;
 		ddcCode?: string;
 		img?: string;
@@ -29,7 +41,7 @@
 		fx?: number;
 		fy?: number;
 		fz?: number;
-		__threeObj?: THREE.Mesh;
+		__threeObj?: Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]>;
 	}
 
 	interface Link {
@@ -83,18 +95,30 @@
 	let loadingProgress = $state('Loading library...');
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
-	const sortModes = ['dateacquired', 'publicationYear', 'ddc', 'color'];
+	const sortModes = librarySortModes;
+	const sortLabels = ['Recently acquired', 'Publication year', 'Subject', 'Color'];
 	const sortIcons = ['📅', '⏳', '📖', '🌈'];
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
+	let shelfFramePending = false;
+	let shelfBounds: ShelfBounds | null = null;
+	let shelfFramingUntil = 0;
+	interface BookPose { x: number; y: number; z: number; rotationY: number }
+	const shelfBookPresentations = new Map<string, { node: Node; pose: BookPose; frame: number | null; open: boolean }>();
+	let shelfSavedCamera: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; minDistance: number; maxDistance: number } | null = null;
+	let shelfCameraAnimation: number | null = null;
+	const shelfDraggedPositions = new Map<string, { x: number; y: number }>();
 
 	// Book detail overlay state
-	let selectedBook: Node | null = $state(null);
+	let selectedBook: Node | null = $state.raw(null);
 	let bookDetails: GoogleBookVolumeInfo | null = $state(null);
 	let isLoadingBookDetails = $state(false);
-	let bookDetailError: string | null = $state(null);
+	let detailsRequest: AbortController | null = null;
 	let orbitAnimationId: number | null = null;
 	let orbitPaused = false;
+	let removeOrbitListener: (() => void) | undefined;
+	let orbitStartTimeoutId: ReturnType<typeof setTimeout> | undefined;
+	let initialSelectionTimeoutId: ReturnType<typeof setTimeout> | undefined;
 	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 	let orbitDirection = 1; // 1 or -1 for clockwise/counter-clockwise
 
@@ -113,19 +137,30 @@
 	]);
 
 	// Performance: Cached materials
-	let paperWhiteMaterial: THREE.MeshBasicMaterial;
-	const textureCache = new Map<string, THREE.Texture>();
-	const materialCache = new Map<string, THREE.MeshBasicMaterial>();
-	const geometryCache = new Map<string, THREE.BoxGeometry>();
+	let paperWhiteMaterial: Three.MeshBasicMaterial;
+	const textureCache = new Map<string, Three.Texture>();
+	const materialCache = new Map<string, Three.MeshBasicMaterial>();
+	const geometryCache = new Map<string, Three.BoxGeometry>();
 
 	// Cleanup tracking
 	const animationFrameIds = new Set<number>();
+	function scheduleFrame(callback: FrameRequestCallback) {
+		const id = requestAnimationFrame((time) => {
+			animationFrameIds.delete(id);
+			if (!isDestroyed) callback(time);
+		});
+		animationFrameIds.add(id);
+		return id;
+	}
 	let isDestroyed = false;
 
 	// Mobile detection and limits
 	const isMobile = browser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-	const maxTexturesOnMobile = 100; // Limit textures on mobile to prevent crashes
+	// Reserve capacity for real covers even when placeholders appear first.
+	const maxCoverTexturesOnMobile = 64;
+	const maxGeneratedTexturesOnMobile = 36;
 	let textureCount = 0;
+	let coverTextureCount = 0;
 
 	// Performance: Reusable canvas for texture generation
 	let spineCanvas: HTMLCanvasElement;
@@ -146,61 +181,45 @@
 		depth: number,
 		averageColor: string,
 		bookHeight?: number
-	): THREE.MeshBasicMaterial {
-		const cacheKey = `spine_${node.id}_${depth}_${averageColor}_${bookHeight}`;
+	): Three.MeshBasicMaterial {
+		const cacheKey = `spine_${node.id}_${node.authorLastName || ""}_${depth}_${averageColor}_${bookHeight}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
 
-		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
-			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
-			materialCache.set(cacheKey, simpleMaterial);
-			return simpleMaterial;
-		}
-
-		// Match canvas aspect ratio to actual spine geometry
-		// Spine face is (depthVal x height) where depthVal = depth/10
-		// Use resolution multiplier for crisp text
-		const resolution = 8;
-		const spineWidth = Math.max(depth / 10, 0.5); // Match depthVal from createBookObject
+		// Size lettering in texture pixels, proportional to the physical spine width.
+		// A fixed 14px font became microscopic on a canvas thousands of pixels tall.
+		const spineWidth = Math.max(depth / 10, 0.1);
 		const spineHeight = bookHeight || 25;
-
-		spineCanvas.width = Math.round(spineWidth * resolution * 10);
-		spineCanvas.height = Math.round(spineHeight * resolution * 10);
-
+		const size = spineTextureSize(spineWidth, spineHeight);
+		spineCanvas.width = size.width;
+		spineCanvas.height = size.height;
 		spineCtx.fillStyle = averageColor;
 		spineCtx.fillRect(0, 0, spineCanvas.width, spineCanvas.height);
 
-		spineCtx.fillStyle = 'white';
-		spineCtx.strokeStyle = 'black';
-
-		// Font size relative to spine width
-		const baseFontSize = Math.max(8, Math.min(14, spineCanvas.width * 0.25));
-		spineCtx.font = `bold ${baseFontSize}px Arial`;
-		spineCtx.textAlign = 'left';
-		spineCtx.textBaseline = 'top';
-
-		// Draw text vertically (rotated 90 degrees) - left aligned from top
-		const padding = 10;
-		const maxTextWidth = spineCanvas.height - padding * 2;
-
-		// Truncate title if too long
-		let title = node.id;
-		let metrics = spineCtx.measureText(title);
-		while (metrics.width > maxTextWidth && title.length > 10) {
-			title = title.slice(0, -4) + '…';
-			metrics = spineCtx.measureText(title);
-		}
-
-		// Draw text rotated 90 degrees (reading from bottom to top)
+		const color = new THREE.Color(averageColor);
+		const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+		spineCtx.fillStyle = luminance > 0.18 ? '#111111' : '#ffffff';
+		const layout = layoutSpine(libraryText(node.id), libraryText(node.authorLastName || ''), spineCanvas.height, spineCanvas.width,
+			(text, size) => {
+				spineCtx.font = `600 ${size}px Arial`;
+				return spineCtx.measureText(text).width;
+			});
 		spineCtx.save();
-		spineCtx.translate(spineCanvas.width / 2 + baseFontSize / 3, spineCanvas.height - padding);
+		spineCtx.translate(spineCanvas.width / 2, spineCanvas.height / 2);
 		spineCtx.rotate(-Math.PI / 2);
-		spineCtx.lineWidth = 2;
-		spineCtx.strokeStyle = 'rgba(0,0,0,0.5)';
-		spineCtx.strokeText(title, 0, 0);
-		spineCtx.fillText(title, 0, 0);
+		spineCtx.textAlign = 'left';
+		spineCtx.textBaseline = 'middle';
+		spineCtx.font = `600 ${layout.titleSize}px Arial`;
+		layout.lines.forEach((line, index) => {
+			const y = (index - (layout.lines.length - 1) / 2) * layout.titleSize * 1.2;
+			spineCtx.fillText(line, -spineCanvas.height / 2 + layout.padding, y);
+		});
+		if (layout.author) {
+			spineCtx.textAlign = 'right';
+			spineCtx.font = `600 ${layout.authorSize}px Arial`;
+			spineCtx.fillText(layout.author, spineCanvas.height / 2 - layout.padding, 0);
+		}
 		spineCtx.restore();
 
 		// Create texture from canvas copy (since we reuse canvas)
@@ -213,6 +232,10 @@
 		);
 		texture.needsUpdate = true;
 		texture.flipY = true;
+		texture.colorSpace = THREE.SRGBColorSpace;
+		texture.generateMipmaps = true;
+		texture.minFilter = THREE.LinearMipmapLinearFilter;
+		texture.magFilter = THREE.LinearFilter;
 
 		const material = new THREE.MeshBasicMaterial({ map: texture });
 		materialCache.set(cacheKey, material);
@@ -220,43 +243,21 @@
 		return material;
 	}
 
-	// Performance: Create back cover with cached canvas
-	function createBackCoverMaterial(averageColor: string): THREE.MeshBasicMaterial {
+	// Reuse plain materials for solid-color book backs
+	function createBackCoverMaterial(averageColor: string): Three.MeshBasicMaterial {
 		const cacheKey = `back_${averageColor}`;
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
 
-		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
-			const simpleMaterial = new THREE.MeshBasicMaterial({ color: averageColor });
-			materialCache.set(cacheKey, simpleMaterial);
-			return simpleMaterial;
-		}
-
-		coverCanvas.width = 256;
-		coverCanvas.height = 384;
-		coverCtx.fillStyle = averageColor;
-		coverCtx.fillRect(0, 0, coverCanvas.width, coverCanvas.height);
-
-		const imageData = coverCtx.getImageData(0, 0, coverCanvas.width, coverCanvas.height);
-		const texture = new THREE.DataTexture(
-			imageData.data,
-			coverCanvas.width,
-			coverCanvas.height,
-			THREE.RGBAFormat
-		);
-		texture.needsUpdate = true;
-		texture.flipY = true;
-
-		const material = new THREE.MeshBasicMaterial({ map: texture });
+		// A solid-color back needs no canvas, pixel buffer, or GPU texture.
+		const material = new THREE.MeshBasicMaterial({ color: averageColor });
 		materialCache.set(cacheKey, material);
-		textureCount++;
 		return material;
 	}
 
 	// Performance: Load texture with caching
-	function loadTexture(url: string): THREE.Texture {
+	function loadTexture(url: string): Three.Texture {
 		if (textureCache.has(url)) {
 			return textureCache.get(url)!;
 		}
@@ -264,13 +265,13 @@
 		const loader = new THREE.TextureLoader();
 		const texture = loader.load(url);
 		textureCache.set(url, texture);
-		textureCount++;
+		coverTextureCount++;
 		return texture;
 	}
 
 	// Performance: Create placeholder cover for books without images
 	function createPlaceholderCover(node: Node): {
-		material: THREE.MeshBasicMaterial;
+		material: Three.MeshBasicMaterial;
 		width: number;
 		height: number;
 		averageColor: string;
@@ -283,7 +284,7 @@
 
 		const hue = Math.abs(titleHash) % 360;
 		const randomSeed = Math.abs(titleHash) / 2147483647;
-		const bgColor = `hsl(${hue}, 60%, 45%)`;
+		const bgColor = placeholderColor(node.id);
 
 		if (materialCache.has(cacheKey)) {
 			return {
@@ -295,7 +296,7 @@
 		}
 
 		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxTexturesOnMobile) {
+		if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) {
 			const simpleMaterial = new THREE.MeshBasicMaterial({ color: bgColor });
 			materialCache.set(cacheKey, simpleMaterial);
 			return {
@@ -319,7 +320,7 @@
 		coverCtx.textAlign = 'center';
 		coverCtx.textBaseline = 'middle';
 
-		const words = node.id.split(' ');
+		const words = libraryText(node.id).split(' ');
 		const lines: string[] = [];
 		let currentLine = '';
 
@@ -364,17 +365,25 @@
 	}
 
 	// Create book 3D object
-	function createBookObject(node: Node): THREE.Mesh {
+	function createBookObject(node: Node): Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]> {
 		const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20;
-		let frontMaterial: THREE.MeshBasicMaterial;
-		let spineMaterial: THREE.MeshBasicMaterial;
+		let frontMaterial: Three.MeshBasicMaterial;
+		let spineMaterial: Three.MeshBasicMaterial;
 		let width: number;
 		let height: number;
-		let averageColor = node.averageColor || '#666666';
+		let averageColor = spineColor(node);
 
 		if (node.img && node.w && node.h && !isNaN(node.w) && !isNaN(node.h)) {
-			const imgTexture = loadTexture('/library/' + node.img);
-			frontMaterial = new THREE.MeshBasicMaterial({ map: imgTexture });
+			const cacheKey = `front_${node.img}`;
+			if (!materialCache.has(cacheKey)) {
+				const map = !isMobile || coverTextureCount < maxCoverTexturesOnMobile
+					? loadTexture('/library/' + node.img)
+					: null;
+				materialCache.set(cacheKey, new THREE.MeshBasicMaterial(
+					map ? { map } : { color: averageColor }
+				));
+			}
+			frontMaterial = materialCache.get(cacheKey)!;
 			width = Math.max(0.1, node.w / 10);
 			height = Math.max(0.1, node.h / 10);
 			spineMaterial = createSpineTexture(node, depth, averageColor, height);
@@ -391,7 +400,7 @@
 
 		// Cache geometries to reduce memory usage
 		const geometryKey = `${width}_${height}_${depthVal}`;
-		let geometry: THREE.BoxGeometry;
+		let geometry: Three.BoxGeometry;
 		if (geometryCache.has(geometryKey)) {
 			geometry = geometryCache.get(geometryKey)!;
 		} else {
@@ -422,14 +431,16 @@
 	// Fetch book details from Google Books API
 	async function fetchBookDetails(
 		isbn: string | undefined,
-		title: string
+		title: string,
+		signal: AbortSignal
 	): Promise<GoogleBookVolumeInfo | null> {
 		try {
 			// Try ISBN first if available
 			if (isbn) {
 				const response = await fetch(
-					`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+					`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`, { signal }
 				);
+				if (response.status === 429 || response.status === 403) return null;
 				if (response.ok) {
 					const data: GoogleBookData = await response.json();
 					if (data.items && data.items.length > 0) {
@@ -441,7 +452,7 @@
 			// Fall back to title search (quoted for exact match)
 			const titleQuery = encodeURIComponent(`"${title}"`);
 			const titleResponse = await fetch(
-				`https://www.googleapis.com/books/v1/volumes?q=${titleQuery}`
+				`https://www.googleapis.com/books/v1/volumes?q=${titleQuery}`, { signal }
 			);
 			if (titleResponse.ok) {
 				const titleData: GoogleBookData = await titleResponse.json();
@@ -452,22 +463,121 @@
 
 			return null;
 		} catch (error) {
-			console.error('Error fetching book details:', error);
+			if (!signal.aborted) console.warn('Book enrichment unavailable');
 			return null;
 		}
+	}
+
+	function stopShelfCameraAnimation() {
+		if (shelfCameraAnimation !== null) {
+			cancelAnimationFrame(shelfCameraAnimation);
+			animationFrameIds.delete(shelfCameraAnimation);
+			shelfCameraAnimation = null;
+		}
+	}
+
+	function clearShelfPresentations() {
+		stopShelfCameraAnimation();
+		for (const state of shelfBookPresentations.values()) {
+			if (state.frame !== null) { cancelAnimationFrame(state.frame); animationFrameIds.delete(state.frame); }
+			state.node.__threeObj?.position.set(state.node.x || 0, state.node.y || 0, 0);
+			state.node.__threeObj?.rotation.set(0, Math.PI / 2, 0);
+		}
+		shelfBookPresentations.clear();
+		shelfSavedCamera = null;
+	}
+
+	function animateShelfCamera(position: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }) {
+		stopShelfCameraAnimation();
+		const startPosition = { ...Graph.camera().position };
+		const startTarget = { ...Graph.controls().target };
+		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const started = performance.now();
+		shelfFramingUntil = started + duration + 50;
+		function step(now: number) {
+			if (shelfCameraAnimation !== null) animationFrameIds.delete(shelfCameraAnimation);
+			if (isDestroyed) return;
+			const progress = duration ? Math.min((now - started) / duration, 1) : 1;
+			const t = 1 - Math.pow(1 - progress, 3);
+			const blend = (from: { x: number; y: number; z: number }, to: { x: number; y: number; z: number }) => ({
+				x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t, z: from.z + (to.z - from.z) * t
+			});
+			Graph.cameraPosition(blend(startPosition, position), blend(startTarget, target), 0);
+			shelfCameraAnimation = progress < 1 ? requestAnimationFrame(step) : null;
+			if (shelfCameraAnimation !== null) animationFrameIds.add(shelfCameraAnimation);
+		}
+		shelfCameraAnimation = requestAnimationFrame(step);
+		animationFrameIds.add(shelfCameraAnimation);
+	}
+
+	function animateShelfBook(node: Node, open: boolean) {
+		const book = node.__threeObj;
+		if (!book) return;
+		const previous = shelfBookPresentations.get(node.id);
+		if (previous?.frame != null) {
+			cancelAnimationFrame(previous.frame);
+			animationFrameIds.delete(previous.frame);
+		}
+		const from: BookPose = { x: book.position.x, y: book.position.y, z: book.position.z, rotationY: book.rotation.y };
+		const pullDistance = Math.max(book.geometry.parameters.width, book.geometry.parameters.height) * 1.4;
+		const to: BookPose = { x: node.x || 0, y: node.y || 0, z: open ? pullDistance : 0, rotationY: open ? 0 : Math.PI / 2 };
+		const state = { node, pose: { ...from }, frame: null as number | null, open };
+		shelfBookPresentations.set(node.id, state);
+		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const started = performance.now();
+		const step = (now: number) => {
+			if (state.frame !== null) animationFrameIds.delete(state.frame);
+			if (isDestroyed) return;
+			const progress = duration ? Math.min((now - started) / duration, 1) : 1;
+			const t = 1 - Math.pow(1 - progress, 3);
+			state.pose = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t,
+				z: from.z + (to.z - from.z) * t, rotationY: from.rotationY + (to.rotationY - from.rotationY) * t };
+			book.position.set(state.pose.x, state.pose.y, state.pose.z);
+			book.rotation.set(0, state.pose.rotationY, 0);
+			state.frame = progress < 1 ? requestAnimationFrame(step) : null;
+			if (state.frame !== null) animationFrameIds.add(state.frame);
+			else if (!open) shelfBookPresentations.delete(node.id);
+		};
+		state.frame = requestAnimationFrame(step);
+		animationFrameIds.add(state.frame);
+		if (open) {
+			const view = shelfCoverCamera({ ...to, width: book.geometry.parameters.width, height: book.geometry.parameters.height },
+				{ width: graphContainer.clientWidth, height: graphContainer.clientHeight }, Graph.camera().fov);
+			animateShelfCamera(view.position, view.target);
+		}
+	}
+
+	function presentShelfBook(node: Node) {
+		if (!shelfSavedCamera) shelfSavedCamera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target },
+			minDistance: Graph.controls().minDistance, maxDistance: Graph.controls().maxDistance };
+		for (const state of shelfBookPresentations.values()) if (state.open && state.node.id !== node.id) animateShelfBook(state.node, false);
+		animateShelfBook(node, true);
 	}
 
 	// Select a book and show its details
 	async function selectBook(node: Node, updateUrl = true) {
 		if (!Graph) return;
 
+		detailsRequest?.abort();
+		const request = new AbortController();
+		detailsRequest = request;
 		selectedBook = node;
-		bookDetails = null;
-		bookDetailError = null;
+		if (isGridModeActive) presentShelfBook(node);
+		Graph.controls().minDistance = 0.1;
+		Graph.controls().maxDistance = Infinity;
+		const catalogDetails: GoogleBookVolumeInfo = {
+			title: libraryText(node.id),
+			authors: node.authorName ? [libraryText(node.authorName)] : undefined,
+			publishedDate: node.publicationYear ? String(node.publicationYear) : undefined,
+			pageCount: node.pages
+		};
+		bookDetails = catalogDetails;
 
 		// Update URL with ISBN
 		if (updateUrl && browser && node.isbn) {
-			window.history.replaceState({}, '', `/library/${node.isbn}`);
+			const url = new URL(window.location.href);
+			url.pathname = `/library/${encodeURIComponent(node.isbn)}`;
+			replaceState(url, {});
 		}
 
 		// Fade other books to 25% opacity
@@ -478,7 +588,7 @@
 				const materials = Array.isArray(n.__threeObj.material)
 					? n.__threeObj.material
 					: [n.__threeObj.material];
-				materials.forEach((mat: THREE.Material) => {
+				materials.forEach((mat: Three.Material) => {
 					if ('opacity' in mat) {
 						mat.transparent = true;
 						mat.opacity = isSelected ? 1.0 : 0.25;
@@ -487,100 +597,105 @@
 			}
 		});
 
-		// Start orbit animation around the selected book
-		const bookX = node.x || 0;
-		const bookY = node.y || 0;
-		const bookZ = node.z || 0;
-		const orbitRadius = 40;
-		const orbitSpeed = 0.0003; // radians per millisecond
-		let startTime: number | null = null;
+		if (!isGridModeActive) {
+			// Start orbit animation around the selected book
+			const bookX = node.x || 0;
+			const bookY = node.y || 0;
+			const bookZ = node.z || 0;
+			const orbitRadius = 40;
+			const orbitSpeed = 0.0003; // radians per millisecond
+			let startTime: number | null = null;
 
-		// Random orbit direction each time
-		orbitDirection = Math.random() > 0.5 ? 1 : -1;
-		orbitPaused = false;
+			// Random orbit direction each time
+			orbitDirection = Math.random() > 0.5 ? 1 : -1;
+			orbitPaused = false;
 
-		// Clear any existing resume timeout
-		if (orbitResumeTimeoutId) {
-			clearTimeout(orbitResumeTimeoutId);
-			orbitResumeTimeoutId = null;
-		}
-
-		function orbitCamera(timestamp: number) {
-			if (isDestroyed || !selectedBook || selectedBook.id !== node.id) return;
-
-			// Skip position update if paused, but keep animation frame running
-			if (orbitPaused) {
-				orbitAnimationId = requestAnimationFrame(orbitCamera);
-				animationFrameIds.add(orbitAnimationId);
-				return;
-			}
-
-			if (!startTime) startTime = timestamp;
-
-			const elapsed = timestamp - startTime;
-			const angle = elapsed * orbitSpeed * orbitDirection;
-
-			// Orbit in XZ plane around the book
-			const cameraX = bookX + orbitRadius * Math.cos(angle);
-			const cameraZ = bookZ + orbitRadius * Math.sin(angle);
-			const cameraY = bookY + 10; // Slightly above
-
-			Graph.cameraPosition(
-				{ x: cameraX, y: cameraY, z: cameraZ },
-				{ x: bookX, y: bookY, z: bookZ },
-				0 // Instant update for smooth orbit
-			);
-
-			orbitAnimationId = requestAnimationFrame(orbitCamera);
-			animationFrameIds.add(orbitAnimationId);
-		}
-
-		// Start the orbit with a zoom-in first
-		Graph.cameraPosition(
-			{ x: bookX + orbitRadius, y: bookY + 10, z: bookZ },
-			{ x: bookX, y: bookY, z: bookZ },
-			1000
-		);
-
-		// Set up pause on user interaction
-		const controls = Graph.controls();
-		const pauseOrbit = () => {
-			if (!selectedBook) return;
-			orbitPaused = true;
-
-			// Clear existing timeout
+			// Clear any existing resume timeout
 			if (orbitResumeTimeoutId) {
 				clearTimeout(orbitResumeTimeoutId);
+				orbitResumeTimeoutId = null;
 			}
 
-			// Resume after 5 seconds of inactivity
-			orbitResumeTimeoutId = setTimeout(() => {
-				if (selectedBook) {
-					orbitPaused = false;
-					startTime = null; // Reset start time so orbit continues smoothly
+			function orbitCamera(timestamp: number) {
+				if (isDestroyed || !selectedBook || selectedBook.id !== node.id) return;
+
+				// Skip position update if paused, but keep animation frame running
+				if (orbitPaused) {
+					orbitAnimationId = scheduleFrame(orbitCamera);
+					return;
 				}
-			}, 5000);
-		};
 
-		// Listen for user interaction
-		controls.addEventListener('start', pauseOrbit);
+				if (!startTime) startTime = timestamp;
 
-		// Start orbiting after zoom completes
-		setTimeout(() => {
-			if (selectedBook && selectedBook.id === node.id) {
-				orbitAnimationId = requestAnimationFrame(orbitCamera);
-				animationFrameIds.add(orbitAnimationId);
+				const elapsed = timestamp - startTime;
+				const angle = elapsed * orbitSpeed * orbitDirection;
+
+				// Orbit in XZ plane around the book
+				const cameraX = bookX + orbitRadius * Math.cos(angle);
+				const cameraZ = bookZ + orbitRadius * Math.sin(angle);
+				const cameraY = bookY + 10; // Slightly above
+
+				Graph.cameraPosition(
+					{ x: cameraX, y: cameraY, z: cameraZ },
+					{ x: bookX, y: bookY, z: bookZ },
+					0 // Instant update for smooth orbit
+				);
+
+				orbitAnimationId = scheduleFrame(orbitCamera);
 			}
-		}, 1000);
 
-		// Fetch book details (tries ISBN first, then falls back to title)
-		isLoadingBookDetails = true;
-		const details = await fetchBookDetails(node.isbn, node.id);
-		if (details) {
-			bookDetails = details;
-		} else {
-			bookDetailError = 'Could not find book details';
+			// Start the orbit with a zoom-in first
+			Graph.cameraPosition(
+				{ x: bookX + orbitRadius, y: bookY + 10, z: bookZ },
+				{ x: bookX, y: bookY, z: bookZ },
+				1000
+			);
+
+			// Set up pause on user interaction
+			const controls = Graph.controls();
+			const pauseOrbit = () => {
+				if (!selectedBook) return;
+				orbitPaused = true;
+
+				// Clear existing timeout
+				if (orbitResumeTimeoutId) {
+					clearTimeout(orbitResumeTimeoutId);
+				}
+
+				// Resume after 5 seconds of inactivity
+				orbitResumeTimeoutId = setTimeout(() => {
+					if (selectedBook) {
+						orbitPaused = false;
+						startTime = null; // Reset start time so orbit continues smoothly
+					}
+				}, 5000);
+			};
+
+			// Listen for user interaction
+			removeOrbitListener?.();
+			controls.addEventListener('start', pauseOrbit);
+			removeOrbitListener = () => controls.removeEventListener('start', pauseOrbit);
+
+			// Start orbiting after zoom completes
+			clearTimeout(orbitStartTimeoutId);
+			orbitStartTimeoutId = setTimeout(() => {
+				if (!isDestroyed && selectedBook === node) {
+					orbitAnimationId = scheduleFrame(orbitCamera);
+				}
+			}, 1000);
+
 		}
+
+		// Catalog metadata is available immediately; Google Books only enriches it.
+		isLoadingBookDetails = true;
+		const timeout = setTimeout(() => request.abort(), 6000);
+		const details = await fetchBookDetails(node.isbn, libraryText(node.id), request.signal);
+		clearTimeout(timeout);
+		if (detailsRequest !== request || selectedBook?.id !== node.id) return;
+		if (details) bookDetails = { ...details, ...catalogDetails,
+			authors: catalogDetails.authors || details.authors,
+			publishedDate: catalogDetails.publishedDate || details.publishedDate,
+			pageCount: catalogDetails.pageCount || details.pageCount };
 		isLoadingBookDetails = false;
 	}
 
@@ -589,9 +704,14 @@
 		if (!Graph || !selectedBook) return;
 
 		const graphData = Graph.graphData();
-		const books = graphData.nodes.filter((n: Node) => n.group === 'book');
+		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book');
 
 		if (books.length === 0) return;
+		if (isGridModeActive) {
+			const nextBook = adjacentShelfBook(books, selectedBook.id, direction);
+			if (nextBook) selectBook(nextBook);
+			return;
+		}
 
 		// Get camera position to determine which books are visible
 		const camera = Graph.camera();
@@ -642,7 +762,7 @@
 					const materials = Array.isArray(n.__threeObj.material)
 						? n.__threeObj.material
 						: [n.__threeObj.material];
-					materials.forEach((mat: THREE.Material) => {
+					materials.forEach((mat: Three.Material) => {
 						if ('opacity' in mat) {
 							mat.opacity = 1.0;
 						}
@@ -687,6 +807,13 @@
 	// Deselect book and restore view
 	function deselectBook() {
 		if (!Graph || !selectedBook) return;
+		detailsRequest?.abort();
+		detailsRequest = null;
+		isLoadingBookDetails = false;
+
+		removeOrbitListener?.();
+		removeOrbitListener = undefined;
+		clearTimeout(orbitStartTimeoutId);
 
 		// Stop orbit animation
 		if (orbitAnimationId !== null) {
@@ -709,7 +836,7 @@
 				const materials = Array.isArray(n.__threeObj.material)
 					? n.__threeObj.material
 					: [n.__threeObj.material];
-				materials.forEach((mat: THREE.Material) => {
+				materials.forEach((mat: Three.Material) => {
 					if ('opacity' in mat) {
 						mat.opacity = 1.0;
 					}
@@ -717,17 +844,27 @@
 			}
 		});
 
-		// Reset camera
-		Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+		// Return the book and camera to the shelf position the reader was browsing.
+		if (isGridModeActive && shelfSavedCamera) {
+			const state = shelfBookPresentations.get(selectedBook.id);
+			if (state) animateShelfBook(state.node, false);
+			const saved = shelfSavedCamera;
+			shelfSavedCamera = null;
+			Graph.controls().minDistance = saved.minDistance;
+			Graph.controls().maxDistance = saved.maxDistance;
+			animateShelfCamera(saved.position, saved.target);
+		} else if (isGridModeActive) frameShelves();
+		else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 
 		// Remove ISBN from URL
 		if (browser) {
-			window.history.replaceState({}, '', '/library/');
+			const url = new URL(window.location.href);
+			url.pathname = '/library/';
+			replaceState(url, {});
 		}
 
 		selectedBook = null;
 		bookDetails = null;
-		bookDetailError = null;
 		lastClickedNode = null;
 	}
 
@@ -743,12 +880,18 @@
 				workcode?: string;
 				b?: number;
 				bookid?: number;
+				au?: string;
+				authorLastName?: string;
+				af?: string;
+				authorName?: string;
 				n?: string;
 				isbn?: string;
 				p?: number;
 				pages?: number;
 				d?: string;
 				dateacquired?: string;
+				e?: string;
+				entrydate?: string;
 				y?: number;
 				publicationYear?: number;
 				c?: string;
@@ -774,9 +917,12 @@
 					group: n.g!,
 					workcode: n.w,
 					bookid: n.b,
+					authorLastName: n.au,
+					authorName: n.af,
 					isbn: n.n,
 					pages: n.p,
 					dateacquired: n.d,
+					entrydate: n.e,
 					publicationYear: n.y,
 					ddcCode: n.c,
 					img: n.m,
@@ -799,9 +945,12 @@
 				group: n.group || n.g!,
 				workcode: n.workcode || n.w,
 				bookid: n.bookid || n.b,
+				authorLastName: n.authorLastName || n.au,
+				authorName: n.authorName || n.af,
 				isbn: n.isbn || n.n,
 				pages: n.pages || n.p,
 				dateacquired: n.dateacquired || n.d,
+				entrydate: n.entrydate || n.e,
 				publicationYear: n.publicationYear || n.y,
 				ddcCode: n.ddcCode || n.c,
 				img: n.img || n.m,
@@ -832,6 +981,7 @@
 			import('three-spritetext')
 		]);
 
+		if (isDestroyed) return;
 		const ForceGraph3D = ForceGraph3DModule.default;
 		THREE = THREEModule;
 		const SpriteText = SpriteTextModule.default;
@@ -851,15 +1001,54 @@
 			graphData = expandGraphData(rawData);
 		}
 
+		if (isDestroyed) return;
 		const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
 		loadingProgress = `Organizing ${bookCount} books…`;
 
 		// Allow UI to update before heavy graph creation
 		await new Promise((resolve) => requestAnimationFrame(resolve));
 
-		Graph = ForceGraph3D()(graphContainer)
+		if (isDestroyed) return;
+		Graph = new ForceGraph3D(graphContainer)
 			.graphData(graphData)
-			.onNodeClick((node: Node) => {
+			.nodeLabel((graphNode) => {
+				const node = graphNode as Node;
+				const label = document.createElement('span');
+				label.textContent = libraryText(node.id);
+				return label;
+			})
+			.nodePositionUpdate((object, _position, graphNode) => {
+				const node = graphNode as Node;
+				const state = shelfBookPresentations.get(node.id);
+				if (!state || !isGridModeActive) return false;
+				object.position.set(state.pose.x, state.pose.y, state.pose.z);
+				object.rotation.set(0, state.pose.rotationY, 0);
+				return true;
+			})
+			.onEngineTick(() => {
+				if (isGridModeActive && shelfFramePending) {
+					shelfFramePending = false;
+					frameShelves();
+				}
+			})
+			.onNodeDrag((graphNode) => {
+				const node = graphNode as Node;
+				if (isGridModeActive && node.group === 'book') {
+					const presentation = shelfBookPresentations.get(node.id);
+					if (presentation?.open) {
+						if (presentation.frame !== null) { cancelAnimationFrame(presentation.frame); animationFrameIds.delete(presentation.frame); presentation.frame = null; }
+						presentation.pose.x = node.x || 0;
+						presentation.pose.y = node.y || 0;
+						return;
+					}
+					shelfDraggedPositions.set(node.id, { x: node.x || 0, y: node.y || 0 });
+				}
+			})
+			.onNodeDragEnd(() => {
+				if (isGridModeActive) shelfBounds = getShelfBounds();
+			})
+			.onNodeClick((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					// If a book is already selected
 					if (selectedBook) {
@@ -868,7 +1057,7 @@
 							deselectBook();
 						} else {
 							// Tapping a different book - deselect first, then select new one
-							deselectBook();
+							if (!isGridModeActive) deselectBook();
 							selectBook(node);
 						}
 					} else {
@@ -881,28 +1070,37 @@
 				if (selectedBook) {
 					deselectBook();
 				} else {
-					Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 3000);
+					if (isGridModeActive) frameShelves();
+					else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 					lastClickedNode = null;
 				}
 			})
-			.onNodeRightClick((node: Node) => {
+			.onNodeRightClick((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					window.open(`https://librarything.com/work/${node.workcode}`, '_blank');
 				}
 			})
-			.nodeThreeObject((node: Node) => {
+			.nodeThreeObject((graphNode) => {
+				const node = graphNode as Node;
 				if (node.group === 'book') {
 					return createBookObject(node);
-				} else if (node.group === 'ddc') {
+				} else if (node.group === 'ddc' || node.group === 'shelf-label') {
 					// In grid mode, only show top-level DDC category labels
-					if (isGridModeActive && !topLevelDdcNames.has(node.id)) {
+					if (isGridModeActive && node.group === 'ddc' && !topLevelDdcNames.has(node.id)) {
 						// Return invisible placeholder for non-top-level DDC nodes
 						const emptyGroup = new THREE.Group();
 						return emptyGroup;
 					}
 					const sprite = new SpriteText(node.id);
 					sprite.color = 'blue';
-					sprite.textHeight = Math.max((node.points || 1) / 2, 3);
+					sprite.textHeight = isGridModeActive ? 5 : Math.max((node.points || 1) / 2, 3);
+					if (isGridModeActive) {
+						sprite.color = '#ffffff';
+						sprite.backgroundColor = '#242424';
+						sprite.padding = 2;
+						(sprite as unknown as { center: { set: (x: number, y: number) => void } }).center.set(0, 0.5);
+					}
 					return sprite;
 				}
 				return null;
@@ -916,6 +1114,9 @@
 		controls.rotateSpeed = 0.8;
 		controls.zoomSpeed = 1.2;
 		controls.panSpeed = 0.8;
+		controls.addEventListener('change', constrainShelfCamera);
+		controls.addEventListener('start', stopShelfCameraAnimation);
+		window.addEventListener('resize', resizeLibrary);
 		// Enable touch gestures: one finger = rotate, two fingers = pan/zoom
 		controls.touches = {
 			ONE: THREE.TOUCH.ROTATE,
@@ -925,8 +1126,12 @@
 		// Store original data for mode switching
 		originalGraphData = { ...Graph.graphData() };
 
+		// Restore shared view options before selecting a deep-linked book.
+		restoreLibraryView();
+		window.addEventListener('popstate', restoreLibraryView);
+
 		// Mark loading complete after a short delay to ensure render is visible
-		requestAnimationFrame(() => {
+		scheduleFrame(() => {
 			isLoading = false;
 
 			// Check for ISBN from route params and select that book
@@ -936,7 +1141,9 @@
 				);
 				if (bookNode) {
 					// Small delay to let the graph render first
-					setTimeout(() => selectBook(bookNode, false), 100);
+					initialSelectionTimeoutId = setTimeout(() => {
+						if (!isDestroyed) selectBook(bookNode, false);
+					}, 100);
 				}
 			}
 		});
@@ -949,10 +1156,19 @@
 		if (!browser) return;
 
 		// Remove keyboard event listener
+		detailsRequest?.abort();
+		window.removeEventListener('resize', resizeLibrary);
+		Graph?.controls().removeEventListener('change', constrainShelfCamera);
+		Graph?.controls().removeEventListener('start', stopShelfCameraAnimation);
 		window.removeEventListener('keydown', handleKeydown);
+		window.removeEventListener('popstate', restoreLibraryView);
 
 		// Set destroyed flag to stop any ongoing animations
 		isDestroyed = true;
+		removeOrbitListener?.();
+		clearTimeout(orbitStartTimeoutId);
+		clearTimeout(initialSelectionTimeoutId);
+		if (orbitResumeTimeoutId) clearTimeout(orbitResumeTimeoutId);
 
 		// Cancel all pending animation frames
 		animationFrameIds.forEach((id) => cancelAnimationFrame(id));
@@ -998,7 +1214,7 @@
 						}
 						// Dispose materials
 						if (Array.isArray(node.__threeObj.material)) {
-							node.__threeObj.material.forEach((mat: THREE.Material) => {
+							node.__threeObj.material.forEach((mat: Three.MeshBasicMaterial) => {
 								if ('map' in mat && mat.map) {
 									mat.map.dispose();
 								}
@@ -1034,9 +1250,91 @@
 		console.log('Library page cleanup complete');
 	});
 
-	function toggleMode() {
+	function updateLibraryUrl() {
+		const url = writeLibraryView(new URL(window.location.href), isGridModeActive, sortModes[sortIndex]);
+		if (url.href !== window.location.href) pushState(url, {});
+	}
+
+	function restoreLibraryView() {
+		if (!Graph) return;
+		const view = readLibraryView(new URL(window.location.href));
+		const nextSortIndex = sortModes.indexOf(view.sort);
+		const sortChanged = sortIndex !== nextSortIndex;
+		sortIndex = nextSortIndex;
+		if (isGridModeActive !== view.shelves) toggleMode(false);
+		else if (isGridModeActive && sortChanged) applyShelfSort();
+	}
+
+	function getShelfBounds(): ShelfBounds {
+		const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, depth: 0 };
+		for (const node of Graph.graphData().nodes as Node[]) {
+			const object = node.__threeObj;
+			const x = node.x || 0, y = node.y || 0;
+			const isBook = node.group === 'book';
+			const width = isBook ? object?.geometry?.parameters?.depth || 2 : object?.scale.x || 5;
+			const height = isBook ? object?.geometry?.parameters?.height || 25 : object?.scale.y || 5;
+			bounds.minX = Math.min(bounds.minX, x - (isBook ? width / 2 : 0));
+			bounds.maxX = Math.max(bounds.maxX, x + (isBook ? width / 2 : width));
+			bounds.minY = Math.min(bounds.minY, y - height / 2);
+			bounds.maxY = Math.max(bounds.maxY, y + height / 2);
+			if (isBook) bounds.depth = Math.max(bounds.depth, (object?.geometry?.parameters?.width || 20) / 2);
+		}
+		return bounds;
+	}
+
+	function frameShelves(duration = 0) {
+		stopShelfCameraAnimation();
+		if (!Graph || !Graph.graphData().nodes.length) return;
+		shelfBounds = getShelfBounds();
+		const camera = Graph.camera();
+		const frame = shelfCameraFrame(shelfBounds, graphContainer.clientWidth, graphContainer.clientHeight, camera.fov);
+		const controls = Graph.controls();
+		controls.minDistance = Math.max(shelfBounds.depth + 2, frame.distance * 0.08);
+		const tangent = Math.tan(camera.fov * Math.PI / 360);
+		controls.maxDistance = Math.max(frame.distance, (shelfBounds.maxY - shelfBounds.minY) / (2 * tangent) * 1.2);
+		shelfFramingUntil = performance.now() + duration + 50;
+		camera.up.set(0, 1, 0);
+		Graph.cameraPosition({ x: frame.x, y: frame.y, z: frame.distance }, { x: frame.x, y: frame.y, z: 0 }, duration);
+	}
+
+	function constrainShelfCamera() {
+		if (!Graph || !isGridModeActive || selectedBook || !shelfBounds || shelfFramePending || performance.now() < shelfFramingUntil) return;
+		const camera = Graph.camera();
+		const controls = Graph.controls();
+		const halfHeight = Math.max(1, Math.abs(camera.position.z) - shelfBounds.depth) * Math.tan(camera.fov * Math.PI / 360);
+		const target = clampShelfTarget(shelfBounds, controls.target.x, controls.target.y,
+			halfHeight * camera.aspect, halfHeight, graphContainer.clientHeight);
+		const dx = target.x - controls.target.x, dy = target.y - controls.target.y;
+		// Translate camera and target together so clamping never tilts the shelf view.
+		camera.position.x += dx;
+		camera.position.y += dy;
+		controls.target.x = target.x;
+		controls.target.y = target.y;
+	}
+
+	function resizeLibrary() {
+		if (!Graph) return;
+		Graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
+		if (isGridModeActive && !selectedBook) frameShelves(0);
+	}
+
+	function refreshShelves() {
+		clearShelfPresentations();
+		shelfDraggedPositions.clear();
+		// Recreate labels when changing modes; graph labels use popularity-based sizes.
+		Graph.nodeThreeObject(Graph.nodeThreeObject());
+		customForce();
+		shelfFramePending = true;
+		// graphData initializes and reheats the simulation in its deferred update.
+		// Reheating here can start rendering before that layout exists on a deep link.
+	}
+
+	function toggleMode(updateUrl = true) {
 		if (!Graph) return;
 
+		deselectBook();
+		shelfDraggedPositions.clear();
+		clearShelfPresentations();
 		isGridModeActive = !isGridModeActive;
 
 		if (isGridModeActive) {
@@ -1055,17 +1353,7 @@
 			Graph.d3Force('custom', customForce);
 			Graph.numDimensions(2);
 
-			let filteredNodes: Node[];
-			if (sortModes[sortIndex] === 'ddc') {
-				// In DDC mode, only include books and top-level DDC categories
-				filteredNodes = currentData.nodes.filter(
-					(node: Node) =>
-						node.group === 'book' ||
-						(node.group === 'ddc' && topLevelDdcNames.has(node.id))
-				);
-			} else {
-				filteredNodes = currentData.nodes.filter((node: Node) => node.group !== 'ddc');
-			}
+			const filteredNodes = shelfNodes(currentData.nodes);
 
 			// Rotate books to shelf orientation
 			for (let i = 0; i < filteredNodes.length; i++) {
@@ -1083,12 +1371,15 @@
 			controls.minPolarAngle = Math.PI / 4;
 			controls.maxPolarAngle = (3 * Math.PI) / 4;
 			controls.enableZoom = true;
-			controls.enableRotate = true;
+			controls.enableRotate = false;
+			controls.noRotate = true;
+			controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
 			// In shelf mode: one finger = pan, two fingers = zoom
 			controls.touches = {
 				ONE: THREE.TOUCH.PAN,
-				TWO: THREE.TOUCH.DOLLY_ROTATE
+				TWO: THREE.TOUCH.DOLLY_PAN
 			};
+			refreshShelves();
 		} else {
 			Graph.d3Force('custom', null);
 			Graph.numDimensions(3);
@@ -1119,13 +1410,20 @@
 
 			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
 
+			Graph.nodeThreeObject(Graph.nodeThreeObject());
+			Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 700);
+
 			// Re-enable full 3D controls
 			const controls = Graph.controls();
 			controls.enablePan = true;
+			controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
 			controls.minPolarAngle = 0;
 			controls.maxPolarAngle = Math.PI;
 			controls.enableZoom = true;
 			controls.enableRotate = true;
+			controls.noRotate = false;
+			controls.minDistance = 0;
+			controls.maxDistance = Infinity;
 			// In graph mode: one finger = rotate, two fingers = pan/zoom
 			controls.touches = {
 				ONE: THREE.TOUCH.ROTATE,
@@ -1170,13 +1468,11 @@
 								startRotation.z + (targetRotation.z - startRotation.z) * easeProgress;
 
 							if (progress < 1) {
-								const frameId = requestAnimationFrame(animateRotation);
-								animationFrameIds.add(frameId);
+								scheduleFrame(animateRotation);
 							}
 						}
 
-						const initialFrameId = requestAnimationFrame(animateRotation);
-						animationFrameIds.add(initialFrameId);
+						scheduleFrame(animateRotation);
 					}
 				}
 			} else {
@@ -1193,26 +1489,34 @@
 				}
 			}
 		}
+		if (updateUrl) updateLibraryUrl();
 	}
 
 	function toggleSort() {
 		if (!Graph || !isGridModeActive) return;
 
+		deselectBook();
 		sortIndex = (sortIndex + 1) % sortModes.length;
+		applyShelfSort();
+		updateLibraryUrl();
+	}
 
-		let filteredNodes: Node[];
-		if (sortModes[sortIndex] === 'ddc') {
-			// In DDC mode, only include books and top-level DDC categories
-			filteredNodes = originalGraphData.nodes.filter(
-				(node: Node) =>
-					node.group === 'book' ||
-					(node.group === 'ddc' && topLevelDdcNames.has(node.id))
-			);
-		} else {
-			filteredNodes = originalGraphData.nodes.filter((node: Node) => node.group !== 'ddc');
+	function shelfNodes(source: Node[]): Node[] {
+		const sort = sortModes[sortIndex];
+		const books = source.filter((node) => node.group === 'book');
+		if (sort === 'ddc') {
+			return [...books, ...source.filter((node) => node.group === 'ddc' && topLevelDdcNames.has(node.id))];
 		}
+		if (sort === 'color') return books;
+		const years = [...new Set(books.map((book) => libraryShelfYear(book, sort)))];
+		return [...books, ...years.map((year) => ({ id: year, group: 'shelf-label' }))];
+	}
+
+	function applyShelfSort() {
+		const filteredNodes = shelfNodes(originalGraphData.nodes);
 		Graph.graphData({ nodes: filteredNodes, links: [] });
 		Graph.d3Force('custom', customForce);
+		refreshShelves();
 	}
 
 	function customForce() {
@@ -1234,18 +1538,50 @@
 		// When books are rotated to show spines, depth becomes the horizontal spacing
 		const sampleBook = nodes.find((n) => n.__threeObj);
 		const bookDepth = sampleBook?.__threeObj?.geometry?.parameters?.depth || 2;
-		const bookHeight = sampleBook?.__threeObj?.geometry?.parameters?.height || 25;
+		const bookHeight = Math.max(25, ...nodes.map((n) => n.__threeObj?.geometry?.parameters?.height || 25));
 		const spacingX = bookDepth + 0.5; // Small gap between book spines
-		const shelfHeight = bookHeight + 5; // Spacing between shelves (rows)
+		const shelfHeight = bookHeight + 12; // Spacing between shelves (rows)
 		const shelfWidth = booksPerShelf * spacingX;
 		const shelfStartX = -shelfWidth / 2; // Left edge of shelf
-		const labelOffsetX = shelfStartX - 50; // Position for DDC label (left of shelf)
-		// Box geometries are centered, so offset each center to share the row's bottom edge.
+		const labelOffsetX = shelfStartX; // Position for DDC label (left of shelf)
+		// Offset centered geometries so every book shares the row's bottom edge.
 		const shelfBookY = (node: Node, row: number) =>
-			row * shelfHeight - bookHeight / 2 +
+			-row * shelfHeight - bookHeight / 2 +
 			(node.__threeObj?.geometry?.parameters?.height || bookHeight) / 2;
 
-		if (sortModes[sortIndex] === 'ddc') {
+		if (sortModes[sortIndex] === 'dateacquired' || sortModes[sortIndex] === 'publicationYear') {
+			const sort = sortModes[sortIndex];
+			const groups = new Map<string, Node[]>();
+			for (const book of nodes) {
+				const year = libraryShelfYear(book, sort);
+				if (!groups.has(year)) groups.set(year, []);
+				groups.get(year)!.push(book);
+			}
+			const headings = Graph.graphData().nodes.filter((node: Node) => node.group === 'shelf-label') as Node[];
+			const years = [...groups.keys()].sort((a, b) => (Number(b) || 0) - (Number(a) || 0));
+			let shelfRow = 0;
+			for (const year of years) {
+				const books = groups.get(year)!;
+				if (sort === 'dateacquired') books.sort((a, b) => libraryShelfDate(b).localeCompare(libraryShelfDate(a)));
+				const heading = headings.find((node) => node.id === year);
+				if (heading) {
+					heading.x = heading.fx = shelfStartX;
+					heading.y = heading.fy = -shelfRow * shelfHeight + bookHeight / 2 + 10;
+					heading.z = heading.fz = 5;
+				}
+				let rowWidth = 0;
+				books.forEach((book, index) => {
+					if (index % booksPerShelf === 0) rowWidth = 0;
+					const depth = book.__threeObj?.geometry?.parameters?.depth || bookDepth;
+					book.x = book.fx = shelfStartX + rowWidth + depth / 2;
+					book.y = book.fy = shelfBookY(book, shelfRow + Math.floor(index / booksPerShelf));
+					book.z = book.fz = 0;
+					if (!shelfBookPresentations.has(book.id)) book.__threeObj?.rotation.set(0, Math.PI / 2, 0);
+					rowWidth += depth + 0.5;
+				});
+				shelfRow += Math.ceil(books.length / booksPerShelf) + 0.7;
+			}
+		} else if (sortModes[sortIndex] === 'ddc') {
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
 
 			// Group books by top-level DDC class (first digit + "00")
@@ -1274,7 +1610,7 @@
 			};
 
 			let currentShelfRow = 0;
-			const easing = 0.05;
+			const easing = 1;
 
 			// Position each DDC category on its own shelf
 			Object.keys(ddcGroups)
@@ -1292,7 +1628,7 @@
 					// Position the DDC label at the start of this category's shelves
 					if (divider) {
 						const targetX = labelOffsetX;
-						const targetY = currentShelfRow * shelfHeight;
+						const targetY = -currentShelfRow * shelfHeight + bookHeight / 2 + 10;
 						const targetZ = 5; // Slightly in front of books
 
 						// Snap labels to position quickly
@@ -1308,9 +1644,11 @@
 					// Position books on shelves for this category
 					booksInCategory.forEach((book, idx) => {
 						const rowWithinCategory = Math.floor(idx / booksPerShelf);
-						const colWithinRow = idx % booksPerShelf;
 
-						const targetX = shelfStartX + colWithinRow * spacingX + spacingX / 2;
+						const rowStart = rowWithinCategory * booksPerShelf;
+						const precedingWidth = booksInCategory.slice(rowStart, idx).reduce(
+							(sum, n) => sum + (n.__threeObj?.geometry?.parameters?.depth || bookDepth) + 0.5, 0);
+						const targetX = shelfStartX + precedingWidth + (book.__threeObj?.geometry?.parameters?.depth || bookDepth) / 2;
 						const targetY = shelfBookY(book, currentShelfRow + rowWithinCategory);
 						const targetZ = 0;
 
@@ -1322,62 +1660,25 @@
 						book.fy = book.y;
 						book.fz = book.z;
 
-						if (book.__threeObj) {
+						if (book.__threeObj && !shelfBookPresentations.has(book.id)) {
 							book.__threeObj.rotation.set(0, Math.PI / 2, 0);
 						}
 					});
 
 					// Move to next category's shelf rows
-					currentShelfRow += rowsNeeded;
+					currentShelfRow += rowsNeeded + 0.7;
 				});
 		} else {
-			// Non-DDC sort modes: simple grid layout
-			nodes.sort((a, b) => {
-				if (sortModes[sortIndex] === 'dateacquired') {
-					return (
-						new Date(b.dateacquired || 0).getTime() - new Date(a.dateacquired || 0).getTime()
-					);
-				} else if (sortModes[sortIndex] === 'publicationYear') {
-					return (b.publicationYear || 0) - (a.publicationYear || 0);
-				} else if (sortModes[sortIndex] === 'color') {
-					const getHue = (node: Node) => {
-						if (!node.averageColor) return 999;
-						const rgb = node.averageColor.match(/\d+/g);
-						if (!rgb) return 999;
-						const r = parseInt(rgb[0]) / 255;
-						const g = parseInt(rgb[1]) / 255;
-						const blueVal = parseInt(rgb[2]) / 255;
-						const max = Math.max(r, g, blueVal);
-						const min = Math.min(r, g, blueVal);
-						let h = 0;
-						if (max !== min) {
-							const d = max - min;
-							switch (max) {
-								case r:
-									h = (g - blueVal) / d + (g < blueVal ? 6 : 0);
-									break;
-								case g:
-									h = (blueVal - r) / d + 2;
-									break;
-								case blueVal:
-									h = (r - g) / d + 4;
-									break;
-							}
-							h /= 6;
-						}
-						return h * 360;
-					};
-					return getHue(a) - getHue(b);
-				}
-				return (b.pages || 0) - (a.pages || 0);
-			});
+			const keys = new Map(nodes.map((node) => [node.id, colorSortKey(spineColor(node))]));
+			nodes.sort((a, b) => compareColorKeys(keys.get(a.id)!, keys.get(b.id)!) || a.id.localeCompare(b.id));
 
-			const easing = 0.05;
+			const easing = 1;
 			nodes.forEach((node, index) => {
 				const row = Math.floor(index / booksPerShelf);
-				const col = index % booksPerShelf;
+				const precedingWidth = nodes.slice(row * booksPerShelf, index).reduce(
+					(sum, n) => sum + (n.__threeObj?.geometry?.parameters?.depth || bookDepth) + 0.5, 0);
 
-				const targetX = shelfStartX + col * spacingX + spacingX / 2;
+				const targetX = shelfStartX + precedingWidth + (node.__threeObj?.geometry?.parameters?.depth || bookDepth) / 2;
 				const targetY = shelfBookY(node, row);
 				const targetZ = 0;
 
@@ -1389,10 +1690,19 @@
 				node.fy = node.y;
 				node.fz = node.z;
 
-				if (node.__threeObj) {
+				if (node.__threeObj && !shelfBookPresentations.has(node.id)) {
 					node.__threeObj.rotation.set(0, Math.PI / 2, 0);
 				}
 			});
+		}
+		// Keep manual shelf placements until the next sort or view change.
+		for (const node of nodes) {
+			const dragged = shelfDraggedPositions.get(node.id);
+			if (dragged) {
+				node.x = node.fx = dragged.x;
+				node.y = node.fy = dragged.y;
+				node.z = node.fz = 0;
+			}
 		}
 	}
 </script>
@@ -1400,7 +1710,7 @@
 <svelte:head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+	<meta http-equiv="x-ua-compatible" content="ie=edge" />
 	<meta property="og:title" content="Casey's Library" />
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="https://caseyagollan.com/library/" />
@@ -1433,9 +1743,9 @@
 <div bind:this={graphContainer} class="graph-container"></div>
 <Nav currentPage="library" />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" onclick={toggleMode}>{isGridModeActive ? '🕸️' : '📚'}</button>
-	<button id="sortToggle" onclick={toggleSort} class:hidden={!isGridModeActive}
-		>{sortIcons[sortIndex]}</button
+	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
+	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
+		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
 	>
 </div>
 
@@ -1443,37 +1753,16 @@
 	<aside class="book-sidebar" role="complementary" aria-label="Book details">
 		<button class="close-button" onclick={deselectBook} aria-label="Close">×</button>
 
-		<h2 class="book-title">{selectedBook.id}</h2>
+		<h2 class="book-title">{libraryText(selectedBook.id)}</h2>
 
-		{#if isLoadingBookDetails}
-			<div class="loading-details">
-				<span class="loading-shapes">
-					<svg width="24" height="24" viewBox="-6 -6 12 12">
-						<circle r="4" fill="currentColor" class="shape shape-circle" />
-						<polygon points="0,-5 1.2,-1.6 5,-1.6 2,0.8 3.2,5 0,2.4 -3.2,5 -2,0.8 -5,-1.6 -1.2,-1.6" fill="currentColor" class="shape shape-star" />
-						<polygon points="0,-5 5,4 -5,4" fill="currentColor" class="shape shape-triangle" />
-						<rect x="-3" y="-3" width="6" height="6" transform="rotate(45)" fill="currentColor" class="shape shape-square" />
-					</svg>
-				</span>
-				<p>Loading book details…</p>
-			</div>
-		{:else if bookDetailError}
-			<div class="error-details">
-				<p>{bookDetailError}</p>
-				{#if selectedBook.workcode}
-					<a href="https://librarything.com/work/{selectedBook.workcode}" target="_blank" rel="noopener noreferrer">
-						View on LibraryThing →
-					</a>
-				{/if}
-			</div>
-		{:else if bookDetails}
+		{#if bookDetails}
 			<div class="book-details">
 				{#if bookDetails.subtitle}
-					<p class="book-subtitle">{bookDetails.subtitle}</p>
+					<p class="book-subtitle">{libraryText(bookDetails.subtitle)}</p>
 				{/if}
 
 				{#if bookDetails.authors && bookDetails.authors.length > 0}
-					<p class="book-authors">{bookDetails.authors.join(', ')}</p>
+					<p class="book-authors">{bookDetails.authors.map(libraryText).join(', ')}</p>
 				{/if}
 
 				<div class="book-meta">
@@ -1491,15 +1780,16 @@
 				{#if bookDetails.categories && bookDetails.categories.length > 0}
 					<div class="book-categories">
 						{#each bookDetails.categories as category}
-							<span class="category-tag">{category}</span>
+							<span class="category-tag">{libraryText(category)}</span>
 						{/each}
 					</div>
 				{/if}
 
 				{#if bookDetails.description}
-					<p class="book-description">{@html bookDetails.description}</p>
+					<p class="book-description">{libraryText(bookDetails.description.replace(/<[^>]*>/g, ' '))}</p>
 				{/if}
 
+				{#if isLoadingBookDetails}<p class="enrichment-status">Loading additional details…</p>{/if}
 				<div class="book-links">
 					{#if bookDetails.previewLink}
 						<a href={bookDetails.previewLink} target="_blank" rel="noopener noreferrer" class="book-link">
@@ -1548,7 +1838,7 @@
 		text-decoration: none;
 		display: block;
 		width: auto;
-		font-size: 2rem;
+		font-size: 1rem;
 		height: auto;
 		border-radius: 5px;
 		cursor: pointer;
@@ -1664,6 +1954,9 @@
 		box-sizing: border-box;
 		overflow-y: auto;
 		font-family: system-ui, -apple-system, sans-serif;
+		font-size: 0.9rem;
+		font-weight: 400;
+		line-height: 1.5;
 		color: white;
 		animation: slideIn 0.3s ease-out;
 	}
@@ -1798,29 +2091,9 @@
 		background: rgb(73, 73, 255);
 	}
 
-	.loading-details,
-	.error-details {
-		text-align: center;
-		padding: 24px 0;
-		color: rgba(255, 255, 255, 0.8);
-	}
-
-	.loading-details .loading-shapes {
-		color: white;
-	}
-
-	.error-details a {
-		color: white;
-		background: blue;
-		text-decoration: none;
-		padding: 6px 12px;
-		border-radius: 5px;
-		display: inline-block;
-		margin-top: 8px;
-	}
-
-	.error-details a:hover {
-		background: rgb(73, 73, 255);
+	.enrichment-status {
+		font-size: 0.8rem;
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	/* Mobile adjustments for sidebar */

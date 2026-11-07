@@ -1,3 +1,4 @@
+import type { SocialSnapshot } from './social-snapshots';
 // Client-safe post types and constants (no Node.js imports)
 
 export interface MediaItem {
@@ -8,21 +9,32 @@ export interface MediaItem {
 
 export interface Post {
 	slug: string;
-	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media';
+	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media' | 'like' | 'repost' | 'event' | 'review' | 'itinerary' | 'food' | 'drink';
 	date: string;
+	updated?: string;
+	syndicationTargets?: string[];
 	title?: string;
 	bookmarkOf?: string;
+	inReplyTo?: string;
 	summary?: string;
 	category?: string | string[];
 	content: string;
+	contentFormat?: 'text' | 'html' | 'markdown';
+	postStatus?: string;
+	deleted?: boolean;
 	visibility?: string;
+	draft?: boolean;
 	syndication?: string[];
 	photo?: MediaItem[];
 	video?: MediaItem[];
+	microformatType?: string;
+	channel?: string;
+	socialSnapshots?: SocialSnapshot[];
+	properties?: Record<string, unknown[]>;
 	filePath: string;
 }
 
-export const POST_TYPES = ['note', 'article', 'bookmark', 'photo', 'video', 'reply', 'media'] as const;
+export const POST_TYPES = ['note', 'article', 'bookmark', 'photo', 'video', 'reply', 'media', 'like', 'repost', 'event', 'review', 'itinerary', 'food', 'drink'] as const;
 export const POST_TYPE_PLURALS: Record<string, string> = {
 	note: 'notes',
 	article: 'articles',
@@ -30,7 +42,14 @@ export const POST_TYPE_PLURALS: Record<string, string> = {
 	photo: 'photos',
 	video: 'videos',
 	reply: 'replies',
-	media: 'media'
+	media: 'media',
+	like: 'likes',
+	repost: 'reposts',
+	event: 'events',
+	review: 'reviews',
+	itinerary: 'itineraries',
+	food: 'foods',
+	drink: 'drinks'
 };
 
 export function getPostPermalink(post: { date: string; slug: string }): string {

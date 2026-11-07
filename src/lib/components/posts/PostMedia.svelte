@@ -28,7 +28,7 @@
 			<figure>
 				<!-- svelte-ignore a11y_media_has_caption -->
 				<video controls class="u-video" preload="metadata">
-					<source src={vid.url} type={vid.type ?? 'video/mp4'} />
+					<source src={vid.url} type={vid.type} />
 				</video>
 				{#if vid.alt}
 					<figcaption>{vid.alt}</figcaption>

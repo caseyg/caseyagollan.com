@@ -1,0 +1,241 @@
+h-cite
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+h-cite is a simple, open format for publishing citations and references to online and other publications. h-cite is one of several open microformat draft standards suitable for embedding data in HTML/HTML5.
+
+Status
+This is a Draft Specification
+Participate
+IRC: #microformats on Libera
+Editor
+Tantek Çelik (Editor)
+License
+Per CC0, to the extent possible under law, the editors have waived all copyright and related or neighboring rights to this work. In addition, as of 2026-11-06, the editors have made this specification available under the Open Web Foundation Agreement Version 1.0.
+
+Contents
+
+1 Example
+
+1.1 Get started
+
+2 Properties
+
+3 Status
+
+4 Property Details
+
+5 Offline Citations
+
+6 Examples in the wild
+
+7 Background
+
+7.1 Goal
+
+7.2 Previous Proposals
+
+8 FAQ
+
+8.1 Why
+
+8.2 Why not just a href
+
+9 Design Principles
+
+9.1 Focus
+
+10 First Proposal
+
+Example
+
+Here is a simple minimal abstract web citation example:
+
+&lt;span class=&quot;h-cite&quot;&gt;
+  &lt;time class=&quot;dt-published&quot;&gt;YYYY-MM-DD&lt;/time&gt;
+  &lt;span class=&quot;p-author h-card&quot;&gt;AUTHOR&lt;/span&gt;:
+  &lt;cite&gt;&lt;a class=&quot;u-url p-name&quot; href=&quot;URL&quot;&gt;TITLE&lt;/a&gt;&lt;/cite&gt;
+&lt;/span&gt;
+
+Get started
+
+The class h-cite is a root class name that indicates the presence of an h-cite.
+
+The classes dt-published, p-author, p-name, and u-url define  properties of the h-cite.
+
+The class h-card on the same &lt;span&gt; as p-author indicates the presence of a nested h-card microformat as the author of the h-cite.
+
+Properties
+
+h-cite properties (inside class h-cite)
+
+p-name - name of the work
+
+dt-published - date (and optionally time) of publication
+
+p-author - author of publication, with optional nested h-card
+
+u-url - a URL to access the cited work
+
+u-uid - a URL/URI that uniquely/canonically identifies the cited work, canonical permalink.
+
+p-publication - for citing articles in publications with more than one author, or perhaps when the author has a specific publication vehicle for the cited work. Also works when the publication is known, but the authorship information is either unknown, ambiguous, unclear, or collaboratively complex enough to be unable to list explicit author(s), e.g. like with many wiki pages.
+
+dt-accessed - date the cited work was accessed for whatever reason it is being cited. Useful in case online work changes and it's possible to access the dt-accessed datetimestamped version in particular, e.g. via the Internet Archive.
+
+p-content for when the citation includes the content itself, like when citing short text notes (e.g. tweets).
+
+Status
+
+h-cite is a microformats.org draft specification. Public discussion on h-cite takes place on h-cite-feedback and the #microformats irc channel linked in the Status section.
+
+Property Details
+
+(stub, to be expanded)
+
+All web citation properties are derived from those implied in existing citation styling guides for citing permalinks to articles and short text notes online.
+
+Date-time properties (dt-published, dt-accessed) may optionally include time information in addition to the date if relevant to the citation (e.g. when citing short text notes (tweets) of which there may be several in a single day).
+
+To be added:
+
+for each property, what equivalent TCMOS, APA, MLA terms/vocabulary is being expressed/captured as researched in the citation formats styles section.
+
+transforms from the web citations proposal properties into each of those citation styles.
+
+for citations of blog posts / articles
+
+for citations of text notes / tweets
+
+see examples in wild below for markup samples to style in each of the TCMOS/APA/MLA styles for blog/note citations.
+
+Offline Citations
+
+The web citation proposal can be used for simple web-to-off-web citation use cases. As suggested by Ed Summers, dropping the hyperlink to the cited web article provides a simple off-web citation, e.g. a citation of a physical book:
+
+&lt;span class=&quot;h-cite&quot;&gt;
+  &lt;time class=&quot;dt-published&quot;&gt;YYYY-MM-DD&lt;/time&gt;
+  &lt;span class=&quot;p-author h-card&quot;&gt;AUTHOR&lt;/span&gt;:
+  &lt;cite class=&quot;p-name&quot;&gt;TITLE&lt;/cite&gt;
+&lt;/span&gt;
+
+Note: physical books typically only provide the YYYY (year) published, not the precise date.
+
+Next steps:
+
+Try such markup with actual content being published on the web (perhaps a bibliography, list of papers in a resume, etc.)
+
+See how it works/feels there
+
+Determine what seems to be missing.
+
+See if the "p-publisher" property helps in some web-to-off-web citation use cases.
+
+Used in a couple of instances by the editor in https://tantek.com/publications
+
+Examples in the wild
+
+Real world in the wild examples:
+
+... add uses of h-cite you see in the wild here.
+
+Test #IndieWeb&#160;: Parvenir à «&#160;POSSEr&#160;» un article vers Twitter (archived) has an h-cite of a short note:
+
+&lt;blockquote&gt;&lt;p&gt;
+  &lt;cite class=&quot;h-cite&quot;&gt;
+    &lt;a class=&quot;u-url p-name&quot; href=&quot;http://tantek.com/2013/104/t2/urls-readable-speakable-listenable-retypable&quot;&gt;
+      URLs should be readable, speakable, listenable, and unambiguously
+retypable, e.g. from print: tantek.com/w/ShortURLPrintExample #UX
+    &lt;/a&gt;
+   (&lt;abbr class=&quot;p-author h-card&quot; title=&quot;Tantek Çelik&quot;&gt;Çelik&lt;/abbr&gt;
+    &lt;time class=&quot;dt-published&quot;&gt;2013-04-14&lt;/time&gt;)
+  &lt;/cite&gt;
+&lt;/p&gt;&lt;/blockquote&gt;
+
+Mastodon uses h-cite by default to show threads and replies to posts added in 2017
+
+See also examples documented here:
+
+https://indieweb.org/h-cite#Indieweb_Examples
+
+Real but not quite wild (used by the specification author)
+
+Every blog post on http://tantek.com has a text field for copying h-cite markup for that blog post.
+
+Why you should say HTML classes, CSS class selectors, or CSS pseudo-classes, but not CSS classes has a couple of interesting uses of h-cite:
+
+properties used: p-name, u-url, p-author, p-publication, dt-published, dt-accessed (basically all proposed properties except p-content!)
+
+additional experimental property: p-x-translation - which refers to a nested h-cite with its own implied p-name and implied u-url.
+
+Background
+
+This work is based on how existing citation format styles (APA, MLA, TCMOS) represent references to articles on the web, and is designed to match the implied schema of those styles. The web citations proposal defines how to markup such reference representation styles in order to satisfy the use-cases above.
+
+Goal
+
+A primary goal of the web citation effort is to both start small, and always "make small possible", that is, no matter how it is extended, continue permitting very small meaningful citations with perhaps only 2-3 properties (e.g. date published, author, name of work).
+
+Previous Proposals
+
+The biggest problem with all previous proposals is that they tried to do too much. They didn't design a citation microformat that could be used as a building block, but rather, erred on the side of attempting to describe the myriad types of references to dead-tree resources. They were so over-designed that their authors didn't even dogfood them on their own sites. -- Tantek 00:56, 7 August 2012 (UTC)
+
+FAQ
+
+Why
+
+Why markup web citations? What problem does it solve?
+
+A: In the simplest form, marking up a web citation URL, name, date published, author etc. allow for processing of web citations into whatever "style" or "format" (MLA vs APA etc.) a user wishes to publish them themselves.
+
+Why not just a href
+
+Doesn't &lt;a href&gt; solve the problem of marking up citations in an article on the web that refers to other articles on the web?
+
+A: No, &lt;a href&gt; is necessary but insufficient for marking up citations to articles on the web.
+
+Insufficient semantic. &lt;a href&gt; is sufficient only for providing a hyperlink (which may or may not be a citation, e.g. it may be a "see also" link rather than link to a source being cited for particular assertion or fact).
+
+A href only marks up article link and name An &lt;a href&gt; can only represent the "url" and "name" of a citation. Where as published web citations typically also include:
+
+article author name (sometimes author photo and URL)
+
+article publication date
+
+article publication name
+
+article access date (sometimes, e.g. Wikipedia citations)
+
+Design Principles
+
+Principles driving this proposal:
+
+solve a specific problem. In this case web citations seeks to solve a more specific problem than previous proposals, that of citations from the web to the web (more constrained than any publication to any publication).
+
+solve simpler problems first. Existing web-to-web citations contain very little information compared to generalized academic citations, thus web citations is greatly simplified compared to previous proposals by only starting with a handful of properties.
+
+humans first - web citations focuses on the human readability and writability aspects of citations in articles first and foremost, and only secondarily considers the machine readability/reusability of the data contained therein.
+
+reuse building blocks - by re-using the better designed aspects of existing citation conventions for web resources, web citations builds on top of previous work to make citations human readable/writable, as well as what implied properties are commonly expressed by such previous work.
+
+Focus
+
+The web citations proposal uses a smaller, simpler set of only eight properties to solve the specific problem of how to markup citations in an article on the web that refers to other articles on the web. Offline to offline, and online to offline references were specifically not explicitly addressed in initial design.
+
+First Proposal
+
+This design was first publicly proposed as the result of an interactive web citation design discussion during IndieWebCamp2012:
+
+2012-07-01 IndieWebCamp2012: Academic Citations for the Web
+
+Retrieved from "http://microformats.org/wiki/index.php?title=h-cite&amp;oldid=70838"
+
+Category:
+Draft Specifications
+
+Navigation menu
+
+				Search

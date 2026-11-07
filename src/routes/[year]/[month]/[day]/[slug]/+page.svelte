@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import PostDetails from '$lib/components/posts/PostDetails.svelte';
 	import BookmarkTitle from '$lib/components/posts/BookmarkTitle.svelte';
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
@@ -11,6 +12,7 @@
 </script>
 
 <svelte:head>
+	<meta name="publishing-revision" content={data.revision} />
 	<title>{data.post.title || data.post.type} - Casey Gollan</title>
 	<meta name="description" content={data.post.summary || data.post.content.slice(0, 160)} />
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />
@@ -21,7 +23,7 @@
 <PostsLayout>
 	<DateArchiveHeader year={data.year} month={data.month} day={data.day} />
 
-	<article class="h-entry post">
+	<article class="{data.post.microformatType ?? 'h-entry'} post">
 		<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
 		<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
 
@@ -44,11 +46,14 @@
 		{/if}
 
 		{#if data.post.type === 'bookmark' && data.post.bookmarkOf}
-			<p class="bookmark-url"><small><a href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
+			<p class="bookmark-url"><small><a class="u-bookmark-of" href={data.post.bookmarkOf}>{data.post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
 		{/if}
 
 		<PostMedia photos={data.post.photo} videos={data.post.video} />
-		<PostContent content={data.post.content} />
+		<PostDetails post={data.post} />
+		{#if data.post.summary}<p class="p-summary">{data.post.summary}</p>{/if}
+
+		<PostContent content={data.post.content} format={data.post.contentFormat} />
 
 		<Webmentions url={permalink} />
 	</article>

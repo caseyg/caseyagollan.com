@@ -1,0 +1,86 @@
+rel-syndication
+
+From Microformats Wiki
+
+		Jump to navigation
+		Jump to search
+
+See latest version: u-syndication
+
+This article is a stub. You can help the microformats.org wiki by expanding it.
+
+Contents
+
+1 Publishers
+
+2 Consumers
+
+3 Alternatives
+
+3.1 u-syndication
+
+4 Examples in the wild
+
+5 See also
+
+Publishers
+
+A permalink for a blog post should hyperlink with rel="syndication" to copies that the author has syndicated onto other sites.
+
+This is a page to page relationship, and thus blog posts in aggregate form, e.g. archive pages, home/updates pages, should NOT use rel="syndication".
+
+Consumers
+
+Consuming applications can use rel=syndication in a number of ways:
+
+site specific post and other webaction buttons can discover the syndicated copy for their site.
+
+connecting POSSE'd comment posts to each other and to the POSSE'd copies of original posts.  See http://indiewebcamp.com/comment#POSSE_a_comment for more.
+
+Alternatives
+
+u-syndication
+
+In addition rel=syndication on links from a blog post to syndicated copies of it, those links can also have the markup:
+
+class="u-syndication" which will likely get picked up as part of their containing h-entry object.
+
+Advantages:
+
+Blog posts can use on links to syndicated copies, in any context, e.g. blog posts in aggregate form like archive pages or home/updates pages, may use class="u-syndication".
+
+Examples in the wild
+
+Sites that are using rel="syndication"
+
+On all their blog posts/notes automatically:
+
+aaronparecki.com
+
+tommorris.org
+
+waterpigs.co.uk
+
+On some blog posts:
+
+tantek.com
+
+adactio.com
+
+See also
+
+rel-in-reply-to
+
+http://indiewebcamp.com/posts-elsewhere
+
+http://indiewebcamp.com/rel-syndication
+
+http://indiewebcamp.com/syndication
+
+http://indiewebcamp.com/comments
+
+Retrieved from "http://microformats.org/wiki/index.php?title=rel-syndication&amp;oldid=70342"
+
+Navigation menu
+
+				Search

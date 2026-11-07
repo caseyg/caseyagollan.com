@@ -3,13 +3,14 @@
 
 	interface Props {
 		content: string;
+		format?: 'text' | 'html' | 'markdown';
 	}
 
-	let { content }: Props = $props();
+	let { content, format = 'markdown' }: Props = $props();
 </script>
 
 <div class="e-content post-content">
-	{@html renderContentSync(content)}
+	{@html renderContentSync(content, format)}
 </div>
 
 <style>

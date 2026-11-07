@@ -21,9 +21,13 @@ export function validPostParams({ year, month, day, slug }: PostParams): boolean
 export async function getGitHubPost(
 	params: PostParams,
 	fetcher: typeof fetch,
-	token?: string
+	token?: string,
+	repository?: { owner: string; repo: string; branch: string }
 ): Promise<Post | null> {
 	if (!validPostParams(params)) return null;
+	if (repository && [repository.owner, repository.repo].some(value => !/^[\w.-]+$/.test(value) || value === '.' || value === '..')) throw new Error('Invalid content repository');
+	const repo = repository ? `${repository.owner}/${repository.repo}` : 'caseyg/caseyagollan-content';
+	const ref = repository ? `?ref=${encodeURIComponent(repository.branch)}` : '';
 	const date = `${params.year}-${params.month}-${params.day}`;
 	// IndieKit filenames can use the UTC date while permalinks use the local date.
 	const dayMillis = 24 * 60 * 60 * 1000;
@@ -43,7 +47,7 @@ export async function getGitHubPost(
 		for (const filenameDate of dates) {
 			const file = `${filenameDate}-${params.slug}.md`;
 			const response = await fetcher(
-				`https://api.github.com/repos/caseyg/caseyagollan-content/contents/${type}/${encodeURIComponent(file)}`,
+				`https://api.github.com/repos/${repo}/contents/${type}/${encodeURIComponent(file)}${ref}`,
 				{ headers, cache: 'no-store', signal }
 			);
 			if (response.status === 404) continue;

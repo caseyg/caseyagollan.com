@@ -24,6 +24,17 @@ function githubFetch(status = 200, body = markdown): typeof fetch {
 }
 
 describe('GitHub permalink fallback', () => {
+	test('can read the same isolated branch selected for publishing', async () => {
+		let requested = '';
+		const post = await getGitHubPost(params, (async input => {
+			requested = String(input);
+			return new Response(markdown);
+		}) as typeof fetch, 'preview-token', { owner: 'caseyg', repo: 'preview-content', branch: 'preview/test' });
+		assert.ok(post);
+		assert.ok(requested.includes('/repos/caseyg/preview-content/contents/'));
+		assert.ok(requested.endsWith('?ref=preview%2Ftest'));
+	});
+
 	test('renders newly committed Markdown with local date, metadata and media intact', async () => {
 		const post = await getGitHubPost(params, githubFetch());
 		assert.ok(post);
