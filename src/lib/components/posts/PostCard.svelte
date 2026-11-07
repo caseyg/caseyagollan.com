@@ -48,6 +48,7 @@
 		{showType}
 		category={post.category}
 		{activeTag}
+		indexActivities={post.indexActivities}
 	/>
 
 	{#if post.title || (post.type === 'bookmark' && post.bookmarkOf)}
@@ -67,6 +68,16 @@
 	{/if}
 
 	<PostDetails {post} />
+	{#if post.indexActivities}
+		<details class="activity-sources">
+			<summary>{post.indexActivities.length} activities</summary>
+			<ul>
+				{#each post.indexActivities as activity (activity.permalink)}
+					<li><a href={activity.permalink}>{activity.type === 'like' ? 'Liked' : 'Reposted'}{activity.author ? ` ${activity.author}’s post` : ''}{activity.network ? ` on ${activity.network}` : ''}</a> · {activity.dateSource === 'original-post' ? 'post dated ' : ''}<time datetime={activity.date}>{activity.date.slice(0, 10)}</time></li>
+				{/each}
+			</ul>
+		</details>
+	{/if}
 	{#if post.summary && !isArticle && post.type !== 'note'}<p class="p-summary">{post.summary}</p>{/if}
 	{#if isArticle}
 		<p class="p-summary preview">
@@ -82,6 +93,9 @@
 </article>
 
 <style>
+	.activity-sources { margin: 0.75rem 0; font-size: 0.8rem; }
+	.activity-sources summary { cursor: pointer; opacity: 0.7; }
+	.activity-sources a { color: inherit; text-underline-offset: 0.15em; }
 	.post {
 		margin-bottom: 1.5rem;
 		padding-bottom: 1.5rem;

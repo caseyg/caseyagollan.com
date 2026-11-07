@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		tag,
 		postsByDay: postsByDayArray,
-		totalPosts: posts.length,
+		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),
 		allTags
 	};
 };

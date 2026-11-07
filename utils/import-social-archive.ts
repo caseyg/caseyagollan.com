@@ -3,8 +3,11 @@ import { resolve } from 'node:path';
 import { blueskyArchive, mastodonArchiveItems, mastodonStatusLocation, resolveMastodonArchiveItem } from '../src/lib/server/publishing/pesos/archives';
 import { activityDocument, alreadyRepresented, indexIdentities, identity } from '../src/lib/server/publishing/pesos/importer';
 import { blueskyPublic, type GetJson, type Activity } from '../src/lib/server/publishing/pesos/providers';
-import { readDocument } from '../src/lib/server/publishing/document';
+import { readDocument, updateDocument } from '../src/lib/server/publishing/document';
+import { duplicateOriginal } from '../src/lib/server/publishing/pesos/duplicates';
 import { safePublicFetch, publicUrl } from '../src/lib/server/publishing/public-fetch';
+import { getPostPermalink } from '../src/lib/posts-types';
+import { parsePost } from '../src/lib/server/parse-post';
 
 const args = process.argv.slice(2);
 const inputs = args.filter(a=>!a.startsWith('--'));
@@ -12,7 +15,13 @@ if (!inputs.length || args.some(a=>a.startsWith('--') && a !== '--write')) throw
 const root = resolve('content');
 const paths = await Array.fromAsync(new Bun.Glob('*/*.md').scan({cwd:root}));
 if (!paths.length) throw new Error('Initialize the canonical content checkout first');
-const entries = await Promise.all(paths.map(async path=>({path,properties:readDocument(await Bun.file(resolve(root,path)).text()).properties})));
+const documents = new Map<string,string>();
+const entries = await Promise.all(paths.map(async path=>{
+ const content = await Bun.file(resolve(root,path)).text();
+ documents.set(path,content);
+ const [folder,name] = path.split('/');
+ return {path,properties:readDocument(content).properties,permalink:new URL(getPostPermalink(parsePost(content,folder,name)),'https://caseyagollan.com').href};
+}));
 class LookupError extends Error {
  constructor(readonly status: number) { super(`Public verification failed: ${status}`); }
 }
@@ -129,17 +138,21 @@ for (const input of inputs) {
  }
  for (const activity of activities) {
   if (alreadyRepresented(activity,keys,actors)) {
-   const existing = entries.find(e=>e.properties['pesos-source']?.length && alreadyRepresented(activity,indexIdentities([e],actors),actors));
+   const existing = entries.find(e=>e.properties['pesos-source']?.length &&
+    (e.properties['pesos-source'].includes(activity.id) ||
+     (activity.kind !== 'post' && (e.properties[activity.kind === 'like' ? 'like-of' : 'repost-of'] ?? []).some(target=>typeof target === 'string' && identity(activity.kind,target,actors) === identity(activity.kind,activity.target ?? activity.url,actors)))));
    if (existing && activity.kind !== 'post' && !(activity.dateSource === 'original-post' && existing.properties['pesos-date-source']?.includes('activity'))) {
     const generated = await activityDocument(activity,'America/New_York');
     const date = readDocument(generated.content).properties.published[0];
     if (existing.properties.published?.[0] !== date) {
-     const original = await Bun.file(resolve(root,existing.path)).text();
+     const original = documents.get(existing.path)!;
      const match = original.match(/^---\r?\n([\s\S]*?)\r?\n---/);
      if (!match) throw new Error('Missing frontmatter on imported entry');
      const metadata = parseDocument(match[1]);
      metadata.set('date',date);metadata.set('pesos-date-source',[activity.dateSource ?? 'activity']);
-     if (args.includes('--write')) await Bun.write(resolve(root,existing.path),`---\n${metadata.toString()}---${original.slice(match[0].length)}`);
+     const content = `---\n${metadata.toString()}---${original.slice(match[0].length)}`;
+     documents.set(existing.path,content);
+     if (args.includes('--write')) await Bun.write(resolve(root,existing.path),content);
      existing.properties.published = [date];
      existing.properties['pesos-date-source'] = [activity.dateSource ?? 'activity'];
      counts.updated++;
@@ -147,10 +160,22 @@ for (const input of inputs) {
    }
    counts.duplicates++;continue;
   }
+  const match = duplicateOriginal(activity,entries);
+  if (match) {
+   const content = updateDocument(documents.get(match.path)!,{add:{'pesos-source':[activity.id],syndication:[activity.url]}});
+   documents.set(match.path,content);
+   match.properties = readDocument(content).properties;
+   if (args.includes('--write')) await Bun.write(resolve(root,match.path),content);
+   keys.add(`source:${activity.id}`); keys.add(identity('post',activity.url,actors));
+   counts.updated++; counts.duplicates++;
+   continue;
+  }
   const generated = await activityDocument(activity,'America/New_York',paths);
+  documents.set(generated.path,generated.content);
   if (args.includes('--write')) await Bun.write(resolve(root,generated.path),generated.content);
   paths.push(generated.path);
-  entries.push({path:generated.path,properties:readDocument(generated.content).properties});
+  const [folder,name] = generated.path.split('/');
+  entries.push({path:generated.path,properties:readDocument(generated.content).properties,permalink:new URL(getPostPermalink(parsePost(generated.content,folder,name)),'https://caseyagollan.com').href});
   keys.add(`source:${activity.id}`);keys.add(identity(activity.kind,activity.target ?? activity.url,actors));
   counts.imported++;byKind[activity.kind]=(byKind[activity.kind] ?? 0)+1;
  }

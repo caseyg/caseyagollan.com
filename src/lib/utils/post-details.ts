@@ -51,9 +51,24 @@ export function renderPostQuotations(post: Post): string {
 export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}={}): string {
  const p = post.properties ?? {};
  let html = '';
+ const reactions = new Map<string, {labels: string[]; classes: string[]}>();
  for (const [key,label] of [['like-of','Liked'],['repost-of','Reposted']]) for (const value of p[key] ?? []) if (typeof value === 'string') {
+  const reaction = reactions.get(value) ?? {labels:[],classes:[]};
+  if (!reaction.labels.includes(label)) { reaction.labels.push(label); reaction.classes.push(`u-${key}`); }
+  reactions.set(value,reaction);
+ }
+ if (post.indexActivities) {
+  const snapshot = post.socialSnapshots?.[0];
+  const target = snapshot?.url ?? post.indexActivities[0].target ?? [...reactions.keys()][0];
+  const kinds = new Set(post.indexActivities.map(activity=>activity.type));
+  const label = kinds.has('like') ? kinds.has('repost') ? 'Liked and reposted' : 'Liked' : 'Reposted';
+  const classes = [...reactions.keys()].length === 1 ? [...reactions.values()][0].classes.join(' ') : '';
+  html += `<p>${label} ${link(target,snapshot ? 'post' : target,classes)}</p>`;
+  if (snapshot) html += renderSocialSnapshot(snapshot);
+ } else for (const [value,reaction] of reactions) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === value);
-  html += `<p>${label} ${link(value, snapshot ? 'post' : value, `u-${key}`)}</p>`;
+  const label = reaction.labels.join(' and ').replace('and Reposted','and reposted');
+  html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
  }
  const reply = post.inReplyTo || text(p, 'in-reply-to');

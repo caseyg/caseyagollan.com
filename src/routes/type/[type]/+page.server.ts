@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		typeIcon: TYPE_ICONS[singularType] || '📌',
 		typePlural: POST_TYPE_PLURALS[singularType],
 		postsByDay: postsByDayArray,
-		totalPosts: posts.length,
+		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),
 		allTypes
 	};
 };

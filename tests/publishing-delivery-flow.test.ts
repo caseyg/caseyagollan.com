@@ -34,6 +34,20 @@ test('a newer Git source supersedes queued work even while the old page is stati
  const gitFetch=(async()=>Response.json({type:'file',path:payload.sourcePath,sha:'git-sha',encoding:'base64',content:btoa(markdown)})) as unknown as typeof fetch;
  expect(await deliverPublication(config,bucket,job(payload),async()=>{}, {gitFetch,publicFetch:async()=>{publicCalls++;return sourceResponse();}})).toBe('superseded');expect(publicCalls).toBe(0);
 });
+test('an old queued POSSE destination cannot syndicate an imported record back out',async()=>{
+ const {bucket}=setup();
+ const raw='---\ndate: 2026-11-06T12:00:00-05:00\npesos-source: [mastodon:post:123]\n---\nImported';
+ const publication=await publicationForPost(parsePost(raw,'notes','2026-11-06-import.md'),config.me);
+ const task=job({...event,source:publication.url,sourcePath:publication.sourcePath,revision:publication.revision,targets:[],syndicateTo:['mastodon']});
+ const gitFetch=(async()=>Response.json({type:'file',path:publication.sourcePath,sha:'git-sha',encoding:'base64',content:btoa(raw)})) as unknown as typeof fetch;
+ let publicCalls=0;
+ const result=await deliverPublication(config,bucket,task,async()=>{}, {gitFetch,publicFetch:async(url)=>{
+  expect(url).toBe(publication.url); publicCalls++;
+  return sourceResponse(publication.revision);
+ }});
+ expect(result).toBe('done');expect(publicCalls).toBe(1);
+ expect(task.progress.syndication).toEqual({});
+});
 test('removal Webmentions wait for a public 404/410',async()=>{
  const {bucket}=setup();const task=job({...event,action:'remove'});
  await expect(deliverPublication(config,bucket,task,async()=>{}, {publicFetch:async()=>new Response('Old static page')})).rejects.toMatchObject({retryable:true});

@@ -17,9 +17,30 @@ test('deduplication checks all existing site content, normalizes aliases, and ke
  expect(alreadyRepresented({...activity,kind:'post'},keys,actors)).toBe(false);
  const postKeys = indexIdentities([{properties:{syndication:[url]}}]);
  expect(alreadyRepresented({...activity,kind:'post'},postKeys)).toBe(true);
- expect(alreadyRepresented(activity,postKeys)).toBe(false);
+ expect(alreadyRepresented(activity,postKeys)).toBe(true);
+ expect(alreadyRepresented({...activity,kind:'repost'},postKeys)).toBe(true);
  expect(identity('like','https://social.coop/users/caseyg/statuses/123?x=y')).toBe(identity('like',mastodon.url));
  expect(identity('like',`at://${did}/app.bsky.feed.post/abc123`)).toBe(identity('like',url));
+});
+test('self-likes match site permalinks and federated aliases without suppressing unrelated likes',()=>{
+ const permalink = 'https://caseyagollan.com/2025/09/07/indiekit-progress/';
+ const canonical = 'https://social.coop/@caseyg/115164254382519869';
+ const alias = 'https://other.example/@caseyg@social.coop/456';
+ const actors = {[alias]:canonical};
+ const keys = indexIdentities([{permalink,properties:{syndication:[canonical]}}],actors);
+ for (const target of [permalink.slice(0,-1),canonical,alias]) {
+  expect(alreadyRepresented({...activity,target},keys,actors)).toBe(true);
+ }
+ expect(alreadyRepresented(activity,keys,actors)).toBe(false);
+});
+test('consolidated cross-network originals retain every source identity',()=>{
+ const keys = indexIdentities([{properties:{
+  syndication:[url,mastodon.url],
+  'pesos-source':['mastodon:post:123',`at://${did}/app.bsky.feed.post/abc123`]
+ }}]);
+ expect(alreadyRepresented({...activity,kind:'post'},keys)).toBe(true);
+ expect(alreadyRepresented({...activity,kind:'post',id:'mastodon:post:123',url:mastodon.url,target:undefined},keys)).toBe(true);
+ expect(alreadyRepresented({...activity,target:mastodon.url},keys)).toBe(true);
 });
 test('source record identity survives changes to target URLs and deleted site entries remain represented',()=>{
  expect(alreadyRepresented(activity,indexIdentities([{properties:{'pesos-source':[activity.id],deleted:['true']}}]))).toBe(true);
@@ -109,6 +130,55 @@ test('site-originated social posts are skipped before any commit',async()=>{
  const h=harness({existing:`---\ndate: 2026-11-06T20:00:00-05:00\nsyndication:\n  - ${mastodon.url}\n---\nSite original`});
  const result=await processPesos(h.env,{fetcher:h.fetcher});
  expect(result.imported).toBe(0); expect(result.skipped).toBe(1);expect(h.writes).toHaveLength(0);
+});
+test('polling consolidates a cross-network original atomically and records new identities before checkpointing',async()=>{
+ const text='to play in a place where there is resonance';
+ const h=harness({existing:`---\n_micropubContentFormat: text\ndate: 2026-11-06T20:00:00-05:00\npesos-source: [at://did:plc:casey/app.bsky.feed.post/abc]\nsyndication: [https://bsky.app/profile/did:plc:casey/post/abc]\n---\n${text}`});
+ const fetcher=(async(input,init)=>String(input).includes('/accounts/1/statuses') ? Response.json([{...mastodon,content:`<p>${text}</p>`,media_attachments:[]}]) : h.fetcher(input,init)) as typeof fetch;
+ const result=await processPesos(h.env,{fetcher});
+ expect(result.imported).toBe(0);expect(result.merged).toBe(1);
+ expect(h.writes).toHaveLength(1);
+ const commit=h.writes[0].variables.input;
+ expect(commit.expectedHeadOid).toBe('head');
+ expect(commit.fileChanges.additions).toHaveLength(1);
+ const file=commit.fileChanges.additions[0];
+ expect(file.path).toBe('notes/2026-11-06-0.md');
+ const saved=readDocument(atob(file.contents));
+ expect(saved.body).toBe(text);
+ expect(saved.properties['pesos-source']).toEqual(['at://did:plc:casey/app.bsky.feed.post/abc','mastodon:post:123']);
+ expect(saved.properties.syndication).toContain(mastodon.url);
+ expect(h.files.has('private/pesos/state.json')).toBe(true);
+});
+test.each(['dry-run','conflict','checkpoint-retry'])('cross-network merge handles %s safely',async(mode)=>{
+ const text='to play in a place where there is resonance';
+ const h=harness({existing:`---\n_micropubContentFormat: text\ndate: 2026-11-06T20:00:00-05:00\npesos-source: [at://did:plc:casey/app.bsky.feed.post/abc]\n---\n${text}`,conflict:mode==='conflict',failState:mode==='checkpoint-retry'});
+ const fetcher=(async(input,init)=>String(input).includes('/accounts/1/statuses') ? Response.json([{...mastodon,content:`<p>${text}</p>`,media_attachments:[]}]) : h.fetcher(input,init)) as typeof fetch;
+ if (mode==='dry-run') {
+  expect((await processPesos(h.env,{fetcher,dryRun:true})).merged).toBe(1);
+  expect(h.writes).toHaveLength(0);expect(h.files.has('private/pesos/state.json')).toBe(false);
+ } else {
+  await expect(processPesos(h.env,{fetcher})).rejects.toThrow(mode==='conflict'?'conflicted':'state unavailable');
+  expect(h.files.has('private/pesos/state.json')).toBe(false);
+  if (mode==='checkpoint-retry') {
+   await expect(processPesos(h.env,{fetcher})).rejects.toThrow('state unavailable');
+   expect(h.writes).toHaveLength(1);
+  }
+ }
+});
+test('self-likes are skipped by live syndication metadata and outbound receipts',async()=>{
+ for (const receipt of [false,true]) {
+  const h=harness({existing:`---\ndate: 2026-11-06T20:00:00-05:00\n${receipt ? '' : `syndication: [${mastodon.url}]\n`}---\nSite original`});
+  if (receipt) {
+   const source='https://caseyagollan.com/2026/11/06/0/';
+   const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${source}\0mastodon`))),b=>b.toString(16).padStart(2,'0')).join('');
+   h.files.set(`private/syndication/${hash}.json`,{etag:'receipt',value:JSON.stringify({status:'sent',url:mastodon.url})});
+  }
+  const fetcher = (async(input,init)=>String(input).includes('/favourites') ? Response.json([mastodon]) : h.fetcher(input,init)) as typeof fetch;
+  const result=await processPesos(h.env,{fetcher});
+  expect(result.imported).toBe(0);
+  expect(result.skipped).toBe(2);
+  expect(h.writes).toHaveLength(0);
+ }
 });
 test('a concurrent site write fails closed and leaves scan cursors unadvanced',async()=>{
  const h=harness({conflict:true});

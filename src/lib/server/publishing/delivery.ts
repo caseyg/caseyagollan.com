@@ -146,6 +146,7 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
  const gitFetch = dependencies.gitFetch ?? fetch;
  const now = dependencies.now ?? Date.now;
  const { event, progress } = job;
+ let imported = false;
  const source = publicUrl(event.source);
  if (source.origin !== new URL(config.me).origin || !/^[a-f0-9]{64}$/.test(event.revision)) throw new DeliveryError('Invalid source identity', false);
  if (event.sourcePath) {
@@ -153,6 +154,7 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
   if (!file) { if (event.action === 'publish') return 'superseded'; }
   else {
    const [folder,name] = splitPath(file.path); const post = parsePost(file.content, folder, name);
+   imported = !!post.properties?.['pesos-source']?.length;
    if (event.action === 'publish' ? (!visible(post) || await publicationRevision(post) !== event.revision) : visible(post)) return 'superseded';
   }
  }
@@ -173,7 +175,7 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
   }
   progress.webmentions.push(target); await checkpoint(progress);
  }
- for (const service of event.action === 'publish' ? event.syndicateTo : []) {
+ for (const service of event.action === 'publish' && !imported ? event.syndicateTo : []) {
   if (progress.syndication[service]) continue;
   if (!config.syndication?.[service]) throw new DeliveryError('Provider credentials are not configured', true);
   progress.syndicationStartedAt[service] ??= now(); await checkpoint(progress);
