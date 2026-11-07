@@ -8,6 +8,7 @@ export interface Activity {
  url: string;
  target?: string;
  published: string;
+ dateSource?: 'activity' | 'original-post';
  properties: Properties;
 }
 export interface Page { activities: Activity[]; ids: string[]; cursor?: string }
@@ -16,12 +17,11 @@ const iso = (value: unknown) => typeof value === 'string' && Number.isFinite(Dat
 
 export function mastodonActivity(status: any, kind: Activity['kind'], now: string): Activity | undefined {
  const original = status.reblog ?? status;
- if (original.visibility !== 'public' || (kind === 'post' && status.visibility !== 'public') || !iso(original.created_at) || typeof original.url !== 'string') return;
+ if (original.account?.locked === true || original.visibility !== 'public' || (kind === 'post' && status.visibility !== 'public') || !iso(original.created_at) || typeof original.url !== 'string') return;
  const action = status.reblog ? 'repost' : kind;
- // A locked account can still publish public posts; respect its account-level privacy.
  // Missing account metadata is not evidence that an interaction is safe to archive.
  if (action !== 'post' && original.account?.locked !== false) return;
- const published = action === 'like' ? now : status.created_at;
+ const published = action === 'like' || !iso(status.created_at) ? original.created_at : status.created_at;
  if (!iso(published) || typeof status.id !== 'string') return;
  const properties: Properties = {};
  if (action === 'post') {
@@ -37,7 +37,7 @@ export function mastodonActivity(status: any, kind: Activity['kind'], now: strin
   }
   if (status.spoiler_text) properties.summary = [status.spoiler_text];
  }
- return {id:`mastodon:${action}:${status.id}`,service:'mastodon',kind:action,url:status.url ?? original.url,target:action === 'post' ? undefined : original.url,published,properties};
+ return {id:`mastodon:${action}:${status.id}`,service:'mastodon',kind:action,url:status.url ?? original.url,target:action === 'post' ? undefined : original.url,published,...(action === 'like' ? {dateSource:'original-post' as const} : {}),properties};
 }
 export function blueUrl(uri: string): string {
  const match = uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([a-zA-Z0-9]+)$/);
@@ -47,6 +47,7 @@ export function blueUrl(uri: string): string {
 export function blueskyActivity(record: any, kind: Activity['kind']): Activity | undefined {
  const value = record.value;
  if (!iso(value?.createdAt) || typeof record.uri !== 'string') return;
+ if (kind !== 'post' && (typeof value.subject?.uri !== 'string' || !/^at:\/\/[^/]+\/app\.bsky\.feed\.post\/[a-zA-Z0-9]+$/.test(value.subject.uri))) return;
  const properties: Properties = {};
  if (kind === 'post') {
   if (typeof value.text !== 'string') return;
@@ -91,16 +92,7 @@ export async function blueskyPage(get: GetJson, service: string, did: string, ki
  for (const record of data.records) {
   const activity = blueskyActivity(record,kind);
   if (!activity) continue;
-  if (kind !== 'post') {
-   const uri = record.value.subject.uri;
-   // Repository likes/reposts reveal a reference, not the target's current visibility.
-   // Resolve through the unauthenticated public AppView before archiving the action.
-   const {data:thread} = await get(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?${new URLSearchParams({uri,depth:'0',parentHeight:'0'})}`);
-   const post = thread?.thread?.post;
-   if (thread?.thread?.$type !== 'app.bsky.feed.defs#threadViewPost' || post?.uri !== uri || typeof post?.author?.did !== 'string' || typeof post?.record?.text !== 'string') continue;
-   const {data:profile} = await get(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?${new URLSearchParams({actor:post.author.did})}`);
-   if (profile?.did !== post.author.did || !publicBluesky(post) || !publicBluesky(post.author) || !publicBluesky(profile)) continue;
-  }
+  if (kind !== 'post' && !await blueskyPublic(get,record.value.subject.uri)) continue;
   activities.push(activity);
  }
  return {ids:data.records.map((r:any)=>r.uri),activities,cursor:data.cursor};
@@ -109,6 +101,21 @@ export async function blueskyPage(get: GetJson, service: string, did: string, ki
 /** Respect public-access opt-outs as well as explicit account/post restrictions. */
 function publicBluesky(value: any): boolean {
  return value && value.visibility === undefined && value.locked !== true && value.private !== true &&
-  !(value.labels ?? []).some((label: any)=>['!no-unauthenticated','!hide','!takedown'].includes(label.val)) &&
+  !(value.labels ?? []).some((label: any)=>['!no-unauth','!no-unauthenticated','!hide','!takedown'].includes(label.val)) &&
   !value.viewer?.blockedBy && !value.viewer?.blocking && !value.deactivated;
+}
+
+/** Fail closed when public access cannot be established, including no-unauth labels. */
+export async function blueskyPublic(get: GetJson, uri: string): Promise<boolean> {
+ try {
+  const {data} = await get(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=0&parentHeight=0`);
+  const post = data?.thread?.post;
+  if (data?.thread?.$type !== 'app.bsky.feed.defs#threadViewPost' || !post || post.uri !== uri || typeof post.record?.text !== 'string' || typeof post.author?.did !== 'string' || !publicBluesky(post) || !publicBluesky(post.author)) return false;
+  const {data:profile} = await get(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?${new URLSearchParams({actor:post.author.did})}`);
+  return profile?.did === post.author.did && publicBluesky(profile);
+ } catch (error) {
+  // Deleted targets must not stall the rest of a likes/reposts page forever.
+  if (error && typeof error === 'object' && 'status' in error && [400,404,410].includes(Number(error.status))) return false;
+  throw error;
+ }
 }
