@@ -29,7 +29,23 @@
 			});
 		}
 		void import('@pagefind/component-ui');
+		// Pagefind moves its modal outside the navigation markup.
+		document.addEventListener('click', handleResultClick);
+		return () => document.removeEventListener('click', handleResultClick);
 	});
+
+	let { onResultClick }: { onResultClick?: (url: URL) => boolean } = $props();
+
+	function handleResultClick(event: MouseEvent) {
+		if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.search-result a') : null;
+		if (!link || link.target || link.hasAttribute('download')) return;
+		if (!onResultClick?.(new URL(link.href))) return;
+		event.preventDefault();
+		const modal = link.closest('pagefind-modal') as (HTMLElement & { close(): void }) | null;
+		modal?.close();
+	}
+
 
 	const resultTemplate = `<script type="text/pagefind-template">
 		<li class="search-result" id="{{ aria.result_id }}">

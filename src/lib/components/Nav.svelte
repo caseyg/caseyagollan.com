@@ -2,15 +2,17 @@
 	import Search from './Search.svelte';
 	let {
 		currentPage = 'home',
-		showPostsLink = false
+		showPostsLink = false,
+		onSearchResultClick
 	}: {
 		currentPage?: 'home' | 'library' | 'posts';
 		showPostsLink?: boolean;
+		onSearchResultClick?: (url: URL) => boolean;
 	} = $props();
 </script>
 
 <div class="nav-toggles">
-	<Search />
+	<Search onResultClick={onSearchResultClick} />
 	{#if currentPage !== 'home'}
 		<a href="/">👋</a>
 	{/if}
