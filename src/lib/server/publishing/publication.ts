@@ -38,7 +38,7 @@ export async function publicationRevision(post: Post): Promise<string> {
 
 export async function publicationForPost(post: Post, origin = CANONICAL): Promise<Publication> {
  const site = new URL(origin).origin;
- const tree = fromHtml(renderContentSync(post.content, post.contentFormat) + renderPostDetails(post), { fragment: true });
+ const tree = fromHtml(renderContentSync(post.content, post.contentFormat) + renderPostDetails({ ...post, socialSnapshots: undefined }), { fragment: true });
  const targets = new Set<string>();
  function addTarget(value: string) {
   if (targets.size >= 32) return;

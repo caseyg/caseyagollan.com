@@ -5,7 +5,7 @@ import type { Element, Root } from 'hast';
 
 const schema = {
  ...defaultSchema,
- tagNames: [...(defaultSchema.tagNames ?? []).filter((tag) => tag !== 'input'), 'article', 'section', 'header', 'footer', 'figure', 'figcaption', 'time', 'video', 'audio', 'source', 'iframe'],
+ tagNames: [...(defaultSchema.tagNames ?? []).filter((tag) => tag !== 'input'), 'article', 'section', 'header', 'footer', 'figure', 'figcaption', 'details', 'summary', 'time', 'video', 'audio', 'source', 'iframe'],
  strip: [...(defaultSchema.strip ?? []), 'script', 'style', 'svg', 'math', 'template', 'form', 'object', 'embed'],
  attributes: {
   ...defaultSchema.attributes,

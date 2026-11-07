@@ -1,3 +1,4 @@
+import type { SocialSnapshot } from './social-snapshots';
 // Client-safe post types and constants (no Node.js imports)
 
 export interface MediaItem {
@@ -28,6 +29,7 @@ export interface Post {
 	video?: MediaItem[];
 	microformatType?: string;
 	channel?: string;
+	socialSnapshots?: SocialSnapshot[];
 	properties?: Record<string, unknown[]>;
 	filePath: string;
 }

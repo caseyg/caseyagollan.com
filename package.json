@@ -14,6 +14,7 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"backfill-social-snapshots": "bun utils/backfill-social-snapshots.ts",
 		"update-library": "bun utils/librarything-to-graph.js"
 	},
 	"devDependencies": {
