@@ -4,10 +4,14 @@ export interface SyndicationConfig {
  mastodon?: {instance:string;token:string};
  bluesky?: {service:string;identifier:string;password:string};
 }
-export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string}
+export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string}
 const segmenter=new Intl.Segmenter('en',{granularity:'grapheme'});
 function graphemes(text:string): string[] {return Array.from(segmenter.segment(text),s=>s.segment);}
-function message(post:SyndicationPost,limit:number,byteLimit=Infinity):string {
+export function syndicationText(post:SyndicationPost,limit:number,byteLimit=Infinity):string {
+ if (post.draft !== undefined) {
+  if (!post.draft.trim() || graphemes(post.draft).length > limit || new TextEncoder().encode(post.draft).length > byteLimit) throw new DeliveryError('Draft exceeds provider length limit or is empty',false);
+  return post.draft;
+ }
  const link=publicUrl(post.url).href;
  if(graphemes(link).length>limit || new TextEncoder().encode(link).length>byteLimit) throw new DeliveryError('Canonical link exceeds provider length limit',false);
  const source=[post.title,post.text].filter(Boolean).join('\n\n').trim();
@@ -33,7 +37,7 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  if(service==='mastodon') {
   const account=config.mastodon;if(!account)throw new DeliveryError('Mastodon is not configured',false);
   const base=origin(account.instance);
-  const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':post.idempotencyKey},body:new URLSearchParams({status:message(post,500),visibility:'public'})});
+  const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':post.idempotencyKey},body:new URLSearchParams({status:syndicationText(post,500),visibility:'public'})});
   checkDeliveryResponse(response);
   let result:{url?:unknown};try{result=await response.json() as {url?:unknown};}catch{throw new DeliveryError('Invalid Mastodon response',true);}
   if(typeof result.url!=='string')throw new DeliveryError('Mastodon did not return a canonical URL',true);
@@ -58,8 +62,9 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  let tid=(micros<<10n)|BigInt(((hash[2]<<8)|hash[3])&1023);
  const alphabet='234567abcdefghijklmnopqrstuvwxyz';let rkey='';
  for(let i=0;i<13;i++){rkey=alphabet[Number(tid&31n)]+rkey;tid>>=5n;}
- const text=message(post,300,3000);const link=publicUrl(post.url).href;const encoder=new TextEncoder();
- const byteEnd=encoder.encode(text).length; const byteStart=byteEnd-encoder.encode(link).length;
- await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt:post.published,facets:[{index:{byteStart,byteEnd},features:[{$type:'app.bsky.richtext.facet#link',uri:link}]}]}},{authorization:`Bearer ${session.accessJwt}`});
+ const text=syndicationText(post,300,3000);const link=publicUrl(post.url).href;const encoder=new TextEncoder();
+ const linkIndex=text.lastIndexOf(link);
+ const byteStart=encoder.encode(text.slice(0,linkIndex)).length; const byteEnd=byteStart+encoder.encode(link).length;
+ await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt:post.published,facets:linkIndex < 0 ? [] : [{index:{byteStart,byteEnd},features:[{$type:'app.bsky.richtext.facet#link',uri:link}]}]}},{authorization:`Bearer ${session.accessJwt}`});
  return `https://bsky.app/profile/${session.did}/post/${rkey}`;
 }

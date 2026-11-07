@@ -96,39 +96,49 @@ function revisionFromHtml(html: string): string | undefined {
  }
  visit(fromHtml(html)); return revision;
 }
-interface Receipt { status: 'sending' | 'sent'; startedAt: number; leaseUntil: number; url?: string }
-async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, service: Service, config: SyndicationConfig, fetcher: PublicFetcher, now: () => number): Promise<string> {
+export interface SyndicationReceipt { status: 'sending' | 'sent'; startedAt: number; leaseUntil: number; url?: string; draft?: string }
+export async function syndicationReceiptKey(source: string, service: Service): Promise<string> {
+ return `private/syndication/${await hash(`${source}\0${service}`)}.json`;
+}
+export async function readSyndicationReceipt(bucket: R2Bucket, source: string, service: Service): Promise<SyndicationReceipt | undefined> {
+ const stored = await bucket.get(await syndicationReceiptKey(source, service));
+ return stored ? stored.json<SyndicationReceipt>() : undefined;
+}
+export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, service: Service, config: SyndicationConfig, fetcher: PublicFetcher, now: () => number, draft?: string): Promise<string> {
  const identity = await hash(`${event.source}\0${service}`);
  const key = `private/syndication/${identity}.json`;
  const stored = await bucket.get(key);
- const receipt = stored ? await stored.json<Receipt>() : undefined;
+ const receipt = stored ? await stored.json<SyndicationReceipt>() : undefined;
+ const originalDraft = receipt?.draft ?? draft;
  if (receipt?.status === 'sent' && receipt.url) return receipt.url;
  if (receipt && receipt.leaseUntil > now()) throw new DeliveryError('Syndication is leased', true);
  // Mastodon keeps idempotency keys for one hour. Never risk a duplicate outside that window.
  const startedAt = receipt?.startedAt ?? now();
  if (service === 'mastodon' && now() - startedAt >= 45 * 60_000) throw new DeliveryError('Mastodon outcome requires manual reconciliation', false);
- const claim = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000 }), { onlyIf: stored ? { etagMatches: stored.etag } : { etagDoesNotMatch: '*' } });
+ const claim = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, draft: originalDraft }), { onlyIf: stored ? { etagMatches: stored.etag } : { etagDoesNotMatch: '*' } });
  if (!claim) throw new DeliveryError('Syndication claim raced', true);
- const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity }, config, fetcher);
- const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url }), { onlyIf: { etagMatches: claim.etag } });
+ const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, draft: originalDraft }, config, fetcher);
+ const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url, draft: originalDraft }), { onlyIf: { etagMatches: claim.etag } });
  if (!saved) throw new DeliveryError('Syndication receipt raced', true);
  return url;
 }
 
-async function recordResults(config: PublishingConfig, event: DeliveryEvent, progress: DeliveryProgress, fetcher: typeof fetch): Promise<void> {
+export async function recordSyndicationResults(config: PublishingConfig, event: DeliveryEvent, progress: DeliveryProgress, fetcher: typeof fetch): Promise<boolean> {
  const urls = Object.values(progress.syndication);
- if (!urls.length || !event.sourcePath) return;
+ if (!urls.length) return true;
+ if (!event.sourcePath) return false;
  const store = createGitHubStore(config, fetcher);
  const head = await store.head();
  const file = await store.read(event.sourcePath);
- if (!file) return;
+ if (!file) return false;
  const [folder,name] = splitPath(file.path);
  const post = parsePost(file.content, folder, name);
- if (!visible(post) || await publicationRevision(post) !== event.revision) return;
+ if (!visible(post) || await publicationRevision(post) !== event.revision) return false;
  const existing = readDocument(file.content).properties.syndication ?? [];
  const missing = urls.filter(url => !existing.includes(url));
- if (!missing.length) return;
+ if (!missing.length) return true;
  await store.write(file.path, updateDocument(file.content, { add: { syndication: missing } }), { sha: file.sha, expectedHead: head, message: 'Record syndication links' });
+ return true;
 }
 
 export async function deliverPublication(config: PublishingConfig, bucket: R2Bucket, job: OutboxJob, checkpoint: (progress: DeliveryProgress) => Promise<void>, dependencies: { publicFetch?: PublicFetcher; gitFetch?: typeof fetch; now?: () => number } = {}): Promise<'done' | 'superseded'> {
@@ -170,7 +180,7 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
   progress.syndication[service] = await syndicationOnce(bucket, event, service, config.syndication ?? {}, fetcher, now);
   await checkpoint(progress);
  }
- await recordResults(config, event, progress, gitFetch);
+ await recordSyndicationResults(config, event, progress, gitFetch);
  return 'done';
 }
 

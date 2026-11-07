@@ -554,6 +554,26 @@
 		animateShelfBook(node, true);
 	}
 
+	function selectSearchResult(url: URL): boolean {
+		if (!Graph || isLoading || url.origin !== window.location.origin) return false;
+		const match = /^\/library(?:\/([^/]+))?\/?$/.exec(url.pathname);
+		if (!match) return false;
+		const isbn = match[1] ? decodeURIComponent(match[1]) : null;
+		const bookId = url.searchParams.get('book');
+		if (!isbn && !bookId) return false;
+		const node = Graph.graphData().nodes.find(
+			(n: Node) => n.group === 'book' && (isbn ? n.isbn === isbn : String(n.bookid) === bookId)
+		);
+		if (!node) return false;
+		const nextUrl = new URL(window.location.href);
+		nextUrl.pathname = url.pathname;
+		nextUrl.searchParams.delete('book');
+		if (bookId) nextUrl.searchParams.set('book', bookId);
+		replaceState(nextUrl, {});
+		void selectBook(node, false);
+		return true;
+	}
+
 	// Select a book and show its details
 	async function selectBook(node: Node, updateUrl = true) {
 		if (!Graph) return;
@@ -1743,7 +1763,7 @@
 	</div>
 {/if}
 <div bind:this={graphContainer} class="graph-container"></div>
-<Nav currentPage="library" />
+<Nav currentPage="library" onSearchResultClick={selectSearchResult} />
 <div class="controls" class:hidden={isLoading}>
 	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
 	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
