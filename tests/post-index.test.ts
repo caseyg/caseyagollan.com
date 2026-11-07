@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { rollupIndexPosts, getPostsByDay, type Post } from '../src/lib/posts-types';
+import { rollupIndexPosts, getPostsByDay, indexContentUrl, type Post } from '../src/lib/posts-types';
 import { parsePost } from '../src/lib/server/parse-post';
 import { renderPostDetails } from '../src/lib/utils/post-details';
 
@@ -12,7 +12,7 @@ test('indexes roll up like and repost while retaining dates, both permalinks, an
  const [post] = rollupIndexPosts([repost,like]);
  expect(rollupIndexPosts([repost,like])).toHaveLength(1);
  expect(post.date).toBe(repost.date);
- expect(post.indexActivities).toEqual([
+ expect(post.indexActivities?.map(({type,date,permalink})=>({type,date,permalink}))).toEqual([
   {type:'like',date:like.date,permalink:'/2025/07/11/123/'},
   {type:'repost',date:repost.date,permalink:'/2025/07/11/123-repost/'}
  ]);
@@ -27,8 +27,7 @@ test('different targets, commentary, multiple targets, and type-only indexes sta
  for (const other of [
   {...repost,properties:{'repost-of':[target+'other']}},
   {...repost,content:'My commentary'},
-  {...repost,properties:{'repost-of':[target,target+'other']}},
-  {...like,slug:'second-like'}
+  {...repost,properties:{'repost-of':[target,target+'other']}}
  ]) expect(rollupIndexPosts([like,other])).toHaveLength(2);
  expect(rollupIndexPosts([like])).toEqual([like]);
 });
@@ -47,6 +46,44 @@ test('a combined card renders its saved social preview exactly once',()=>{
  const [post] = rollupIndexPosts([{...repost,socialSnapshots:[snapshot]},{...like,socialSnapshots:[snapshot]}]);
  expect(renderPostDetails(post).match(/Shared preview/g)).toHaveLength(1);
  expect(post.indexActivities).toHaveLength(2);
+});
+
+test('same-kind activities can share an index card while keeping every permalink',()=>{
+ const other = {...like,slug:'second-like',date:'2025-07-12T12:00:00-04:00'};
+ const [post] = rollupIndexPosts([like,other]);
+ expect(post.indexActivities).toHaveLength(2);
+ expect(renderPostDetails(post)).not.toContain('Liked and reposted');
+ expect(renderPostDetails(post)).toContain('Liked');
+});
+
+test('content URL normalization removes tracking but preserves meaningful query parameters',()=>{
+ expect(indexContentUrl('https://example.com/article/?utm_source=bsky#section')).toBe('https://example.com/article');
+ expect(indexContentUrl('https://example.com/article?id=1')).not.toBe(indexContentUrl('https://example.com/article?id=2'));
+ expect(indexContentUrl('javascript:alert(1)')).toBeUndefined();
+ expect(indexContentUrl('https://user:pass@example.com/article')).toBeUndefined();
+});
+
+test('the four July 2026 activities roll up by article across networks and dates',async()=>{
+ const files = [
+  ['reposts','2026-07-13-3mqhyninnjs26.md'],
+  ['reposts','2026-07-13-116907958420910231.md'],
+  ['likes','2026-11-06-116907958420910231.md'],
+  ['reposts','2026-07-13-3mqhjvjsm2k2t.md']
+ ];
+ const posts = await Promise.all(files.map(async([folder,name])=>parsePost(await Bun.file(`${import.meta.dir}/../content/${folder}/${name}`).text(),folder,name)));
+ const [post,...rest] = rollupIndexPosts(posts);
+ expect(rest).toHaveLength(0);
+ expect(post.date).toBe('2026-07-13T13:10:06-04:00');
+ expect(post.indexActivities).toHaveLength(4);
+ expect(new Set(post.indexActivities!.map(a=>a.network))).toEqual(new Set(['Mastodon','Bluesky']));
+ expect(post.indexActivities!.map(a=>a.permalink)).toContain('/2026/07/12/116907958420910231/');
+ expect(post.socialSnapshots).toHaveLength(1);
+ expect(post.socialSnapshots![0].preview?.image).toBeDefined();
+ expect(renderPostDetails(post).match(/social-link-preview"/g)).toHaveLength(1);
+ expect([...getPostsByDay(posts).keys()]).toEqual(['2026-07-13']);
+ expect(rollupIndexPosts([post])).toEqual([post]);
+ expect(rollupIndexPosts([...posts].reverse())).toHaveLength(1);
+ expect(rollupIndexPosts([{...posts[0],content:'My additional commentary'},...posts.slice(1)])).toHaveLength(2);
 });
 
 test.each([

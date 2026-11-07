@@ -24,6 +24,7 @@
 	}
 
 	const categories = $derived(getCategories(category));
+	const activityTypes = $derived(indexActivities?.filter((activity, i, all) => all.findIndex(other => other.type === activity.type) === i));
 
 	function getTypePlural(t: string): string {
 		return POST_TYPE_PLURALS[t] || t + 's';
@@ -60,8 +61,8 @@
 <div class="post-meta">
 	<div class="meta-primary">
 		{#if showType}
-			{#if indexActivities}
-				{#each indexActivities as activity, i (activity.permalink)}
+			{#if activityTypes}
+				{#each activityTypes as activity, i (activity.permalink)}
 					{#if i > 0}<span>and</span>{/if}
 					<a href={activity.permalink} class="post-type" title={formatAbsoluteDate(activity.date)}>{getTypeIcon(activity.type)} {activity.type === 'like' ? 'liked' : 'reposted'}</a>
 				{/each}

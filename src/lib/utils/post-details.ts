@@ -54,7 +54,15 @@ export function renderPostDetails(post: Post): string {
   if (!reaction.labels.includes(label)) { reaction.labels.push(label); reaction.classes.push(`u-${key}`); }
   reactions.set(value,reaction);
  }
- for (const [value,reaction] of reactions) {
+ if (post.indexActivities) {
+  const snapshot = post.socialSnapshots?.[0];
+  const target = snapshot?.url ?? post.indexActivities[0].target ?? [...reactions.keys()][0];
+  const kinds = new Set(post.indexActivities.map(activity=>activity.type));
+  const label = kinds.has('like') ? kinds.has('repost') ? 'Liked and reposted' : 'Liked' : 'Reposted';
+  const classes = [...reactions.keys()].length === 1 ? [...reactions.values()][0].classes.join(' ') : '';
+  html += `<p>${label} ${link(target,snapshot ? 'post' : target,classes)}</p>`;
+  if (snapshot) html += renderSocialSnapshot(snapshot);
+ } else for (const [value,reaction] of reactions) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === value);
   const label = reaction.labels.join(' and ').replace('and Reposted','and reposted');
   html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;

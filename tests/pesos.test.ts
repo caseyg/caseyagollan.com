@@ -131,6 +131,40 @@ test('site-originated social posts are skipped before any commit',async()=>{
  const result=await processPesos(h.env,{fetcher:h.fetcher});
  expect(result.imported).toBe(0); expect(result.skipped).toBe(1);expect(h.writes).toHaveLength(0);
 });
+test('polling consolidates a cross-network original atomically and records new identities before checkpointing',async()=>{
+ const text='to play in a place where there is resonance';
+ const h=harness({existing:`---\n_micropubContentFormat: text\ndate: 2026-11-06T20:00:00-05:00\npesos-source: [at://did:plc:casey/app.bsky.feed.post/abc]\nsyndication: [https://bsky.app/profile/did:plc:casey/post/abc]\n---\n${text}`});
+ const fetcher=(async(input,init)=>String(input).includes('/accounts/1/statuses') ? Response.json([{...mastodon,content:`<p>${text}</p>`,media_attachments:[]}]) : h.fetcher(input,init)) as typeof fetch;
+ const result=await processPesos(h.env,{fetcher});
+ expect(result.imported).toBe(0);expect(result.merged).toBe(1);
+ expect(h.writes).toHaveLength(1);
+ const commit=h.writes[0].variables.input;
+ expect(commit.expectedHeadOid).toBe('head');
+ expect(commit.fileChanges.additions).toHaveLength(1);
+ const file=commit.fileChanges.additions[0];
+ expect(file.path).toBe('notes/2026-11-06-0.md');
+ const saved=readDocument(atob(file.contents));
+ expect(saved.body).toBe(text);
+ expect(saved.properties['pesos-source']).toEqual(['at://did:plc:casey/app.bsky.feed.post/abc','mastodon:post:123']);
+ expect(saved.properties.syndication).toContain(mastodon.url);
+ expect(h.files.has('private/pesos/state.json')).toBe(true);
+});
+test.each(['dry-run','conflict','checkpoint-retry'])('cross-network merge handles %s safely',async(mode)=>{
+ const text='to play in a place where there is resonance';
+ const h=harness({existing:`---\n_micropubContentFormat: text\ndate: 2026-11-06T20:00:00-05:00\npesos-source: [at://did:plc:casey/app.bsky.feed.post/abc]\n---\n${text}`,conflict:mode==='conflict',failState:mode==='checkpoint-retry'});
+ const fetcher=(async(input,init)=>String(input).includes('/accounts/1/statuses') ? Response.json([{...mastodon,content:`<p>${text}</p>`,media_attachments:[]}]) : h.fetcher(input,init)) as typeof fetch;
+ if (mode==='dry-run') {
+  expect((await processPesos(h.env,{fetcher,dryRun:true})).merged).toBe(1);
+  expect(h.writes).toHaveLength(0);expect(h.files.has('private/pesos/state.json')).toBe(false);
+ } else {
+  await expect(processPesos(h.env,{fetcher})).rejects.toThrow(mode==='conflict'?'conflicted':'state unavailable');
+  expect(h.files.has('private/pesos/state.json')).toBe(false);
+  if (mode==='checkpoint-retry') {
+   await expect(processPesos(h.env,{fetcher})).rejects.toThrow('state unavailable');
+   expect(h.writes).toHaveLength(1);
+  }
+ }
+});
 test('self-likes are skipped by live syndication metadata and outbound receipts',async()=>{
  for (const receipt of [false,true]) {
   const h=harness({existing:`---\ndate: 2026-11-06T20:00:00-05:00\n${receipt ? '' : `syndication: [${mastodon.url}]\n`}---\nSite original`});
