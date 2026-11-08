@@ -70,12 +70,10 @@
 <main>
  <nav><a href="/">Casey Gollan</a><a href="/account">Account</a></nav>
  <header><p class="eyebrow">PRIVATE IMPORT QUEUE</p><h1>Readwise</h1>
- <p>Choose what belongs on your site.</p>
- <p class="muted">Previews stay private. Nothing is published until you click <strong>Import selected</strong>. Dismissals save only Readwise IDs.</p></header>
- <aside>Imports publish the title, URL, summary below, and selected tags, dated when saved to Reader. Personal notes are never imported. Days use America/New_York time. Day controls apply to loaded items.</aside>
+ <p class="muted">Choose what belongs on your site. Previews stay private until you import.</p></header>
+ <details class="help"><summary>What gets imported?</summary><aside>Imports publish the title, URL, summary below, and selected tags, dated when saved to Reader. Personal notes are never imported. Days use America/New_York time. Day controls apply to loaded items. Dismissals save only Readwise IDs.</aside></details>
  <div class="toolbar">
   <label><input type="checkbox" disabled={busy || !pending.length} checked={checked(pending)} indeterminate={selected.length > 0 && !checked(pending)} onchange={e => toggle(pending, e.currentTarget.checked)} /> Select all loaded</label>
-  <span>{selected.length} selected</span>
   <button class="primary" disabled={busy || !selected.length} onclick={() => act('import', items.filter(i => selected.includes(i.id)))}>Import selected · {selected.length}</button>
   <button disabled={busy || !selected.length} onclick={() => act('dismiss', items.filter(i => selected.includes(i.id)))}>Dismiss selected</button>
  </div>
@@ -91,9 +89,9 @@
       <div class="preview"><p>Imported</p><h2><a href={imported[item.id]}>{item.title}</a></h2><p><a href={imported[item.id]}>View post →</a></p></div>
      {:else}
      <input type="checkbox" aria-label={`Select ${item.title}`} disabled={busy} checked={selected.includes(item.id)} onchange={e => toggle([item], e.currentTarget.checked)} />
-     <div class="preview"><p class="source">{new URL(item.url).hostname} · {item.category}</p><h2><a href={item.url} target="_blank" rel="noreferrer noopener">{item.title}</a></h2>{#if item.author}<p class="author">{item.author}</p>{/if}<label class="editor">Summary<textarea maxlength="4000" disabled={busy} bind:value={item.summary}></textarea></label>
+     <div class="preview"><p class="source">{new URL(item.url).hostname} · {item.category}</p><h2><a href={item.url} target="_blank" rel="noreferrer noopener">{item.title}</a></h2><details class="item-details"><summary>Edit details <span class="detail-hint">· summary &amp; tags{item.tags.length ? ` · ${item.tags.length} ${item.tags.length === 1 ? 'tag' : 'tags'}` : ''}</span></summary>{#if item.author}<p class="author">{item.author}</p>{/if}<label class="editor">Summary<textarea maxlength="4000" disabled={busy} bind:value={item.summary}></textarea></label>
       <div class="tags">{#each item.tags as tag}<button disabled={busy} aria-label={`Remove tag ${tag}`} onclick={() => item.tags = item.tags.filter(t => t !== tag)}>{tag} ×</button>{/each}</div>
-      <label class="editor">Add tag<input class="tag-input" list="existing-tags" maxlength="100" disabled={busy} bind:value={tagDraft[item.id]} onkeydown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(item); } }} /></label><button disabled={busy || !tagDraft[item.id]?.trim()} onclick={() => addTag(item)}>Add tag</button><p class="url">{item.url}</p></div>
+      <label class="editor">Add tag<input class="tag-input" list="existing-tags" maxlength="100" disabled={busy} bind:value={tagDraft[item.id]} onkeydown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(item); } }} /></label><button disabled={busy || !tagDraft[item.id]?.trim()} onclick={() => addTag(item)}>Add tag</button><p class="url"><a href={item.url} target="_blank" rel="noreferrer noopener">{item.url}</a></p></details></div>
      <button disabled={busy} aria-label={`Dismiss ${item.title}`} onclick={() => act('dismiss', [item])}>Dismiss</button>
      {/if}
     </article>
@@ -104,6 +102,56 @@
  {#if cursor || !loaded}<button class="more" disabled={busy} onclick={loadMore}>{loaded ? 'Load more from Readwise' : 'Load Readwise'}</button>{/if}
 </main>
 <style>
- :global(body) { background:#f6f5f1; color:#222; font-size:16px; font-weight:400; }
- main { max-width:960px; margin:auto; padding:32px 24px 80px; } nav { display:flex; justify-content:space-between; } a { color:inherit; } header { margin:64px 0 24px; max-width:680px; } h1 { font-size:56px; line-height:1.1; margin:8px 0 20px; font-weight:500; letter-spacing:-2px; } .eyebrow,.source { font-size:12px; letter-spacing:.08em; } .muted,.source,.author,.url { color:#62635f; } aside { background:#eae9e2; padding:16px; font-size:14px; } .toolbar { position:sticky; top:0; background:#f6f5f1; z-index:1; display:flex; align-items:center; flex-wrap:wrap; gap:16px; padding:20px 0; border-bottom:1px solid #ccc; } label { display:flex; align-items:center; gap:10px; cursor:pointer; } input { width:18px; height:18px; accent-color:#244d3f; flex-shrink:0; } button { border:1px solid #aaa; border-radius:5px; padding:9px 12px; background:transparent; color:inherit; cursor:pointer; font:inherit; font-size:14px; } button:disabled { opacity:.45; cursor:default; } .primary { background:#244d3f; color:white; border-color:#244d3f; } .day { display:flex; align-items:center; gap:18px; margin-top:32px; padding:14px 0; } .day span { flex:1; color:#62635f; font-size:14px; } article { display:flex; align-items:flex-start; gap:18px; border-top:1px solid #ddd; padding:24px 0; } article > input { margin-top:8px; } .preview { flex:1; min-width:0; } h2 { font-size:21px; font-weight:500; line-height:1.35; margin:4px 0; } h2 a { text-decoration:none; } h2 a:hover { text-decoration:underline; } p { margin:8px 0; } .url { overflow-wrap:anywhere; font-size:12px; } .source { margin:0; } .author { font-size:14px; } .failure { padding:16px; background:#f7dfd8; color:#722b17; } .editor { display:flex; flex-direction:column; align-items:stretch; gap:6px; margin:14px 0; font-size:14px; } textarea { min-height:100px; resize:vertical; font:inherit; padding:10px; border:1px solid #aaa; border-radius:5px; background:transparent; color:inherit; } input.tag-input { width:100%; height:auto; box-sizing:border-box; font:inherit; padding:9px; border:1px solid #aaa; border-radius:5px; } .tags { display:flex; flex-wrap:wrap; gap:6px; } .more { margin-top:32px; } @media(max-width:600px) { main { padding:20px 16px 60px; } header { margin-top:40px; } article { gap:10px; flex-wrap:wrap; } article > button { margin-left:30px; } .preview { flex-basis:75%; } }
+ :global(body) { background:var(--bg-primary); color:var(--text-primary); font-size:14px; font-weight:400; }
+ main { font-size:14px; font-weight:400; line-height:1.5; max-width:54rem; margin:auto; padding:24px 24px 64px; }
+ nav { display:flex; justify-content:space-between; font-size:14px; }
+ a { color:inherit; text-underline-offset:.18em; }
+ header { margin:28px 0 10px; }
+ h1 { font-size:32px; line-height:1.1; margin:4px 0 8px; font-weight:400; letter-spacing:-1px; }
+ .eyebrow,.source { font-size:11px; letter-spacing:.04em; }
+ .eyebrow { margin:0; }
+ .muted,.source,.author,.url,.detail-hint { color:var(--text-secondary); }
+ p { margin:4px 0; }
+ .help { font-size:12px; margin-bottom:12px; }
+ summary { cursor:pointer; width:fit-content; }
+ summary:hover { color:white; }
+ aside { max-width:42rem; margin:8px 0; line-height:1.5; }
+ .toolbar { position:sticky; top:0; background:var(--bg-primary); z-index:1; display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; padding:10px 0; border-bottom:1px solid var(--border); }
+ label { display:flex; align-items:center; gap:8px; cursor:pointer; }
+ input[type="checkbox"] { width:16px; height:16px; margin:0; accent-color:blue; flex-shrink:0; }
+ button { border:1px solid rgba(255,255,255,.5); border-radius:0; padding:4px 8px; background:transparent; color:inherit; cursor:pointer; font:inherit; font-size:12px; }
+ button:hover:not(:disabled) { background:var(--accent); border-color:var(--accent); }
+ button:disabled { opacity:.45; cursor:default; }
+ .primary { background:var(--accent); border-color:var(--accent); }
+ :is(a,button,input,textarea,summary):focus-visible { outline:2px solid white; outline-offset:3px; }
+ .day { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; margin-top:16px; padding:8px 0; font-size:12px; }
+ .day span { flex:1; color:var(--text-secondary); }
+ article { display:flex; align-items:flex-start; gap:12px; border-top:1px solid var(--border); padding:10px 0; }
+ article > input { margin-top:5px !important; }
+ article > button { margin-top:2px; }
+ .preview { flex:1; min-width:0; }
+ h2 { font-size:16px; font-weight:400; line-height:1.35; margin:2px 0; }
+ h2 a { text-decoration:none; }
+ h2 a:hover { text-decoration:underline; }
+ .source { margin:0; }
+ .author { font-size:12px; }
+ .item-details { margin-top:4px; font-size:12px; }
+ .item-details[open] { margin-top:8px; }
+ .url { overflow-wrap:anywhere; font-size:11px; margin-top:10px; }
+ .failure { padding:10px; border:1px solid white; }
+ .editor { display:flex; flex-direction:column; align-items:stretch; gap:4px; margin:10px 0; font-size:12px; }
+ textarea { min-height:64px; resize:vertical; font:inherit; padding:6px; border:1px solid rgba(255,255,255,.5); border-radius:0; background:transparent; color:inherit; }
+ input.tag-input { width:100%; box-sizing:border-box; font:inherit; padding:5px 6px; border:1px solid rgba(255,255,255,.5); border-radius:0; background:transparent; color:inherit; }
+ .tags { display:flex; flex-wrap:wrap; gap:4px; }
+ .more { margin-top:16px; }
+ @media(max-width:600px) {
+  main { padding:16px 14px 48px; }
+  header { margin-top:20px; }
+  .toolbar { gap:8px; font-size:12px; }
+  .toolbar label { flex-basis:100%; }
+  article { gap:8px; }
+  .detail-hint { display:none; }
+  .day { gap:6px 10px; }
+  .day span { font-size:11px; }
+ }
 </style>
