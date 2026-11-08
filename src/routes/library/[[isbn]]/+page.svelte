@@ -9,6 +9,7 @@
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
 	import { libraryText } from '$lib/library-text';
+	import { libraryMetadata } from '$lib/library-metadata';
 	import { shelfCoverCamera, adjacentShelfBook } from '$lib/library-selection';
 	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
 
@@ -55,7 +56,7 @@
 		links: Link[];
 	}
 
-	interface GoogleBookVolumeInfo {
+	interface BookDetails {
 		title?: string;
 		subtitle?: string;
 		authors?: string[];
@@ -71,17 +72,8 @@
 			smallThumbnail?: string;
 		};
 		language?: string;
-		previewLink?: string;
+		sourceUrl?: string;
 		infoLink?: string;
-	}
-
-	interface GoogleBookData {
-		kind: string;
-		totalItems: number;
-		items?: Array<{
-			id: string;
-			volumeInfo: GoogleBookVolumeInfo;
-		}>;
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -112,9 +104,7 @@
 
 	// Book detail overlay state
 	let selectedBook: Node | null = $state.raw(data.initialBook);
-	let bookDetails: GoogleBookVolumeInfo | null = $state(data.initialBook ? catalogDetailsFor(data.initialBook) : null);
-	let isLoadingBookDetails = $state(false);
-	let detailsRequest: AbortController | null = null;
+	let bookDetails: BookDetails | null = $state(data.initialBook ? catalogDetailsFor(data.initialBook) : null);
 	let orbitAnimationId: number | null = null;
 	let orbitPaused = false;
 	let removeOrbitListener: (() => void) | undefined;
@@ -390,8 +380,9 @@
 		} else {
 			const placeholder = createPlaceholderCover(node);
 			frontMaterial = placeholder.material;
-			width = placeholder.width;
-			height = placeholder.height;
+			const cover = libraryMetadata(node.bookid);
+			width = cover.coverWidth && cover.coverHeight ? 25 * cover.coverWidth / cover.coverHeight : placeholder.width;
+			height = cover.coverHeight ? 25 : placeholder.height;
 			averageColor = placeholder.averageColor;
 			spineMaterial = createSpineTexture(node, depth, averageColor, height);
 		}
@@ -425,47 +416,8 @@
 		cube.rotation.y = Math.random() * 2 * Math.PI;
 		cube.rotation.z = Math.random() * 2 * Math.PI;
 
+		if (selectedBook?.id === node.id) showHighResolutionCover(node, cube);
 		return cube;
-	}
-
-	// Fetch book details from Google Books API
-	async function fetchBookDetails(
-		isbn: string | undefined,
-		title: string,
-		signal: AbortSignal
-	): Promise<GoogleBookVolumeInfo | null> {
-		try {
-			// Try ISBN first if available
-			if (isbn) {
-				const response = await fetch(
-					`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(isbn)}`, { signal }
-				);
-				if (response.status === 429 || response.status === 403) return null;
-				if (response.ok) {
-					const data: GoogleBookData = await response.json();
-					if (data.items && data.items.length > 0) {
-						return data.items[0].volumeInfo;
-					}
-				}
-			}
-
-			// Fall back to title search (quoted for exact match)
-			const titleQuery = encodeURIComponent(`"${title}"`);
-			const titleResponse = await fetch(
-				`https://www.googleapis.com/books/v1/volumes?q=${titleQuery}`, { signal }
-			);
-			if (titleResponse.ok) {
-				const titleData: GoogleBookData = await titleResponse.json();
-				if (titleData.items && titleData.items.length > 0) {
-					return titleData.items[0].volumeInfo;
-				}
-			}
-
-			return null;
-		} catch (error) {
-			if (!signal.aborted) console.warn('Book enrichment unavailable');
-			return null;
-		}
 	}
 
 	function stopShelfCameraAnimation() {
@@ -617,10 +569,8 @@
 	}
 
 	// Select a book and show its details
-	async function selectBook(node: Node, updateUrl = true) {
-		detailsRequest?.abort();
-		const request = new AbortController();
-		detailsRequest = request;
+	function selectBook(node: Node, updateUrl = true) {
+		clearHighResolutionCover();
 		selectedBook = node;
 		const catalogDetails = catalogDetailsFor(node);
 		bookDetails = catalogDetails;
@@ -633,30 +583,52 @@
 		}
 
 		if (Graph) focusGraphBook(node);
-
-		// Catalog metadata is available immediately; Google Books only enriches it.
-		isLoadingBookDetails = true;
-		const timeout = setTimeout(() => request.abort(), 6000);
-		const details = await fetchBookDetails(node.isbn, libraryText(node.id), request.signal);
-		clearTimeout(timeout);
-		if (detailsRequest !== request || selectedBook?.id !== node.id) return;
-		if (details) bookDetails = { ...details, ...catalogDetails,
-			authors: catalogDetails.authors || details.authors,
-			publishedDate: catalogDetails.publishedDate || details.publishedDate,
-			pageCount: catalogDetails.pageCount || details.pageCount };
-		isLoadingBookDetails = false;
 	}
 
-	function catalogDetailsFor(node: Node): GoogleBookVolumeInfo {
+	function catalogDetailsFor(node: Node): BookDetails {
 		return {
 			title: libraryText(node.id),
 			authors: node.authorName ? [libraryText(node.authorName)] : undefined,
 			publishedDate: node.publicationYear ? String(node.publicationYear) : undefined,
-			pageCount: node.pages
+			pageCount: node.pages,
+			...libraryMetadata(node.bookid)
 		};
 	}
 
+	// Keep just the selected high-resolution texture in GPU memory.
+	let highResolutionCover: { material: Three.MeshBasicMaterial; original: Three.Texture | null; color: Three.Color; texture: Three.Texture } | null = null;
+	let coverRequest = 0;
+	let highResolutionMaterial: Three.MeshBasicMaterial | null = null;
+	function clearHighResolutionCover() {
+		coverRequest++;
+		highResolutionMaterial = null;
+		if (!highResolutionCover) return;
+		highResolutionCover.material.map = highResolutionCover.original;
+		highResolutionCover.material.color.copy(highResolutionCover.color);
+		highResolutionCover.material.needsUpdate = true;
+		highResolutionCover.texture.dispose();
+		highResolutionCover = null;
+	}
+	function showHighResolutionCover(node: Node, object = node.__threeObj) {
+		if (!libraryMetadata(node.bookid).coverUrl || !Array.isArray(object?.material)) return;
+		const material = object.material[4];
+		if (material === highResolutionMaterial) return;
+		clearHighResolutionCover();
+		highResolutionMaterial = material;
+		const request = coverRequest;
+		new THREE.TextureLoader().load(`/library/covers/${node.bookid}`, (texture: Three.Texture) => {
+			if (request !== coverRequest || selectedBook?.id !== node.id) { texture.dispose(); return; }
+			highResolutionCover = { material, original: material.map, color: material.color.clone(), texture };
+			material.map = texture;
+			material.color.set(0xffffff);
+			material.needsUpdate = true;
+		}, undefined, () => {
+			if (request === coverRequest) highResolutionMaterial = null;
+		});
+	}
+
 	function focusGraphBook(node: Node) {
+		showHighResolutionCover(node);
 		if (isGridModeActive) presentShelfBook(node);
 		Graph.controls().minDistance = 0.1;
 		Graph.controls().maxDistance = Infinity;
@@ -876,10 +848,8 @@
 
 	// Deselect book and restore view
 	function deselectBook() {
+		clearHighResolutionCover();
 		if (!selectedBook) return;
-		detailsRequest?.abort();
-		detailsRequest = null;
-		isLoadingBookDetails = false;
 
 		removeOrbitListener?.();
 		removeOrbitListener = undefined;
@@ -1237,11 +1207,11 @@
 	});
 
 	onDestroy(() => {
+		clearHighResolutionCover();
 		if (!browser) return;
 
 		// Remove keyboard event listener
 		touchListeners?.abort();
-		detailsRequest?.abort();
 		window.removeEventListener('resize', resizeLibrary);
 		Graph?.controls().removeEventListener('change', constrainShelfCamera);
 		Graph?.controls().removeEventListener('start', stopShelfCameraAnimation);
@@ -1876,11 +1846,10 @@
 					<p class="book-description">{libraryText(bookDetails.description.replace(/<[^>]*>/g, ' '))}</p>
 				{/if}
 
-				{#if isLoadingBookDetails}<p class="enrichment-status">Loading additional details…</p>{/if}
 				<div class="book-links">
-					{#if bookDetails.previewLink}
-						<a href={bookDetails.previewLink} target="_blank" rel="noopener noreferrer" class="book-link">
-							Google Books →
+					{#if bookDetails.sourceUrl}
+						<a href={bookDetails.sourceUrl} target="_blank" rel="noopener noreferrer" class="book-link">
+							Open Library →
 						</a>
 					{/if}
 					{#if selectedBook.workcode}
@@ -2167,11 +2136,6 @@
 
 	.book-link:hover {
 		background: rgb(73, 73, 255);
-	}
-
-	.enrichment-status {
-		font-size: 0.8rem;
-		color: rgba(255, 255, 255, 0.7);
 	}
 
 	/* Mobile adjustments for sidebar */

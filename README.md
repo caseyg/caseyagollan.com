@@ -36,6 +36,10 @@ For a manual deployment use `bun run deploy` (builds first). For a packaging che
 
 Export JSON from [LibraryThing](https://www.librarything.com/export) to `utils/librarything_caseygollan.json`, run `bun run update-library`, and optimize downloaded covers in `static/library/img/`. The script writes `static/library/graph.json` and cover images.
 
+Run `bun run update-library-metadata` to save Open Library descriptions and subjects in `static/library/metadata.json`. The sidebar and search build share this checked-in cache; page views and builds never call Open Library. Existing descriptions are kept indefinitely without refetching; successful lookups with no description are retried after 30 days. Books without ISBNs keep catalog categories. The importer batches ISBN and work lookups, identifies itself as `caseyagollan.com (caseygollan@gmail.com)`, and limits requests to two per second (below Open Library’s identified limit of three). It checkpoints each completed batch atomically and stops on API errors without caching failures. Run `bun utils/update-library-metadata.ts` to refresh catalog categories offline. Rebuild search after updating metadata. LibraryThing’s `summary` is a catalog citation, not a full description.
+
+Run `bun run update-library-covers` to find large Open Library covers and upload improvements to the existing `PUBLISHING_MEDIA` R2 bucket under `library/covers/`. It uses the configured public media domain, checkpoints each upload, skips cached covers, and retries missing/non-improving covers after 30 days. Existing local covers remain in the overview; the selected book loads the larger R2 image through a same-origin route and releases that texture when selection changes. Search results also use the saved R2 covers. The importer uses the existing Cloudflare account/token environment variables and never deploys the site.
+
 ## Repository layout
 
 - `src/`: application routes, components, post parsing, and API handlers.
