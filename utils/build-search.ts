@@ -1,5 +1,6 @@
 import { flattenSocialSnapshots } from '../src/lib/social-snapshots';
 import { Glob } from 'bun';
+import { libraryMetadata } from '../src/lib/library-metadata';
 import { loadWikiDocuments } from './wiki-search';
 import { readFile, rm } from 'node:fs/promises';
 import * as pagefind from 'pagefind';
@@ -36,11 +37,12 @@ try {
 		const details = catalog[String(book.b)] ?? {};
 		if (details.public === 'false') continue;
 		const url = book.n ? `/library/${encodeURIComponent(book.n)}` : `/library/?book=${book.b}`;
-		const tags = bookTags(details);
+		const enrichment = libraryMetadata(book.b);
+		const tags = uniqueLabels([...bookTags(details), ...(enrichment.categories ?? [])]);
 		const authors = bookAuthors(details);
 		const cover = book.img || book.m;
-		const metadata = { ...(cover ? { image: `/library/${cover}`, image_alt: `Cover of ${book.i}` } : {}), author: authors.join(', '), isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: tags.join(', ') };
-		await add(url, book.i, 'book', metadata, `<h1>${escape(book.i)}</h1><p>${escape([details.summary, details.publication, details.review, details.comments, Object.values(details.subject ?? {}).flat().join(', ')].filter(Boolean).join(' '))}</p><p>${escape([authors.join('; '), metadata.year, metadata.isbn, metadata.tags].filter(Boolean).join(' · '))}</p>`, { Tag: tags, Author: authors, Year: yearFilter(book.y) });
+		const metadata = { ...(enrichment.coverUrl || cover ? { image: enrichment.coverUrl ?? `/library/${cover}`, image_alt: `Cover of ${book.i}` } : {}), author: authors.join(', '), isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: tags.join(', ') };
+		await add(url, book.i, 'book', metadata, `<h1>${escape(book.i)}</h1><p>${escape([enrichment.description?.replace(/<[^>]*>/g, ' '), details.summary, details.publication, details.review, details.comments, Object.values(details.subject ?? {}).flat().join(', ')].filter(Boolean).join(' '))}</p><p>${escape([authors.join('; '), metadata.year, metadata.isbn, metadata.tags].filter(Boolean).join(' · '))}</p>`, { Tag: tags, Author: authors, Year: yearFilter(book.y) });
 	}
 	const wiki = await loadWikiDocuments();
 	for (const page of wiki) {
