@@ -80,7 +80,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   } catch { /* Invalid preview URLs or images are omitted. */ }
  };
  const blue = target.hostname === 'bsky.app' && target.pathname.match(/^\/profile\/([^/]+)\/post\/([a-zA-Z0-9]+)\/?$/);
- const mastodon = mastodonSource ? [undefined,mastodonSource.id] : target.pathname.match(/^\/@[^/]+\/(\d+)\/?$/) ?? target.pathname.match(/^\/users\/[^/]+\/statuses\/(\d+)\/?$/);
+ const mastodon = mastodonSource ? [undefined,mastodonSource.id] : target.pathname.match(/^\/@[^/]+\/(\d+)\/?$/) ?? target.pathname.match(/^\/users\/[^/]+\/statuses\/(\d+)\/?$/) ?? target.pathname.match(/^\/web\/statuses\/(\d+)\/?$/);
  if (blue) {
   const actor = decodeURIComponent(blue[1]);
   const uri = `at://${actor}/app.bsky.feed.post/${blue[2]}`;

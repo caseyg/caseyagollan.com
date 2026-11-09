@@ -24,7 +24,7 @@ let uploaded=0,reused=0,uploadFailures=0;
 
 if (args.some(arg => arg.startsWith('--') && !['--write','--refresh','--remote-media','--help'].includes(arg))) throw new Error('Unknown option');
 if (args.includes('--help')) {
- console.log('bun run backfill-social-snapshots [content/likes/post.md ...] [--write --remote-media] [--refresh]\nDefaults to missing likes/reposts and authored quotations; --platform all|bluesky|mastodon --concurrency 1..8 --limit N --resume-after ISO_TIMESTAMP. Use --own-images for original photos. Dry run unless --write is supplied. Use --refresh to re-fetch existing snapshots. Commit changed Markdown in the content repository.');
+ console.log('bun run backfill-social-snapshots [content/likes/post.md ...] [--write --remote-media] [--refresh]\nDefaults to missing likes/reposts, replies and authored quotations; --platform all|bluesky|mastodon --concurrency 1..8 --limit N --resume-after ISO_TIMESTAMP. Use --own-images for original photos. Dry run unless --write is supplied. Use --refresh to re-fetch existing snapshots. Commit changed Markdown in the content repository.');
  process.exit(0);
 }
 if(args.includes('--write') && !args.includes('--remote-media')) throw new Error('--write requires --remote-media to save associated images to R2');
@@ -63,7 +63,7 @@ for(const path of paths) {
  const before=await Bun.file(full).text();const match=before.match(/^---\r?\n([\s\S]*?)\r?\n---/);if(!match)continue;
  const data=parseDocument(match[1]).toJS();if(data.deleted||data._micropubSocialSnapshots?.length&&!args.includes('--refresh'))continue;
  if(resumeAfter&&data._micropubSocialSnapshots?.length&&data._micropubSocialSnapshots.every((snapshot:any)=>Date.parse(snapshot.fetchedAt)>=resumeAfter))continue;
- const target=ownImages?(data.syndication?.[0]):(data['like-of']??data['repost-of']??data['quotation-of'])?.[0];if(typeof target!=='string')continue;
+ const targets=ownImages?(data.syndication?.[0]):(data['like-of']??data['repost-of']??data['in-reply-to']??data.inReplyTo??data['quotation-of']);const target=typeof targets==='string'?targets:targets?.[0];if(typeof target!=='string')continue;
  if(ownImages&&(!data.photo?.length||!data['pesos-source']?.some((s:any)=>/^mastodon:post:/.test(String(s))||/^at:\/\/[^/]+\/app.bsky.feed.post\//.test(String(s)))))continue;
  const blue=new URL(target).hostname==='bsky.app';if(platform!=='all'&&platform!==(blue?'bluesky':'mastodon'))continue;
  const localSource=typeof data['pesos-source']?.[0]==='string'&&/^mastodon:(?:like|repost):\d+$/.test(data['pesos-source'][0]);

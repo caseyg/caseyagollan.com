@@ -15,6 +15,17 @@ function link(url: string, label: string, classes = ''): string {
  try { const parsed = new URL(url); if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) return escape(label); } catch { return escape(label); }
  return `<a class="${classes}" href="${escape(url)}">${escape(label)}</a>`;
 }
+/** Recognizable public handles remain useful when an original was deleted. */
+function replyUsername(value: string): string {
+ try {
+  const url = new URL(value);
+  const blue = url.hostname === 'bsky.app' && url.pathname.match(/^\/profile\/([^/]+)\/post\/[^/]+\/?$/);
+  if (blue && !blue[1].startsWith('did:')) return `@${decodeURIComponent(blue[1])}`;
+  const mastodon = url.pathname.match(/^\/@([^/]+)\/\d+\/?$/) ?? url.pathname.match(/^\/users\/([^/]+)\/statuses\/\d+\/?$/);
+  if (mastodon) { const name = decodeURIComponent(mastodon[1]); return `@${name.includes('@') ? name : `${name}@${url.hostname}`}`; }
+ } catch { /* Unrecognized targets keep their original label. */ }
+ return value;
+}
 function time(value: string, field: string): string {
  return value ? `<time class="dt-${field}" datetime="${escape(value)}">${escape(value.replace('T', ' '))}</time>` : '';
 }
@@ -74,7 +85,7 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}=
  const reply = post.inReplyTo || text(p, 'in-reply-to');
  if (reply) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
-  html += `<p>In reply to ${link(reply, snapshot ? 'post' : reply, 'u-in-reply-to')}</p>`;
+  html += `<p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
  }
  if (p.rsvp) html += `<p>RSVP: <span class="p-rsvp">${escape(text(p, 'rsvp'))}</span></p>`;

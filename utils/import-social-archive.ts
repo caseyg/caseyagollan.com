@@ -1,3 +1,4 @@
+import { enrichSocialSnapshots } from '../src/lib/server/publishing/social-snapshots';
 import { parseDocument } from 'yaml';
 import { resolve } from 'node:path';
 import { blueskyArchive, mastodonArchiveItems, mastodonStatusLocation, resolveMastodonArchiveItem } from '../src/lib/server/publishing/pesos/archives';
@@ -171,6 +172,7 @@ for (const input of inputs) {
    continue;
   }
   const generated = await activityDocument(activity,'America/New_York',paths);
+  if (activity.properties['in-reply-to']?.length) generated.content = await enrichSocialSnapshots(generated.content);
   documents.set(generated.path,generated.content);
   if (args.includes('--write')) await Bun.write(resolve(root,generated.path),generated.content);
   paths.push(generated.path);

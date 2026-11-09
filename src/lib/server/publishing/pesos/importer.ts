@@ -296,7 +296,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
      }
      if(activity.kind==='post'&&!dependencies.dryRun)activity.properties=await archivePhotoProperties(activity.properties,socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
-     if (activity.kind !== 'post' || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
+     if (activity.kind !== 'post' || activity.properties['in-reply-to']?.length || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
      additions.push(file);
      feedImports++;
      keys.add(`source:${activity.id}`);

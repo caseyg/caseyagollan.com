@@ -29,6 +29,7 @@ test('saves Bluesky text and R2 image references in Markdown and renders likes, 
   const html = renderPostDetails(post);
   expect(html).toContain('Grant'); expect(html).toContain('Hello &#x3C;world> 🌍'); expect(html).not.toContain('<world>');
   expect(html).toContain('An image'); expect(html).toContain(imageUrl);
+  if (key === 'in-reply-to') expect(html).toContain(`href="${blue}">@grantcuster.com</a>`);
   expect(html).toContain(`u-${key}`); expect(html).not.toContain('src="https://cdn.example');
   expect(html).not.toMatch(/<iframe|<script/);
   expect(readDocument(saved).properties).not.toHaveProperty('_micropubSocialSnapshots');
@@ -281,16 +282,29 @@ test('authored photos are archived without resizing or changing alt text and dat
  expect((await archivePhotoProperties(original,async()=>{throw new Error('must not store SVG');},async()=>new Response('<svg/>',{headers:{'content-type':'image/svg+xml'}}))).photo).toEqual(original.photo);
 });
 
-test('reply parents retain a semantic URL fallback when no saved snapshot is available', () => {
+test('reply parents use a handle from their URL when no saved snapshot is available', () => {
  const post = parsePost(source('in-reply-to'), 'replies', '2026-11-06-test.md');
  const html = renderPostDetails(post);
- expect(html).toContain(`In reply to <a class="u-in-reply-to" href="${blue}">${blue}</a>`);
+ expect(html).toContain(`In reply to <a class="u-in-reply-to" href="${blue}">@grantcuster.com</a>`);
  expect(html).not.toContain('social-snapshot');
 });
 
 test('legacy reply targets are enriched with the same saved parent card', async () => {
  const saved = await enrichSocialSnapshots(source('inReplyTo').replace('inReplyTo:\n  - ', 'inReplyTo: '), fetcher);
  const post = parsePost(saved, 'replies', '2026-11-06-test.md');
- expect(renderPostDetails(post)).toContain(`In reply to <a class="u-in-reply-to" href="${blue}">post</a>`);
+ expect(renderPostDetails(post)).toContain(`In reply to <a class="u-in-reply-to" href="${blue}">@grantcuster.com</a>`);
  expect(renderPostDetails(post)).toContain('Grant');
+});
+
+test('reply labels preserve targets and handle unknown identities safely', () => {
+ for (const [url,label] of [
+  ['https://social.example/@writer/123','@writer@social.example'],
+  ['https://social.example/@writer@other.example/123','@writer@other.example'],
+  ['https://social.example/users/writer/statuses/123','@writer@social.example'],
+  ['https://bsky.app/profile/did:plc:unknown/post/abc','https://bsky.app/profile/did:plc:unknown/post/abc'],
+  ['https://example.com/article','https://example.com/article']
+ ]) {
+  const html = renderPostDetails(parsePost(source('in-reply-to',url),'replies','2026-11-06-test.md'));
+  expect(html).toContain(`href="${url}">${label}</a>`);
+ }
 });
