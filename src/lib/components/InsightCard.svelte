@@ -45,7 +45,6 @@
 	.insight-item {
 		padding: 0.75rem;
 		background: rgba(255, 255, 255, 0.05);
-		border-left: 3px solid transparent;
 		border-radius: 4px;
 		display: flex;
 		flex-direction: column;
@@ -68,12 +67,10 @@
 
 	.insight-item:hover {
 		background: rgba(255, 255, 255, 0.1);
-		border-left-color: rgba(255, 255, 255, 0.3);
 	}
 
 	.insight-item.active {
 		background: rgba(100, 100, 255, 0.15);
-		border-left-color: blue;
 	}
 
 	.insight-node-pill {
