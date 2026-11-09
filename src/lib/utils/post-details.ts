@@ -85,8 +85,9 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}=
  const reply = post.inReplyTo || text(p, 'in-reply-to');
  if (reply) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
-  html += `<p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`;
+  html += `<div class="social-reply-context"><p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
+  html += '</div>';
  }
  if (p.rsvp) html += `<p>RSVP: <span class="p-rsvp">${escape(text(p, 'rsvp'))}</span></p>`;
  if (post.type === 'event' || post.microformatType === 'h-event') html += event(p);
