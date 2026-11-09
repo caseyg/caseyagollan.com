@@ -74,6 +74,25 @@ export function blueskyActivity(record: any, kind: Activity['kind']): Activity |
  return {id:record.uri,service:'bluesky',kind,url:kind === 'post' ? blueUrl(record.uri) : target!,target,published:value.createdAt,properties};
 }
 
+/** Use current, verified handles for Bridgy's syndication URL matching.
+ * Keep AT source IDs and other authors' relationship targets unchanged.
+ */
+export function blueskySyndicationUrls(get: GetJson): (activity: Activity) => Promise<void> {
+ const profiles = new Map<string,Promise<string>>();
+ return async activity => {
+  if (activity.service !== 'bluesky' || activity.kind !== 'post') return;
+  const actor = activity.id.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/[a-zA-Z0-9]+$/)?.[1];
+  if (!actor) throw new Error('Invalid Bluesky post URI');
+  if (!profiles.has(actor)) profiles.set(actor,(async () => {
+   const {data} = await get(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?${new URLSearchParams({actor})}`);
+   if (data?.did !== actor || typeof data.handle !== 'string' || !/^(?:[a-z0-9-]+\.)+[a-z0-9-]+$/i.test(data.handle) || data.handle === 'handle.invalid') throw new Error('Unable to resolve Bluesky syndication handle');
+   return data.handle.toLowerCase();
+  })());
+  const handle = await profiles.get(actor)!;
+  activity.url = blueUrl(activity.id).replace(`/profile/${actor}/`,`/profile/${handle}/`);
+ };
+}
+
 export async function mastodonPage(get: GetJson, instance: string, token: string, account: string, kind: 'post' | 'like', cursor?: string, now = new Date().toISOString()): Promise<Page> {
  const url = new URL(kind === 'like' ? '/api/v1/favourites' : `/api/v1/accounts/${account}/statuses`,instance);
  url.searchParams.set('limit','40');

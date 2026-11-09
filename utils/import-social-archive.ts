@@ -3,7 +3,7 @@ import { parseDocument } from 'yaml';
 import { resolve } from 'node:path';
 import { blueskyArchive, mastodonArchiveItems, mastodonStatusLocation, resolveMastodonArchiveItem } from '../src/lib/server/publishing/pesos/archives';
 import { activityDocument, alreadyRepresented, indexIdentities, identity } from '../src/lib/server/publishing/pesos/importer';
-import { blueskyPublic, type GetJson, type Activity } from '../src/lib/server/publishing/pesos/providers';
+import { blueskySyndicationUrls, blueskyPublic, type GetJson, type Activity } from '../src/lib/server/publishing/pesos/providers';
 import { readDocument, updateDocument } from '../src/lib/server/publishing/document';
 import { duplicateOriginal } from '../src/lib/server/publishing/pesos/duplicates';
 import { safePublicFetch, publicUrl } from '../src/lib/server/publishing/public-fetch';
@@ -84,6 +84,7 @@ if (inputs.some(input=>!input.endsWith('.car'))) {
  });
 }
 const keys = indexIdentities(entries,actors);
+const setBlueskySyndicationUrl = blueskySyndicationUrls(get);
 for (const input of inputs) {
  const counts = {mode:args.includes('--write') ? 'write' : 'dry-run',input:input.split('/').pop(),total:0,imported:0,updated:0,duplicates:0,restrictedOrUnsupported:0,unavailable:0};
  const byKind: Record<string,number> = {};
@@ -161,6 +162,7 @@ for (const input of inputs) {
    }
    counts.duplicates++;continue;
   }
+  await setBlueskySyndicationUrl(activity);
   const match = duplicateOriginal(activity,entries);
   if (match) {
    const content = updateDocument(documents.get(match.path)!,{add:{'pesos-source':[activity.id],syndication:[activity.url]}});

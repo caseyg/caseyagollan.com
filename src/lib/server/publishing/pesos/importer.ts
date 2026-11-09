@@ -6,7 +6,7 @@ import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from '.
 import { enrichSocialSnapshots } from '../social-snapshots';
 import { socialImageStore, archivePhotoProperties } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
-import { mastodonPage, blueskyPage, blueskyPublic, type Activity, type GetJson, type Page } from './providers';
+import { mastodonPage, blueskyPage, blueskyPublic, blueskySyndicationUrls, type Activity, type GetJson, type Page } from './providers';
 
 export type PesosEnvironment = PublishingEnvironment;
 interface IndexEntry { path: string; sha: string; properties: Properties; permalink: string }
@@ -252,6 +252,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
   }
   if (blue) for (const kind of ['post','like','repost'] as const) feeds.push({name:`bluesky:${kind}`,page:cursor=>blueskyPage(request,publicUrl(blue.service).origin,actors[blue.identifier.toLowerCase()],kind,cursor)});
   if (!feeds.length) throw new Error('No PESOS providers configured');
+  const setBlueskySyndicationUrl = blueskySyndicationUrls(request);
   const additions: {path:string;content:string}[] = [];
   const updates = new Map<string,{path:string;content:string}>();
   for (const feed of feeds) {
@@ -276,6 +277,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
       const uri = activity.kind === 'post' ? activity.id : activity.target!.replace(/^https:\/\/bsky.app\/profile\/([^/]+)\/post\/(.+)$/, 'at://$1/app.bsky.feed.post/$2');
       if (!await blueskyPublic(request,uri)) { result.skipped++; seen.add(activity.id); continue; }
      }
+     await setBlueskySyndicationUrl(activity);
      const match = duplicateOriginal(activity,[...entries,...additions.map(file=>({path:file.path,sha:'',permalink:'',properties:readDocument(file.content).properties}))]);
      if (match) {
       const staged = additions.find(file=>file.path === match.path);

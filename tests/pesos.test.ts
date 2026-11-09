@@ -264,7 +264,7 @@ test('Bluesky imports public repository records without a password or authentica
   const u=String(input);
   if(u.includes('resolveHandle')) return Response.json({did});
   if(u.includes('getPostThread')) return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{did}}}});
-  if(u.includes('getProfile')) return Response.json({did});
+  if(u.includes('getProfile')) return Response.json({did,handle:'caseyagollan.com'});
   if(u.includes('listRecords')) {
    expect(init?.headers).not.toHaveProperty('Authorization');
    const collection=new URL(u).searchParams.get('collection');
@@ -273,6 +273,7 @@ test('Bluesky imports public repository records without a password or authentica
   return h.fetcher(input,init);
  }) as typeof fetch;
  expect((await processPesos(h.env,{fetcher})).imported).toBe(1);expect(h.writes).toHaveLength(1);
+ expect(readDocument(atob(h.writes[0].variables.input.fileChanges.additions[0].contents)).properties.syndication).toEqual(['https://bsky.app/profile/caseyagollan.com/post/abc123']);
 });
 test('a large post backfill leaves capacity for new activity in other feeds',async()=>{
  const h=harness();h.env.PUBLISHING_BLUESKY_IDENTIFIER='caseyagollan.com';
@@ -281,7 +282,7 @@ test('a large post backfill leaves capacity for new activity in other feeds',asy
   if(u.includes('/accounts/1/statuses')) return Response.json(Array.from({length:40},(_,i)=>({...mastodon,id:String(1000+i),url:`https://social.coop/@caseyg/${1000+i}`})));
   if(u.includes('resolveHandle')) return Response.json({did});
   if(u.includes('getPostThread')) return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:new URL(u).searchParams.get('uri'),record:{text:'Public post'},author:{did}}}});
-  if(u.includes('getProfile')) return Response.json({did});
+  if(u.includes('getProfile')) return Response.json({did,handle:'caseyagollan.com'});
   if(u.includes('listRecords')) return Response.json({records:new URL(u).searchParams.get('collection') === 'app.bsky.feed.post' ? [{uri:`at://${did}/app.bsky.feed.post/newest`,value:{createdAt:activity.published,text:'New Bluesky post'}}] : []});
   return h.fetcher(input,init);
  }) as typeof fetch;
@@ -355,7 +356,7 @@ test('future authored Bluesky quote posts save quoted content with their origina
  const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>{
   const u=String(input);
   if(u.includes('resolveHandle'))return Response.json({did});
-  if(u.includes('getProfile'))return Response.json({did});
+  if(u.includes('getProfile'))return Response.json({did,handle:'caseyagollan.com'});
   if(u.includes('getPostThread'))return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:new URL(u).searchParams.get('uri'),author:{did,handle:'writer.example'},record:{text:'Quoted original',createdAt:activity.published}}}});
   if(u.includes('listRecords'))return Response.json({records:new URL(u).searchParams.get('collection')==='app.bsky.feed.post'?[{uri:ownUri,value:{text:'My response',createdAt:activity.published,embed:{$type:'app.bsky.embed.record',record:{uri:quotedUri}}}}]:[]});
   return h.fetcher(input,init);
@@ -392,7 +393,7 @@ test('a historical Mastodon alias outage preserves its checkpoints and still imp
   if(u.includes('resolveHandle')) return Response.json({did});
   if(u.includes('listRecords')) return Response.json({records:new URL(u).searchParams.get('collection') === 'app.bsky.feed.like' ? [{uri:activity.id,value:{createdAt:activity.published,subject:{uri:`at://${did}/app.bsky.feed.post/abc123`}}}] : []});
   if(u.includes('getPostThread')) return Response.json({thread:{$type:'app.bsky.feed.defs#threadViewPost',post:{uri:`at://${did}/app.bsky.feed.post/abc123`,record:{text:'New public like',createdAt:activity.published},author:{did,handle:'someone.example'}}}});
-  if(u.includes('getProfile')) return Response.json({did});
+  if(u.includes('getProfile')) return Response.json({did,handle:'caseyagollan.com'});
   return h.fetcher(input,init);
  }) as typeof fetch;
  const result=await processPesos(h.env,{fetcher});
@@ -441,4 +442,26 @@ test('a failed concurrent index read drains remaining reads before releasing the
  const fetcher=(async(input:string|URL|Request,init?:RequestInit)=>String(input).includes('/git/trees/') ? Response.json({tree:Array.from({length:8},(_,i)=>({type:'blob',path:`notes/2020-01-01-${i}.md`,sha:String(i)}))}) : h.fetcher(input,init)) as typeof fetch;
  await expect(processPesos(h.env,{fetcher})).rejects.toThrow('index unavailable');
  expect(reads).toBe(4);expect(active).toBe(0);expect(releasedWhileReading).toBe(false);expect(h.writes).toHaveLength(0);
+});
+
+test('Bluesky syndication uses verified current handles and preserves stable source/target identities',async()=>{
+ const {blueskySyndicationUrls} = await import('../src/lib/server/publishing/pesos/providers');
+ let calls = 0;
+ const normalize = blueskySyndicationUrls(async()=>{calls++;return {data:{did,handle:'caseyagollan.com'}};});
+ const post: Activity = {...activity,id:`at://${did}/app.bsky.feed.post/abc123`,kind:'post',target:undefined};
+ await normalize(post);
+ expect(post.url).toBe('https://bsky.app/profile/caseyagollan.com/post/abc123');
+ expect(post.id).toBe(`at://${did}/app.bsky.feed.post/abc123`);
+ const second = {...post,id:`at://${did}/app.bsky.feed.post/next`};
+ await normalize(second);
+ expect(second.url).toBe('https://bsky.app/profile/caseyagollan.com/post/next');
+ expect(calls).toBe(1);
+ const like = {...activity};
+ await normalize(like);
+ expect(like.target).toBe(url);
+ expect(like.url).toBe(url);
+ for (const profile of [{did:'did:plc:someoneelse',handle:'caseyagollan.com'},{did,handle:'handle.invalid'}]) {
+  const invalid = blueskySyndicationUrls(async()=>({data:profile}));
+  await expect(invalid({...post})).rejects.toThrow('Unable to resolve');
+ }
 });
