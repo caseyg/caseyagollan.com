@@ -59,17 +59,18 @@ function event(p: Properties, depth = 0): string {
 export function renderPostQuotations(post: Post): string {
  return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):'';}).join('');
 }
-export function renderReplyContext(post: Post): string {
- const p = post.properties ?? {};
- let html = "";
- const reply = post.inReplyTo || text(p, 'in-reply-to');
- if (reply) {
-  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
-  html += `<div class="social-reply-context"><p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`;
-  if (snapshot) html += renderSocialSnapshot(snapshot);
-  html += '</div>';
- }
- return sanitizePublishingHtml(html);
+export function renderReplyLabel(post: Post): string {
+ const reply = post.inReplyTo || text(post.properties ?? {}, 'in-reply-to');
+ if (!reply) return '';
+ const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
+ return sanitizePublishingHtml(`<p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`);
+}
+export function renderReplyContext(post: Post, options: {omitLabel?: boolean} = {}): string {
+ const reply = post.inReplyTo || text(post.properties ?? {}, 'in-reply-to');
+ if (!reply) return '';
+ const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
+ if (options.omitLabel && !snapshot) return '';
+ return sanitizePublishingHtml(`<div class="social-reply-context">${options.omitLabel ? '' : renderReplyLabel(post)}${snapshot ? renderSocialSnapshot(snapshot) : ''}</div>`);
 }
 export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean}={}): string {
  const p = post.properties ?? {};
