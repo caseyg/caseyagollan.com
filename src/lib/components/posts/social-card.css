@@ -35,3 +35,16 @@
  }
 
  .social-card-scope .social-quoted-post > .social-snapshot { margin-bottom: 0; font-size: 0.95em; }
+
+ .social-card-scope .social-reply-context { margin: 0.5rem 0 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 0.875rem; line-height: 1.4; }
+ .social-card-scope .social-reply-context > .social-snapshot { margin: 0.5rem 0 0; padding: 0; border: 0; border-radius: 0; font-size: inherit; }
+ .social-card-scope .social-reply-context .social-snapshot header { gap: 0.5rem; margin-bottom: 0.5rem; }
+ .social-card-scope .social-reply-context .social-author { gap: 0.5rem; }
+ .social-card-scope .social-reply-context .social-avatar { width: 2rem; height: 2rem; }
+ .social-card-scope .social-reply-context .social-author-name { font-size: 0.95em; }
+ .social-card-scope .social-reply-context .social-author-handle { font-size: 0.9em; opacity: 1; }
+ .social-card-scope .social-reply-context .social-platform,
+ .social-card-scope .social-reply-context .social-snapshot footer { font-size: 0.8em; opacity: 1; }
+ .social-card-scope .social-reply-context .social-post-content { line-height: 1.4; }
+ .social-card-scope .social-reply-context .social-post-content p { margin: 0.35rem 0; }
+ .social-card-scope .social-reply-context .social-snapshot footer { margin-top: 0.5rem; }
