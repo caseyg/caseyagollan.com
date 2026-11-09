@@ -59,7 +59,19 @@ function event(p: Properties, depth = 0): string {
 export function renderPostQuotations(post: Post): string {
  return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):'';}).join('');
 }
-export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}={}): string {
+export function renderReplyContext(post: Post): string {
+ const p = post.properties ?? {};
+ let html = "";
+ const reply = post.inReplyTo || text(p, 'in-reply-to');
+ if (reply) {
+  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
+  html += `<div class="social-reply-context"><p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`;
+  if (snapshot) html += renderSocialSnapshot(snapshot);
+  html += '</div>';
+ }
+ return sanitizePublishingHtml(html);
+}
+export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean}={}): string {
  const p = post.properties ?? {};
  let html = '';
  const reactions = new Map<string, {labels: string[]; classes: string[]}>();
@@ -82,13 +94,7 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean}=
   html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
  }
- const reply = post.inReplyTo || text(p, 'in-reply-to');
- if (reply) {
-  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
-  html += `<div class="social-reply-context"><p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`;
-  if (snapshot) html += renderSocialSnapshot(snapshot);
-  html += '</div>';
- }
+ if (!options.omitReply) html += renderReplyContext(post);
  if (p.rsvp) html += `<p>RSVP: <span class="p-rsvp">${escape(text(p, 'rsvp'))}</span></p>`;
  if (post.type === 'event' || post.microformatType === 'h-event') html += event(p);
  else for (const value of p.location ?? []) html += `<p>${location(value)}</p>`;
