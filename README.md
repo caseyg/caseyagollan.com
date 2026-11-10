@@ -24,6 +24,20 @@ Use Vite for fast development and Wrangler preview when testing KV/R2 bindings. 
 
 Search uses Pagefind, generated automatically before the Vite production build from public posts, the local book catalog, and published cag.wiki Markdown pages. Run `bun run build:search` before `bun run dev` to enable search locally, and rerun it after content changes. Pagefind’s official Component UI supplies the magnifying-glass trigger, modal, input, results, and type filter. ⌘/Ctrl K opens the overlay and Escape closes it. Results can be filtered by post type, book, or wiki. Wiki indexing fetches fresh Obsidian Publish metadata and Markdown at build time, includes only URLs listed in the cag.wiki sitemap, and links results to cag.wiki. A wiki fetch failure fails the build to avoid publishing an incomplete index. Book search covers available catalog text and metadata, not the contents of the books. Generated `static/pagefind/` files are ignored by Git and copied into the Worker assets during the build.
 
+## Component library
+
+[Storybook](https://storybook.js.org/docs/get-started/frameworks/sveltekit) uses the SvelteKit framework and lives at `/storybook/` ([production](https://caseyagollan.com/storybook/)). Every reusable component in `src/lib/components/` has colocated stories, with shared example posts in `src/lib/storybook/fixtures.ts`. Add a story alongside each new component.
+
+```sh
+bun run build:search   # Generate the real search index for local Search/Nav stories
+bun run storybook      # Development on http://localhost:6006
+bun run build-storybook # Static output in .svelte-kit/cloudflare/storybook/
+```
+
+`bun run build` builds the site first, then adds Storybook to the same Worker asset directory. Cloudflare's static asset routing serves `/storybook` with a redirect to `/storybook/`; relative Storybook bundle URLs support this subdirectory. Generated files stay in the ignored `.svelte-kit/` directory. Storybook is public and excluded from search engines through its HTML metadata.
+
+The preview loads the site's global styles and uses readable component-scale typography. PostsLayout demonstrates the full feed layout. Webmention requests use MSW fixtures scoped to the Storybook service worker; Search uses the site's generated Pagefind index. No Worker bindings or API credentials are bundled into the stories.
+
 ## Deployment
 
 Cloudflare Workers Builds watches this repository. Production uses `bun run build`, followed by `bun run wrangler deploy`; branches use `bun run wrangler versions upload`. SvelteKit generates its fetch handler and static assets in `.svelte-kit/cloudflare/`; `worker.mjs` delegates requests to that handler and adds the publishing-delivery cron. `wrangler.sveltekit.jsonc` controls adapter output so it cannot overwrite the source wrapper. `wrangler.jsonc` defines routes and runtime bindings.

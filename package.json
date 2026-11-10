@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"prebuild": "git submodule update --init --recursive || true",
-		"build": "bun run build:search && vite build",
+		"build": "bun run build:search && vite build && bun run build-storybook",
 		"preview": "bun run build && wrangler dev",
 		"preview:remote": "bun run build && wrangler dev --remote",
 		"deploy": "bun run build && wrangler deploy",
@@ -18,10 +18,15 @@
 		"update-library-covers": "bun utils/update-library-covers.ts",
 		"update-library-metadata": "bun utils/update-library-metadata.ts --fetch",
 		"update-library": "bun utils/librarything-to-graph.js",
-		"build:search": "bun utils/build-search.ts"
+		"build:search": "bun utils/build-search.ts",
+		"storybook": "storybook dev -p 6006 --no-open",
+		"build-storybook": "storybook build --disable-telemetry -o .svelte-kit/cloudflare/storybook"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20251011.0",
+		"@storybook/addon-docs": "10.6.7",
+		"@storybook/addon-svelte-csf": "5.1.6",
+		"@storybook/sveltekit": "10.6.7",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-cloudflare": "^7.2.4",
 		"@sveltejs/kit": "^2.43.2",
@@ -34,12 +39,15 @@
 		"@types/d3-transition": "^3",
 		"@types/three": "^0.180.0",
 		"mdsvex": "^0.12.6",
+		"msw": "2.12.10",
+		"msw-storybook-addon": "2.0.6",
+		"pagefind": "1.6.0",
+		"storybook": "10.6.7",
 		"svelte": "^5.39.5",
 		"svelte-check": "^4.3.2",
 		"typescript": "^5.9.2",
 		"vite": "^7.1.7",
-		"wrangler": "^4.43.0",
-		"pagefind": "1.6.0"
+		"wrangler": "^4.43.0"
 	},
 	"dependencies": {
 		"3d-force-graph": "^1.79.0",

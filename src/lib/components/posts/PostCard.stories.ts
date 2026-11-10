@@ -1,0 +1,12 @@
+import type { Meta, StoryObj } from '@storybook/sveltekit';
+import PostCard from './PostCard.svelte';
+import { note, article, bookmark, reply, photo, reaction } from '$lib/storybook/fixtures';
+const meta = { title: 'Posts/PostCard', component: PostCard, args: { post: note } } satisfies Meta<typeof PostCard>;
+export default meta;
+type Story = StoryObj<typeof meta>;
+export const Note: Story = { args: { post: note } };
+export const Article: Story = { args: { post: article } };
+export const Bookmark: Story = { args: { post: bookmark } };
+export const Reply: Story = { args: { post: reply } };
+export const Photo: Story = { args: { post: photo } };
+export const Like: Story = { args: { post: reaction } };
