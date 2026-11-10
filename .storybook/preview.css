@@ -1,0 +1,4 @@
+/* Keep site tokens, with readable component-scale type in the isolated canvas. */
+body { font-size: 18px; font-weight: 400; }
+#storybook-root { min-height: 300px; }
+.docs-story { background: gray; color: white; }
