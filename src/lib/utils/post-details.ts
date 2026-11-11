@@ -103,12 +103,13 @@ export function renderReplyLabel(post: Post): string {
  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
  return sanitizePublishingHtml(`<p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`);
 }
-export function renderReplyContext(post: Post, options: {omitLabel?: boolean} = {}): string {
+/** `omitSource` drops the context post's outbound link: on the site the reply's own card carries the links out. */
+export function renderReplyContext(post: Post, options: {omitLabel?: boolean; omitSource?: boolean} = {}): string {
  const reply = post.inReplyTo || text(post.properties ?? {}, 'in-reply-to');
  if (!reply) return '';
  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
  if (options.omitLabel && !snapshot) return '';
- return sanitizePublishingHtml(`<div class="social-reply-context">${options.omitLabel ? '' : renderReplyLabel(post)}${snapshot ? renderSocialSnapshot(snapshot) : ''}</div>`);
+ return sanitizePublishingHtml(`<div class="social-reply-context">${options.omitLabel ? '' : renderReplyLabel(post)}${snapshot ? renderSocialSnapshot(snapshot, {omitSource: options.omitSource}) : ''}</div>`);
 }
 export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean;omitReactionLabel?:boolean}={}): string {
  const p = post.properties ?? {};

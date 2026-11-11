@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Chip } from '$lib/components/ui';
+	import { socialSource } from '$lib/social-card';
 	import WebmentionCounts from '$lib/components/WebmentionCounts.svelte';
 	import { POST_TYPE_PLURALS } from '$lib/posts-types';
 	import { formatRelativeDate, formatAbsoluteDate } from '$lib/utils/formatDate';
@@ -48,19 +49,9 @@
 		return TYPE_ICONS[t] || '📌';
 	}
 
-	function getSyndicationInfo(link: string): { label: string; title: string } {
-		if (link.includes('social.coop') || link.includes('mastodon')) {
-			return { label: 'Mastodon', title: 'View on Mastodon' };
-		} else if (link.includes('bsky.app')) {
-			return { label: 'Bluesky', title: 'View on Bluesky' };
-		} else if (link.includes('twitter.com') || link.includes('x.com')) {
-			return { label: 'X', title: 'View on X' };
-		} else {
-			let label = link;
-			try { label = new URL(link).hostname.replace(/^www\./, ''); } catch { /* keep the raw value */ }
-			return { label, title: link };
-		}
-	}
+	// Notes and replies render as a card, which carries its own outbound links in its header.
+	const hasCard = $derived(type === 'note' || type === 'reply');
+	const metaSyndication = $derived(hasCard ? [] : (syndication ?? []));
 </script>
 
 <div class="post-meta">
@@ -93,9 +84,9 @@
 	</div>
 	{#if showInteractions}
 		<div class="meta-group meta-secondary">
-			{#each syndication ?? [] as link (link)}
-				{@const synInfo = getSyndicationInfo(link)}
-				<Chip href={link} class="u-syndication" title={synInfo.title} target="_blank" rel="noopener">{synInfo.label} <span aria-hidden="true">↗</span></Chip>
+			{#each metaSyndication as link (link)}
+				{@const source = socialSource(link)}
+				<Chip href={link} size="sm" class="u-syndication" title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>
 			{/each}
 			<WebmentionCounts url={permalink} />
 		</div>

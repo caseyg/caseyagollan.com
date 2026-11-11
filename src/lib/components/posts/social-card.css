@@ -5,7 +5,9 @@
  .social-card-scope :is(.social-author-details) { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
  .social-card-scope :is(.social-author-name) { font-size: 1.05rem; font-weight: var(--fw-semibold); letter-spacing: -0.005em; }
  .social-card-scope :is(.social-author-handle) { color: var(--text-muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
- .social-card-scope :is(.social-platform) { flex-shrink: 0; opacity: 0.68; font-size: var(--fs-xs); text-decoration: none; }
+ .social-card-scope :is(.social-platforms) { display: flex; flex-shrink: 0; gap: var(--space-1); margin-right: calc(-1 * var(--space-2)); }
+ .social-card-scope :is(.social-platform) { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--fs-base); line-height: 1; text-decoration: none; transition: background var(--duration) var(--ease); }
+ .social-card-scope :is(.social-snapshot header a.social-platform:hover) { background: var(--surface-2); text-decoration: none; }
  .social-card-scope :is(.social-post-content) { line-height: var(--lh-normal); text-wrap: pretty; }
  .social-card-scope :is(.social-post-content p) { margin: 0 0 0.85rem; }
  .social-card-scope :is(.social-snapshot a) { color: inherit; text-decoration: underline; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
@@ -32,7 +34,6 @@
  .social-card-scope :is(.social-link-preview-description) { color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-normal); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
  @media (max-width: 480px) {
   .social-card-scope :is(.social-snapshot) { --social-card-padding: 0.85rem; padding: var(--social-card-padding); }
-  .social-card-scope :is(.social-platform) { font-size: 0.65rem; }
  }
 
  .social-card-scope .social-quoted-post > .social-snapshot { margin-bottom: 0; font-size: 0.95em; }
@@ -44,7 +45,6 @@
  .social-card-scope .social-reply-context .social-avatar { width: 2rem; height: 2rem; }
  .social-card-scope .social-reply-context .social-author-name { font-size: 0.95em; }
  .social-card-scope .social-reply-context .social-author-handle { font-size: 0.9em; }
- .social-card-scope .social-reply-context .social-platform,
  .social-card-scope .social-reply-context .social-snapshot footer { font-size: 0.8em; }
  .social-card-scope .social-reply-context .social-post-content { line-height: 1.4; }
  .social-card-scope .social-reply-context .social-post-content p { margin: 0.35rem 0; }

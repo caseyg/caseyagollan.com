@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { getPostAction, renderPostDetails } from '../src/lib/utils/post-details';
+import { getPostAction, renderPostDetails, renderReplyContext } from '../src/lib/utils/post-details';
 import type { Post } from '../src/lib/posts-types';
 
 const base: Post = { slug: 's', type: 'note', date: '2026-01-10T12:00:00-05:00', content: '', filePath: '' };
@@ -46,5 +46,21 @@ describe('renderPostDetails', () => {
 		const site = renderPostDetails(like, { omitReactionLabel: true });
 		expect(site).not.toContain('Liked');
 		expect(site).toContain('social-snapshot');
+	});
+});
+
+describe('outbound links', () => {
+	const reply: Post = { ...base, type: 'reply', inReplyTo: saved.url, socialSnapshots: [saved] };
+
+	test('saved posts link out with the network mark, named for assistive tech', () => {
+		const html = renderPostDetails({ ...base, type: 'like', properties: { 'like-of': [saved.url] }, socialSnapshots: [saved] });
+		expect(html).toContain(`class="social-platform" href="${saved.url}" aria-label="View on Bluesky"`);
+		expect(html).toContain('🦋');
+		expect(html).not.toContain('Bluesky ↗');
+	});
+
+	test('the site omits the link on reply context; feeds keep it', () => {
+		expect(renderReplyContext(reply, { omitLabel: true, omitSource: true })).not.toContain('social-platform');
+		expect(renderReplyContext(reply)).toContain('social-platform');
 	});
 });
