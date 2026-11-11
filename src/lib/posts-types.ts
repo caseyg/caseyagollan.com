@@ -32,6 +32,8 @@ export interface Post {
 	socialSnapshots?: SocialSnapshot[];
 	properties?: Record<string, unknown[]>;
 	indexActivities?: { type: 'like' | 'repost'; date: string; permalink: string; target?: string; network?: string; author?: string; dateSource?: string }[];
+	/** Presentation-only conversation members; original records remain intact. */
+	indexThreadPosts?: Post[];
 	filePath: string;
 }
 
@@ -92,7 +94,7 @@ export function rollupIndexPosts(posts: Post[]): Post[] {
  const root = (i: number): number => parents[i] === i ? i : (parents[i] = root(parents[i]));
  const keys = new Map<string,number>();
  for (const [i,post] of posts.entries()) {
-  if (post.indexActivities) continue; // Already rolled up by a caller.
+  if (post.indexActivities || post.indexThreadPosts) continue; // Already rolled up by a caller.
   const key = post.type === 'like' ? 'like-of' : post.type === 'repost' ? 'repost-of' : '';
   const targets = post.properties?.[key];
   if (!key || targets?.length !== 1 || typeof targets[0] !== 'string') continue;
@@ -147,7 +149,44 @@ export function rollupIndexPosts(posts: Post[]): Post[] {
   result.push({...primary,properties,socialSnapshots:snapshot ? [snapshot] : [],indexActivities:activities,
    category:[...new Set(group.flatMap(p => p.category ? Array.isArray(p.category) ? p.category : [p.category] : []))]});
  }
- return result.sort((a,b) => Date.parse(b.date)-Date.parse(a.date));
+ return rollupThreadPosts(result).sort((a,b) => Date.parse(b.date)-Date.parse(a.date));
+}
+
+/** Group only saved conversation relationships, never proximity in time or shared authors. */
+function rollupThreadPosts(posts: Post[]): Post[] {
+ const parents = posts.map((_, i) => i);
+ const root = (i: number): number => parents[i] === i ? i : (parents[i] = root(parents[i]));
+ const seen = new Map<string, number>();
+ for (const [i, post] of posts.entries()) {
+  if (post.indexThreadPosts || !['like','repost','reply'].includes(post.type)) continue;
+  if (post.type !== 'reply' && (post.content.trim() || post.title || post.summary || post.photo?.length || post.video?.length)) continue;
+  const identities = new Set<string>();
+  const add = (value: unknown) => { if (typeof value === 'string') { const url = indexContentUrl(value); if (url) identities.add(url); } };
+  const targets = [...(post.properties?.['like-of'] ?? []), ...(post.properties?.['repost-of'] ?? []),
+   ...(post.properties?.['in-reply-to'] ?? []), ...(post.inReplyTo ? [post.inReplyTo] : [])];
+  if (post.type !== 'reply' && !post.indexActivities && targets.length !== 1) continue;
+  targets.forEach(add);
+  if (post.type === 'reply') { add(`https://caseyagollan.com${getPostPermalink(post)}`); post.syndication?.forEach(add); }
+  for (const snapshot of post.socialSnapshots ?? []) {
+   if (!targets.some(target => typeof target === 'string' && targetSnapshot(snapshot, indexContentUrl(target) ?? ''))) continue;
+   add(snapshot.url); add(snapshot.sourceUrl);
+   if (snapshot.thread) { add(snapshot.thread.post); add(snapshot.thread.root); add(snapshot.thread.parent); }
+  }
+  for (const identity of identities) {
+   const previous = seen.get(identity);
+   if (previous !== undefined) parents[root(i)] = root(previous);
+   seen.set(identity, i);
+  }
+ }
+ const groups = new Map<number, Post[]>();
+ posts.forEach((post, i) => { const id = root(i); const group = groups.get(id) ?? []; group.push(post); groups.set(id, group); });
+ return [...groups.values()].map(group => {
+  if (group.length === 1) return group[0];
+  const latest = [...group].sort((a,b) => Date.parse(b.date)-Date.parse(a.date))[0];
+  const published = (post: Post) => post.type === 'reply' ? Date.parse(post.date) : Date.parse(post.socialSnapshots?.[0]?.published ?? post.date);
+  const members = [...group].sort((a,b) => published(a)-published(b) || getPostPermalink(a).localeCompare(getPostPermalink(b)));
+  return {...latest,indexThreadPosts:members};
+ });
 }
 
 export function getPostsByDay(posts: Post[]): Map<string, Post[]> {

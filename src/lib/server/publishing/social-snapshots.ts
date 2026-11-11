@@ -102,6 +102,14 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   const handle = post.author.handle;
   avatar = typeof post.author.avatar === 'string' ? post.author.avatar : undefined;
   result = {version:1,url,platform:'bluesky',author:{name:post.author.displayName || handle,handle:`@${handle}`,url:`https://bsky.app/profile/${encodeURIComponent(handle)}`},published:post.record.createdAt,fetchedAt:new Date().toISOString(),html:blueskyHtml(post.record.text,post.record.facets)};
+  // The record contains strong references even when parentHeight=0.
+  try {
+   const canonical = blueUrl(`at://${post.author.did}/app.bsky.feed.post/${blue[2]}`);
+   const reply = post.record.reply;
+   const thread = {post:canonical,root:reply ? blueUrl(reply.root.uri) : canonical,
+    ...(reply ? {parent:blueUrl(reply.parent.uri)} : {})};
+   if (socialSnapshots([{...result,images:[],thread}]).length) result.thread = thread;
+  } catch { /* Malformed references do not establish a conversation relationship. */ }
   const embed = post.embed?.$type === 'app.bsky.embed.recordWithMedia#view' ? post.embed.media : post.embed;
   media = (embed?.images ?? []).slice(0,4).filter((i:any)=>typeof i.fullsize === 'string').map((i:any)=>({url:i.fullsize,alt:typeof i.alt === 'string' ? i.alt : ''}));
   preview(embed?.external, true);
@@ -155,7 +163,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
 }
 
 /** Enrich only at publication/backfill, never during reads or page rendering. */
-export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFetcher = safePublicFetch, options: { refresh?: boolean; storeImage?: SocialImageStore; timeoutMs?: number; mastodonInstance?: string } = {}): Promise<string> {
+export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFetcher = safePublicFetch, options: { threadMetadataOnly?: boolean; refresh?: boolean; storeImage?: SocialImageStore; timeoutMs?: number; mastodonInstance?: string } = {}): Promise<string> {
  const match = markdown.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
  if(!match) return markdown;
  const doc = parseDocument(match[1]);
@@ -171,18 +179,22 @@ export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFet
  };
  for(const url of urls.slice(0,8)) {
   const existing = before.find(s=>s.url===url);
-  if(existing && !options.refresh) {retain(existing);continue;}
+  if (options.threadMetadataOnly && (!existing || existing.platform !== 'bluesky' || existing.thread)) { if (existing) retain(existing); continue; }
+  if(existing && !options.refresh && !options.threadMetadataOnly) {retain(existing);continue;}
   let fresh: SocialSnapshot | undefined;let invalid=false;
   if(!signal.aborted) try {
    const source = Array.isArray(data['pesos-source']) ? data['pesos-source'][0] : undefined;
    const id = typeof source === 'string' ? source.match(/^mastodon:(?:like|repost):(\d+)$/)?.[1] : undefined;
    const mastodonSource = id && options.mastodonInstance ? {instance:publicUrl(options.mastodonInstance).origin,id} : undefined;
-   fresh = await snapshot(url,fetcher,signal,budget,options.storeImage,existing,mastodonSource); } catch(error) { invalid=error instanceof SocialSnapshotUnavailable; /* Temporary transport failures retain existing outer snapshots. */ }
-  if(fresh) after.push(fresh);
-  else if(existing&&!invalid) retain(existing);
+   fresh = await snapshot(url,fetcher,signal,budget,options.threadMetadataOnly ? undefined : options.storeImage,existing,mastodonSource); } catch(error) { invalid=error instanceof SocialSnapshotUnavailable; /* Temporary transport failures retain existing outer snapshots. */ }
+  if(fresh) {
+   if (options.threadMetadataOnly && existing) { const {thread:_old,...saved}=existing; after.push({...saved,...(fresh.thread ? {thread:fresh.thread} : {})}); }
+   else after.push(fresh);
+  }
+  else if(existing&&(!invalid || options.threadMetadataOnly)) retain(existing);
  }
  if(JSON.stringify(before) === JSON.stringify(after) && (before.length || data[key] === undefined)) return markdown;
- if(after.length) doc.set(key,after); else doc.delete(key);
+ if(after.length) doc.set(key,doc.createNode(after)); else doc.delete(key);
  formatSnapshotScalars(doc.get(key,true));
  const updated = `---\n${doc.toString({lineWidth:0,doubleQuotedAsJSON:true})}---\n${markdown.slice(match[0].length)}`;
  // Preserve room for content and future bookkeeping within the GitHub store's 1 MiB limit.

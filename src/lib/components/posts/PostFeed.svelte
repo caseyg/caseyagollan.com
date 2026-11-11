@@ -1,6 +1,7 @@
 <script lang="ts">
 	import DateHeader from './DateHeader.svelte';
 	import PostCard from './PostCard.svelte';
+	import ThreadGroup from './ThreadGroup.svelte';
 	import type { Post } from '$lib/posts-types';
 
 	interface Props {
@@ -20,13 +21,13 @@
 		{#each postsByDay as [dateKey, postsForDay] (dateKey)}
 			<DateHeader {dateKey} />
 			{#each postsForDay as post (post.slug)}
-				<PostCard {post} {showType} {activeTag} />
+				{#if post.indexThreadPosts}<ThreadGroup {post} {showType} {activeTag} />{:else}<PostCard {post} {showType} {activeTag} />{/if}
 			{/each}
 		{/each}
 	{/if}
 	{#if posts}
 		{#each posts as post (post.slug)}
-			<PostCard {post} {showType} {activeTag} />
+			{#if post.indexThreadPosts}<ThreadGroup {post} {showType} {activeTag} />{:else}<PostCard {post} {showType} {activeTag} />{/if}
 		{/each}
 	{/if}
 </div>
