@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostCard, DateHeader, PostsLayout } from '$lib/components/posts';
+	import { PostFeed, PostsLayout } from '$lib/components/posts';
+	import { Pagination } from '$lib/components/ui';
 
 	let { data }: { data: PageData } = $props();
 </script>
@@ -16,47 +17,12 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<div class="posts-list h-feed">
-		{#each data.postsByDay as [dateKey, postsForDay] (dateKey)}
-			<DateHeader {dateKey} />
-
-			{#each postsForDay as post (post.slug)}
-				<PostCard {post} />
-			{/each}
-		{/each}
-	</div>
-	{#if data.totalPages > 1}
-		<nav class="pagination" aria-label="Posts pagination">
-			<div>
-				{#if data.page > 1}
-					<a href={data.page === 2 ? '/posts' : `/posts/page/${data.page - 1}`} rel="prev">← Newer</a>
-				{/if}
-			</div>
-			<span>Page {data.page} of {data.totalPages}</span>
-			<div>
-				{#if data.page < data.totalPages}
-					<a href={`/posts/page/${data.page + 1}`} rel="next">Older →</a>
-				{/if}
-			</div>
-		</nav>
-	{/if}
+	<PostFeed postsByDay={data.postsByDay} />
+	<Pagination
+		label="Posts pagination"
+		page={data.page}
+		totalPages={data.totalPages}
+		prevHref={data.page > 1 ? (data.page === 2 ? '/posts' : `/posts/page/${data.page - 1}`) : undefined}
+		nextHref={data.page < data.totalPages ? `/posts/page/${data.page + 1}` : undefined}
+	/>
 </PostsLayout>
-
-<style>
-	.posts-list {
-		line-height: 1.6;
-	}
-	.pagination {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-top: 2rem;
-		font-size: 0.875rem;
-	}
-
-	.pagination a {
-		color: inherit;
-		text-underline-offset: 0.2em;
-	}
-</style>

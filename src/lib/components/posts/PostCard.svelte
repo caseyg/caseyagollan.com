@@ -2,7 +2,8 @@
 	import NoteCard from './NoteCard.svelte';
 	import PostDetails from './PostDetails.svelte';
 	import PostMeta from './PostMeta.svelte';
-	import BookmarkTitle from './BookmarkTitle.svelte';
+	import PostTitle from './PostTitle.svelte';
+	import { Button } from '$lib/components/ui';
 	import PostContent from './PostContent.svelte';
 	import PostMedia from './PostMedia.svelte';
 	import type { Post } from '$lib/posts-types';
@@ -19,6 +20,8 @@
 	function getPreview(content: string, maxLength: number = 280): string {
 		// Strip HTML tags
 		let stripped = content.replace(/<[^>]*>/g, '');
+		// Strip markdown heading markers
+		stripped = stripped.replace(/^#{1,6}\s+/gm, '');
 		// Strip markdown links [text](url) -> text
 		stripped = stripped.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 		// Strip markdown emphasis *text* or _text_ or **text** or __text__
@@ -51,21 +54,7 @@
 		indexActivities={post.indexActivities}
 	/>
 
-	{#if post.title || (post.type === 'bookmark' && post.bookmarkOf)}
-		<h3 class="p-name post-title" class:bookmark-title={post.type === 'bookmark' && !!post.bookmarkOf}>
-			{#if post.type === 'bookmark' && post.bookmarkOf}
-				<BookmarkTitle url={post.bookmarkOf} title={post.title} />
-			{:else if isArticle}
-				<a href={permalink} class="title-link">{post.title}</a>
-			{:else}
-				{post.title}
-			{/if}
-		</h3>
-	{/if}
-
-	{#if post.type === 'bookmark' && post.bookmarkOf}
-		<p class="bookmark-url"><small><a class="u-bookmark-of" href={post.bookmarkOf}>{post.bookmarkOf.replace(/^https?:\/\//, '')}</a></small></p>
-	{/if}
+	<PostTitle {post} href={isArticle ? permalink : undefined} />
 
 	<PostDetails {post} />
 	{#if post.indexActivities}
@@ -83,7 +72,7 @@
 		<p class="p-summary preview">
 			{post.summary || getPreview(post.content)}
 		</p>
-		<a href={permalink} class="read-more">Read more</a>
+		<Button href={permalink} variant="quiet" size="sm" class="read-more">Read more <span aria-hidden="true">→</span></Button>
 	{:else if post.type === 'note' || post.type === 'reply'}
 		<NoteCard {post} />
 	{:else}
@@ -93,76 +82,57 @@
 </article>
 
 <style>
-	.activity-sources { margin: 0.75rem 0; font-size: 0.8rem; }
-	.activity-sources summary { cursor: pointer; opacity: 0.7; }
-	.activity-sources a { color: inherit; text-underline-offset: 0.15em; }
 	.post {
-		margin-bottom: 1.5rem;
-		padding-bottom: 1.5rem;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		margin-bottom: var(--space-5);
+		padding-bottom: var(--space-5);
+		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	.post:last-child {
-		border-bottom: none;
 		margin-bottom: 0;
 		padding-bottom: 0;
+		border-bottom: none;
 	}
 
-	.post-title {
-		font-size: 1.25rem;
-		line-height: 1.3;
-		margin: 0.25rem 0 0.5rem;
-		font-weight: 600;
+	.activity-sources {
+		margin: var(--space-3) 0;
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
+		line-height: var(--lh-normal);
 	}
 
-	.title-link {
+	.activity-sources summary {
+		width: fit-content;
+		cursor: pointer;
+	}
+
+	.activity-sources summary:hover {
+		color: var(--text-primary);
+	}
+
+	.activity-sources ul {
+		margin: var(--space-2) 0 0;
+		padding-left: 1.2em;
+	}
+
+	.activity-sources a {
 		color: inherit;
-		text-decoration: none;
+		text-underline-offset: var(--underline-offset);
 	}
 
-	.title-link:hover {
-		text-decoration: underline;
+	.activity-sources time {
+		font-variant-numeric: tabular-nums;
 	}
 
-	.post-title.bookmark-title {
-		margin-bottom: 0.1rem;
-	}
-
-	.bookmark-url a {
-		color: rgba(255, 255, 255, 0.6);
-		text-decoration: none;
-		text-underline-offset: 0.15em;
-	}
-
-	.bookmark-url a:hover {
-		text-decoration: underline;
-	}
-
-	.bookmark-url {
-		margin: 0 0 0.75rem;
-		overflow-wrap: anywhere;
+	.p-summary {
+		margin: 0 0 var(--space-3);
+		text-wrap: pretty;
 	}
 
 	.preview {
-		margin: 0;
-		line-height: 1.5;
-		color: rgba(255, 255, 255, 0.8);
+		margin: 0 0 var(--space-2);
+		color: var(--text-secondary);
 		font-size: 0.9375rem;
-	}
-
-	.read-more {
-		display: inline-block;
-		margin-top: 0.5rem;
-		color: rgba(255, 255, 255, 0.6);
-		text-decoration: none;
-		font-size: 0.75rem;
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
-		transition: background 0.15s ease, color 0.15s ease;
-	}
-
-	.read-more:hover {
-		background: rgba(255, 255, 255, 0.15);
-		color: #fff;
+		line-height: var(--lh-normal);
 	}
 </style>

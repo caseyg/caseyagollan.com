@@ -22,7 +22,8 @@
 </SocialCard>
 
 <style>
- .reply-label { color: var(--text-muted); font-size: 0.875rem; line-height: 1.4; overflow-wrap: anywhere; }
- .reply-label :global(p) { margin: 0.5rem 0; }
- .reply-label :global(a) { color: inherit; text-underline-offset: 0.15em; }
+ .reply-label { color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-snug); overflow-wrap: anywhere; }
+ .reply-label :global(p) { margin: var(--space-2) 0; }
+ .reply-label :global(a) { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
+ .p-summary { margin: 0 0 var(--space-3); }
 </style>

@@ -12,9 +12,8 @@
 
 <style>
  .post-details { line-height: 1.6; overflow-wrap: anywhere; }
- .post-details :global(p) { margin: 0.5rem 0; }
- .post-details :global(a) { color: inherit; text-underline-offset: 0.15em; }
- .post-details :global(section) { margin: 0.75rem 0; padding-left: 1rem; border-left: 2px solid rgba(255,255,255,0.25); }
+ .post-details :global(p) { margin: var(--space-2) 0; }
+ .post-details :global(a) { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
+ .post-details :global(section) { margin: var(--space-3) 0; padding-left: var(--space-4); border-left: 2px solid var(--border-strong); }
  .post-details :global(iframe) { max-width: 100%; border: 0; }
-
 </style>

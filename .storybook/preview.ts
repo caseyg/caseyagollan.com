@@ -24,7 +24,7 @@ const preview: Preview = {
 				] }))
 			]
 		},
-		options: { storySort: { order: ['Site', 'Posts'] } }
+		options: { storySort: { order: ['Foundations', 'Primitives', ['Overview', 'Page'], 'Site', 'Posts'] } }
 	}
 };
 export default preview;
