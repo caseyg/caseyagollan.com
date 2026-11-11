@@ -12,6 +12,8 @@
 	import { libraryText } from '$lib/library-text';
 	import { libraryMetadata } from '$lib/library-metadata';
 	import { shelfCoverCamera, adjacentShelfBook } from '$lib/library-selection';
+	import { orderShelfBooks, coverflowPosition, coverflowDestination, coverflowPose } from '$lib/library-coverflow';
+	import { createShelfMotion, sampleShelfMotion, type ShelfMotion, type ShelfPose } from '$lib/library-motion';
 	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
 
 	interface PageData {
@@ -97,12 +99,16 @@
 	let lastClickedNode: Node | null = null;
 	let originalGraphData: GraphData;
 	let shelfFramePending = false;
+	let shelfLayoutDirty = true;
 	let shelfBounds: ShelfBounds | null = null;
 	let shelfFramingUntil = 0;
 	interface BookPose { x: number; y: number; z: number; rotationY: number }
 	const shelfBookPresentations = new Map<string, { node: Node; pose: BookPose; frame: number | null; open: boolean }>();
 	let shelfSavedCamera: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; minDistance: number; maxDistance: number } | null = null;
 	let shelfCameraAnimation: number | null = null;
+	let coverflow: { books: Node[]; position: number; x: number; y: number; z: number; width: number; height: number; stride: number; pixels: number } | null = null;
+	let coverflowFrame: number | null = null;
+	let cancelShelfGesture: (() => void) | undefined;
 	const shelfDraggedPositions = new Map<string, { x: number; y: number }>();
 
 	// Book detail overlay state
@@ -300,10 +306,24 @@
 			};
 		}
 
+		const texture = createPlaceholderTexture(node, bgColor, `hsl(${hue}, 60%, 90%)`);
+
+		const material = new THREE.MeshBasicMaterial({ map: texture });
+		materialCache.set(cacheKey, material);
+		textureCount++;
+
+		return {
+			material,
+			width: (120 + randomSeed * 80) / 10,
+			height: (180 + randomSeed * 100) / 10,
+			averageColor: bgColor
+		};
+	}
+
+	function createPlaceholderTexture(node: Node, bgColor: string, textColor = "#ffffff"): Three.Texture {
 		coverCanvas.width = 256;
 		coverCanvas.height = 384;
 
-		const textColor = `hsl(${hue}, 60%, 90%)`;
 
 		coverCtx.fillStyle = bgColor;
 		coverCtx.fillRect(0, 0, coverCanvas.width, coverCanvas.height);
@@ -345,16 +365,7 @@
 		texture.needsUpdate = true;
 		texture.flipY = true;
 
-		const material = new THREE.MeshBasicMaterial({ map: texture });
-		materialCache.set(cacheKey, material);
-		textureCount++;
-
-		return {
-			material,
-			width: (120 + randomSeed * 80) / 10,
-			height: (180 + randomSeed * 100) / 10,
-			averageColor: bgColor
-		};
+		return texture;
 	}
 
 	// Create book 3D object
@@ -432,11 +443,19 @@
 	}
 
 	function clearShelfPresentations() {
+		cancelShelfGesture?.();
+		stopCoverflowAnimation();
+		coverflow = null;
+		clearHighResolutionCover();
+		clearFilmstripTextures();
+		for (const node of (Graph?.graphData().nodes || []) as Node[]) if (node.__threeObj) node.__threeObj.visible = true;
+		if (Graph && isGridModeActive) Graph.controls().touches.ONE = THREE.TOUCH.PAN;
 		stopShelfCameraAnimation();
 		for (const state of shelfBookPresentations.values()) {
 			if (state.frame !== null) { cancelAnimationFrame(state.frame); animationFrameIds.delete(state.frame); }
 			state.node.__threeObj?.position.set(state.node.x || 0, state.node.y || 0, 0);
 			state.node.__threeObj?.rotation.set(0, Math.PI / 2, 0);
+			state.node.__threeObj?.scale.setScalar(1);
 		}
 		shelfBookPresentations.clear();
 		shelfSavedCamera = null;
@@ -505,8 +524,136 @@
 	function presentShelfBook(node: Node) {
 		if (!shelfSavedCamera) shelfSavedCamera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target },
 			minDistance: Graph.controls().minDistance, maxDistance: Graph.controls().maxDistance };
+		if (graphContainer.clientWidth <= 600) {
+			presentCoverflow(node);
+			return;
+		}
 		for (const state of shelfBookPresentations.values()) if (state.open && state.node.id !== node.id) animateShelfBook(state.node, false);
 		animateShelfBook(node, true);
+	}
+
+	// Keep a small film strip in front of a stationary camera. Flying between actual
+	// shelf coordinates made every book restart the camera, especially across rows.
+	function presentCoverflow(node: Node) {
+		if (!coverflow) {
+			const books = orderShelfBooks((Graph.graphData().nodes as Node[])
+				.filter((book) => book.group === 'book' && book.__threeObj)
+				.map((book) => ({ node: book, id: book.id, x: book.x, y: book.y, height: book.__threeObj!.geometry.parameters.height })))
+				.map((book) => book.node);
+			// Normalize covers into a stable frame so unusually large catalog dimensions
+			// do not shrink every other cover or pump the camera while browsing.
+			const height = 28;
+			const width = height * 0.8;
+			const z = Math.max(width, height) * 1.4;
+			const view = shelfCoverCamera({ x: node.x || 0, y: node.y || 0, z, width, height },
+				{ width: graphContainer.clientWidth, height: graphContainer.clientHeight }, Graph.camera().fov);
+			const stride = width * 0.85;
+			const pixels = stride * graphContainer.clientHeight /
+				(2 * (view.position.z - z) * Math.tan(Graph.camera().fov * Math.PI / 360));
+			coverflow = { books, position: books.indexOf(node), x: node.x || 0, y: node.y || 0, z, width, height, stride, pixels };
+			// A selected mobile strip needs eight meshes, not thousands of transparent
+			// shelf faces behind it. Restore the shelves when the reader closes it.
+			for (const book of Graph.graphData().nodes as Node[]) if (book.__threeObj) book.__threeObj.visible = false;
+			stopShelfCameraAnimation();
+			Graph.cameraPosition(view.position, view.target, 0);
+			// OrbitControls still owns two-finger pan/zoom and pointer bookkeeping.
+			// One-finger motion belongs exclusively to the film strip.
+			Graph.controls().touches.ONE = -1;
+			paintCoverflow(coverflow.position);
+		} else {
+			settleCoverflow(coverflow.books.indexOf(node), false);
+		}
+	}
+
+	const filmstripTextures = new Map<string, { material: Three.MeshBasicMaterial; original: Three.Texture | null; color: Three.Color; texture: Three.Texture }>();
+	function clearFilmstripTextures() {
+		for (const entry of filmstripTextures.values()) {
+			entry.material.map = entry.original;
+			entry.material.color.copy(entry.color);
+			entry.material.needsUpdate = true;
+			entry.texture.dispose();
+		}
+		filmstripTextures.clear();
+	}
+
+	function warmFilmstripCover(node: Node) {
+		if (!Array.isArray(node.__threeObj?.material)) return;
+		const source = node.img ? `/library/${node.img}` : libraryMetadata(node.bookid).coverUrl ? `/library/covers/${node.bookid}` : null;
+		const material = node.__threeObj.material[4];
+		if (material.map || filmstripTextures.has(node.id)) return;
+		const texture = source ? new THREE.TextureLoader().load(source) : createPlaceholderTexture(node, placeholderColor(node.id));
+		filmstripTextures.set(node.id, { material, original: material.map, color: material.color.clone(), texture });
+		material.map = texture;
+		material.color.set(0xffffff);
+		material.needsUpdate = true;
+		// Browsing a whole library must not retain a whole library of GPU textures.
+		for (const [id, entry] of filmstripTextures) {
+			if (filmstripTextures.size <= 16) break;
+			if (shelfBookPresentations.has(id) || selectedBook?.id === id) continue;
+			entry.material.map = entry.original;
+			entry.material.color.copy(entry.color);
+			entry.material.needsUpdate = true;
+			entry.texture.dispose();
+			filmstripTextures.delete(id);
+		}
+	}
+
+	function paintCoverflow(position: number) {
+		if (!coverflow) return;
+		coverflow.position = position;
+		const first = Math.max(0, Math.floor(position) - 3);
+		const last = Math.min(coverflow.books.length - 1, Math.ceil(position) + 3);
+		const visible = new Set(coverflow.books.slice(first, last + 1).map((book) => book.id));
+		for (const [id, state] of shelfBookPresentations) {
+			if (visible.has(id)) continue;
+			state.node.__threeObj?.position.set(state.node.x || 0, state.node.y || 0, 0);
+			state.node.__threeObj?.rotation.set(0, Math.PI / 2, 0);
+			state.node.__threeObj?.scale.setScalar(1);
+			if (state.node.__threeObj) state.node.__threeObj.visible = false;
+			shelfBookPresentations.delete(id);
+		}
+		for (let index = first; index <= last; index++) {
+			const node = coverflow.books[index];
+			const pose = coverflowPose(index - position, coverflow.stride);
+			const state = { node, pose: { x: coverflow.x + pose.x, y: coverflow.y, z: coverflow.z + pose.z, rotationY: pose.rotationY }, frame: null, open: true };
+			shelfBookPresentations.set(node.id, state);
+			node.__threeObj!.position.set(state.pose.x, state.pose.y, state.pose.z);
+			node.__threeObj!.rotation.set(0, pose.rotationY, 0);
+			node.__threeObj!.visible = true;
+			const dimensions = node.__threeObj!.geometry.parameters;
+			node.__threeObj!.scale.setScalar(Math.min(coverflow.width / dimensions.width, coverflow.height / dimensions.height));
+			const materials = node.__threeObj!.material;
+			for (const material of Array.isArray(materials) ? materials : [materials]) {
+				material.transparent = true;
+				material.opacity = 1 - Math.min(1, Math.abs(index - position)) * 0.35;
+			}
+			warmFilmstripCover(node);
+		}
+	}
+
+	function stopCoverflowAnimation() {
+		if (coverflowFrame !== null) {
+			cancelAnimationFrame(coverflowFrame);
+			animationFrameIds.delete(coverflowFrame);
+			coverflowFrame = null;
+		}
+	}
+
+	function settleCoverflow(destination: number, commit = true) {
+		if (!coverflow || destination < 0) return;
+		stopCoverflowAnimation();
+		const from = coverflow.position;
+		const started = performance.now();
+		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220;
+		const step = (now: number) => {
+			coverflowFrame = null;
+			if (!coverflow) return;
+			const progress = duration ? Math.min(1, (now - started) / duration) : 1;
+			paintCoverflow(from + (destination - from) * (1 - Math.pow(1 - progress, 3)));
+			if (progress < 1) coverflowFrame = scheduleFrame(step);
+			else if (commit && selectedBook?.id !== coverflow.books[destination].id) selectBook(coverflow.books[destination], true, false);
+		};
+		coverflowFrame = scheduleFrame(step);
 	}
 
 	function selectSearchResult(url: URL): boolean {
@@ -536,67 +683,86 @@
 		const options = { capture: true, signal: touchListeners.signal };
 		const pointers = new Set<number>();
 		let tap: { x: number; y: number } | null = null;
-		let scrub: { x: number; y: number; lastX: number; active: boolean } | null = null;
-		const endScrub = () => {
-			if (scrub && Graph) Graph.controls().enabled = true;
+		let scrub: { pointer: number; x: number; y: number; position: number; lastPosition: number; time: number; velocity: number; active: boolean } | null = null;
+		let drawFrame: number | null = null;
+		let pendingPosition = 0;
+		const endScrub = (cancelled = false) => {
+			if (drawFrame !== null) {
+				cancelAnimationFrame(drawFrame);
+				animationFrameIds.delete(drawFrame);
+				drawFrame = null;
+				paintCoverflow(pendingPosition);
+			}
+			if (scrub && coverflow && (scrub.active || Math.abs(coverflow.position - Math.round(coverflow.position)) > 0.001)) {
+				const velocity = cancelled || performance.now() - scrub.time > 100 ? 0 : scrub.velocity;
+				settleCoverflow(coverflowDestination(coverflow.position, velocity, coverflow.books.length));
+			}
 			scrub = null;
 		};
+		cancelShelfGesture = () => { endScrub(true); pointers.clear(); tap = null; };
+		window.addEventListener('blur', () => cancelShelfGesture?.(), { signal: touchListeners.signal });
 		graphContainer.addEventListener('pointerdown', (event) => {
 			if (event.pointerType === 'mouse') return;
 			pointers.add(event.pointerId);
 			tap = pointers.size === 1 ? { x: event.clientX, y: event.clientY } : null;
-			if (pointers.size > 1) { endScrub(); return; }
-			if (!isGridModeActive || !selectedBook?.__threeObj) return;
-			const rect = Graph.renderer().domElement.getBoundingClientRect();
-			const ray = new THREE.Raycaster();
-			ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
-				1 - (event.clientY - rect.top) / rect.height * 2), Graph.camera());
-			if (!ray.intersectObject(selectedBook.__threeObj, true).length) return;
-			scrub = { x: event.clientX, y: event.clientY, lastX: event.clientX, active: false };
-			Graph.controls().enabled = false;
-			graphContainer.setPointerCapture(event.pointerId);
-			event.stopImmediatePropagation();
+			if (pointers.size > 1) { endScrub(true); return; }
+			if (!coverflow) return;
+			stopCoverflowAnimation();
+			coverflow.pixels = coverflow.stride * graphContainer.clientHeight /
+				(2 * Math.max(1, Graph.camera().position.z - coverflow.z) * Math.tan(Graph.camera().fov * Math.PI / 360));
+			scrub = { pointer: event.pointerId, x: event.clientX, y: event.clientY, position: coverflow.position,
+				lastPosition: coverflow.position, time: performance.now(), velocity: 0, active: false };
 		}, options);
 		graphContainer.addEventListener('pointermove', (event) => {
-			if (scrub && pointers.size === 1) {
+			if (scrub && coverflow && pointers.size === 1 && event.pointerId === scrub.pointer) {
 				const dx = event.clientX - scrub.x;
 				const dy = event.clientY - scrub.y;
-				if (!scrub.active && Math.abs(dy) > Math.max(12, Math.abs(dx))) endScrub();
-				else {
-					if (Math.abs(dx) > 12) scrub.active = true;
-					if (scrub.active) {
-						tap = null;
-						const distance = event.clientX - scrub.lastX;
-						const stride = Math.max(40, Math.min(72, graphContainer.clientWidth * 0.14));
-						const steps = Math.floor(Math.abs(distance) / stride);
-						for (let i = 0; i < steps; i++) navigateToAdjacentBook(distance < 0 ? 'right' : 'left');
-						scrub.lastX += Math.sign(distance) * steps * stride;
+				if (!scrub.active && Math.abs(dy) > Math.max(8, Math.abs(dx))) endScrub(true);
+				else if (scrub.active || Math.abs(dx) > 8) {
+					scrub.active = true;
+					tap = null;
+					pendingPosition = coverflowPosition(scrub.position, dx, coverflow.pixels, coverflow.books.length);
+					const now = performance.now();
+					const elapsed = now - scrub.time;
+					if (elapsed > 0) {
+						const weight = 1 - Math.exp(-elapsed / 40);
+						scrub.velocity += ((pendingPosition - scrub.lastPosition) / elapsed - scrub.velocity) * weight;
 					}
-					event.stopImmediatePropagation();
+					scrub.lastPosition = pendingPosition;
+					scrub.time = now;
+					// Pointer events may arrive faster than display refresh. Paint once per frame.
+					if (drawFrame === null) drawFrame = scheduleFrame(() => { drawFrame = null; paintCoverflow(pendingPosition); });
 				}
 			}
 			if (tap && pointers.has(event.pointerId) && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) tap = null;
 		}, options);
 		graphContainer.addEventListener('pointercancel', (event) => {
-			endScrub();
+			endScrub(true);
 			pointers.delete(event.pointerId);
 			tap = null;
+		}, options);
+		graphContainer.addEventListener('lostpointercapture', (event) => {
+			if (pointers.has(event.pointerId)) {
+				endScrub(true);
+				pointers.delete(event.pointerId);
+				tap = null;
+			}
 		}, options);
 		graphContainer.addEventListener('pointerup', (event) => {
 			if (event.pointerType === 'mouse') return;
 			const wasScrubbing = scrub?.active;
 			endScrub();
-			if (wasScrubbing) event.stopImmediatePropagation();
+			// Let OrbitControls receive pointerup so it releases capture and touch state.
 			// Bypass the graph's stale hover-based touch click detection.
 			const isTap = tap && pointers.size === 1 && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) <= 8;
 			pointers.delete(event.pointerId);
 			tap = null;
-			if (!isTap) return;
+			if (!isTap || wasScrubbing) return;
 			const rect = Graph.renderer().domElement.getBoundingClientRect();
 			const raycaster = new THREE.Raycaster();
 			raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
 				1 - (event.clientY - rect.top) / rect.height * 2), Graph.camera());
-			const books: Node[] = Graph.graphData().nodes.filter((node: Node) => node.group === 'book' && node.__threeObj);
+			const books: Node[] = Graph.graphData().nodes.filter((node: Node) => node.group === 'book' && node.__threeObj?.visible);
 			const hit = raycaster.intersectObjects(books.map((node) => node.__threeObj!), true)[0];
 			let object = hit?.object;
 			while (object && !books.some((node) => node.__threeObj === object)) object = object.parent || undefined;
@@ -609,7 +775,7 @@
 	}
 
 	// Select a book and show its details
-	function selectBook(node: Node, updateUrl = true) {
+	function selectBook(node: Node, updateUrl = true, focus = true) {
 		clearHighResolutionCover();
 		selectedBook = node;
 		const catalogDetails = catalogDetailsFor(node);
@@ -619,10 +785,17 @@
 		if (updateUrl && browser && node.isbn) {
 			const url = new URL(window.location.href);
 			url.pathname = `/library/${encodeURIComponent(node.isbn)}`;
+			url.searchParams.delete('book');
+			replaceState(url, {});
+		} else if (updateUrl && browser && node.bookid) {
+			const url = new URL(window.location.href);
+			url.pathname = '/library/';
+			url.searchParams.set('book', String(node.bookid));
 			replaceState(url, {});
 		}
 
-		if (Graph) focusGraphBook(node);
+		if (Graph && focus) focusGraphBook(node);
+		else if (Graph) showHighResolutionCover(node);
 	}
 
 	function catalogDetailsFor(node: Node): BookDetails {
@@ -672,6 +845,7 @@
 		if (isGridModeActive) presentShelfBook(node);
 		Graph.controls().minDistance = 0.1;
 		Graph.controls().maxDistance = Infinity;
+		if (coverflow) return;
 		// Fade other books to 25% opacity
 		const graphData = Graph.graphData();
 		graphData.nodes.forEach((n: Node) => {
@@ -787,6 +961,12 @@
 	// Navigate to next/previous book using arrow keys
 	function navigateToAdjacentBook(direction: 'left' | 'right') {
 		if (!Graph || !selectedBook) return;
+		if (coverflow) {
+			const index = coverflow.books.indexOf(selectedBook) + (direction === 'right' ? 1 : -1);
+			const next = coverflow.books[index];
+			if (next) selectBook(next);
+			return;
+		}
 
 		const graphData = Graph.graphData();
 		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book');
@@ -931,9 +1111,10 @@
 
 			// Return the book and camera to the shelf position the reader was browsing.
 			if (isGridModeActive && shelfSavedCamera) {
-				const state = shelfBookPresentations.get(selectedBook.id);
-				if (state) animateShelfBook(state.node, false);
 				const saved = shelfSavedCamera;
+				const state = shelfBookPresentations.get(selectedBook.id);
+				if (coverflow) clearShelfPresentations();
+				else if (state) animateShelfBook(state.node, false);
 				shelfSavedCamera = null;
 				Graph.controls().minDistance = saved.minDistance;
 				Graph.controls().maxDistance = saved.maxDistance;
@@ -947,6 +1128,7 @@
 		if (browser) {
 			const url = new URL(window.location.href);
 			url.pathname = '/library/';
+			url.searchParams.delete('book');
 			replaceState(url, {});
 		}
 
@@ -1121,22 +1303,28 @@
 						object.rotation.set(0, state.pose.rotationY, 0);
 						return true;
 					}
-					const start = shelfLayoutStarts.get(node.id);
-					if (!start) return false;
-					const progress = Math.min(1, (performance.now() - shelfLayoutStarted) / 900);
-					const eased = progress * progress * (3 - 2 * progress);
-					object.position.set(
-						start.x + (_position.x - start.x) * eased,
-						start.y + (_position.y - start.y) * eased,
-						start.z + (_position.z - start.z) * eased);
-					object.rotation.set(0, start.rotationY + (Math.PI / 2 - start.rotationY) * eased, 0);
-					if (progress === 1) shelfLayoutStarts.delete(node.id);
+					const motion = shelfLayoutMotions.get(node.id);
+					if (!motion) {
+						if (node.group === 'book') object.rotation.set(0, Math.PI / 2, 0);
+						return false;
+					}
+					const { pose, settled } = sampleShelfMotion(motion, performance.now());
+					object.position.set(pose.x, pose.y, pose.z);
+					object.rotation.set(pose.rotationX, pose.rotationY, pose.rotationZ);
+					if (settled) shelfLayoutMotions.delete(node.id);
 					return true;
 				})
 				.onEngineTick(() => {
 					if (isGridModeActive && shelfFramePending) {
 						shelfFramePending = false;
-						frameShelves();
+						// graphData creates its meshes in a deferred update. Measure the
+						// finished objects once, rather than laying out placeholders every tick.
+						shelfLayoutDirty = true;
+						customForce();
+						startShelfLayoutMotions();
+						frameShelves(isLoading ? 0 : 600);
+						const book = Graph.graphData().nodes.find((node: Node) => node.id === selectedBook?.id);
+						if (book) { selectedBook = book; focusGraphBook(book, false); }
 					}
 				})
 				.onNodeDrag((graphNode) => {
@@ -1249,7 +1437,7 @@
 					const bookNode = graphData.nodes.find((node) => node.id === selectedBook?.id);
 					if (bookNode) {
 						selectedBook = bookNode;
-						focusGraphBook(bookNode, false);
+						if (!shelfFramePending) focusGraphBook(bookNode, false);
 					}
 				}
 				// Paint the focused scene offscreen before crossfading the cover.
@@ -1271,6 +1459,9 @@
 	onDestroy(() => {
 		clearHighResolutionCover();
 		if (!browser) return;
+		cancelShelfGesture?.();
+		stopCoverflowAnimation();
+		clearFilmstripTextures();
 
 		// Remove keyboard event listener
 		touchListeners?.abort();
@@ -1377,7 +1568,7 @@
 		const nextSortIndex = sortModes.indexOf(view.sort);
 		const sortChanged = sortIndex !== nextSortIndex;
 		sortIndex = nextSortIndex;
-		if (isGridModeActive !== view.shelves) toggleMode(false);
+		if (isGridModeActive !== view.shelves) toggleMode(false, isLoading);
 		else if (isGridModeActive && sortChanged) applyShelfSort();
 	}
 
@@ -1410,7 +1601,10 @@
 		controls.maxDistance = Math.max(frame.distance, (shelfBounds.maxY - shelfBounds.minY) / (2 * tangent) * 1.2);
 		shelfFramingUntil = performance.now() + duration + 50;
 		camera.up.set(0, 1, 0);
-		Graph.cameraPosition({ x: frame.x, y: frame.y, z: frame.distance }, { x: frame.x, y: frame.y, z: 0 }, duration);
+		const position = { x: frame.x, y: frame.y, z: frame.distance };
+		const target = { x: frame.x, y: frame.y, z: 0 };
+		if (duration) animateShelfCamera(position, target);
+		else Graph.cameraPosition(position, target, 0);
 	}
 
 	function constrainShelfCamera() {
@@ -1431,23 +1625,37 @@
 	function resizeLibrary() {
 		if (!Graph) return;
 		Graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
+		if (isGridModeActive && selectedBook) {
+			clearShelfPresentations();
+			frameShelves(0);
+			focusGraphBook(selectedBook, false);
+			return;
+		}
 		if (isGridModeActive && !selectedBook) frameShelves(0);
 	}
 
-	// Keep layout coordinates at their destination so camera framing stays stable.
-	// Only the rendered books interpolate, starting from their current visible pose.
-	const shelfLayoutStarts = new Map<string, BookPose>();
-	let shelfLayoutStarted = 0;
+	// The camera uses final shelf coordinates; only rendered poses follow springs.
+	const shelfLayoutStarts = new Map<string, { pose: ShelfPose; velocity?: ShelfPose }>();
+	const shelfLayoutMotions = new Map<string, ShelfMotion>();
 	function beginShelfLayoutTransition() {
 		shelfLayoutStarts.clear();
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		if (isLoading || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			shelfLayoutMotions.clear();
+			return;
+		}
+		const now = performance.now();
 		for (const node of Graph.graphData().nodes as Node[]) {
 			const object = node.__threeObj;
 			if (node.group !== 'book' || !object) continue;
-			shelfLayoutStarts.set(node.id, { x: object.position.x, y: object.position.y,
-				z: object.position.z, rotationY: object.rotation.y });
+			const previous = shelfLayoutMotions.get(node.id);
+			const current = previous ? sampleShelfMotion(previous, now) : null;
+			shelfLayoutStarts.set(node.id, {
+				pose: current?.pose || { x: object.position.x, y: object.position.y, z: object.position.z,
+					rotationX: object.rotation.x, rotationY: object.rotation.y, rotationZ: object.rotation.z },
+				velocity: current && !current.settled ? current.velocity : undefined
+			});
 		}
-		shelfLayoutStarted = performance.now();
+		shelfLayoutMotions.clear();
 	}
 
 	function refreshShelves() {
@@ -1455,17 +1663,29 @@
 		shelfDraggedPositions.clear();
 		// Recreate labels when changing modes; graph labels use popularity-based sizes.
 		Graph.nodeThreeObject(Graph.nodeThreeObject());
-		customForce();
+		shelfLayoutDirty = true;
 		shelfFramePending = true;
-		// graphData initializes and reheats the simulation in its deferred update.
-		// Reheating here can start rendering before that layout exists on a deep link.
+		// graphData reheats the simulation after its deferred update.
 	}
 
-	function toggleMode(updateUrl = true) {
+	function startShelfLayoutMotions() {
+		const now = performance.now();
+		for (const node of Graph.graphData().nodes as Node[]) {
+			const start = shelfLayoutStarts.get(node.id);
+			if (!start) continue;
+			shelfLayoutMotions.set(node.id, createShelfMotion(node.id, start.pose, {
+				x: node.x || 0, y: node.y || 0, z: node.z || 0,
+				rotationX: 0, rotationY: Math.PI / 2, rotationZ: 0
+			}, now, start.velocity));
+		}
+		shelfLayoutStarts.clear();
+	}
+
+	function toggleMode(updateUrl = true, preserveSelection = false) {
 		if (!Graph) return;
 
 		beginShelfLayoutTransition();
-		deselectBook();
+		if (!preserveSelection) deselectBook();
 		shelfDraggedPositions.clear();
 		clearShelfPresentations();
 		isGridModeActive = !isGridModeActive;
@@ -1570,7 +1790,7 @@
 			Graph.d3ReheatSimulation();
 
 			// Skip rotation animations on mobile to prevent crashes
-			if (!isMobile) {
+			if (!isMobile && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 				// Animate book rotations on desktop only
 				for (let i = 0; i < restoredNodes.length; i++) {
 					const node = restoredNodes[i];
@@ -1591,7 +1811,7 @@
 						const duration = 1000;
 
 						function animateRotation(timestamp: number) {
-							if (isDestroyed) return;
+							if (isDestroyed || isGridModeActive) return;
 							if (!startTime) startTime = timestamp;
 							const progress = Math.min((timestamp - startTime) / duration, 1);
 							const easeProgress = 1 - Math.pow(1 - progress, 3);
@@ -1657,7 +1877,8 @@
 	}
 
 	function customForce() {
-		if (!Graph) return;
+		if (!Graph || !shelfLayoutDirty) return;
+		shelfLayoutDirty = false;
 
 		let nodes = Graph.graphData().nodes.filter((node: Node) => node.group === 'book') as Node[];
 		const ddcNodes = Graph.graphData().nodes.filter(
@@ -1990,6 +2211,7 @@
 	.graph-container {
 		width: 100vw;
 		height: 100vh;
+		touch-action: none;
 		opacity: 0;
 		transition: opacity 600ms ease;
 	}
