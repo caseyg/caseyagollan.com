@@ -55,6 +55,44 @@ function event(p: Properties, depth = 0): string {
  for (const key of ['slides-embed','video-embed']) for (const value of p[key] ?? []) if (typeof value === 'string') html += `<div class="presentation-embed">${sanitizePublishingHtml(value)}</div>`;
  return html;
 }
+export interface PostAction {
+ /** Past-tense phrase that completes "Casey ___ @someone", e.g. "replied to". */
+ verb: string;
+ /** The posts acted on, labelled by author handle where one is known. */
+ targets: { url: string; label: string; classes: string }[];
+}
+function safeUrl(value: unknown): value is string {
+ if (typeof value !== 'string') return false;
+ try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol) && !u.username && !u.password; } catch { return false; }
+}
+function targetLabel(post: Post, url: string): string {
+ const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === url);
+ const label = snapshot?.author.handle || snapshot?.author.name || replyUsername(url);
+ return label === url ? new URL(url).hostname.replace(/^www\./, '') : label;
+}
+/**
+ * What a reply, like or repost acts on, as data. The site states this once, in the post's
+ * meta line; feeds keep the sentence form from renderPostDetails.
+ */
+export function getPostAction(post: Post): PostAction | undefined {
+ const p = post.properties ?? {};
+ const reply = post.inReplyTo || text(p, 'in-reply-to');
+ if (safeUrl(reply)) return { verb: 'replied to', targets: [{ url: reply, label: targetLabel(post, reply), classes: 'u-in-reply-to' }] };
+ const reactions = new Map<string, string[]>();
+ const kinds = new Set<string>(post.indexActivities?.map(activity => activity.type) ?? []);
+ for (const [key, kind] of [['like-of', 'like'], ['repost-of', 'repost']]) for (const value of p[key] ?? []) if (safeUrl(value)) {
+  reactions.set(value, [...(reactions.get(value) ?? []), `u-${key}`]);
+  if (!post.indexActivities) kinds.add(kind);
+ }
+ if (!kinds.size) return undefined;
+ const verb = kinds.has('like') ? kinds.has('repost') ? 'liked and reposted' : 'liked' : 'reposted';
+ if (post.indexActivities) {
+  const url = post.socialSnapshots?.[0]?.url ?? post.indexActivities[0].target ?? [...reactions.keys()][0];
+  if (!safeUrl(url)) return undefined;
+  return { verb, targets: [{ url, label: targetLabel(post, url), classes: reactions.size === 1 ? [...reactions.values()][0].join(' ') : '' }] };
+ }
+ return { verb, targets: [...reactions].map(([url, classes]) => ({ url, label: targetLabel(post, url), classes: classes.join(' ') })) };
+}
 /** Shared semantic HTML for archive cards, permalinks, feeds and delivery text. */
 export function renderPostQuotations(post: Post): string {
  return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):'';}).join('');
@@ -65,14 +103,15 @@ export function renderReplyLabel(post: Post): string {
  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
  return sanitizePublishingHtml(`<p>In reply to ${link(reply, snapshot?.author.handle || snapshot?.author.name || replyUsername(reply), 'u-in-reply-to')}</p>`);
 }
-export function renderReplyContext(post: Post, options: {omitLabel?: boolean} = {}): string {
+/** `omitSource` drops the context post's outbound link: on the site the reply's own card carries the links out. */
+export function renderReplyContext(post: Post, options: {omitLabel?: boolean; omitSource?: boolean} = {}): string {
  const reply = post.inReplyTo || text(post.properties ?? {}, 'in-reply-to');
  if (!reply) return '';
  const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === reply);
  if (options.omitLabel && !snapshot) return '';
- return sanitizePublishingHtml(`<div class="social-reply-context">${options.omitLabel ? '' : renderReplyLabel(post)}${snapshot ? renderSocialSnapshot(snapshot) : ''}</div>`);
+ return sanitizePublishingHtml(`<div class="social-reply-context">${options.omitLabel ? '' : renderReplyLabel(post)}${snapshot ? renderSocialSnapshot(snapshot, {omitSource: options.omitSource}) : ''}</div>`);
 }
-export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean}={}): string {
+export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean;omitReactionLabel?:boolean}={}): string {
  const p = post.properties ?? {};
  let html = '';
  const reactions = new Map<string, {labels: string[]; classes: string[]}>();
@@ -87,12 +126,12 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;o
   const kinds = new Set(post.indexActivities.map(activity=>activity.type));
   const label = kinds.has('like') ? kinds.has('repost') ? 'Liked and reposted' : 'Liked' : 'Reposted';
   const classes = [...reactions.keys()].length === 1 ? [...reactions.values()][0].classes.join(' ') : '';
-  html += `<p>${label} ${link(target,snapshot ? 'post' : target,classes)}</p>`;
+  if (!options.omitReactionLabel) html += `<p>${label} ${link(target,snapshot ? 'post' : target,classes)}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
  } else for (const [value,reaction] of reactions) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === value);
   const label = reaction.labels.join(' and ').replace('and Reposted','and reposted');
-  html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;
+  if (!options.omitReactionLabel) html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;
   if (snapshot) html += renderSocialSnapshot(snapshot);
  }
  if (!options.omitReply) html += renderReplyContext(post);

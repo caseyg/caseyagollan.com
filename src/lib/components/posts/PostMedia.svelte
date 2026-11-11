@@ -10,7 +10,7 @@
 </script>
 
 {#if photos && photos.length > 0}
-	<div class="photo-content">
+	<div class="media">
 		{#each photos as img (img.url)}
 			<figure>
 				<img src={img.url} alt={img.alt ?? 'Photo'} class="u-photo" loading="lazy" />
@@ -23,7 +23,7 @@
 {/if}
 
 {#if videos && videos.length > 0}
-	<div class="video-content">
+	<div class="media">
 		{#each videos as vid (vid.url)}
 			<figure>
 				<!-- svelte-ignore a11y_media_has_caption -->
@@ -39,13 +39,12 @@
 {/if}
 
 <style>
-	.photo-content,
-	.video-content {
-		margin: 0.5rem 0;
+	.media {
+		margin: var(--space-2) 0;
 	}
 
 	figure {
-		margin: 0 0 1rem;
+		margin: 0 0 var(--space-4);
 	}
 
 	figure:last-child {
@@ -57,13 +56,14 @@
 		display: block;
 		max-width: 100%;
 		height: auto;
-		border-radius: 4px;
+		border-radius: var(--radius-sm);
 	}
 
 	figcaption {
-		margin-top: 0.5rem;
-		font-size: 0.875rem;
-		color: rgba(255, 255, 255, 0.7);
-		line-height: 1.4;
+		margin-top: var(--space-2);
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
+		line-height: var(--lh-snug);
+		text-wrap: pretty;
 	}
 </style>

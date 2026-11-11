@@ -2,6 +2,7 @@
  import { onMount } from 'svelte';
  import type { PageData } from './$types';
  import type { Candidate } from '$lib/server/readwise';
+ import { Button, Checkbox, Chip, Heading, Notice, Page, TextField } from '$lib/components/ui';
  let { data }: { data: PageData } = $props();
  let items = $state<Candidate[]>([]);
  let selected = $state<string[]>([]);
@@ -67,91 +68,75 @@
 </script>
 
 <svelte:head><title>Readwise · Casey Gollan</title><meta name="robots" content="noindex, nofollow" /></svelte:head>
-<main>
+<Page as="main" width="wide" class="readwise">
  <nav><a href="/">Casey Gollan</a><a href="/account">Account</a></nav>
- <header><p class="eyebrow">PRIVATE IMPORT QUEUE</p><h1>Readwise</h1>
+ <header><Heading as="p" size="label">Private import queue</Heading><Heading level={1} size="display">Readwise</Heading>
  <p class="muted">Choose what belongs on your site. Previews stay private until you import.</p></header>
  <details class="help"><summary>What gets imported?</summary><aside>Imports publish the title, URL, summary below, and selected tags, dated when saved to Reader. Personal notes are never imported. Days use America/New_York time. Day controls apply to loaded items. Dismissals save only Readwise IDs.</aside></details>
  <div class="toolbar">
-  <label><input type="checkbox" disabled={busy || !pending.length} checked={checked(pending)} indeterminate={selected.length > 0 && !checked(pending)} onchange={e => toggle(pending, e.currentTarget.checked)} /> Select all loaded</label>
-  <button class="primary" disabled={busy || !selected.length} onclick={() => act('import', items.filter(i => selected.includes(i.id)))}>Import selected · {selected.length}</button>
-  <button disabled={busy || !selected.length} onclick={() => act('dismiss', items.filter(i => selected.includes(i.id)))}>Dismiss selected</button>
+  <Checkbox disabled={busy || !pending.length} checked={checked(pending)} indeterminate={selected.length > 0 && !checked(pending)} onchange={(e: Event & { currentTarget: HTMLInputElement }) => toggle(pending, e.currentTarget.checked)}>Select all loaded</Checkbox>
+  <Button size="sm" variant="primary" disabled={busy || !selected.length} onclick={() => act('import', items.filter(i => selected.includes(i.id)))}>Import selected · {selected.length}</Button>
+  <Button size="sm" disabled={busy || !selected.length} onclick={() => act('dismiss', items.filter(i => selected.includes(i.id)))}>Dismiss selected</Button>
  </div>
  <datalist id="existing-tags">{#each tagOptions as tag}<option value={tag}></option>{/each}</datalist>
- <div aria-live="polite">{#if message}<p>{message}</p>{/if}{#if busy}<p>Working…</p>{/if}</div>
- {#if failure}<p role="alert" class="failure">{failure}</p>{/if}
+ <div class="status" aria-live="polite">{#if message}<p>{message}</p>{/if}{#if busy}<p>Working…</p>{/if}</div>
+ {#if failure}<Notice tone="error">{failure}</Notice>{/if}
  {#each groups as group (group.day)}
   <section>
-   <div class="day"><label><input type="checkbox" disabled={busy || !group.pending.length} checked={checked(group.pending)} indeterminate={group.pending.some(i => selected.includes(i.id)) && !checked(group.pending)} onchange={e => toggle(group.pending, e.currentTarget.checked)} /> <strong>{group.day}</strong></label><span>{group.pending.length} pending · {group.items.length - group.pending.length} imported</span><button disabled={busy || !group.pending.length} onclick={() => act('dismiss', group.pending)}>Dismiss day</button></div>
+   <div class="day"><Checkbox disabled={busy || !group.pending.length} checked={checked(group.pending)} indeterminate={group.pending.some(i => selected.includes(i.id)) && !checked(group.pending)} onchange={(e: Event & { currentTarget: HTMLInputElement }) => toggle(group.pending, e.currentTarget.checked)}><strong>{group.day}</strong></Checkbox><span>{group.pending.length} pending · {group.items.length - group.pending.length} imported</span><Button size="sm" disabled={busy || !group.pending.length} onclick={() => act('dismiss', group.pending)}>Dismiss day</Button></div>
    {#each group.items as item (item.id)}
     <article>
      {#if imported[item.id]}
-      <div class="preview"><p>Imported</p><h2><a href={imported[item.id]}>{item.title}</a></h2><p><a href={imported[item.id]}>View post →</a></p></div>
+      <div class="preview"><p class="source">Imported</p><h2><a href={imported[item.id]}>{item.title}</a></h2><p><a href={imported[item.id]}>View post →</a></p></div>
      {:else}
-     <input type="checkbox" aria-label={`Select ${item.title}`} disabled={busy} checked={selected.includes(item.id)} onchange={e => toggle([item], e.currentTarget.checked)} />
-     <div class="preview"><p class="source">{new URL(item.url).hostname} · {item.category}</p><h2><a href={item.url} target="_blank" rel="noreferrer noopener">{item.title}</a></h2><details class="item-details"><summary>Edit details <span class="detail-hint">· summary &amp; tags{item.tags.length ? ` · ${item.tags.length} ${item.tags.length === 1 ? 'tag' : 'tags'}` : ''}</span></summary>{#if item.author}<p class="author">{item.author}</p>{/if}<label class="editor">Summary<textarea maxlength="4000" disabled={busy} bind:value={item.summary}></textarea></label>
-      <div class="tags">{#each item.tags as tag}<button disabled={busy} aria-label={`Remove tag ${tag}`} onclick={() => item.tags = item.tags.filter(t => t !== tag)}>{tag} ×</button>{/each}</div>
-      <label class="editor">Add tag<input class="tag-input" list="existing-tags" maxlength="100" disabled={busy} bind:value={tagDraft[item.id]} onkeydown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(item); } }} /></label><button disabled={busy || !tagDraft[item.id]?.trim()} onclick={() => addTag(item)}>Add tag</button><p class="url"><a href={item.url} target="_blank" rel="noreferrer noopener">{item.url}</a></p></details></div>
-     <button disabled={busy} aria-label={`Dismiss ${item.title}`} onclick={() => act('dismiss', [item])}>Dismiss</button>
+     <Checkbox aria-label={`Select ${item.title}`} disabled={busy} checked={selected.includes(item.id)} onchange={(e: Event & { currentTarget: HTMLInputElement }) => toggle([item], e.currentTarget.checked)} />
+     <div class="preview"><p class="source">{new URL(item.url).hostname} · {item.category}</p><h2><a href={item.url} target="_blank" rel="noreferrer noopener">{item.title}</a></h2><details class="item-details"><summary>Edit details <span class="detail-hint">· summary &amp; tags{item.tags.length ? ` · ${item.tags.length} ${item.tags.length === 1 ? 'tag' : 'tags'}` : ''}</span></summary>{#if item.author}<p class="author">{item.author}</p>{/if}<TextField multiline label="Summary" maxlength={4000} disabled={busy} bind:value={item.summary} />
+      <div class="tags">{#each item.tags as tag}<Chip variant="soft" disabled={busy} aria-label={`Remove tag ${tag}`} onclick={() => item.tags = item.tags.filter(t => t !== tag)}>{tag} ×</Chip>{/each}</div>
+      <TextField label="Add tag" list="existing-tags" maxlength={100} disabled={busy} bind:value={tagDraft[item.id]} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); addTag(item); } }} /><Button size="sm" disabled={busy || !tagDraft[item.id]?.trim()} onclick={() => addTag(item)}>Add tag</Button><p class="url"><a href={item.url} target="_blank" rel="noreferrer noopener">{item.url}</a></p></details></div>
+     <Button size="sm" disabled={busy} aria-label={`Dismiss ${item.title}`} onclick={() => act('dismiss', [item])}>Dismiss</Button>
      {/if}
     </article>
    {/each}
   </section>
  {/each}
  {#if loaded && !items.length}<p>{cursor ? 'No pending bookmarks on this page. Continue loading to review more.' : 'You’re all caught up. No pending bookmarks.'}</p>{/if}
- {#if cursor || !loaded}<button class="more" disabled={busy} onclick={loadMore}>{loaded ? 'Load more from Readwise' : 'Load Readwise'}</button>{/if}
-</main>
+ {#if cursor || !loaded}<div class="more"><Button disabled={busy} onclick={loadMore}>{loaded ? 'Load more from Readwise' : 'Load Readwise'}</Button></div>{/if}
+</Page>
 <style>
- :global(body) { background:var(--bg-primary); color:var(--text-primary); font-size:14px; font-weight:400; }
- main { font-size:14px; font-weight:400; line-height:1.5; max-width:54rem; margin:auto; padding:24px 24px 64px; }
- nav { display:flex; justify-content:space-between; font-size:14px; }
- a { color:inherit; text-underline-offset:.18em; }
- header { margin:28px 0 10px; }
- h1 { font-size:32px; line-height:1.1; margin:4px 0 8px; font-weight:400; letter-spacing:-1px; }
- .eyebrow,.source { font-size:11px; letter-spacing:.04em; }
- .eyebrow { margin:0; }
- .muted,.source,.author,.url,.detail-hint { color:var(--text-secondary); }
- p { margin:4px 0; }
- .help { font-size:12px; margin-bottom:12px; }
- summary { cursor:pointer; width:fit-content; }
- summary:hover { color:white; }
- aside { max-width:42rem; margin:8px 0; line-height:1.5; }
- .toolbar { position:sticky; top:0; background:var(--bg-primary); z-index:1; display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; padding:10px 0; border-bottom:1px solid var(--border); }
- label { display:flex; align-items:center; gap:8px; cursor:pointer; }
- input[type="checkbox"] { width:16px; height:16px; margin:0; accent-color:blue; flex-shrink:0; }
- button { border:1px solid rgba(255,255,255,.5); border-radius:0; padding:4px 8px; background:transparent; color:inherit; cursor:pointer; font:inherit; font-size:12px; }
- button:hover:not(:disabled) { background:var(--accent); border-color:var(--accent); }
- button:disabled { opacity:.45; cursor:default; }
- .primary { background:var(--accent); border-color:var(--accent); }
- :is(a,button,input,textarea,summary):focus-visible { outline:2px solid white; outline-offset:3px; }
- .day { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; margin-top:16px; padding:8px 0; font-size:12px; }
- .day span { flex:1; color:var(--text-secondary); }
- article { display:flex; align-items:flex-start; gap:12px; border-top:1px solid var(--border); padding:10px 0; }
- article > input { margin-top:5px !important; }
- article > button { margin-top:2px; }
- .preview { flex:1; min-width:0; }
- h2 { font-size:16px; font-weight:400; line-height:1.35; margin:2px 0; }
- h2 a { text-decoration:none; }
- h2 a:hover { text-decoration:underline; }
- .source { margin:0; }
- .author { font-size:12px; }
- .item-details { margin-top:4px; font-size:12px; }
- .item-details[open] { margin-top:8px; }
- .url { overflow-wrap:anywhere; font-size:11px; margin-top:10px; }
- .failure { padding:10px; border:1px solid white; }
- .editor { display:flex; flex-direction:column; align-items:stretch; gap:4px; margin:10px 0; font-size:12px; }
- textarea { min-height:64px; resize:vertical; font:inherit; padding:6px; border:1px solid rgba(255,255,255,.5); border-radius:0; background:transparent; color:inherit; }
- input.tag-input { width:100%; box-sizing:border-box; font:inherit; padding:5px 6px; border:1px solid rgba(255,255,255,.5); border-radius:0; background:transparent; color:inherit; }
- .tags { display:flex; flex-wrap:wrap; gap:4px; }
- .more { margin-top:16px; }
- @media(max-width:600px) {
-  main { padding:16px 14px 48px; }
-  header { margin-top:20px; }
-  .toolbar { gap:8px; font-size:12px; }
-  .toolbar label { flex-basis:100%; }
-  article { gap:8px; }
-  .detail-hint { display:none; }
-  .day { gap:6px 10px; }
-  .day span { font-size:11px; }
+ /* A dense working view: one step down the type scale from reading pages. */
+ :global(.readwise) { font-size: var(--fs-sm); line-height: var(--lh-normal); }
+ nav { display: flex; justify-content: space-between; }
+ a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
+ header { margin: var(--space-6) 0 var(--space-3); }
+ header :global(.heading--display) { margin: var(--space-1) 0 var(--space-2); }
+ .muted, .source, .author, .url, .detail-hint { color: var(--text-muted); }
+ p { margin: var(--space-1) 0; }
+ .help { margin-bottom: var(--space-3); font-size: var(--fs-xs); }
+ summary { width: fit-content; cursor: pointer; }
+ summary:hover { color: var(--text-primary); }
+ aside { max-width: 42rem; margin: var(--space-2) 0; color: var(--text-secondary); }
+ .toolbar { position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); padding: var(--space-3) 0; border-bottom: 1px solid var(--border); background: var(--bg-primary); }
+ .status p { color: var(--text-secondary); }
+ .day { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-top: var(--space-4); padding: var(--space-2) 0; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+ .day span { flex: 1; color: var(--text-muted); }
+ article { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--border-subtle); }
+ .preview { flex: 1; min-width: 0; }
+ h2 { margin: 2px 0; font-size: var(--fs-base); font-weight: var(--fw-regular); line-height: var(--lh-snug); text-wrap: pretty; }
+ h2 a { text-decoration: none; }
+ h2 a:hover { text-decoration: underline; }
+ .source { margin: 0; font-size: var(--fs-2xs); letter-spacing: var(--tracking-wide); }
+ .author { font-size: var(--fs-xs); }
+ .item-details { margin-top: var(--space-1); font-size: var(--fs-xs); }
+ .item-details[open] { margin-top: var(--space-2); }
+ .url { margin-top: var(--space-3); font-size: var(--fs-2xs); overflow-wrap: anywhere; }
+ .tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+ .more { margin-top: var(--space-4); }
+ @media (max-width: 600px) {
+  header { margin-top: var(--space-5); }
+  .toolbar { gap: var(--space-2); font-size: var(--fs-xs); }
+  .toolbar :global(.checkbox) { flex-basis: 100%; }
+  article { gap: var(--space-2); }
+  .detail-hint { display: none; }
+  .day { gap: var(--space-1) var(--space-3); }
  }
 </style>

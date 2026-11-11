@@ -719,7 +719,7 @@
         padding: var(--spacing-md);
         overflow-x: auto;
         scroll-behavior: smooth;
-        border-top: 1px solid rgba(255, 255, 255, 0.15);
+        border-top: 1px solid var(--border);
         -webkit-overflow-scrolling: touch;
     }
 
@@ -808,9 +808,10 @@
         max-width: var(--content-max-width);
         margin: 0 auto;
         padding: var(--spacing-lg) var(--spacing-md);
-        font-size: 1.125rem;
-        font-weight: 300;
+        font-size: var(--fs-md);
+        font-weight: var(--fw-light);
         line-height: 1.6;
+        text-wrap: pretty;
     }
 
     .two-column-section {
@@ -820,11 +821,12 @@
     }
 
     .info-section h2 {
-        font-size: 1.75rem;
-        font-weight: 400;
+        font-size: var(--fs-2xl);
+        font-weight: var(--fw-regular);
         margin-bottom: 1rem;
-        color: white;
+        color: var(--text-primary);
         line-height: 1.3;
+        letter-spacing: var(--tracking-tight);
     }
 
     .info-section p {
@@ -844,7 +846,8 @@
     .info-section li strong {
         font-variant: small-caps;
         text-transform: lowercase;
-        font-weight: 600;
+        font-weight: var(--fw-semibold);
+        letter-spacing: 0.02em;
     }
 
     /* Sisu image */
