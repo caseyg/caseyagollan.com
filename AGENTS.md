@@ -21,6 +21,10 @@ Use Bun for package management and local scripts. Run tests and a production bui
 - `src/routes/+page.svelte`: interactive bio and homepage.
 - `src/lib/components/SkillsGraph.svelte`: D3 skills visualization.
 - `src/routes/library/[[isbn]]/`: Three.js book graph and detail view.
+- `src/app.css`: design tokens (color, type scale, space, radius, motion) and global base styles. Use tokens instead of literal values.
+- `src/lib/components/ui/`: presentational primitives (`Page`, `PageHeader`, `Heading`, `Button`, `Chip`, `SegmentedPill`, `SelectMenu`, `TextField`, `Checkbox`, `Notice`, `Section`, `Prose`, ...). Compose these before writing new one-off styles.
+- `src/lib/components/posts/`: post components built from the primitives; routes render feeds with `PostFeed`.
+- `.storybook/` and `*.stories.{ts,svelte}`: Storybook, published at `/storybook/`. Add a story for each new component; `Foundations/Tokens` documents the tokens.
 - `src/lib/posts.ts`: Vite-bundled Markdown snapshot; shared parsing is limited to production builds.
 - `src/lib/server/`: shared Markdown parser and server-side content helpers.
 - `content/`: canonical Git submodule. Preserve it; do not add another copy under `src/`.

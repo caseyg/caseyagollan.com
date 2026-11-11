@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Chip } from '$lib/components/ui';
+	import { socialSource } from '$lib/social-card';
 	import WebmentionCounts from '$lib/components/WebmentionCounts.svelte';
 	import { POST_TYPE_PLURALS } from '$lib/posts-types';
 	import { formatRelativeDate, formatAbsoluteDate } from '$lib/utils/formatDate';
@@ -14,9 +16,11 @@
 		category?: string | string[];
 		activeTag?: string;
 		indexActivities?: import('$lib/posts-types').Post['indexActivities'];
+		/** For replies, likes and reposts: the verb and whose post it acts on. */
+		action?: import('$lib/utils/post-details').PostAction;
 	}
 
-	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag, indexActivities }: Props = $props();
+	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag, indexActivities, action }: Props = $props();
 
 	function getCategories(cat: string | string[] | undefined): string[] {
 		if (!cat) return [];
@@ -45,58 +49,47 @@
 		return TYPE_ICONS[t] || '📌';
 	}
 
-	function getSyndicationInfo(link: string): { icon: string; title: string } {
-		if (link.includes('social.coop') || link.includes('mastodon')) {
-			return { icon: '🐘', title: 'View on Mastodon' };
-		} else if (link.includes('bsky.app')) {
-			return { icon: '🦋', title: 'View on Bluesky' };
-		} else if (link.includes('twitter.com') || link.includes('x.com')) {
-			return { icon: '🐦', title: 'View on X' };
-		} else {
-			return { icon: '🔗', title: link };
-		}
-	}
+	// Notes and replies render as a card, which carries its own outbound links in its header.
+	const hasCard = $derived(type === 'note' || type === 'reply');
+	const metaSyndication = $derived(hasCard ? [] : (syndication ?? []));
 </script>
 
 <div class="post-meta">
-	<div class="meta-primary">
+	<div class="meta-group meta-primary">
 		{#if showType}
 			{#if activityTypes}
 				{#each activityTypes as activity, i (activity.permalink)}
-					{#if i > 0}<span>and</span>{/if}
-					<a href={activity.permalink} class="post-type" title={formatAbsoluteDate(activity.date)}>{getTypeIcon(activity.type)} {activity.type === 'like' ? 'liked' : 'reposted'}</a>
+					{#if i > 0}<span class="joiner">and</span>{/if}
+					<Chip href={activity.permalink} class="post-type" title={formatAbsoluteDate(activity.date)}><span aria-hidden="true">{getTypeIcon(activity.type)}</span> {activity.type === 'like' ? 'liked' : 'reposted'}</Chip>
 				{/each}
 			{:else}
-			<a href={type === 'wiki' ? 'https://cag.wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type">{getTypeIcon(type)} {type}</a>
+				<Chip href={type === 'wiki' ? 'https://cag.wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type"><span aria-hidden="true">{getTypeIcon(type)}</span> {action?.verb ?? type}</Chip>
 			{/if}
 		{/if}
+		{#each action?.targets ?? [] as target (target.url)}
+			<Chip href={target.url} class="post-target {target.classes}" title="View the original post">{target.label}</Chip>
+		{/each}
 		{#if date}
-			<a href={permalink} class="u-url permalink" title={formatAbsoluteDate(date)}>
-				<span class="permalink-icon">🔗</span>
+			<Chip href={permalink} class="u-url permalink" title={formatAbsoluteDate(date)}>
 				<time class="dt-published" datetime={date}>{formatRelativeDate(date)}</time>
-			</a>
+			</Chip>
 		{:else if year}
-			<a href={permalink} class="u-url permalink" title="Publication year">
-				<span class="permalink-icon">🔗</span>
+			<Chip href={permalink} class="u-url permalink" title="Publication year">
 				<time datetime={year}>{year}</time>
-			</a>
+			</Chip>
 		{/if}
 		{#each categories as cat (cat)}
-			<a href="/tag/{cat.toLowerCase()}/" class="p-category category-tag" class:active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</a>
+			<Chip href="/tag/{cat.toLowerCase()}/" class="p-category" active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</Chip>
 		{/each}
 	</div>
-	{#if showInteractions && (syndication && syndication.length > 0)}
-		<div class="meta-secondary">
-			{#each syndication as link (link)}
-				{@const synInfo = getSyndicationInfo(link)}
-				<a href={link} class="u-syndication syndication-link" title={synInfo.title} target="_blank" rel="noopener">
-					{synInfo.icon}
-				</a>
+	{#if showInteractions}
+		<div class="meta-group meta-secondary">
+			{#each metaSyndication as link (link)}
+				{@const source = socialSource(link)}
+				<Chip href={link} size="sm" class="u-syndication" title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>
 			{/each}
 			<WebmentionCounts url={permalink} />
 		</div>
-	{:else if showInteractions}
-		<WebmentionCounts url={permalink} />
 	{/if}
 </div>
 
@@ -106,71 +99,51 @@
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.5rem;
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.6);
-		margin-bottom: 0.5rem;
+		gap: var(--space-1) var(--space-2);
+		margin-bottom: var(--space-2);
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+		line-height: var(--lh-snug);
+	}
+
+	/* Chips carry their own padding; pull each group out so text aligns with the column. */
+	.meta-group {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0;
 	}
 
 	.meta-primary {
-		display: flex;
-		align-items: center;
-		gap: 0.125rem;
-		margin-left: -0.5rem;
+		margin-left: calc(-1 * var(--space-2));
 	}
 
 	.meta-secondary {
-		display: flex;
-		align-items: center;
-		gap: 0.125rem;
-		margin-right: -0.5rem;
+		margin-right: calc(-1 * var(--space-2));
+		margin-left: auto;
 	}
 
-	.post-type,
-	.permalink,
-	.syndication-link,
-	.category-tag {
-		color: inherit;
-		text-decoration: none;
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
-		transition: background 0.15s ease, color 0.15s ease;
+	.meta-secondary:empty {
+		display: none;
 	}
 
-	.post-type:hover,
-	.permalink:hover,
-	.syndication-link:hover,
-	.category-tag:hover {
-		background: rgba(255, 255, 255, 0.15);
-		color: #fff;
+	/* The verb chip and its target read as one phrase. */
+	.meta-primary :global(.post-type + .post-target) {
+		margin-left: calc(-1 * var(--space-2));
+		color: var(--text-secondary);
 	}
 
-	.category-tag.active {
-		background: rgba(255, 255, 255, 0.2);
-		color: #fff;
+	.meta-primary :global(.post-target) {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
-	.permalink {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.25rem;
+	.joiner {
+		padding: 0 var(--space-1);
 	}
 
-	.permalink-icon {
-		opacity: 0.6;
-		font-size: 0.7em;
-	}
-
-	.permalink:hover .permalink-icon {
-		opacity: 1;
-	}
-
-	.syndication-link {
-		font-size: 0.875rem;
-		opacity: 0.7;
-	}
-
-	.syndication-link:hover {
-		opacity: 1;
+	time {
+		font-variant-numeric: tabular-nums;
 	}
 </style>

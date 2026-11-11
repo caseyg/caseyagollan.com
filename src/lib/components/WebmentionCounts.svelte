@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import Chip from '$lib/components/ui/Chip.svelte';
 
 	interface Props {
 		url: string;
@@ -40,33 +41,21 @@
 </script>
 
 {#if loaded && (likes > 0 || reposts > 0 || replies > 0)}
-	<a href="{url}#webmentions" class="webmention-counts" title="{likes} favorite{likes !== 1 ? 's' : ''}, {reposts} repost{reposts !== 1 ? 's' : ''}, {replies} repl{replies === 1 ? 'y' : 'ies'}">
-		{#if likes > 0}<span class="wm-count">⭐{likes}</span>{/if}
-		{#if reposts > 0}<span class="wm-count">🔁{reposts}</span>{/if}
-		{#if replies > 0}<span class="wm-count">💬{replies}</span>{/if}
-	</a>
+	<Chip href="{url}#webmentions" class="webmention-counts" title="{likes} favorite{likes !== 1 ? 's' : ''}, {reposts} repost{reposts !== 1 ? 's' : ''}, {replies} repl{replies === 1 ? 'y' : 'ies'}">
+		{#if likes > 0}<span class="wm-count"><span aria-hidden="true">⭐</span>{likes}</span>{/if}
+		{#if reposts > 0}<span class="wm-count"><span aria-hidden="true">🔁</span>{reposts}</span>{/if}
+		{#if replies > 0}<span class="wm-count"><span aria-hidden="true">💬</span>{replies}</span>{/if}
+	</Chip>
 {/if}
 
 <style>
-	.webmention-counts {
-		display: inline-flex;
-		gap: 0.375rem;
-		text-decoration: none;
-		color: inherit;
-		font-size: 0.75rem;
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
-		transition: background 0.15s ease, color 0.15s ease;
-		opacity: 0.7;
-	}
-
-	.webmention-counts:hover {
-		background: rgba(255, 255, 255, 0.15);
-		color: #fff;
-		opacity: 1;
-	}
-
 	.wm-count {
-		opacity: 0.9;
+		display: inline-flex;
+		gap: 0.2em;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.wm-count + .wm-count {
+		margin-left: 0.25em;
 	}
 </style>

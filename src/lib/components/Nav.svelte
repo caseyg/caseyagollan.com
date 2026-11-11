@@ -11,18 +11,18 @@
 	} = $props();
 </script>
 
-<div class="nav-toggles">
+<nav class="nav-toggles" aria-label="Site">
 	<Search onResultClick={onSearchResultClick} />
 	{#if currentPage !== 'home'}
-		<a href="/">👋</a>
+		<a href="/" aria-label="Home" title="Home"><span aria-hidden="true">👋</span></a>
 	{/if}
 	{#if currentPage !== 'library'}
-		<a href="/library/">📚</a>
+		<a href="/library/" aria-label="Library" title="Library"><span aria-hidden="true">📚</span></a>
 	{/if}
 	{#if currentPage !== 'posts' || showPostsLink}
-		<a href="/posts/">📡</a>
+		<a href="/posts/" aria-label="Posts" title="Posts"><span aria-hidden="true">📡</span></a>
 	{/if}
-</div>
+</nav>
 
 <style>
 	.nav-toggles {
@@ -31,11 +31,11 @@
 		right: 5px;
 		display: flex;
 		gap: 5px;
-		z-index: 1000;
+		z-index: var(--z-nav);
 	}
 
 	.nav-toggles a {
-		background-color: blue;
+		background-color: var(--accent);
 		border: none;
 		color: white;
 		text-align: center;
@@ -48,9 +48,10 @@
 		cursor: pointer;
 		padding: 0 10px;
 		line-height: 1.5;
+		transition: background-color var(--duration) var(--ease);
 	}
 
 	.nav-toggles a:hover {
-		background-color: rgb(73, 73, 255);
+		background-color: var(--accent-hover);
 	}
 </style>

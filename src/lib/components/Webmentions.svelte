@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { Avatar, Heading } from '$lib/components/ui';
 
 	interface WebmentionAuthor {
 		name: string;
@@ -122,274 +123,197 @@
 	});
 </script>
 
+{#snippet facepile(icon: string, label: string, people: Webmention[])}
+	<div class="facepile">
+		<Heading level={4} size="label"><span aria-hidden="true">{icon}</span> {label}</Heading>
+		<ul class="faces">
+			{#each people as person (person['wm-id'])}
+				<li>
+					<a href={person.author.url} target="_blank" rel="noopener" title={person.author.name}>
+						<Avatar src={person.author.photo} name={person.author.name} />
+					</a>
+				</li>
+			{/each}
+		</ul>
+	</div>
+{/snippet}
+
 {#if !loading && (likes.length > 0 || reposts.length > 0 || replies.length > 0)}
 	<section class="webmentions" id="webmentions">
-		<h3>Webmentions</h3>
+		<Heading level={3} size="subtitle">Webmentions</Heading>
 
 		{#if likes.length > 0}
-			<div class="webmentions__facepile">
-				<h4>⭐ {likes.length} favorite{likes.length !== 1 ? 's' : ''}</h4>
-				<ul class="webmentions__faces">
-					{#each likes as like (like['wm-id'])}
-						<li>
-							<a
-								href={like.author.url}
-								target="_blank"
-								rel="noopener"
-								title={like.author.name}
-							>
-								{#if like.author.photo}
-									<img
-										src={like.author.photo}
-										alt={like.author.name}
-										loading="lazy"
-										width="48"
-										height="48"
-									/>
-								{:else}
-									<span class="avatar-placeholder">{like.author.name?.charAt(0) || '?'}</span>
-								{/if}
-							</a>
-						</li>
-					{/each}
-				</ul>
-			</div>
+			{@render facepile('⭐', `${likes.length} favorite${likes.length !== 1 ? 's' : ''}`, likes)}
 		{/if}
 
 		{#if reposts.length > 0}
-			<div class="webmentions__facepile">
-				<h4>🔁 {reposts.length} repost{reposts.length !== 1 ? 's' : ''}</h4>
-				<ul class="webmentions__faces">
-					{#each reposts as repost (repost['wm-id'])}
-						<li>
-							<a
-								href={repost.author.url}
-								target="_blank"
-								rel="noopener"
-								title={repost.author.name}
-							>
-								{#if repost.author.photo}
-									<img
-										src={repost.author.photo}
-										alt={repost.author.name}
-										loading="lazy"
-										width="48"
-										height="48"
-									/>
-								{:else}
-									<span class="avatar-placeholder">{repost.author.name?.charAt(0) || '?'}</span>
-								{/if}
-							</a>
-						</li>
-					{/each}
-				</ul>
-			</div>
+			{@render facepile('🔁', `${reposts.length} repost${reposts.length !== 1 ? 's' : ''}`, reposts)}
 		{/if}
 
 		{#if replies.length > 0}
-			<h4>💬 {replies.length} repl{replies.length === 1 ? 'y' : 'ies'}</h4>
-			<ol class="webmentions__list">
-				{#each replies as reply (reply['wm-id'])}
-					<li class="webmentions__item">
-						{#if reply['wm-property'] === 'mention-of' && !reply.content}
-							<div class="webmention webmention--mention h-cite">
-								<span class="webmention__icon">🔗</span>
-								<span class="webmention__text">
-									mentioned by <a href={reply.url} target="_blank" rel="noopener" class="u-url">{truncateUrl(reply.url)}</a>
-								</span>
-							</div>
-						{:else}
-							<article class="webmention h-cite">
-								<div class="webmention__author p-author h-card">
-									{#if reply.author.photo}
-										<img
-											class="u-photo"
-											src={reply.author.photo}
-											alt={reply.author.name}
-											width="48"
-											height="48"
-										/>
-									{:else}
-										<span class="avatar-placeholder">{reply.author.name?.charAt(0) || '?'}</span>
-									{/if}
-									{#if reply.author.name}
-										<a
-											class="p-name u-url"
-											href={reply.author.url}
-											target="_blank"
-											rel="noopener"
-										>{reply.author.name}</a>
-									{:else if reply.author.url}
-										<a
-											class="p-name u-url"
-											href={reply.author.url}
-											target="_blank"
-											rel="noopener"
-										>{truncateUrl(reply.author.url, 30)}</a>
-									{:else}
-										<span class="p-name">Unknown</span>
-									{/if}
+			<div class="replies">
+				<Heading level={4} size="label"><span aria-hidden="true">💬</span> {replies.length} repl{replies.length === 1 ? 'y' : 'ies'}</Heading>
+				<ol class="reply-list">
+					{#each replies as reply (reply['wm-id'])}
+						<li>
+							{#if reply['wm-property'] === 'mention-of' && !reply.content}
+								<div class="mention h-cite">
+									<span aria-hidden="true">🔗</span>
+									<span>mentioned by <a href={reply.url} target="_blank" rel="noopener" class="u-url">{truncateUrl(reply.url)}</a></span>
 								</div>
-								{#if reply.content}
-									<div class="webmention__content p-content">
-										{#if reply.content.html}
-											{@html sanitizeHtml(reply.content.html)}
-										{:else if reply.content.text}
-											{reply.content.text}
-										{:else if reply.content.value}
-											{@html sanitizeHtml(reply.content.value)}
+							{:else}
+								<article class="reply h-cite">
+									<Avatar src={reply.author.photo} name={reply.author.name} class="u-photo" />
+									<div class="reply-body">
+										<div class="reply-author p-author h-card">
+											{#if reply.author.name}
+												<a class="p-name u-url" href={reply.author.url} target="_blank" rel="noopener">{reply.author.name}</a>
+											{:else if reply.author.url}
+												<a class="p-name u-url" href={reply.author.url} target="_blank" rel="noopener">{truncateUrl(reply.author.url, 30)}</a>
+											{:else}
+												<span class="p-name">Unknown</span>
+											{/if}
+										</div>
+										{#if reply.content}
+											<div class="reply-content p-content">
+												{#if reply.content.html}
+													{@html sanitizeHtml(reply.content.html)}
+												{:else if reply.content.text}
+													{reply.content.text}
+												{:else if reply.content.value}
+													{@html sanitizeHtml(reply.content.value)}
+												{/if}
+											</div>
 										{/if}
+										<footer class="reply-meta">
+											{#if reply.published}
+												<time class="dt-published" datetime={reply.published}>{formatDate(reply.published)}</time>
+												<span aria-hidden="true">·</span>
+											{/if}
+											<span>via <a href={reply.url} target="_blank" rel="noopener">{truncateUrl(reply.url)}</a></span>
+										</footer>
 									</div>
-								{/if}
-								<footer class="webmention__meta">
-									{#if reply.published}
-										<time class="dt-published" datetime={reply.published}>
-											{formatDate(reply.published)}
-										</time>
-									{/if}
-									<span class="webmention__source">
-										via <a href={reply.url} target="_blank" rel="noopener">{truncateUrl(reply.url)}</a>
-									</span>
-								</footer>
-							</article>
-						{/if}
-					</li>
-				{/each}
-			</ol>
+								</article>
+							{/if}
+						</li>
+					{/each}
+				</ol>
+			</div>
 		{/if}
 	</section>
 {:else if loading}
-	<section class="webmentions webmentions--loading">
-		<p>Loading webmentions...</p>
+	<section class="webmentions webmentions--loading" aria-busy="true">
+		<p>Loading webmentions…</p>
 	</section>
 {/if}
 
 <style>
 	.webmentions {
-		margin-top: 3em;
-		padding-top: 2em;
-		border-top: 1px solid rgba(255, 255, 255, 0.2);
-	}
-
-	.webmentions h3 {
-		margin-top: 0;
-		margin-bottom: 1.5em;
-	}
-
-	.webmentions h4 {
-		margin-top: 1.5em;
-		margin-bottom: 0.75em;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-5);
+		margin-top: var(--space-7);
+		padding-top: var(--space-5);
+		border-top: 1px solid var(--border);
 	}
 
 	.webmentions--loading {
-		opacity: 0.6;
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
 	}
 
-	.webmentions__list {
-		list-style: none;
-		padding: 0;
+	.webmentions--loading p {
 		margin: 0;
 	}
 
-	.webmentions__item {
-		margin-bottom: 2em;
+	.faces,
+	.reply-list {
+		margin: var(--space-3) 0 0;
+		padding: 0;
+		list-style: none;
 	}
 
-	.webmention {
+	.faces {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.faces a {
+		display: block;
+		border-radius: var(--radius-full);
+		transition: opacity var(--duration) var(--ease);
+	}
+
+	.faces a:hover {
+		opacity: 0.8;
+	}
+
+	.reply-list {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75em;
+		gap: var(--space-5);
 	}
 
-	.webmention__author {
+	.reply {
 		display: flex;
-		align-items: center;
-		gap: 0.5em;
+		gap: var(--space-3);
 	}
 
-	.webmention__author img,
-	.webmention__author .avatar-placeholder {
-		width: 48px;
-		height: 48px;
-		border-radius: 50%;
-		flex-shrink: 0;
+	.reply-body {
+		flex: 1;
+		min-width: 0;
 	}
 
-	.avatar-placeholder {
+	.reply-author {
+		font-weight: var(--fw-semibold);
+		line-height: var(--lh-snug);
+	}
+
+	.reply-content {
+		margin-top: var(--space-1);
+		line-height: var(--lh-normal);
+		overflow-wrap: anywhere;
+		text-wrap: pretty;
+	}
+
+	.reply-content :global(p) {
+		margin: 0 0 var(--space-2);
+	}
+
+	.reply-meta,
+	.mention {
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
+		line-height: var(--lh-snug);
+	}
+
+	.reply-meta {
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: rgba(255, 255, 255, 0.2);
-		font-size: 1.25em;
-		font-weight: bold;
+		flex-wrap: wrap;
+		gap: 0.4em;
+		margin-top: var(--space-2);
+		font-size: var(--fs-xs);
 	}
 
-	.webmention__author a {
+	.mention {
+		display: flex;
+		gap: var(--space-2);
+		overflow-wrap: anywhere;
+	}
+
+	.webmentions a,
+	.reply-content :global(a) {
 		color: inherit;
+		text-decoration-thickness: from-font;
+		text-underline-offset: var(--underline-offset);
+	}
+
+	.reply-author a {
 		text-decoration: none;
 	}
 
-	.webmention__author a:hover {
+	.reply-author a:hover {
 		text-decoration: underline;
-	}
-
-	.webmention__content {
-		margin-left: 56px;
-		line-height: 1.5;
-	}
-
-	.webmention__content :global(a) {
-		color: rgb(150, 150, 255);
-	}
-
-	.webmention__meta {
-		margin-left: 56px;
-		font-size: 0.875em;
-		opacity: 0.7;
-		display: flex;
-		gap: 0.5em;
-		flex-wrap: wrap;
-	}
-
-	.webmention__meta a {
-		color: inherit;
-	}
-
-	.webmentions__faces {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5em;
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-
-	.webmentions__faces img,
-	.webmentions__faces .avatar-placeholder {
-		border-radius: 50%;
-		width: 48px;
-		height: 48px;
-	}
-
-	.webmentions__faces a {
-		display: block;
-	}
-
-	.webmentions__facepile {
-		margin-bottom: 2em;
-	}
-
-	.webmention--mention {
-		display: inline-flex;
-		gap: 0.5em;
-		align-items: center;
-	}
-
-	.webmention__icon {
-		font-size: 1.25em;
-	}
-
-	.webmention__text a {
-		color: rgb(150, 150, 255);
 	}
 </style>

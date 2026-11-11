@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Count, Heading, PageHeader } from '$lib/components/ui';
+
 	interface Props {
 		title: string;
 		count: number;
@@ -9,42 +11,14 @@
 	let { title, count, backLink = '/posts/', backText = 'All Posts' }: Props = $props();
 </script>
 
-<div class="header">
-	{#if backLink}
-		<a href={backLink} class="back-link">{backText}</a>
-	{/if}
-	<h1 class="page-title">{title} <span class="count">({count})</span></h1>
-</div>
+<PageHeader backHref={backLink} {backText}>
+	<Heading level={1} size="section" class="archive-title">{title} <Count value={count} label="{count} posts" /></Heading>
+</PageHeader>
 
 <style>
-	.header {
-		margin-bottom: 3rem;
-	}
-
-	.back-link {
-		color: rgba(255, 255, 255, 0.7);
-		text-decoration: none;
-		font-size: 0.875rem;
-		display: inline-block;
-		margin-bottom: 0.5rem;
-	}
-
-	.back-link:hover {
-		color: #fff;
-	}
-
-	.back-link::before {
-		content: '← ';
-	}
-
-	.page-title {
-		font-size: 1.5rem;
-		font-weight: 500;
-		margin: 0;
-	}
-
-	.count {
-		font-weight: 400;
-		color: rgba(255, 255, 255, 0.7);
+	:global(.archive-title) {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 	}
 </style>
