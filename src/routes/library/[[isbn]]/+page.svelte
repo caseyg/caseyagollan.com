@@ -85,6 +85,8 @@
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let Graph: any;
 	let isLoading = $state(true);
+	let sceneReady = $state(false);
+	const initialCover = data.initialBook?.img ? `/library/${data.initialBook.img}` : null;
 	let loadingProgress = $state('Loading library...');
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
@@ -627,7 +629,7 @@
 		});
 	}
 
-	function focusGraphBook(node: Node) {
+	function focusGraphBook(node: Node, animate = true) {
 		showHighResolutionCover(node);
 		if (isGridModeActive) presentShelfBook(node);
 		Graph.controls().minDistance = 0.1;
@@ -680,7 +682,11 @@
 				if (!startTime) startTime = timestamp;
 
 				const elapsed = timestamp - startTime;
-				const angle = elapsed * orbitSpeed * orbitDirection;
+				const angle = Math.PI / 2 + elapsed * orbitSpeed * orbitDirection;
+				// The force simulation keeps moving the selected book during startup.
+				const bookX = node.x || 0;
+				const bookY = node.y || 0;
+				const bookZ = node.z || 0;
 
 				// Orbit in XZ plane around the book
 				const cameraX = bookX + orbitRadius * Math.cos(angle);
@@ -698,9 +704,9 @@
 
 			// Start the orbit with a zoom-in first
 			Graph.cameraPosition(
-				{ x: bookX + orbitRadius, y: bookY + 10, z: bookZ },
+				{ x: bookX, y: bookY + 10, z: bookZ + orbitRadius },
 				{ x: bookX, y: bookY, z: bookZ },
-				1000
+				animate ? 1000 : 0
 			);
 
 			// Set up pause on user interaction
@@ -734,7 +740,7 @@
 				if (!isDestroyed && selectedBook === node) {
 					orbitAnimationId = scheduleFrame(orbitCamera);
 				}
-			}, 1000);
+			}, animate ? 1000 : 0);
 
 		}
 
@@ -1197,18 +1203,22 @@
 			restoreLibraryView();
 			window.addEventListener('popstate', restoreLibraryView);
 
-			// Mark loading complete after a short delay to ensure render is visible
+			// Prepare the selected camera before revealing the visualization.
 			scheduleFrame(() => {
-				isLoading = false;
-
 				// Attach the current selection to its graph node without reloading details.
 				if (selectedBook) {
 					const bookNode = graphData.nodes.find((node) => node.id === selectedBook?.id);
 					if (bookNode) {
 						selectedBook = bookNode;
-						focusGraphBook(bookNode);
+						focusGraphBook(bookNode, false);
 					}
 				}
+				// Paint the focused scene offscreen before crossfading the cover.
+				scheduleFrame(() => scheduleFrame(() => {
+					if (isDestroyed) return;
+					sceneReady = true;
+					isLoading = false;
+				}));
 			});
 
 			// Add keyboard event listener for arrow key navigation
@@ -1828,7 +1838,16 @@
 		</div>
 	</div>
 {/if}
-<div bind:this={graphContainer} class="graph-container"></div>
+{#if data.initialBook && selectedBook}
+	<div class="book-preview" class:ready={sceneReady} aria-hidden="true">
+		{#if initialCover}
+			<img src={initialCover} alt="" fetchpriority="high" loading="eager" />
+		{:else}
+			<div class="preview-placeholder" style:background={spineColor(data.initialBook)}>{libraryText(data.initialBook.id)}</div>
+		{/if}
+	</div>
+{/if}
+<div bind:this={graphContainer} class="graph-container" class:ready={sceneReady}></div>
 <Nav currentPage="library" onSearchResultClick={selectSearchResult} />
 <div class="controls" class:hidden={isLoading}>
 	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
@@ -1903,10 +1922,39 @@
 		background: #808080;
 	}
 
+	.book-preview {
+		position: fixed;
+		inset: 0 320px 0 0;
+		display: grid;
+		place-items: center;
+		pointer-events: none;
+		opacity: 1;
+		transition: opacity 600ms ease;
+	}
+	.book-preview.ready { opacity: 0; }
+	.book-preview img, .preview-placeholder {
+		width: auto;
+		max-width: 55%;
+		height: auto;
+		max-height: 55vh;
+		box-shadow: 0 12px 32px #0004;
+	}
+	.preview-placeholder { padding: 24px; color: white; }
+	@media (max-width: 600px) {
+		.book-preview { inset: 60px 0 50vh; }
+		.book-preview img, .preview-placeholder { max-height: 30vh; }
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.book-preview, .graph-container { transition: none !important; }
+		.book-sidebar { animation: none !important; }
+	}
 	.graph-container {
 		width: 100vw;
 		height: 100vh;
+		opacity: 0;
+		transition: opacity 600ms ease;
 	}
+	.graph-container.ready { opacity: 1; }
 
 	.controls {
 		position: fixed;
@@ -1955,15 +2003,7 @@
 		z-index: 2000;
 	}
 
-	.loading-overlay.with-book {
-		right: 320px;
-		width: auto;
-		z-index: 1;
-	}
-
-	@media (max-width: 768px) {
-		.loading-overlay.with-book { display: none; }
-	}
+	.loading-overlay.with-book { display: none; }
 
 	.loading-content {
 		text-align: center;
@@ -2180,18 +2220,6 @@
 			border-radius: 12px 12px 0 0;
 			border-left: none;
 			border-top: 1px solid rgba(255, 255, 255, 0.2);
-			animation: slideUp 0.3s ease-out;
-		}
-
-		@keyframes slideUp {
-			from {
-				transform: translateY(100%);
-				opacity: 0;
-			}
-			to {
-				transform: translateY(0);
-				opacity: 1;
-			}
 		}
 
 		.book-title {
