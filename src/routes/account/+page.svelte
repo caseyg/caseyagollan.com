@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
 	import { startRegistration, startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 
@@ -121,79 +122,81 @@
 
 <svelte:head><title>Account · Casey Gollan</title><meta name="robots" content="noindex, nofollow" /></svelte:head>
 
-<main aria-busy={busy}>
-	<a href="/">← Casey Gollan</a>
-	<h1>Account</h1>
-	{#if error}<p class="error" role="alert">{error}</p>{/if}
-	<p role="status" aria-live="polite">{busy ? 'Please wait…' : notice}</p>
+<Page as="main" width="wide" aria-busy={busy}>
+	<PageHeader backHref="/" backText="Casey Gollan" tight>
+		<Heading level={1} size="display">Account</Heading>
+	</PageHeader>
+	{#if error}<Notice tone="error">{error}</Notice>{/if}
+	<p class="status" role="status" aria-live="polite">{busy ? 'Please wait…' : notice}</p>
 	{#if !ready && !error}<p>Loading account…</p>{/if}
-	{#if ready && !passkeysSupported}<p role="alert">This browser does not support passkeys. Open this page in a browser with passkey support to sign in or add a passkey.</p>{/if}
-	{#if requestError}<p role="alert">{requestError}</p>{/if}
+	{#if ready && !passkeysSupported}<Notice tone="error">This browser does not support passkeys. Open this page in a browser with passkey support to sign in or add a passkey.</Notice>{/if}
+	{#if requestError}<Notice tone="error">{requestError}</Notice>{/if}
 	{#if requestId && session && !session.authenticated}<p>Sign in to review this app's access request.</p>{/if}
 	{#if session && !session.authenticated}
-		<section aria-labelledby="signin-title">
-			<h2 id="signin-title">Owner sign-in</h2>
+		<Section title="Owner sign-in">
 			<p>Use a passkey to manage this site's connected apps and access tokens.</p>
-			{#if session.credentialCount > 0}<button disabled={busy || !passkeysSupported} onclick={login}>Sign in with passkey</button>{/if}
+			{#if session.credentialCount > 0}<Button variant="primary" disabled={busy || !passkeysSupported} onclick={login}>Sign in with passkey</Button>{/if}
 			{#if session.setupAvailable}
-				<h3>Set up your account</h3>
+				<Heading level={3} size="subtitle" class="subsection">Set up your account</Heading>
 				<p>Enter the setup token provided by your site operator, then create your first passkey.</p>
 				<form onsubmit={(event) => { event.preventDefault(); void register(); }}>
-					<label for="setup-token">Setup token</label>
-					<input id="setup-token" type="password" autocomplete="off" bind:value={setupToken} required disabled={busy} />
-					<button disabled={busy || !setupToken || !passkeysSupported}>Create first passkey</button>
+					<TextField label="Setup token" id="setup-token" type="password" autocomplete="off" bind:value={setupToken} required disabled={busy} />
+					<Button type="submit" variant="primary" disabled={busy || !setupToken || !passkeysSupported}>Create first passkey</Button>
 				</form>
 			{/if}
-		</section>
+		</Section>
 	{/if}
 	{#if request}
-		<section aria-labelledby="consent-title">
-			<h2 id="consent-title">Connect an app</h2>
+		<Section title="Connect an app">
 			<p>This app is requesting access to your account. Review its address and permissions before continuing.</p>
 			<dl><dt>App address</dt><dd>{request.clientId}</dd><dt>Return address</dt><dd>{request.redirectUri}</dd></dl>
 			<fieldset disabled={busy || !session?.authenticated}><legend>Permissions</legend>
-				{#each request.scope as scope}<label class="choice"><input type="checkbox" bind:group={selectedScopes} value={scope} /><span><strong>{scope}</strong> — {scopes[scope] ?? 'Requested permission'}</span></label>{/each}
+				{#each request.scope as scope}<Checkbox bind:group={selectedScopes} value={scope}><strong>{scope}</strong> — {scopes[scope] ?? 'Requested permission'}</Checkbox>{/each}
 				{#if !request.scope.length}<p>Confirm your identity without granting additional permissions.</p>{/if}
 			</fieldset>
-			{#if session?.authenticated}<button disabled={busy} onclick={consent}>Allow access</button>{:else}<p>Sign in to review and approve access.</p>{/if}
-			<a href="/account">Cancel</a>
-		</section>
+			<div class="actions">
+				{#if session?.authenticated}<Button variant="primary" disabled={busy} onclick={consent}>Allow access</Button>{:else}<p>Sign in to review and approve access.</p>{/if}
+				<Button href="/account" variant="quiet">Cancel</Button>
+			</div>
+		</Section>
 	{/if}
 	{#if session?.authenticated}
 		<p><a href="/readwise">Review Readwise bookmarks →</a></p>
-		<section aria-labelledby="passkeys-title">
-			<h2 id="passkeys-title">Passkeys</h2>
+		<Section title="Passkeys">
 			<p>Keep a second passkey so you can sign in if a device is unavailable.</p>
-			<button disabled={busy || !passkeysSupported} onclick={register}>Add passkey</button>
-			<ul>{#each credentials as credential}<li><span>Passkey added {date(credential.createdAt)}{credential.backedUp ? ' · Backed up' : ''}</span>
-				<button disabled={busy || credentials.length <= 1} aria-label={`Remove passkey added ${date(credential.createdAt)}`} onclick={() => run(async () => { await api('/auth/credentials/remove', { id: credential.id, csrf: session?.csrf }); await refresh(); notice = 'Passkey removed.'; })}>Remove</button>
+			<Button disabled={busy || !passkeysSupported} onclick={register}>Add passkey</Button>
+			<ul class="rows">{#each credentials as credential}<li><span>Passkey added {date(credential.createdAt)}{credential.backedUp ? ' · Backed up' : ''}</span>
+				<Button size="sm" disabled={busy || credentials.length <= 1} aria-label={`Remove passkey added ${date(credential.createdAt)}`} onclick={() => run(async () => { await api('/auth/credentials/remove', { id: credential.id, csrf: session?.csrf }); await refresh(); notice = 'Passkey removed.'; })}>Remove</Button>
 			</li>{/each}</ul>
-			{#if credentials.length <= 1}<p>Your last passkey must remain on your account.</p>{/if}
-		</section>
-		<section aria-labelledby="tokens-title">
-			<h2 id="tokens-title">Access tokens</h2>
+			{#if credentials.length <= 1}<p class="hint">Your last passkey must remain on your account.</p>{/if}
+		</Section>
+		<Section title="Access tokens">
 			<p>Tokens let apps act with the permissions you grant. Revoke a token to stop its access.</p>
-			{#if tokens.length}<ul>{#each tokens as token}<li><div><strong>{token.clientId}</strong><br />Permissions: {token.scope || 'Identity only'}<br /><small>Created {date(token.createdAt)} · Expires {date(token.expiresAt)}</small></div>
-				<button disabled={busy} aria-label={`Revoke access for ${token.clientId}`} onclick={() => run(async () => { await api('/auth/tokens/revoke', { id: token.id, csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'Access revoked.'; })}>Revoke</button>
-			</li>{/each}</ul>{:else}<p>No active access tokens.</p>{/if}
-			<h3>Create a personal token</h3>
-			<fieldset disabled={busy}><legend>Token permissions</legend>{#each Object.entries(scopes) as [scope, description]}<label class="choice"><input type="checkbox" bind:group={personalScopes} value={scope} /><span><strong>{scope}</strong> — {description}</span></label>{/each}</fieldset>
-			<button disabled={busy || !personalScopes.length} onclick={createToken}>Create token</button>
-			{#if newToken}<div class="token"><label for="new-token">Copy your new token now. It will not be shown again.</label><textarea id="new-token" readonly value={newToken} spellcheck="false" autocomplete="off"></textarea>
-				<button disabled={busy} onclick={() => run(async () => { await navigator.clipboard.writeText(newToken); notice = 'Token copied.'; })}>Copy token</button>
-				<button disabled={busy} onclick={() => { newToken = ''; }}>Dismiss token</button></div>{/if}
-		</section>
-		<button disabled={busy} onclick={() => run(async () => { await api('/auth/logout', { csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'You are signed out.'; })}>Sign out</button>
+			{#if tokens.length}<ul class="rows">{#each tokens as token}<li><div><strong>{token.clientId}</strong><br />Permissions: {token.scope || 'Identity only'}<br /><small>Created {date(token.createdAt)} · Expires {date(token.expiresAt)}</small></div>
+				<Button size="sm" disabled={busy} aria-label={`Revoke access for ${token.clientId}`} onclick={() => run(async () => { await api('/auth/tokens/revoke', { id: token.id, csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'Access revoked.'; })}>Revoke</Button>
+			</li>{/each}</ul>{:else}<p class="hint">No active access tokens.</p>{/if}
+			<Heading level={3} size="subtitle" class="subsection">Create a personal token</Heading>
+			<fieldset disabled={busy}><legend>Token permissions</legend>{#each Object.entries(scopes) as [scope, description]}<Checkbox bind:group={personalScopes} value={scope}><strong>{scope}</strong> — {description}</Checkbox>{/each}</fieldset>
+			<Button variant="primary" disabled={busy || !personalScopes.length} onclick={createToken}>Create token</Button>
+			{#if newToken}<div class="token"><TextField multiline mono label="Copy your new token now. It will not be shown again." id="new-token" readonly value={newToken} spellcheck="false" autocomplete="off" />
+				<div class="actions"><Button disabled={busy} onclick={() => run(async () => { await navigator.clipboard.writeText(newToken); notice = 'Token copied.'; })}>Copy token</Button>
+				<Button variant="quiet" disabled={busy} onclick={() => { newToken = ''; }}>Dismiss token</Button></div></div>{/if}
+		</Section>
+		<Button disabled={busy} onclick={() => run(async () => { await api('/auth/logout', { csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'You are signed out.'; })}>Sign out</Button>
 	{/if}
-</main>
+</Page>
 
 <style>
-	main { max-width: 48rem; margin: 0 auto; padding: 2rem 1.25rem 5rem; font-size: 1rem; font-weight: 400; overflow-wrap: anywhere; }
-	h1 { font-size: 2.5rem; line-height: 1.2; } h2 { font-size: 1.5rem; } h3 { font-size: 1.15rem; }
-	a { color: inherit; } section { padding: 1rem 0 2rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
-	button, input, textarea { font: inherit; } button { padding: .55rem .9rem; margin: .4rem .5rem .4rem 0; border: 1px solid currentColor; border-radius: .25rem; background: transparent; color: inherit; cursor: pointer; }
-	button:disabled { opacity: .5; cursor: default; } button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-	input[type=password], textarea { display: block; box-sizing: border-box; width: 100%; margin: .5rem 0; padding: .65rem; background: var(--bg-primary); color: inherit; border: 1px solid currentColor; border-radius: .25rem; }
-	textarea { min-height: 6rem; font-family: monospace; } fieldset { margin: 1rem 0; border: 1px solid var(--border); padding: 1rem; } .choice { display: flex; align-items: baseline; gap: .6rem; margin: .6rem 0; } input[type=checkbox] { flex-shrink: 0; }
-	dt { font-weight: 700; } dd { margin: .25rem 0 1rem; } ul { padding: 0; list-style: none; } li { padding: 1rem 0; border-bottom: 1px solid var(--border); } small { color: var(--text-secondary); } .error { border: 1px solid currentColor; padding: 1rem; } .token { margin: 1rem 0; padding: 1rem; border: 1px solid currentColor; }
+	:global(.subsection) { margin-top: var(--space-6); }
+	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
+	.status { min-height: 1.5em; margin: var(--space-2) 0; color: var(--text-secondary); font-size: var(--fs-sm); }
+	.status:empty { display: none; }
+	.hint, small { color: var(--text-muted); font-size: var(--fs-sm); }
+	.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); margin-top: var(--space-3); }
+	fieldset { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-4) 0; padding: var(--space-3) var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+	legend { padding: 0 var(--space-2); color: var(--text-secondary); font-size: var(--fs-sm); }
+	dt { color: var(--text-muted); font-size: var(--fs-sm); } dd { margin: 0 0 var(--space-3); overflow-wrap: anywhere; }
+	.rows { margin: var(--space-4) 0; padding: 0; list-style: none; }
+	.rows li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) 0; border-top: 1px solid var(--border-subtle); font-variant-numeric: tabular-nums; }
+	.token { margin: var(--space-4) 0; padding: var(--space-3) var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 </style>

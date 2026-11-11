@@ -1,17 +1,16 @@
-/* Global styles - loaded before any page renders */
-html {
-	background: gray;
-}
+/* Global styles and design tokens - loaded before any page renders */
 
-body {
-	background: gray;
-	color: white;
-	font-family: ff-dagny-web-pro, system-ui, -apple-system, sans-serif;
-	font-size: 5vw;
-	font-weight: 100;
-	line-height: 1.5;
-	margin: 0;
-	overflow-x: hidden;
+/*
+ * Fallback face with metrics close to ff-dagny-web-pro, so text does not
+ * reflow when the Typekit font arrives.
+ */
+@font-face {
+	font-family: 'Dagny Fallback';
+	src: local('Avenir Next'), local('Avenir'), local('Helvetica Neue'), local('Helvetica'), local('Arial');
+	size-adjust: 100%;
+	ascent-override: 95%;
+	descent-override: 25%;
+	line-gap-override: 0%;
 }
 
 :root {
@@ -19,18 +18,117 @@ body {
 	--telescope-highlight: blue !important;
 	--telescope-highlight-hover: rgb(73, 73, 255) !important;
 
-	/* Layout tokens */
-	--content-max-width: 1400px;
-	--spacing-sm: 0.75rem;
-	--spacing-md: 1.5rem;
-	--spacing-lg: 3rem;
-
-	/* Colors */
+	/* Color: gray ground, white ink, blue for actions and selection. */
 	--bg-primary: gray;
 	--accent: blue;
 	--accent-hover: rgb(73, 73, 255);
 	--text-primary: white;
-	--text-secondary: rgba(255, 255, 255, 0.9);
-	--text-muted: rgba(255, 255, 255, 0.6);
-	--border: rgba(255, 255, 255, 0.2);
+	--text-secondary: rgb(255 255 255 / 0.86);
+	--text-muted: rgb(255 255 255 / 0.68);
+	--border-subtle: rgb(255 255 255 / 0.12);
+	--border: rgb(255 255 255 / 0.22);
+	--border-strong: rgb(255 255 255 / 0.5);
+	--surface-1: rgb(255 255 255 / 0.08);
+	--surface-2: rgb(255 255 255 / 0.15);
+	--surface-3: rgb(255 255 255 / 0.22);
+	--surface-sunken: rgb(0 0 0 / 0.18);
+
+	/* Type */
+	--font-sans: ff-dagny-web-pro, 'Dagny Fallback', system-ui, -apple-system, sans-serif;
+	--font-mono: ui-monospace, 'SF Mono', Menlo, Monaco, 'Cascadia Mono', monospace;
+	--fs-2xs: 0.6875rem;
+	--fs-xs: 0.75rem;
+	--fs-sm: 0.875rem;
+	--fs-base: 1rem;
+	--fs-md: 1.125rem;
+	--fs-lg: 1.25rem;
+	--fs-xl: 1.5rem;
+	--fs-2xl: 1.75rem;
+	--fs-3xl: 2.25rem;
+	--fw-light: 300;
+	--fw-regular: 400;
+	--fw-medium: 500;
+	--fw-semibold: 600;
+	--lh-tight: 1.2;
+	--lh-snug: 1.35;
+	--lh-normal: 1.5;
+	--lh-relaxed: 1.65;
+	--tracking-tight: -0.015em;
+	--tracking-normal: 0;
+	--tracking-wide: 0.04em;
+	--underline-offset: 0.16em;
+
+	/* Space */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+	--spacing-sm: var(--space-3);
+	--spacing-md: var(--space-5);
+	--spacing-lg: var(--space-7);
+
+	/* Layout */
+	--content-max-width: 1400px;
+	--measure: 38rem;
+	--measure-wide: 48rem;
+
+	/* Shape: square for site chrome, a slight ease on inline controls, round for cards. */
+	--radius-none: 0;
+	--radius-sm: 4px;
+	--radius-md: 0.5rem;
+	--radius-lg: 0.85rem;
+	--radius-full: 999px;
+
+	/* Motion */
+	--duration: 0.15s;
+	--ease: ease;
+
+	--focus-ring: 2px solid var(--text-primary);
+	--z-sticky: 10;
+	--z-menu: 100;
+	--z-nav: 1000;
+}
+
+html {
+	background: gray;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+}
+
+body {
+	background: gray;
+	color: white;
+	font-family: var(--font-sans);
+	font-size: 5vw;
+	font-weight: 100;
+	line-height: 1.5;
+	font-kerning: normal;
+	margin: 0;
+	overflow-x: hidden;
+}
+
+::selection {
+	background: var(--accent);
+	color: var(--text-primary);
+}
+
+:focus-visible {
+	outline: var(--focus-ring);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
 }

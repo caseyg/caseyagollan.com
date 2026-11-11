@@ -44,8 +44,8 @@
 <style>
 	.insight-item {
 		padding: 0.75rem;
-		background: rgba(255, 255, 255, 0.05);
-		border-radius: 4px;
+		background: var(--surface-1);
+		border-radius: var(--radius-sm);
 		display: flex;
 		flex-direction: column;
 		overflow: visible;
@@ -66,7 +66,7 @@
 	}
 
 	.insight-item:hover {
-		background: rgba(255, 255, 255, 0.1);
+		background: var(--surface-2);
 	}
 
 	.insight-item.active {
@@ -76,18 +76,18 @@
 	.insight-node-pill {
 		display: inline-block;
 		padding: 0.25rem 0.75rem;
-		background: rgba(255, 255, 255, 0.2);
+		background: var(--surface-3);
 		color: white;
 		border-radius: 0;
 		font-size: 0.85rem;
-		font-weight: 500;
+		font-weight: var(--fw-medium);
 		margin-bottom: 0.75rem;
 		align-self: flex-start;
 		transition: background 0.3s ease;
 	}
 
 	.insight-item.active .insight-node-pill {
-		background: blue;
+		background: var(--accent);
 	}
 
 	.insight-text {

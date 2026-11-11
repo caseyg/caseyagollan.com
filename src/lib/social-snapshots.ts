@@ -1,4 +1,4 @@
-import { renderSocialCardHeader, renderSocialCardFooter } from './social-card';
+import { renderSocialCardHeader, renderSocialCardFooter, type SocialCardSource } from './social-card';
 import { sanitizePublishingHtml } from './utils/sanitizeHtml';
 
 export interface SocialSnapshot {
@@ -39,7 +39,7 @@ export function socialSnapshots(value: unknown, depth = 0, seen = new Set<unknow
 }
 const escape = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 /** All remote markup is sanitized again at the render boundary. Images are saved bytes only. */
-export function renderSocialSnapshot(snapshot: SocialSnapshot): string {
+export function renderSocialSnapshot(snapshot: SocialSnapshot, options: { omitSource?: boolean } = {}): string {
  const s = socialSnapshots([snapshot])[0];
  if (!s) return '';
  const body = sanitizePublishingHtml(s.html).replace(/<(?:img|iframe|video|audio|source)\b[^>]*>(?:<\/(?:iframe|video|audio)>)?/gi,'');
@@ -49,7 +49,11 @@ export function renderSocialSnapshot(snapshot: SocialSnapshot): string {
  const card = preview ? `<a class="social-link-preview" href="${escape(preview.url)}">${preview.image ? `<img src="${escape(preview.image)}" alt="" loading="lazy">` : ''}<span class="social-link-preview-text"><span class="social-link-preview-site">${escape(preview.site || new URL(preview.url).hostname)}</span><strong>${escape(preview.title || preview.url)}</strong>${preview.description ? `<span class="social-link-preview-description">${escape(preview.description)}</span>` : ''}</span></a>` : '';
  const quote = s.quote ? `<div class="social-quoted-post">${renderSocialSnapshot(s.quote)}</div>` : '';
  const content = `<div class="social-post-content">${body}</div>${gallery}${card}${quote}`;
- return `<blockquote class="social-snapshot">${renderSocialCardHeader(s.author, {url: s.sourceUrl ?? s.url, label: s.platform === 'bluesky' ? 'Bluesky' : 'Mastodon'})}${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}${renderSocialCardFooter(s.published, s.url)}</blockquote>`;
+ return `<blockquote class="social-snapshot">${renderSocialCardHeader(s.author, options.omitSource ? undefined : snapshotSource(s))}${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}${renderSocialCardFooter(s.published, s.url)}</blockquote>`;
+}
+
+function snapshotSource(s: SocialSnapshot): SocialCardSource {
+ return s.platform === 'bluesky' ? { url: s.sourceUrl ?? s.url, label: '🦋', title: 'View on Bluesky' } : { url: s.sourceUrl ?? s.url, label: '🐘', title: 'View on Mastodon' };
 }
 
 /** Flatten for search facets while preserving one site entry for the outer action. */
