@@ -15,9 +15,11 @@
 		category?: string | string[];
 		activeTag?: string;
 		indexActivities?: import('$lib/posts-types').Post['indexActivities'];
+		/** For replies, likes and reposts: the verb and whose post it acts on. */
+		action?: import('$lib/utils/post-details').PostAction;
 	}
 
-	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag, indexActivities }: Props = $props();
+	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag, indexActivities, action }: Props = $props();
 
 	function getCategories(cat: string | string[] | undefined): string[] {
 		if (!cat) return [];
@@ -46,15 +48,17 @@
 		return TYPE_ICONS[t] || '📌';
 	}
 
-	function getSyndicationInfo(link: string): { icon: string; title: string } {
+	function getSyndicationInfo(link: string): { label: string; title: string } {
 		if (link.includes('social.coop') || link.includes('mastodon')) {
-			return { icon: '🐘', title: 'View on Mastodon' };
+			return { label: 'Mastodon', title: 'View on Mastodon' };
 		} else if (link.includes('bsky.app')) {
-			return { icon: '🦋', title: 'View on Bluesky' };
+			return { label: 'Bluesky', title: 'View on Bluesky' };
 		} else if (link.includes('twitter.com') || link.includes('x.com')) {
-			return { icon: '🐦', title: 'View on X' };
+			return { label: 'X', title: 'View on X' };
 		} else {
-			return { icon: '🔗', title: link };
+			let label = link;
+			try { label = new URL(link).hostname.replace(/^www\./, ''); } catch { /* keep the raw value */ }
+			return { label, title: link };
 		}
 	}
 </script>
@@ -68,9 +72,12 @@
 					<Chip href={activity.permalink} class="post-type" title={formatAbsoluteDate(activity.date)}><span aria-hidden="true">{getTypeIcon(activity.type)}</span> {activity.type === 'like' ? 'liked' : 'reposted'}</Chip>
 				{/each}
 			{:else}
-				<Chip href={type === 'wiki' ? 'https://cag.wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type"><span aria-hidden="true">{getTypeIcon(type)}</span> {type}</Chip>
+				<Chip href={type === 'wiki' ? 'https://cag.wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type"><span aria-hidden="true">{getTypeIcon(type)}</span> {action?.verb ?? type}</Chip>
 			{/if}
 		{/if}
+		{#each action?.targets ?? [] as target (target.url)}
+			<Chip href={target.url} class="post-target {target.classes}" title="View the original post">{target.label}</Chip>
+		{/each}
 		{#if date}
 			<Chip href={permalink} class="u-url permalink" title={formatAbsoluteDate(date)}>
 				<time class="dt-published" datetime={date}>{formatRelativeDate(date)}</time>
@@ -88,7 +95,7 @@
 		<div class="meta-group meta-secondary">
 			{#each syndication ?? [] as link (link)}
 				{@const synInfo = getSyndicationInfo(link)}
-				<Chip href={link} class="u-syndication" title={synInfo.title} aria-label={synInfo.title} target="_blank" rel="noopener">{synInfo.icon}</Chip>
+				<Chip href={link} class="u-syndication" title={synInfo.title} target="_blank" rel="noopener">{synInfo.label} <span aria-hidden="true">↗</span></Chip>
 			{/each}
 			<WebmentionCounts url={permalink} />
 		</div>
@@ -127,6 +134,18 @@
 
 	.meta-secondary:empty {
 		display: none;
+	}
+
+	/* The verb chip and its target read as one phrase. */
+	.meta-primary :global(.post-type + .post-target) {
+		margin-left: calc(-1 * var(--space-2));
+		color: var(--text-secondary);
+	}
+
+	.meta-primary :global(.post-target) {
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.joiner {

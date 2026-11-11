@@ -8,6 +8,7 @@
 	import PostMedia from './PostMedia.svelte';
 	import type { Post } from '$lib/posts-types';
 	import { getPostPermalink } from '$lib/posts-types';
+	import { getPostAction } from '$lib/utils/post-details';
 
 	interface Props {
 		post: Post;
@@ -52,6 +53,7 @@
 		category={post.category}
 		{activeTag}
 		indexActivities={post.indexActivities}
+		action={getPostAction(post)}
 	/>
 
 	<PostTitle {post} href={isArticle ? permalink : undefined} />

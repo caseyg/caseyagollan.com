@@ -4,6 +4,8 @@
 	import Webmentions from '$lib/components/Webmentions.svelte';
 	import { PostsLayout, DateArchiveHeader, PostMeta, PostTitle, PostContent, PostMedia, PostDetails, NoteCard } from '$lib/components/posts';
 
+	import { getPostAction } from '$lib/utils/post-details';
+
 	let { data }: { data: PageData } = $props();
 
 	const permalink = `/${data.year}/${data.month}/${data.day}/${data.post.slug}/`;
@@ -31,6 +33,7 @@
 			{permalink}
 			syndication={data.post.syndication}
 			category={data.post.category}
+			action={getPostAction(data.post)}
 		/>
 
 		<PostTitle post={data.post} context="page" />
