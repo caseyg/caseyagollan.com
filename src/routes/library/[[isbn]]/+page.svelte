@@ -5,6 +5,7 @@
 	import { pushState, replaceState } from '$app/navigation';
 	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
+	import { Chip } from '$lib/components/ui';
 	import { spineTextureSize } from '$lib/library/textures';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
@@ -1875,7 +1876,7 @@
 				{#if bookDetails.categories && bookDetails.categories.length > 0}
 					<div class="book-categories">
 						{#each bookDetails.categories as category}
-							<span class="category-tag">{libraryText(category)}</span>
+							<Chip variant="soft" size="sm">{libraryText(category)}</Chip>
 						{/each}
 					</div>
 				{/if}
@@ -2134,19 +2135,13 @@
 		display: flex;
 		flex-wrap: nowrap;
 		overflow-x: auto;
-		gap: 0.5rem;
-		padding-bottom: 4px;
+		gap: var(--space-2);
+		padding-bottom: var(--space-1);
 		margin-bottom: 16px;
 	}
 
-	.category-tag {
+	.book-categories :global(.chip) {
 		flex: 0 0 auto;
-		white-space: nowrap;
-		font-size: 0.8125rem;
-		color: #fff;
-		background: rgba(255, 255, 255, 0.1);
-		padding: 0.25rem 0.625rem;
-		border-radius: 3px;
 	}
 
 	.book-description {
