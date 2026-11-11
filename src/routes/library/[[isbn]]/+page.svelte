@@ -1070,9 +1070,22 @@
 				.nodePositionUpdate((object, _position, graphNode) => {
 					const node = graphNode as Node;
 					const state = shelfBookPresentations.get(node.id);
-					if (!state || !isGridModeActive) return false;
-					object.position.set(state.pose.x, state.pose.y, state.pose.z);
-					object.rotation.set(0, state.pose.rotationY, 0);
+					if (!isGridModeActive) return false;
+					if (state) {
+						object.position.set(state.pose.x, state.pose.y, state.pose.z);
+						object.rotation.set(0, state.pose.rotationY, 0);
+						return true;
+					}
+					const start = shelfLayoutStarts.get(node.id);
+					if (!start) return false;
+					const progress = Math.min(1, (performance.now() - shelfLayoutStarted) / 900);
+					const eased = progress * progress * (3 - 2 * progress);
+					object.position.set(
+						start.x + (_position.x - start.x) * eased,
+						start.y + (_position.y - start.y) * eased,
+						start.z + (_position.z - start.z) * eased);
+					object.rotation.set(0, start.rotationY + (Math.PI / 2 - start.rotationY) * eased, 0);
+					if (progress === 1) shelfLayoutStarts.delete(node.id);
 					return true;
 				})
 				.onEngineTick(() => {
@@ -1372,6 +1385,22 @@
 		if (isGridModeActive && !selectedBook) frameShelves(0);
 	}
 
+	// Keep layout coordinates at their destination so camera framing stays stable.
+	// Only the rendered books interpolate, starting from their current visible pose.
+	const shelfLayoutStarts = new Map<string, BookPose>();
+	let shelfLayoutStarted = 0;
+	function beginShelfLayoutTransition() {
+		shelfLayoutStarts.clear();
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		for (const node of Graph.graphData().nodes as Node[]) {
+			const object = node.__threeObj;
+			if (node.group !== 'book' || !object) continue;
+			shelfLayoutStarts.set(node.id, { x: object.position.x, y: object.position.y,
+				z: object.position.z, rotationY: object.rotation.y });
+		}
+		shelfLayoutStarted = performance.now();
+	}
+
 	function refreshShelves() {
 		clearShelfPresentations();
 		shelfDraggedPositions.clear();
@@ -1386,6 +1415,7 @@
 	function toggleMode(updateUrl = true) {
 		if (!Graph) return;
 
+		beginShelfLayoutTransition();
 		deselectBook();
 		shelfDraggedPositions.clear();
 		clearShelfPresentations();
@@ -1570,6 +1600,7 @@
 	}
 
 	function applyShelfSort() {
+		beginShelfLayoutTransition();
 		const filteredNodes = shelfNodes(originalGraphData.nodes);
 		Graph.graphData({ nodes: filteredNodes, links: [] });
 		Graph.d3Force('custom', customForce);
