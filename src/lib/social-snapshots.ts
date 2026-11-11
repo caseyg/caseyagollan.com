@@ -5,6 +5,8 @@ export interface SocialSnapshot {
  version: 1;
  url: string;
  sourceUrl?: string;
+ /** Canonical DID-based Bluesky identities, retained for index conversation grouping. */
+ thread?: { post: string; root: string; parent?: string };
  platform: 'bluesky' | 'mastodon';
  author: { name: string; handle: string; url: string; avatar?: string };
  published: string;
@@ -16,6 +18,7 @@ export interface SocialSnapshot {
  quote?: SocialSnapshot;
 }
 
+const bluePost = (value: unknown): value is string => typeof value === 'string' && /^https:\/\/bsky\.app\/profile\/did:[^/?#]+\/post\/[a-zA-Z0-9]+$/.test(value);
 const https = (v: unknown): v is string => {
  if (typeof v !== 'string') return false;
  try { const u = new URL(v); return u.protocol === 'https:' && !u.username && !u.password; } catch { return false; }
@@ -31,6 +34,7 @@ export function socialSnapshots(value: unknown, depth = 0, seen = new Set<unknow
  if (!Array.isArray(value) || depth > MAX_QUOTE_DEPTH) return [];
  return value.filter((s): s is SocialSnapshot => !seen.has(s) && !!s && typeof s === 'object' && s.version === 1 && https(s.url) && (s.sourceUrl === undefined || https(s.sourceUrl)) && ['bluesky','mastodon'].includes(s.platform) &&
   s.author && typeof s.author.name === 'string' && typeof s.author.handle === 'string' && https(s.author.url) && typeof s.html === 'string' && (s.author.avatar === undefined || savedImageUrl(s.author.avatar)) &&
+  (s.thread === undefined || (s.platform === 'bluesky' && bluePost(s.thread.post) && bluePost(s.thread.root) && (s.thread.parent === undefined || bluePost(s.thread.parent)))) &&
   typeof s.published === 'string' && Number.isFinite(Date.parse(s.published)) && typeof s.fetchedAt === 'string' &&
   (s.warning === undefined || typeof s.warning === 'string') && Array.isArray(s.images) && s.images.length <= 5 &&
   (s.preview === undefined || (https(s.preview?.url) && typeof s.preview.title === 'string' && typeof s.preview.description === 'string' && (s.preview.site === undefined || typeof s.preview.site === 'string') && (s.preview.image === undefined || savedImageUrl(s.preview.image)))) &&

@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { parseDocument } from 'yaml';
 import { enrichSocialSnapshots as enrich } from '../src/lib/server/publishing/social-snapshots';
 import { parsePost } from '../src/lib/server/parse-post';
 import { renderPostDetails } from '../src/lib/utils/post-details';
@@ -307,4 +308,29 @@ test('reply labels preserve targets and handle unknown identities safely', () =>
   const html = renderPostDetails(parsePost(source('in-reply-to',url),'replies','2026-11-06-test.md'));
   expect(html).toContain(`href="${url}">${label}</a>`);
  }
+});
+
+test('saves canonical Bluesky post, root and parent references without fetching thread ancestors', async()=>{
+ const root = 'at://did:plc:grant/app.bsky.feed.post/root';
+ const parent = 'at://did:plc:grant/app.bsky.feed.post/parent';
+ const saved = await enrichSocialSnapshots(source(),async url=>url.includes('getPostThread') ? Response.json({thread:{post:{...blueskyPost,record:{...blueskyPost.record,reply:{root:{uri:root},parent:{uri:parent}}}}}}) : fetcher(url));
+ const post = parsePost(saved,'likes','2026-11-06-test.md');
+ expect(post.socialSnapshots?.[0].thread).toEqual({post:'https://bsky.app/profile/did:plc:grant/post/3mznoqvc3oc27',root:'https://bsky.app/profile/did:plc:grant/post/root',parent:'https://bsky.app/profile/did:plc:grant/post/parent'});
+});
+
+test('metadata-only refresh retains saved media, text and timestamps',async()=>{
+ let before = await enrichSocialSnapshots(source(),fetcher);
+ const match = before.match(/^---\n([\s\S]*?)\n---\n/)!;
+ const doc = parseDocument(match[1]);
+ const snapshots = doc.toJS()._micropubSocialSnapshots;
+ delete snapshots[0].thread;
+ doc.set('_micropubSocialSnapshots',snapshots);
+ before = `---\n${doc.toString()}---\n${before.slice(match[0].length)}`;
+ const original = parsePost(before,'likes','2026-11-06-test.md').socialSnapshots![0];
+ const after = await enrich(before,async url=>url.includes('getProfile') ? Response.json({did:'did:plc:grant'}) : url.includes('getPostThread') ? Response.json({thread:{post:{...blueskyPost,record:{...blueskyPost.record,text:'Changed remote text'}}}}) : (()=>{throw new Error('Must not fetch images');})(),{threadMetadataOnly:true});
+ const refreshed = parsePost(after,'likes','2026-11-06-test.md').socialSnapshots![0];
+ expect(refreshed.thread?.root).toBe('https://bsky.app/profile/did:plc:grant/post/3mznoqvc3oc27');
+ const {thread:_thread,...retained} = refreshed;
+ const {thread:_originalThread,...expected} = original;
+ expect(retained).toEqual(expected);
 });

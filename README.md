@@ -155,3 +155,16 @@ use the configured Cloudflare account and an existing token with R2 object-write
 permission; no media bytes are written to Git. Original photos retain their
 quality and alt text; photos that cannot be safely fetched remain at their
 existing URL. Review and commit Markdown separately before publishing.
+
+### Conversation groups in post indexes
+
+Likes, reposts, and replies connected by saved Bluesky post/parent/root identities
+appear together in indexes. Each member keeps its content, media, and permalink;
+the group appears under its latest activity's local date. Unrelated activity is
+not grouped by timing or author. Individual post permalinks remain unchanged.
+
+New previews save these identities automatically. Upgrade existing saved Bluesky
+previews with `bun utils/backfill-bluesky-threads.ts --write` (omit `--write` for a
+dry run). This command checks public post/author availability and adds only thread
+metadata, preserving saved text, images, timestamps, and unavailable previews.
+It does not commit, push, or deploy.

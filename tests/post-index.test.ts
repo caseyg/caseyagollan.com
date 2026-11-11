@@ -100,3 +100,52 @@ test.each([
  expect(renderPostDetails(rolled[0]).match(/Liked and reposted/g)).toHaveLength(1);
  expect(posts.map(p=>renderPostDetails(p)).join('')).not.toContain('Liked and reposted');
 });
+
+const threadRoot = 'https://bsky.app/profile/did:plc:author/post/root';
+function threadLike(id: string, published: string, root = threadRoot): Post {
+ const url = `https://bsky.app/profile/author.example/post/${id}`;
+ return {...like,slug:id,filePath:`likes/${id}.md`,properties:{'like-of':[url]},socialSnapshots:[{
+  version:1,url,platform:'bluesky',author:{name:'Author',handle:'@author.example',url:'https://bsky.app/profile/author.example'},
+  published,fetchedAt:like.date,html:`<p>${id}</p>`,images:[],
+  thread:{post:`https://bsky.app/profile/did:plc:author/post/${id}`,root,parent:root}
+ }]};
+}
+test('different liked posts in a saved Bluesky thread group in conversation order without mutating records',()=>{
+ const first = threadLike('root','2026-11-11T18:29:00Z');
+ const second = {...threadLike('second','2026-11-11T18:31:00Z'),date:'2026-11-12T00:01:00-05:00'};
+ const before = structuredClone([second,first]);
+ const grouped = rollupIndexPosts([second,first]);
+ expect(grouped).toHaveLength(1);
+ expect(grouped[0].indexThreadPosts?.map(p=>p.slug)).toEqual(['root','second']);
+ expect(grouped[0].date).toBe(second.date);
+ expect([second,first]).toEqual(before);
+ expect(rollupIndexPosts(grouped)).toEqual(grouped);
+ expect([...getPostsByDay([second,first]).keys()]).toEqual(['2026-11-12']);
+ expect(rollupIndexPosts([first])).toEqual([first]);
+});
+test('replies retain their content and media alongside likes and reposts in the conversation',()=>{
+ const first = threadLike('root','2026-11-11T18:29:00Z');
+ const reaction = {...threadLike('second','2026-11-11T18:31:00Z'),type:'repost' as const,properties:{'repost-of':['https://bsky.app/profile/author.example/post/second']}};
+ const reply:Post = {...first,type:'reply',slug:'reply',filePath:'replies/reply.md',date:'2026-11-11T18:32:00Z',content:'My own reply',photo:[{url:'https://example.com/photo.jpg',alt:'Photo'}],properties:{'in-reply-to':[first.socialSnapshots![0].url]}};
+ const [group] = rollupIndexPosts([reply,reaction,first]);
+ expect(group.indexThreadPosts?.map(p=>p.type)).toEqual(['like','repost','reply']);
+ expect(group.indexThreadPosts?.[2]).toEqual(reply);
+});
+test('unrelated likes and missing thread metadata stay separate regardless of author or timing',()=>{
+ const first = threadLike('root','2026-11-11T18:29:00Z');
+ const unrelated = threadLike('other','2026-11-11T18:30:00Z','https://bsky.app/profile/did:plc:author/post/other');
+ expect(rollupIndexPosts([first,unrelated])).toHaveLength(2);
+ const missing = threadLike('second','2026-11-11T18:31:00Z');
+ delete missing.socialSnapshots![0].thread;
+ expect(rollupIndexPosts([first,missing])).toHaveLength(2);
+});
+
+test('a reply groups with an existing combined like/repost card',()=>{
+ const parent = threadLike('root','2026-11-11T18:29:00Z');
+ const repost = {...parent,type:'repost' as const,slug:'root-repost',filePath:'reposts/root.md',properties:{'repost-of':parent.properties!['like-of']}};
+ const reply:Post = {...parent,type:'reply',slug:'reply',filePath:'replies/reply.md',content:'My response',properties:{'in-reply-to':parent.properties!['like-of']}};
+ const [group] = rollupIndexPosts([parent,repost,reply]);
+ expect(group.indexThreadPosts).toHaveLength(2);
+ expect(group.indexThreadPosts?.find(p=>p.type!=='reply')?.indexActivities).toHaveLength(2);
+ expect(group.indexThreadPosts?.find(p=>p.type==='reply')?.content).toBe('My response');
+});
