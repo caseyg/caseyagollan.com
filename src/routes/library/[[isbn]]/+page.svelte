@@ -533,20 +533,57 @@
 		const options = { capture: true, signal: touchListeners.signal };
 		const pointers = new Set<number>();
 		let tap: { x: number; y: number } | null = null;
+		let scrub: { x: number; y: number; lastX: number; active: boolean } | null = null;
+		const endScrub = () => {
+			if (scrub && Graph) Graph.controls().enabled = true;
+			scrub = null;
+		};
 		graphContainer.addEventListener('pointerdown', (event) => {
 			if (event.pointerType === 'mouse') return;
 			pointers.add(event.pointerId);
 			tap = pointers.size === 1 ? { x: event.clientX, y: event.clientY } : null;
+			if (pointers.size > 1) { endScrub(); return; }
+			if (!isGridModeActive || !selectedBook?.__threeObj) return;
+			const rect = Graph.renderer().domElement.getBoundingClientRect();
+			const ray = new THREE.Raycaster();
+			ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
+				1 - (event.clientY - rect.top) / rect.height * 2), Graph.camera());
+			if (!ray.intersectObject(selectedBook.__threeObj, true).length) return;
+			scrub = { x: event.clientX, y: event.clientY, lastX: event.clientX, active: false };
+			Graph.controls().enabled = false;
+			graphContainer.setPointerCapture(event.pointerId);
+			event.stopImmediatePropagation();
 		}, options);
 		graphContainer.addEventListener('pointermove', (event) => {
+			if (scrub && pointers.size === 1) {
+				const dx = event.clientX - scrub.x;
+				const dy = event.clientY - scrub.y;
+				if (!scrub.active && Math.abs(dy) > Math.max(12, Math.abs(dx))) endScrub();
+				else {
+					if (Math.abs(dx) > 12) scrub.active = true;
+					if (scrub.active) {
+						tap = null;
+						const distance = event.clientX - scrub.lastX;
+						const stride = Math.max(40, Math.min(72, graphContainer.clientWidth * 0.14));
+						const steps = Math.floor(Math.abs(distance) / stride);
+						for (let i = 0; i < steps; i++) navigateToAdjacentBook(distance < 0 ? 'right' : 'left');
+						scrub.lastX += Math.sign(distance) * steps * stride;
+					}
+					event.stopImmediatePropagation();
+				}
+			}
 			if (tap && pointers.has(event.pointerId) && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) > 8) tap = null;
 		}, options);
 		graphContainer.addEventListener('pointercancel', (event) => {
+			endScrub();
 			pointers.delete(event.pointerId);
 			tap = null;
 		}, options);
 		graphContainer.addEventListener('pointerup', (event) => {
 			if (event.pointerType === 'mouse') return;
+			const wasScrubbing = scrub?.active;
+			endScrub();
+			if (wasScrubbing) event.stopImmediatePropagation();
 			// Bypass the graph's stale hover-based touch click detection.
 			const isTap = tap && pointers.size === 1 && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) <= 8;
 			pointers.delete(event.pointerId);
@@ -1062,6 +1099,7 @@
 				.enableNodeDrag(!isMobile)
 				.graphData(graphData)
 				.nodeLabel((graphNode) => {
+					if (isMobile || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return '';
 					const node = graphNode as Node;
 					const label = document.createElement('span');
 					label.textContent = libraryText(node.id);
@@ -2094,17 +2132,21 @@
 
 	.book-categories {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		gap: 0.5rem;
+		padding-bottom: 4px;
 		margin-bottom: 16px;
 	}
 
 	.category-tag {
-		font-size: 0.7rem;
-		color: white;
-		background: blue;
-		padding: 3px 8px;
-		border-radius: 10px;
+		flex: 0 0 auto;
+		white-space: nowrap;
+		font-size: 0.8125rem;
+		color: #fff;
+		background: rgba(255, 255, 255, 0.1);
+		padding: 0.25rem 0.625rem;
+		border-radius: 3px;
 	}
 
 	.book-description {
