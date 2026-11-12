@@ -9,3 +9,7 @@
 
 <Story name="NativePost"><p>A thought shared from the site, with author and publication details.</p></Story>
 <Story name="SavedMarkup" args={{ html: '<div class="social-snapshot"><p>A saved social post rendered from sanitized markup.</p></div>' }} />
+<Story name="Thread" args={{ variant: 'thread' }}>
+ <SocialCard><p>The first post in a conversation.</p></SocialCard>
+ <SocialCard><p>The next post shares the conversation shell.</p></SocialCard>
+</Story>
