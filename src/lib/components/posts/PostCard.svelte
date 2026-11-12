@@ -14,9 +14,10 @@
 		post: Post;
 		showType?: boolean;
 		activeTag?: string;
+		groupedLike?: boolean;
 	}
 
-	let { post, showType = true, activeTag }: Props = $props();
+	let { post, showType = true, activeTag, groupedLike = false }: Props = $props();
 
 	function getPreview(content: string, maxLength: number = 280): string {
 		// Strip HTML tags
@@ -40,26 +41,28 @@
 	const isArticle = $derived(post.type === 'article');
 </script>
 
-<article class="{post.microformatType ?? 'h-entry'} post">
+<article class="{post.microformatType ?? 'h-entry'} post" class:grouped-like={groupedLike}>
 	<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
 	<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
 
-	<PostMeta
-		type={post.type}
-		date={post.date}
-		{permalink}
-		syndication={post.syndication}
-		{showType}
-		category={post.category}
-		{activeTag}
-		indexActivities={post.indexActivities}
-		action={getPostAction(post)}
-	/>
+	{#if !groupedLike}
+		<PostMeta
+			type={post.type}
+			date={post.date}
+			{permalink}
+			syndication={post.syndication}
+			{showType}
+			category={post.category}
+			{activeTag}
+			indexActivities={post.indexActivities}
+			action={getPostAction(post)}
+		/>
+	{/if}
 
 	<PostTitle {post} href={isArticle ? permalink : undefined} />
 
 	<PostDetails {post} />
-	{#if post.indexActivities}
+	{#if post.indexActivities && !groupedLike}
 		<details class="activity-sources">
 			<summary>{post.indexActivities.length} activities</summary>
 			<ul>
@@ -94,6 +97,18 @@
 		margin-bottom: 0;
 		padding-bottom: 0;
 		border-bottom: none;
+	}
+
+	.post.grouped-like {
+		margin: 0;
+		padding: var(--space-4);
+	}
+
+	.grouped-like :global(.post-details > .social-card-scope > .social-snapshot) {
+		margin: 0;
+		padding: 0;
+		border: 0;
+		border-radius: 0;
 	}
 
 	.activity-sources {

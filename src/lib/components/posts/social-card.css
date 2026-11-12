@@ -53,3 +53,6 @@
  .social-card-scope .social-card-context { margin: calc(-1 * var(--social-card-padding, 1rem)) calc(-1 * var(--social-card-padding, 1rem)) var(--social-card-padding, 1rem); }
  .social-card-scope .social-card-context > .social-reply-context { margin: 0; padding: var(--social-card-padding, 1rem); }
  .social-card-scope .social-card-context > .social-reply-context > p { margin: 0 0 0.5rem; }
+
+ /* A conversation shares the same shell as a reply and its context. */
+ .social-card-scope > .social-thread { padding: 0; margin: 0; overflow: hidden; }
