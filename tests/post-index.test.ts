@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { rollupIndexPosts, getPostsByDay, indexContentUrl, type Post } from '../src/lib/posts-types';
+import { rollupIndexPosts, getPostsByDay, indexContentUrl, getPostPermalink, type Post } from '../src/lib/posts-types';
 import { parsePost } from '../src/lib/server/parse-post';
 import { renderPostDetails } from '../src/lib/utils/post-details';
 
@@ -148,4 +148,13 @@ test('a reply groups with an existing combined like/repost card',()=>{
  expect(group.indexThreadPosts).toHaveLength(2);
  expect(group.indexThreadPosts?.find(p=>p.type!=='reply')?.indexActivities).toHaveLength(2);
  expect(group.indexThreadPosts?.find(p=>p.type==='reply')?.content).toBe('My response');
+});
+
+test('Paul Frazee co-op likes appear in one conversation group in publication order',async()=>{
+ const slugs = ['3n22lnwmruk2o','3n22lkwuo4c2o'];
+ const posts = await Promise.all(slugs.map(async slug=>parsePost(await Bun.file(`${import.meta.dir}/../content/likes/2026-11-11-${slug}.md`).text(),'likes',`2026-11-11-${slug}.md`)));
+ const grouped = rollupIndexPosts(posts);
+ expect(grouped).toHaveLength(1);
+ expect(grouped[0].indexThreadPosts?.map(p=>p.slug)).toEqual([...slugs].reverse());
+ expect(grouped[0].indexThreadPosts?.map(p=>getPostPermalink(p))).toEqual(['/2026/11/11/3n22lkwuo4c2o/','/2026/11/11/3n22lnwmruk2o/']);
 });
