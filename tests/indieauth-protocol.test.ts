@@ -1,13 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import { createIndieAuthHandler } from '../src/lib/server/indieauth/protocol';
 import { validateClient } from '../src/lib/server/indieauth/clients';
+import type { PublicFetcher } from '../src/lib/server/publishing/public-fetch';
 import type { AuthRPC, IndieAuthEnvironment } from '../src/lib/server/indieauth/contracts';
 const origin='https://example.com';
-function fixture(overrides:Record<string,unknown>={}){
+function fixture(overrides:Record<string,unknown>={}, publicFetch?:PublicFetcher, assets?:IndieAuthEnvironment['ASSETS']){
  const calls:{op:string;input:any}[]=[];
  const store={invoke:async(op:string,input:any)=>{calls.push({op,input});if(op==='rateLimit')return true;if(op==='createRequest')return {id:'pending'};if(op==='session')return {csrf:'proof',expiresAt:100000};if(op==='status')return {credentialCount:1,setupAvailable:false};if(op==='authenticationVerify')return {sessionToken:'secret',csrf:'proof',expiresAt:100000};if(op==='exchangeCode')return {access_token:'token',me:origin+'/',scope:'profile',token_type:'Bearer',expires_in:300};if(op==='introspectToken')return {active:false};if(op in overrides)return overrides[op];return true;}} as AuthRPC;
- const env={AUTH_ENABLED:'true',AUTH_ORIGIN:origin,AUTH_ME:origin+'/',AUTH_STORE:{} as DurableObjectNamespace,AUTH_INTROSPECTION_TOKEN:'introspection-secret'} satisfies IndieAuthEnvironment;
- return {calls,handler:createIndieAuthHandler(env,{store,now:()=>0})};
+ const env={AUTH_ENABLED:'true',AUTH_ORIGIN:origin,AUTH_ME:origin+'/',AUTH_STORE:{} as DurableObjectNamespace,AUTH_INTROSPECTION_TOKEN:'introspection-secret',ASSETS:assets} satisfies IndieAuthEnvironment;
+ return {calls,handler:createIndieAuthHandler(env,{store,publicFetch,now:()=>0})};
 }
 function post(path:string,data:unknown,headers:Record<string,string>={}){return new Request(origin+path,{method:'POST',headers:{origin,'content-type':'application/json',...headers},body:typeof data==='string'?data:JSON.stringify(data)});}
 describe('IndieAuth protocol boundary',()=>{
@@ -40,4 +41,75 @@ describe('IndieAuth protocol boundary',()=>{
 describe('client redirect verification',()=>{
  test('loopback clients stay same-origin without fetching',async()=>{let fetched=false;await validateClient('http://127.0.0.1:8000/','http://127.0.0.1:8000/cb',async()=>{fetched=true;throw Error();});expect(fetched).toBe(false);await expect(validateClient('http://127.0.0.1:8000/','https://other.example/')).rejects.toThrow('invalid_redirect_uri');});
  test('cross-origin requires declared exact redirect',async()=>{await validateClient('https://client.example/','https://callback.example/',async()=>new Response(JSON.stringify({client_id:'https://client.example/',redirect_uris:['https://callback.example/']}),{headers:{'content-type':'application/json'}}));await expect(validateClient('https://client.example/','https://callback.example/',async()=>new Response('<a rel="redirect_uri" href="https://wrong.example/">'))).rejects.toThrow('invalid_redirect_uri');});
+});
+
+const nativeClient = 'https://client.example/ios';
+const nativeCallback = 'com.example.quill:/oauth/callback?platform=ios';
+function nativeMetadata(callbacks = [nativeCallback]) {
+ return async () => new Response(JSON.stringify({client_id:nativeClient, client_name:'Quill for iOS', redirect_uris:callbacks}), {headers:{'content-type':'application/json'}});
+}
+describe('native app callbacks', () => {
+ test('same-site client metadata uses the public asset binding and still verifies the callback', async () => {
+  const html = await Bun.file(new URL('../static/clients/quill-native/index.html', import.meta.url)).text();
+  let fetched = 0;
+  const {handler,calls} = fixture({}, undefined, {fetch: async (input) => {
+   expect(new Request(input).url).toBe(origin+'/clients/quill-native/');
+   fetched++;
+   return new Response(html, {headers:{'content-type':'text/html'}});
+  }});
+  for (const [redirect_uri,status] of [['quill-native://oauth',303],['quill-native://other',400]] as const) {
+   const params = new URLSearchParams({response_type:'code',client_id:origin+'/clients/quill-native/',redirect_uri,state:'s',code_challenge_method:'S256',code_challenge:'a'.repeat(43)});
+   expect((await handler(new Request(origin+'/auth?'+params))).status).toBe(status);
+  }
+  expect(fetched).toBe(2);
+  expect(calls.filter(c => c.op === 'createRequest')).toHaveLength(1);
+ });
+ test('Quill Native client page registers only its app callback', async () => {
+  const html = await Bun.file(new URL('../static/clients/quill-native/index.html', import.meta.url)).text();
+  const fetcher = async () => new Response(html, {headers:{'content-type':'text/html'}});
+  await validateClient('https://caseyagollan.com/clients/quill-native/', 'quill-native://oauth', fetcher);
+  await expect(validateClient('https://caseyagollan.com/clients/quill-native/', 'quill-native://other', fetcher)).rejects.toThrow('invalid_redirect_uri');
+ });
+ test('accepts exact custom callbacks declared in JSON and HTML metadata', async () => {
+  for (const callback of [nativeCallback, 'quill://auth/callback']) {
+   expect(await validateClient(nativeClient, callback, nativeMetadata([callback]))).toEqual({clientName:'Quill for iOS'});
+   await validateClient(nativeClient, callback, async () => new Response(`<link rel="redirect_uri" href="${callback}">`));
+  }
+ });
+ test('requires exact registration and an HTTPS client identity', async () => {
+  for (const callback of [nativeCallback+'x', nativeCallback.replace('/callback', '/other'), 'quill://auth/callback']) {
+   await expect(validateClient(nativeClient, callback, nativeMetadata())).rejects.toThrow('invalid_redirect_uri');
+  }
+  await expect(validateClient('http://127.0.0.1:8000/', nativeCallback, nativeMetadata())).rejects.toThrow('invalid_redirect_uri');
+  await expect(validateClient('quill://client/', nativeCallback, nativeMetadata())).rejects.toThrow('invalid_client');
+ });
+ test('rejects unsafe callbacks even when declared', async () => {
+  for (const callback of ['javascript:alert(1)', 'javascript://host/callback', 'data:text/html,hello', 'file:///etc/passwd', 'blob:https://client.example/id', 'about:blank', 'ftp://client.example/cb', 'quill:opaque', 'quill://user:pass@auth/cb', nativeCallback+'#fragment', 'quill://auth/call\nback', 'http://client.example/cb', 'not a URL']) {
+   await expect(validateClient(nativeClient, callback, nativeMetadata([callback]))).rejects.toThrow('invalid_redirect_uri');
+  }
+ });
+ test('authorizes native callbacks, preserves query and state, and exchanges the exact URI', async () => {
+  const {handler,calls} = fixture({approveRequest:{code:'native-code',redirectUri:nativeCallback,state:'ios state'}}, nativeMetadata());
+  const params = new URLSearchParams({response_type:'code',client_id:nativeClient,redirect_uri:nativeCallback,state:'ios state',scope:'create',code_challenge_method:'S256',code_challenge:'a'.repeat(43)});
+  const response = await handler(new Request(origin+'/auth?'+params));
+  expect(response.status).toBe(303);
+  expect(calls.find(c => c.op === 'createRequest')?.input).toMatchObject({clientId:nativeClient,redirectUri:nativeCallback,state:'ios state',scope:['create']});
+  const consent = await handler(post('/auth/consent',{id:'pending',scope:['create'],csrf:'proof'},{cookie:'__Host-indieauth-session=owner'}));
+  const target = new URL((await consent.json() as {redirect:string}).redirect);
+  expect(target.protocol).toBe('com.example.quill:');
+  expect(target.pathname).toBe('/oauth/callback');
+  expect(Object.fromEntries(target.searchParams)).toEqual({platform:'ios',code:'native-code',iss:origin+'/',state:'ios state'});
+  const exchange = await handler(post('/auth/token',new URLSearchParams({grant_type:'authorization_code',code:'native-code',client_id:nativeClient,redirect_uri:nativeCallback,code_verifier:'a'.repeat(43)}).toString(),{'content-type':'application/x-www-form-urlencoded'}));
+  expect(exchange.status).toBe(200);
+  expect(calls.find(c => c.op === 'exchangeCode')?.input.redirectUri).toBe(nativeCallback);
+ });
+ test('unregistered callbacks never create a request or redirect', async () => {
+  const {handler,calls} = fixture({},nativeMetadata([]));
+  const params = new URLSearchParams({response_type:'code',client_id:nativeClient,redirect_uri:nativeCallback,state:'s',code_challenge_method:'S256',code_challenge:'a'.repeat(43)});
+  const response = await handler(new Request(origin+'/auth?'+params));
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({error:'invalid_redirect_uri'});
+  expect(response.headers.has('location')).toBe(false);
+  expect(calls.some(c => c.op === 'createRequest')).toBe(false);
+ });
 });

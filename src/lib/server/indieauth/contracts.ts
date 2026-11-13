@@ -10,6 +10,7 @@ export interface IndieAuthEnvironment {
  AUTH_ENABLED?: string; AUTH_ORIGIN?: string; AUTH_ME?: string; AUTH_RP_NAME?: string;
  AUTH_SETUP_TOKEN?: string; AUTH_INTROSPECTION_TOKEN?: string; AUTH_TOKEN_TTL_SECONDS?: string;
  AUTH_STORE?: DurableObjectNamespace;
+ ASSETS?: Pick<Fetcher, 'fetch'>;
 }
 export interface AuthorizationRequest { clientId: string; redirectUri: string; state?: string; scope: string[]; codeChallenge: string; clientName?: string }
 export interface SessionInfo { csrf: string; expiresAt: number }

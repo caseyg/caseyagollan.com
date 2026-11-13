@@ -4,10 +4,21 @@ import { authError } from './contracts';
 function clientUrl(value: string): URL {
  try { const u = new URL(value); if (u.username || u.password || u.hash || !(u.protocol === 'https:' || (u.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(u.hostname)))) authError('invalid_client'); return u; } catch { return authError('invalid_client'); }
 }
+function redirectUrl(value: string): URL {
+ try {
+ const u = new URL(value);
+ // Native callbacks must be hierarchical URIs, never executable or local-file URLs.
+ if (u.username || u.password || u.hash || /[\s\u0000-\u001f\u007f]/.test(value)) authError('invalid_redirect_uri');
+ if (u.protocol === 'https:' || u.protocol === 'http:') {
+ if (u.protocol === 'http:' && !['localhost','127.0.0.1','[::1]'].includes(u.hostname)) authError('invalid_redirect_uri');
+ } else if (['javascript:','data:','vbscript:','file:','blob:','about:','ftp:','ws:','wss:'].includes(u.protocol) || !value.slice(value.indexOf(':') + 1).startsWith('/')) authError('invalid_redirect_uri');
+ return u;
+ } catch { return authError('invalid_redirect_uri'); }
+}
 export async function validateClient(clientId: string, redirectUri: string, fetcher: PublicFetcher = safePublicFetch): Promise<{clientName?: string}> {
- const client = clientUrl(clientId); const redirect = clientUrl(redirectUri);
+ const client = clientUrl(clientId); const redirect = redirectUrl(redirectUri);
  if (client.origin === redirect.origin) return {};
- if (client.protocol !== 'https:' || redirect.protocol !== 'https:') authError('invalid_redirect_uri');
+ if (client.protocol !== 'https:' || redirect.protocol === 'http:') authError('invalid_redirect_uri');
  try {
  const response = await fetcher(client.href, { headers: { accept: 'application/json, text/html' } });
  if (!response.ok) authError('invalid_client');

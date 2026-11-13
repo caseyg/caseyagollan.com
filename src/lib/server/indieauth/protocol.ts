@@ -1,6 +1,6 @@
 import { AUTH_ERRORS, AUTH_SCOPES, authError, authSettings, authStore, tokenName, type AuthRPC, type IndieAuthEnvironment } from './contracts';
 import { validateClient } from './clients';
-import type { PublicFetcher } from '../publishing/public-fetch';
+import { safePublicFetch, type PublicFetcher } from '../publishing/public-fetch';
 const COOKIE = '__Host-indieauth-session';
 function scalar(value: unknown, max = 4096): string { if (typeof value !== 'string' || !value.length || value.length > max) authError('invalid_request'); return value; }
 function scopes(value: unknown): string[] { const list = typeof value === 'string' ? value.split(/\s+/).filter(Boolean) : value; if (!Array.isArray(list) || list.some(s => typeof s !== 'string' || !(AUTH_SCOPES as readonly string[]).includes(s))) authError('invalid_scope'); return [...new Set(list)] as string[]; }
@@ -44,7 +44,10 @@ export function createIndieAuthHandler(env: IndieAuthEnvironment, dependencies: 
  if(query.response_type!=='code'||query.code_challenge_method!=='S256'||!/^[A-Za-z0-9_-]{43}$/.test(query.code_challenge??''))authError('invalid_request');
  if(query.me){try{if(new URL(query.me).href!==settings.me)authError('invalid_request');}catch{authError('invalid_request');}}
  const clientId=scalar(query.client_id),redirectUri=scalar(query.redirect_uri),state=scalar(query.state,1024),scope=scopes(query.scope??'');
- const client=await validateClient(clientId,redirectUri,dependencies.publicFetch);const {id}=await store.invoke('createRequest',{clientId,redirectUri,state,scope,codeChallenge:query.code_challenge,...client});headers.set('location',origin+'/account?request='+encodeURIComponent(id));return new Response(null,{status:303,headers});
+ // Read this Worker's public client pages through its asset binding; fetching our
+ // own zone over the network can fail before reaching the static asset handler.
+ const clientFetch: PublicFetcher = dependencies.publicFetch ?? ((value,init) => new URL(value).origin === origin && env.ASSETS ? env.ASSETS.fetch(new Request(value,init)) : safePublicFetch(value,init));
+ const client=await validateClient(clientId,redirectUri,clientFetch);const {id}=await store.invoke('createRequest',{clientId,redirectUri,state,scope,codeChallenge:query.code_challenge,...client});headers.set('location',origin+'/account?request='+encodeURIComponent(id));return new Response(null,{status:303,headers});
  }
  if(protocol&&request.method==='POST') {
  const data=await body(request,false);

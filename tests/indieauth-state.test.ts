@@ -171,12 +171,12 @@ test("first enrollment closes bootstrap and owner csrf protects further registra
     }),
   ).rejects.toThrow("last_credential");
 });
-test("codes bind consent and PKCE and exchange exactly once under concurrency", async () => {
+test.each(["https://client.example/cb", "quill://auth/callback?platform=ios"])("codes bind consent and PKCE and exchange exactly once: %s", async (redirectUri) => {
   const { state, owner, storage } = await enrolled();
   const verifier = "A".repeat(43);
   const request = {
     clientId: "https://client.example/",
-    redirectUri: "https://client.example/cb",
+    redirectUri,
     scope: ["create"],
     codeChallenge: await hash(verifier),
   };
