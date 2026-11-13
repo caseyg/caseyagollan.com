@@ -24,6 +24,24 @@ Use Vite for fast development and Wrangler preview when testing KV/R2 bindings. 
 
 Search uses Pagefind, generated automatically before the Vite production build from public posts, the local book catalog, and published cag.wiki Markdown pages. Run `bun run build:search` before `bun run dev` to enable search locally, and rerun it after content changes. Pagefind’s official Component UI supplies the magnifying-glass trigger, modal, input, results, and type filter. ⌘/Ctrl K opens the overlay and Escape closes it. Results can be filtered by post type, book, or wiki. Wiki indexing fetches fresh Obsidian Publish metadata and Markdown at build time, includes only URLs listed in the cag.wiki sitemap, and links results to cag.wiki. A wiki fetch failure fails the build to avoid publishing an incomplete index. Book search covers available catalog text and metadata, not the contents of the books. Generated `static/pagefind/` files are ignored by Git and copied into the Worker assets during the build.
 
+## Native IndieAuth clients
+
+Native apps can use custom scheme callbacks (for example, `quill://auth/callback`)
+with the site's `/auth` authorization endpoint and `/auth/token` token endpoint.
+Use an HTTPS `client_id` URL that publishes the exact callback in JSON client
+metadata (`client_id` and `redirect_uris`), or an HTML `<link rel="redirect_uri"
+href="quill://auth/callback">`. Custom callbacks must be hierarchical URLs, with
+no credentials or fragment. Undeclared callbacks are rejected.
+
+Quill Native uses `client_id=https://caseyagollan.com/clients/quill-native/` and
+`redirect_uri=quill-native://oauth`. Its public client page in
+`static/clients/quill-native/index.html` declares that callback.
+
+Send `response_type=code`, `state`, `code_challenge_method=S256`, and an S256
+`code_challenge`. Exchange the code using the same `client_id` and `redirect_uri`
+and the original `code_verifier`. Callback URLs include `code`, `state`, and `iss`;
+the app must verify state and issuer before exchanging the code.
+
 ## Component library
 
 [Storybook](https://storybook.js.org/docs/get-started/frameworks/sveltekit) uses the SvelteKit framework and lives at `/storybook/` ([production](https://caseyagollan.com/storybook/)). Every reusable component in `src/lib/components/` has colocated stories, with shared example posts in `src/lib/storybook/fixtures.ts`. Add a story alongside each new component.
