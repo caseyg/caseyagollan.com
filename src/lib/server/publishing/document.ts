@@ -140,7 +140,7 @@ export function updateDocument(markdown: string, operations: UpdateOperations): 
 			yaml.set(field, values[0]);
 		} else yaml.set(field, values);
 	}
-	if (properties.content && typeof properties.content[0] === 'string' && (!legacyContent || properties['p3k-content-type'])) yaml.set(formatKey, properties['p3k-content-type']?.[0] === 'text/markdown' ? 'markdown' : 'text');
+	if (properties.content && typeof properties.content[0] === 'string' && !equal(original.properties['p3k-content-type'] ?? [], properties['p3k-content-type'] ?? [])) yaml.set(formatKey, properties['p3k-content-type']?.[0] === 'text/markdown' ? 'markdown' : 'text');
 	return `---\n${yaml.toString()}---\n${body}`;
 }
 

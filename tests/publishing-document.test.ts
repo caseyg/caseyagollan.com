@@ -32,6 +32,17 @@ describe('publishing document', () => {
     expect(doc.properties.photo).toEqual([{ url: 'https://media.example/photo.jpg', alt: 'A moon' }]);
   });
 
+  test('metadata-only edits preserve explicit Markdown without a p3k content-type', () => {
+    const markdown = source.replace('title: Old title', '_micropubContentFormat: markdown\ntitle: Old title');
+    const next = updateDocument(markdown, { add: { syndication: ['https://bsky.app/profile/test/post/1'] } });
+    expect(readDocument(next).bodyFormat).toBe('markdown');
+    expect(readDocument(next).body).toBe(readDocument(markdown).body);
+    const post = parsePost(next, 'notes', '2026-11-06-note.md');
+    expect(post.contentFormat).toBe('markdown');
+    expect(readDocument(updateDocument(next, { replace: { name: ['New title'] } })).bodyFormat).toBe('markdown');
+    expect(readDocument(updateDocument(next, { delete: ['syndication'] })).bodyFormat).toBe('markdown');
+  });
+
   test('applies all mixed operations and compares nested values structurally', () => {
     const next = updateDocument(source, {
       replace: { name: ['Changed'] },
