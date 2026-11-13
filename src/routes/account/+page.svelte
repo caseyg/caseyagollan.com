@@ -3,8 +3,9 @@
 	import { page } from '$app/state';
 	import type { AuthOperations } from '$lib/server/indieauth/contracts';
 	import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
-	import { startRegistration, startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser';
-	import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
+	import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
+	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
+	import { passkeyError, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
 
 	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean };
 	type Request = { clientId: string; redirectUri: string; scope: string[] };
@@ -32,6 +33,12 @@
 	let loadedRequestId = $state<string | null>(null);
 	let requestError = $state('');
 	const requestId = $derived(page.url.searchParams.get('request'));
+	function returnToPage() {
+		const target = safeReturnTo(page.url.searchParams.get('returnTo'), page.url.origin);
+		if (!target || requestId) return false;
+		window.location.replace(target);
+		return true;
+	}
 
 	async function api<T>(path: string, body?: unknown): Promise<T> {
 		const response = await fetch(path, {
@@ -51,6 +58,7 @@
 	async function refresh() {
 		session = await api<Session>('/auth/session');
 		if (session.authenticated) {
+			if (returnToPage()) return;
 			[tokens, credentials] = await Promise.all([api<Token[]>('/auth/tokens'), api<Credential[]>('/auth/credentials')]);
 			if (requestId) {
 				requestError = '';
@@ -74,9 +82,7 @@
 		busy = true; error = ''; notice = '';
 		try { await action(); }
 		catch (cause) {
-			error = cause instanceof Error && cause.name === 'NotAllowedError'
-				? 'The passkey prompt was canceled or timed out. You can try again.'
-				: cause instanceof Error && cause.name === 'Error' ? cause.message : 'The passkey could not be used. Please try again.';
+			error = passkeyError(cause);
 		} finally { busy = false; }
 	}
 	onMount(() => {
@@ -87,11 +93,9 @@
 	});
 	async function login() {
 		await run(async () => {
-			const challenge = await api<{ id: string; options: PublicKeyCredentialRequestOptionsJSON }>('/auth/passkey/login/options', {});
-			const response = await startAuthentication({ optionsJSON: challenge.options });
-			await api('/auth/passkey/login/verify', { id: challenge.id, response });
+			await signInWithPasskey();
+			if (returnToPage()) return;
 			await refresh(); notice = 'You are signed in.';
-			if (page.url.searchParams.get('returnTo') === '/readwise') window.location.assign('/readwise');
 		});
 	}
 	async function register() {
