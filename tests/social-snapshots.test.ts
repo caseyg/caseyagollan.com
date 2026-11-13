@@ -334,3 +334,26 @@ test('metadata-only refresh retains saved media, text and timestamps',async()=>{
  const {thread:_originalThread,...expected} = original;
  expect(retained).toEqual(expected);
 });
+
+test('manual Bluesky post links recurse with bounded cycles and native quote precedence', async()=>{
+ const linked='https://bsky.app/profile/linked.example/post/linked1';
+ const facet=(uri:string)=>({index:{byteStart:0,byteEnd:4},features:[{$type:'app.bsky.richtext.facet#link',uri}]});
+ const outer={...blueskyPost,record:{...blueskyPost.record,facets:[facet(linked)]}};
+ const nested={...blueskyPost,record:{text:'Linked original',createdAt:blueskyPost.record.createdAt,facets:[facet(blue)]}};
+ const requests:string[]=[];
+ const fetchLinked=async(url:string)=>{
+  if(url.includes('getProfile'))return Response.json({did:'did:plc:grant'});
+  const uri=new URL(url).searchParams.get('uri')!; requests.push(uri);
+  return Response.json({thread:{post:uri.includes('linked.example')?nested:outer}});
+ };
+ const saved=await enrich(source(),fetchLinked);
+ const post=parsePost(saved,'likes','2026-11-06-manual.md');
+ expect(post.socialSnapshots![0].quote?.html.replace(/<[^>]*>/g,'')).toContain('Linked original');
+ expect(post.socialSnapshots![0].quote?.quote).toBeUndefined();
+ expect(requests).toHaveLength(2);
+ expect(renderPostDetails(post).replace(/<[^>]*>/g,'')).toContain('Linked original');
+ const native={...outer,record:{...outer.record,embed:{record:{uri:'at://native.example/app.bsky.feed.post/native1'}}}};
+ requests.length=0;
+ await enrich(source(),async url=>url.includes('getProfile')?Response.json({did:'did:plc:grant'}):new URL(url).searchParams.get('uri')!.includes('grantcuster')?Response.json({thread:{post:native}}):fetchLinked(url));
+ expect(requests[0]).toBe('at://native.example/app.bsky.feed.post/native1');
+});

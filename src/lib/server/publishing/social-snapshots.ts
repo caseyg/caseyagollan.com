@@ -99,6 +99,21 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   if(profile.did!==post.author.did||!publicBluesky(profile))throw new SocialSnapshotUnavailable('Author restricted');
   const quoted=post.record.embed?.record?.record?.uri ?? post.record.embed?.record?.uri;
   if(typeof quoted==='string')try{quoteUrl=blueUrl(quoted);}catch{}
+  // Older/manual quotes are links in the text rather than native record embeds.
+  // Prefer native quotes; follow only the first explicit Bluesky post link.
+  if(!quoteUrl && Array.isArray(post.record.facets)) for(const facet of post.record.facets) {
+   if(!Array.isArray(facet?.features)) continue;
+   for(const feature of facet.features) {
+    if(feature?.$type !== 'app.bsky.richtext.facet#link' || typeof feature.uri !== 'string') continue;
+    try {
+     const linked = publicUrl(feature.uri);
+     if(linked.protocol === 'https:' && linked.hostname === 'bsky.app' && /^\/profile\/[^/]+\/post\/[a-zA-Z0-9]+\/?$/.test(linked.pathname)) {
+      linked.search=''; linked.hash=''; quoteUrl=linked.href; break;
+     }
+    } catch { /* Malformed links remain text only. */ }
+   }
+   if(quoteUrl) break;
+  }
   const handle = post.author.handle;
   avatar = typeof post.author.avatar === 'string' ? post.author.avatar : undefined;
   result = {version:1,url,platform:'bluesky',author:{name:post.author.displayName || handle,handle:`@${handle}`,url:`https://bsky.app/profile/${encodeURIComponent(handle)}`},published:post.record.createdAt,fetchedAt:new Date().toISOString(),html:blueskyHtml(post.record.text,post.record.facets)};
