@@ -63,12 +63,28 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  let tid=(micros<<10n)|BigInt(((hash[2]<<8)|hash[3])&1023);
  const alphabet='234567abcdefghijklmnopqrstuvwxyz';let rkey='';
  for(let i=0;i<13;i++){rkey=alphabet[Number(tid&31n)]+rkey;tid>>=5n;}
- const text=syndicationText(post,300,3000);const link=publicUrl(post.url).href;const encoder=new TextEncoder();
- const linkIndex=text.lastIndexOf(link);
- const byteStart=encoder.encode(text.slice(0,linkIndex)).length; const byteEnd=byteStart+encoder.encode(link).length;
- const facets: {index:{byteStart:number;byteEnd:number};features:Record<string,string>[]}[] = linkIndex < 0 ? [] : [{index:{byteStart,byteEnd},features:[{$type:'app.bsky.richtext.facet#link',uri:link}]}];
+ const text=syndicationText(post,300,3000);const encoder=new TextEncoder();
+ const facets: {index:{byteStart:number;byteEnd:number};features:Record<string,string>[]}[] = [];
+ const linkRanges: {start:number;end:number}[] = [];
+ for (const match of text.matchAll(/https?:\/\/[^\s<>"\u201c\u201d]+/gi)) {
+  let value = match[0].replace(/[.,;:!?]+$/, '');
+  // Keep balanced parentheses in URLs, but exclude surrounding prose punctuation.
+  while (/[)\]}]$/.test(value)) {
+   const close = value.at(-1)!;
+   const open = {')':'(',']':'[','}':'{'}[close as ')' | ']' | '}'];
+   if (value.split(close).length <= value.split(open).length) break;
+   value = value.slice(0,-1).replace(/[.,;:!?]+$/, '');
+  }
+  let uri: string;
+  try { const url = new URL(value); if (!url.hostname || url.username || url.password) continue; uri = url.href; } catch { continue; }
+  const start = match.index!, end = start + value.length;
+  linkRanges.push({start,end});
+  facets.push({index:{byteStart:encoder.encode(text.slice(0,start)).length,byteEnd:encoder.encode(text.slice(0,end)).length},features:[{$type:'app.bsky.richtext.facet#link',uri}]});
+ }
  const resolved = new Map<string,string>();
  for (const match of text.matchAll(/(?:^|[\s(—])@([a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,})(?![\w@-])/g)) {
+  const start = match.index! + match[0].lastIndexOf('@');
+  if (linkRanges.some(range => start >= range.start && start < range.end)) continue;
   const handle = match[1];
   if (!resolved.has(handle)) {
    const response = await fetcher(base+'/xrpc/com.atproto.identity.resolveHandle?handle='+encodeURIComponent(handle), {redirect:'manual'});
@@ -77,7 +93,6 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
    if (!result.did || !/^did:(plc:[a-z0-9]+|web:[A-Za-z0-9.:%_-]+)$/.test(result.did)) throw new DeliveryError('Could not resolve Bluesky mention',false);
    resolved.set(handle,result.did);
   }
-  const start = match.index! + match[0].lastIndexOf('@');
   facets.push({index:{byteStart:encoder.encode(text.slice(0,start)).length,byteEnd:encoder.encode(text.slice(0,start+handle.length+1)).length},features:[{$type:'app.bsky.richtext.facet#mention',did:resolved.get(handle)!}]});
  }
  facets.sort((a,b)=>a.index.byteStart-b.index.byteStart);

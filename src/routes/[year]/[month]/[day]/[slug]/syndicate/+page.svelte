@@ -5,7 +5,7 @@
  import { passkeyError, signInWithPasskey } from '$lib/passkey-login';
  import type { PageData, ActionData } from './$types';
  let { data, form }: { data: PageData; form: ActionData } = $props();
- import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
+ import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField, Toggle } from '$lib/components/ui';
  import { characterCount, mentionQuery, type SocialService, type FollowedAccount } from '$lib/social-text';
  import follows from '$lib/data/social-follows.json';
  const initiallyLinked = form && 'linked' in form ? form.linked : !form?.drafts;
@@ -68,10 +68,10 @@
   <form method="POST" onsubmit={() => { sending = true; }}>
    <input type="hidden" name="csrf" value={data.csrf} />
    <input type="hidden" name="revision" value={data.revision} />
-   <Checkbox name="linked" checked={linked} onchange={(event: Event) => {
+   <Toggle name="linked" checked={linked} onchange={(event: Event) => {
     linked = (event.target as HTMLInputElement).checked;
     if (linked) drafts.mastodon = drafts.bluesky;
-   }}>Keep text in sync</Checkbox>
+   }}>Keep text in sync</Toggle>
    <p class="hint">Turn off to edit each post separately. Turning on copies the Bluesky draft to Mastodon. Mentions use each network’s handles.</p>
    {#each data.destinations ?? [] as destination (destination.service)}
     <Section title={destination.name} variant="card">
