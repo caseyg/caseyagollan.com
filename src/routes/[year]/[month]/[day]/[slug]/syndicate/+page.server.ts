@@ -54,11 +54,11 @@ export const actions: Actions = {
    const post = await getGitHubPost(params, fetch, config.token, config);
    if (!post) error(404, 'Post not found');
    const message = await sendEditorDrafts(config, post, values.get('revision') ?? '', values.getAll('targets'), drafts, { gitFetch: fetch, syncOnly: values.get('intent') === 'sync' });
-   return { message, drafts, targets: values.getAll('targets') };
+   return { message, drafts, linked: values.has('linked'), targets: values.getAll('targets') };
   } catch (cause) {
-   if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, drafts, targets: values.getAll('targets') });
+   if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, drafts, linked: values.has('linked'), targets: values.getAll('targets') });
    console.warn(JSON.stringify({ event: 'syndication_editor_failed' }));
-   return fail(503, { message: 'Syndication is temporarily unavailable. Reload before trying again.', drafts, targets: values.getAll('targets') });
+   return fail(503, { message: 'Syndication is temporarily unavailable. Reload before trying again.', drafts, linked: values.has('linked'), targets: values.getAll('targets') });
   }
  }
 };

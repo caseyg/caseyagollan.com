@@ -108,11 +108,31 @@ Scheduled Mastodon and Bluesky imports are documented in [PESOS](docs/indieweb-p
 
 Append `/syndicate` to any dated post permalink to open its syndication editor.
 Sign in through `/account` with your existing passkey, choose Bluesky, Mastodon,
-or both, edit the separate drafts, and send. The editor reads current GitHub
+or both, edit the drafts, and send. The editor reads current GitHub
 content and saved delivery receipts to show existing social links. Independently
 published copies without saved links are not discovered by searching social accounts.
 This uses the native text-and-link syndicators; photos, video, and audio stay on
 the original page. Only published public posts can be syndicated here.
+
+Drafts start linked using Bluesky’s shorter draft. **Keep text in sync** mirrors
+edits in either direction; disable it for separate edits. Re-enabling copies the
+Bluesky draft to Mastodon. Each editor shows its live character count and overage;
+Mastodon counts URLs as 23 characters and remote mentions by their local username.
+Type `@` for followed-account suggestion chips, which can be reached with Tab and
+selected with Enter. Use Escape to dismiss suggestions. Bluesky handles are resolved
+at send time into DID mention facets; Mastodon recognizes full `@user@server`
+mentions natively. Accounts on different networks are not automatically matched:
+unlink drafts to use different handles for the same person.
+
+`src/lib/data/social-follows.json` is a public-follow snapshot refreshed daily by
+`.github/workflows/update-social-follows.yml` (also manually runnable). It defaults
+to `caseyagollan.com` on Bluesky and `caseyg` on `https://social.coop`; repository
+variables `PUBLISHING_BLUESKY_IDENTIFIER`, `PUBLISHING_MASTODON_INSTANCE`, and
+`MASTODON_ACCOUNT` override these defaults. No social secrets are needed. Failed
+follow-list requests leave the prior snapshot intact. Only publicly visible follows
+can be included. To refresh locally:
+`MASTODON_ACCOUNT=caseyg bun utils/update-social-follows.ts`, with the Bluesky
+identifier and Mastodon instance environment variables also set.
 
 The editor requires the existing internal owner authentication, `PUBLISHING_STATE`,
 GitHub publishing credentials, and credentials for each offered social destination.

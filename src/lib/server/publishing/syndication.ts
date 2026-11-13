@@ -1,4 +1,5 @@
 import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from './public-fetch';
+import { characterCount } from '../../social-text';
 import { checkDeliveryResponse } from './webmention';
 export interface SyndicationConfig {
  mastodon?: {instance:string;token:string};
@@ -7,9 +8,9 @@ export interface SyndicationConfig {
 export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string}
 const segmenter=new Intl.Segmenter('en',{granularity:'grapheme'});
 function graphemes(text:string): string[] {return Array.from(segmenter.segment(text),s=>s.segment);}
-export function syndicationText(post:SyndicationPost,limit:number,byteLimit=Infinity):string {
+export function syndicationText(post:SyndicationPost,limit:number,byteLimit=Infinity,service:'bluesky'|'mastodon'='bluesky'):string {
  if (post.draft !== undefined) {
-  if (!post.draft.trim() || graphemes(post.draft).length > limit || new TextEncoder().encode(post.draft).length > byteLimit) throw new DeliveryError('Draft exceeds provider length limit or is empty',false);
+  if (!post.draft.trim() || characterCount(post.draft,service) > limit || new TextEncoder().encode(post.draft).length > byteLimit) throw new DeliveryError('Draft exceeds provider length limit or is empty',false);
   return post.draft;
  }
  const link=publicUrl(post.url).href;
@@ -37,7 +38,7 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  if(service==='mastodon') {
   const account=config.mastodon;if(!account)throw new DeliveryError('Mastodon is not configured',false);
   const base=origin(account.instance);
-  const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':post.idempotencyKey},body:new URLSearchParams({status:syndicationText(post,500),visibility:'public'})});
+  const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':post.idempotencyKey},body:new URLSearchParams({status:syndicationText(post,500,Infinity,'mastodon'),visibility:'public'})});
   checkDeliveryResponse(response);
   let result:{url?:unknown};try{result=await response.json() as {url?:unknown};}catch{throw new DeliveryError('Invalid Mastodon response',true);}
   if(typeof result.url!=='string')throw new DeliveryError('Mastodon did not return a canonical URL',true);
@@ -65,6 +66,21 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  const text=syndicationText(post,300,3000);const link=publicUrl(post.url).href;const encoder=new TextEncoder();
  const linkIndex=text.lastIndexOf(link);
  const byteStart=encoder.encode(text.slice(0,linkIndex)).length; const byteEnd=byteStart+encoder.encode(link).length;
- await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt:post.published,facets:linkIndex < 0 ? [] : [{index:{byteStart,byteEnd},features:[{$type:'app.bsky.richtext.facet#link',uri:link}]}]}},{authorization:`Bearer ${session.accessJwt}`});
+ const facets: {index:{byteStart:number;byteEnd:number};features:Record<string,string>[]}[] = linkIndex < 0 ? [] : [{index:{byteStart,byteEnd},features:[{$type:'app.bsky.richtext.facet#link',uri:link}]}];
+ const resolved = new Map<string,string>();
+ for (const match of text.matchAll(/(?:^|[\s(—])@([a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?\.[a-zA-Z]{2,})(?![\w@-])/g)) {
+  const handle = match[1];
+  if (!resolved.has(handle)) {
+   const response = await fetcher(base+'/xrpc/com.atproto.identity.resolveHandle?handle='+encodeURIComponent(handle), {redirect:'manual'});
+   checkDeliveryResponse(response);
+   const result = await response.json() as {did?:string};
+   if (!result.did || !/^did:(plc:[a-z0-9]+|web:[A-Za-z0-9.:%_-]+)$/.test(result.did)) throw new DeliveryError('Could not resolve Bluesky mention',false);
+   resolved.set(handle,result.did);
+  }
+  const start = match.index! + match[0].lastIndexOf('@');
+  facets.push({index:{byteStart:encoder.encode(text.slice(0,start)).length,byteEnd:encoder.encode(text.slice(0,start+handle.length+1)).length},features:[{$type:'app.bsky.richtext.facet#mention',did:resolved.get(handle)!}]});
+ }
+ facets.sort((a,b)=>a.index.byteStart-b.index.byteStart);
+ await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt:post.published,facets}},{authorization:`Bearer ${session.accessJwt}`});
  return `https://bsky.app/profile/${session.did}/post/${rkey}`;
 }

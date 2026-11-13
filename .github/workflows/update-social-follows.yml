@@ -1,0 +1,31 @@
+name: Update mention autocomplete
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 10 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: social-follows
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.17'
+      - run: bun utils/update-social-follows.ts
+        env:
+          PUBLISHING_BLUESKY_IDENTIFIER: ${{ vars.PUBLISHING_BLUESKY_IDENTIFIER || 'caseyagollan.com' }}
+          PUBLISHING_MASTODON_INSTANCE: ${{ vars.PUBLISHING_MASTODON_INSTANCE || 'https://social.coop' }}
+          MASTODON_ACCOUNT: ${{ vars.MASTODON_ACCOUNT || 'caseyg' }}
+      - name: Save updated follows
+        run: |
+          git add src/lib/data/social-follows.json
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Update social mention autocomplete'
+          git pull --rebase
+          git push
