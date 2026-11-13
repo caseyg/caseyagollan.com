@@ -1,4 +1,4 @@
-import { AUTH_ERRORS, AUTH_SCOPES, authError, authSettings, authStore, type AuthRPC, type IndieAuthEnvironment } from './contracts';
+import { AUTH_ERRORS, AUTH_SCOPES, authError, authSettings, authStore, tokenName, type AuthRPC, type IndieAuthEnvironment } from './contracts';
 import { validateClient } from './clients';
 import type { PublicFetcher } from '../publishing/public-fetch';
 const COOKIE = '__Host-indieauth-session';
@@ -72,7 +72,7 @@ export function createIndieAuthHandler(env: IndieAuthEnvironment, dependencies: 
  const csrf=scalar(data.csrf);if(!session)authError('invalid_owner_auth');
  if(url.pathname==='/auth/consent'){const result=await store.invoke('approveRequest',{id:scalar(data.id),scope:scopes(data.scope),session,csrf});const target=new URL(result.redirectUri);target.searchParams.set('code',result.code);target.searchParams.set('iss',settings.issuer);if(result.state!==undefined)target.searchParams.set('state',result.state);return reply({redirect:target.href});}
  if(url.pathname==='/auth/logout'){await store.invoke('logout',{session,csrf});headers.set('set-cookie',`${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);return reply({});}
- if(url.pathname==='/auth/tokens')return reply(await store.invoke('personalToken',{session,csrf,scope:scopes(data.scope)}));
+ if(url.pathname==='/auth/tokens')return reply(await store.invoke('personalToken',{session,csrf,scope:scopes(data.scope),name:tokenName(data.name)}));
  if(url.pathname==='/auth/tokens/revoke'){await store.invoke('revokeTokenById',{id:scalar(data.id),session,csrf});return reply({});}
  if(url.pathname==='/auth/credentials/remove'){await store.invoke('removeCredential',{id:scalar(data.id),session,csrf});return reply({});}
  }

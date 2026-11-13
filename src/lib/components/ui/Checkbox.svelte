@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { HTMLInputAttributes } from 'svelte/elements';
 
 	interface Props {
 		/** One-way state; listen with `onchange`. Ignored when `group` is bound. */
@@ -8,18 +9,26 @@
 		group?: string[];
 		value?: string;
 		indeterminate?: boolean;
+		onchange?: HTMLInputAttributes['onchange'];
 		children?: Snippet;
 		[key: string]: unknown;
 	}
 
-	let { checked = false, group = $bindable(), value, indeterminate = false, children, ...rest }: Props = $props();
+	let { checked = false, group = $bindable(), value, indeterminate = false, onchange, children, ...rest }: Props = $props();
 </script>
 
 <label class="checkbox">
 	{#if group !== undefined}
-		<input type="checkbox" bind:group {value} {...rest} />
+		<!-- Native bind:group only groups inputs within the same component instance. -->
+		<input type="checkbox" {value} {...rest} checked={group.includes(value ?? 'on')} onchange={(event) => {
+			const selected = event.currentTarget.value;
+			group = event.currentTarget.checked
+				? [...(group ?? []).filter((item) => item !== selected), selected]
+				: (group ?? []).filter((item) => item !== selected);
+			onchange?.(event);
+		}} />
 	{:else}
-		<input type="checkbox" {checked} {indeterminate} {value} {...rest} />
+		<input type="checkbox" {checked} {indeterminate} {value} {...rest} {onchange} />
 	{/if}
 	{#if children}<span>{@render children()}</span>{/if}
 </label>

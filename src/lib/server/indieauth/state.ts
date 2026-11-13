@@ -7,6 +7,7 @@ import {
 import {
   AUTH_SCOPES,
   authError,
+  tokenName,
   type AuthOperations,
   type AuthSettings,
   type AuthorizationRequest,
@@ -42,6 +43,7 @@ type Database = {
     string,
     Expiring & {
       clientId: string;
+      name?: string;
       scope: string;
       createdAt: number;
     }
@@ -263,12 +265,13 @@ export class IndieAuthState {
     db.sessions[await hash(sessionToken)] = { csrf, expiresAt, credentialId };
     return { sessionToken, csrf, expiresAt };
   }
-  private async token(db: Database, clientId: string, scope: string[]) {
+  private async token(db: Database, clientId: string, scope: string[], name?: string) {
     this.scopes(scope);
     this.capacity(db.tokens);
     const access_token = random();
     db.tokens[await hash(access_token)] = {
       clientId,
+      ...(name ? { name } : {}),
       scope: scope.join(" "),
       createdAt: this.now(),
       expiresAt: this.now() + this.settings.tokenTTL * 1000,
@@ -479,7 +482,7 @@ export class IndieAuthState {
       }
       case "personalToken":
         await this.owner(db, a);
-        return this.token(db, this.settings.me, a.scope);
+        return this.token(db, this.settings.me, a.scope, tokenName(a.name));
       case "introspectToken": {
         const token = db.tokens[await hash(a.token)];
         return token

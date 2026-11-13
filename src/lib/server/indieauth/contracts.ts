@@ -1,4 +1,10 @@
 export const AUTH_SCOPES = ['profile', 'read', 'create', 'update', 'delete', 'draft', 'media'] as const;
+export const AUTH_TOKEN_NAME_MAX_LENGTH = 100;
+export function tokenName(value: unknown): string | undefined {
+ if (value === undefined) return;
+ if (typeof value !== 'string' || value.length > AUTH_TOKEN_NAME_MAX_LENGTH) authError('invalid_request');
+ return value.trim() || undefined;
+}
 export interface AuthSettings { issuer: string; me: string; rpID: string; rpName: string; tokenTTL: number; setupToken?: string }
 export interface IndieAuthEnvironment {
  AUTH_ENABLED?: string; AUTH_ORIGIN?: string; AUTH_ME?: string; AUTH_RP_NAME?: string;
@@ -24,9 +30,9 @@ export interface AuthOperations {
  exchangeCode: { input: { code: string; clientId: string; redirectUri: string; verifier: string }; output: TokenResponse };
  introspectToken: { input: { token: string }; output: TokenInfo };
  revokeToken: { input: { token: string; clientId?: string }; output: boolean };
- listTokens: { input: { session: string }; output: { id: string; clientId: string; scope: string; createdAt: number; expiresAt: number }[] };
+ listTokens: { input: { session: string }; output: { id: string; clientId: string; name?: string; scope: string; createdAt: number; expiresAt: number }[] };
  revokeTokenById: { input: { id: string; session: string; csrf: string }; output: boolean };
- personalToken: { input: { session: string; csrf: string; scope: string[] }; output: TokenResponse };
+ personalToken: { input: { session: string; csrf: string; scope: string[]; name?: string }; output: TokenResponse };
  listCredentials: { input: { session: string }; output: { id: string; createdAt: number; deviceType?: string; backedUp?: boolean }[] };
  removeCredential: { input: { id: string; session: string; csrf: string }; output: boolean };
  rateLimit: { input: { key: string }; output: boolean };

@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
+	import type { AuthOperations } from '$lib/server/indieauth/contracts';
 	import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
 	import { startRegistration, startAuthentication, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 
 	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean };
 	type Request = { clientId: string; redirectUri: string; scope: string[] };
-	type Token = { id: string; clientId: string; scope: string; createdAt: number; expiresAt: number };
+	type Token = AuthOperations['listTokens']['output'][number];
 	type Credential = { id: string; createdAt: number; deviceType?: string; backedUp?: boolean };
 	const scopes: Record<string, string> = {
 		profile: 'Read your public profile.', read: 'Read content available to this account.',
@@ -22,6 +23,7 @@
 	let credentials = $state<Credential[]>([]);
 	let setupToken = $state('');
 	let newToken = $state('');
+	let personalTokenName = $state('');
 	let busy = $state(false);
 	let error = $state('');
 	let notice = $state('');
@@ -113,8 +115,9 @@
 	async function createToken() {
 		await run(async () => {
 			newToken = '';
-			const result = await api<{ access_token: string }>('/auth/tokens', { scope: personalScopes, csrf: session?.csrf });
+			const result = await api<{ access_token: string }>('/auth/tokens', { scope: personalScopes, name: personalTokenName, csrf: session?.csrf });
 			newToken = result.access_token;
+			personalTokenName = '';
 			await refresh();
 		});
 	}
@@ -172,10 +175,11 @@
 		</Section>
 		<Section title="Access tokens">
 			<p>Tokens let apps act with the permissions you grant. Revoke a token to stop its access.</p>
-			{#if tokens.length}<ul class="rows">{#each tokens as token}<li><div><strong>{token.clientId}</strong><br />Permissions: {token.scope || 'Identity only'}<br /><small>Created {date(token.createdAt)} · Expires {date(token.expiresAt)}</small></div>
-				<Button size="sm" disabled={busy} aria-label={`Revoke access for ${token.clientId}`} onclick={() => run(async () => { await api('/auth/tokens/revoke', { id: token.id, csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'Access revoked.'; })}>Revoke</Button>
+			{#if tokens.length}<ul class="rows">{#each tokens as token}<li><div><strong>{token.name || token.clientId}</strong><br />Permissions: {token.scope || 'Identity only'}<br /><small>Created {date(token.createdAt)} · Expires {date(token.expiresAt)}</small></div>
+				<Button size="sm" disabled={busy} aria-label={`Revoke access for ${token.name || token.clientId}`} onclick={() => run(async () => { await api('/auth/tokens/revoke', { id: token.id, csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'Access revoked.'; })}>Revoke</Button>
 			</li>{/each}</ul>{:else}<p class="hint">No active access tokens.</p>{/if}
 			<Heading level={3} size="subtitle" class="subsection">Create a personal token</Heading>
+			<TextField label="Token name (optional)" id="token-name" bind:value={personalTokenName} maxlength={100} placeholder="e.g. Laptop publishing" disabled={busy} />
 			<fieldset disabled={busy}><legend>Token permissions</legend>{#each Object.entries(scopes) as [scope, description]}<Checkbox bind:group={personalScopes} value={scope}><strong>{scope}</strong> — {description}</Checkbox>{/each}</fieldset>
 			<Button variant="primary" disabled={busy || !personalScopes.length} onclick={createToken}>Create token</Button>
 			{#if newToken}<div class="token"><TextField multiline mono label="Copy your new token now. It will not be shown again." id="new-token" readonly value={newToken} spellcheck="false" autocomplete="off" />
