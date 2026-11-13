@@ -439,6 +439,35 @@ test("owner management token ids revoke tokens without exposing bearer secrets",
     await state.invoke("session", { token: owner.sessionToken }),
   ).toBeNull();
 });
+test("personal token names persist across state instances alongside unnamed tokens", async () => {
+  const { state, storage, owner } = await enrolled();
+  const authorization = { session: owner.sessionToken, csrf: owner.csrf, scope: ["create", "media"] };
+  const named = await state.invoke("personalToken", { ...authorization, name: "  Laptop publishing  " });
+  await state.invoke("personalToken", authorization);
+  await state.invoke("personalToken", { ...authorization, name: "   " });
+  const reloaded = new IndieAuthState(storage, settings, { now: () => 1000000 });
+  const tokens = await reloaded.invoke("listTokens", { session: owner.sessionToken });
+  expect(tokens).toHaveLength(3);
+  expect(tokens.map(token => token.name)).toEqual(["Laptop publishing", undefined, undefined]);
+  expect(tokens[0].clientId).toBe(settings.me);
+  expect(tokens[0].scope).toBe("create media");
+  const introspection = await reloaded.invoke("introspectToken", { token: named.access_token });
+  expect(introspection.active).toBe(true);
+  expect(introspection.client_id).toBe(settings.me);
+  expect(introspection).not.toHaveProperty("name");
+  await reloaded.invoke("revokeTokenById", { ...authorization, id: tokens[0].id });
+  expect(await reloaded.invoke("introspectToken", { token: named.access_token })).toEqual({ active: false });
+});
+test("personal token names are bounded and validated at the state boundary", async () => {
+  const { state, owner } = await enrolled();
+  const authorization = { session: owner.sessionToken, csrf: owner.csrf, scope: ["read"] };
+  for (const name of ["x".repeat(101), null, 42, ["name"], {}]) {
+    await expect(state.invoke("personalToken", { ...authorization, name: name as string })).rejects.toThrow("invalid_request");
+  }
+  expect(await state.invoke("listTokens", { session: owner.sessionToken })).toHaveLength(0);
+  await state.invoke("personalToken", { ...authorization, name: "x".repeat(100) });
+  expect((await state.invoke("listTokens", { session: owner.sessionToken }))[0].name).toHaveLength(100);
+});
 test("owner can add keys up to eight and cannot exceed registration limit", async () => {
   const { state, owner } = await enrolled();
   const origin = "https://auth.example",

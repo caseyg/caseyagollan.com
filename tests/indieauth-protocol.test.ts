@@ -11,6 +11,21 @@ function fixture(overrides:Record<string,unknown>={}){
 }
 function post(path:string,data:unknown,headers:Record<string,string>={}){return new Request(origin+path,{method:'POST',headers:{origin,'content-type':'application/json',...headers},body:typeof data==='string'?data:JSON.stringify(data)});}
 describe('IndieAuth protocol boundary',()=>{
+ test('personal token creation forwards optional trimmed names',async()=>{
+  for(const name of ['  Laptop publishing  ', '', undefined]){
+   const {handler,calls}=fixture();
+   const response=await handler(post('/auth/tokens',{scope:['create','media'],csrf:'proof',name},{cookie:'__Host-indieauth-session=owner'}));
+   expect(response.status).toBe(200);
+   expect(calls.find(c=>c.op==='personalToken')?.input).toEqual({session:'owner',csrf:'proof',scope:['create','media'],name:name?.trim()||undefined});
+  }
+ });
+ test('invalid token names are rejected before invoking the store',async()=>{
+  for(const name of ['x'.repeat(101),null,42,['name'],{}]){
+   const {handler,calls}=fixture();
+   expect((await handler(post('/auth/tokens',{scope:['read'],csrf:'proof',name},{cookie:'__Host-indieauth-session=owner'}))).status).toBe(400);
+   expect(calls.some(c=>c.op==='personalToken')).toBe(false);
+  }
+ });
  test('metadata has public CORS while owner APIs do not',async()=>{const {handler}=fixture();for(const method of ['GET','OPTIONS']){const response=await handler(new Request(origin+'/.well-known/oauth-authorization-server',{method}));expect(response.status).toBe(method==='GET'?200:204);expect(response.headers.get('access-control-allow-origin')).toBe('*');}expect((await handler(new Request(origin+'/auth/session'))).headers.has('access-control-allow-origin')).toBe(false);expect((await handler(new Request(origin+'/auth/session',{method:'OPTIONS'}))).status).toBe(405);});
  test('normalizes optional owner me URL',async()=>{const {handler}=fixture();const base=origin+'/auth?response_type=code&client_id=https://client.example/&redirect_uri=https://client.example/cb&state=s&code_challenge_method=S256&code_challenge='+ 'a'.repeat(43);expect((await handler(new Request(base+'&me='+encodeURIComponent(origin)))).status).toBe(303);expect((await handler(new Request(base+'&me=https%3A%2F%2Fevil.example'))).status).toBe(400);});
  test('consent callback identifies issuer',async()=>{const {handler}=fixture({approveRequest:{code:'code',redirectUri:'https://client.example/cb',state:'state'}});const response=await handler(post('/auth/consent',{id:'request',scope:['profile'],csrf:'proof'},{cookie:'__Host-indieauth-session=owner'}));const redirect=new URL((await response.json() as {redirect: string}).redirect);expect(redirect.searchParams.get('iss')).toBe(origin+'/');expect(redirect.searchParams.get('code')).toBe('code');expect(redirect.searchParams.get('state')).toBe('state');});
