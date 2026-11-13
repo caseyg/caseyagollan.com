@@ -97,7 +97,7 @@
    {/each}
    <div class="actions">
     <Button type="submit" variant="primary" name="intent" value="send" disabled={sending || !data.destinations?.some(d => d.available && !d.pending && !d.links.length)}>{sending ? 'Sending…' : 'Send selected posts'}</Button>
-    {#if data.destinations?.some(d => d.links.length)}<Button type="submit" name="intent" value="sync" disabled={sending}>Sync links to original post</Button>{/if}
+    {#if data.destinations?.some(d => d.needsSync)}<Button type="submit" name="intent" value="sync" disabled={sending}>Sync links to original post</Button>{/if}
    </div>
   </form>
  {/if}

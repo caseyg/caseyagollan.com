@@ -56,6 +56,7 @@ test('existing links use exact provider origins and prevent sends', async () => 
  const existing = { ...post, syndication: ['https://bsky.app/profile/test/post/1', 'https://bsky.app.evil.example/post/1', 'https://social.coop/@caseyg/1'] };
  const destinations = await editorDestinations(app.config, existing);
  expect(destinations.map(d => d.links.length)).toEqual([1, 1]);
+ expect(destinations.some(d => d.needsSync)).toBe(false);
  const publication = await publicationForPost(existing, app.config.me);
  const message = await sendEditorDrafts(app.config, existing, publication.revision, ['bluesky', 'mastodon'], {}, { publicFetch: async () => { throw Error('must not send'); }, gitFetch: app.gitFetch });
  expect(message).toContain('already syndicated');
@@ -102,10 +103,14 @@ test('partial failure retains successful links; sync retries GitHub without send
  expect(message).toContain('could not be confirmed'); expect(message).toContain('GitHub update failed');
  const states = await editorDestinations(app.config, post);
  expect(states.find(d => d.service === 'bluesky')?.pending).toBe(true);
+ expect(states.find(d => d.service === 'bluesky')?.needsSync).toBe(false);
+ expect(states.find(d => d.service === 'mastodon')?.needsSync).toBe(true);
  expect(states.find(d => d.service === 'mastodon')?.links).toEqual(['https://social.coop/@caseyg/123']);
  app.failWrites(false);
  await sendEditorDrafts(app.config, post, publication.revision, ['bluesky'], { bluesky: 'do not send' }, { syncOnly: true, publicFetch, gitFetch: app.gitFetch });
  expect(sends).toBe(2); expect(readDocument(app.content()).properties.syndication).toEqual(['https://social.coop/@caseyg/123']);
+ const syncedPost = parsePost(app.content(), 'notes', '2026-11-06-note.md');
+ expect((await editorDestinations(app.config, syncedPost)).some(d => d.needsSync)).toBe(false);
 });
 
 test('manual sends and automatic delivery share claims and preserve the first draft through retry', async () => {
@@ -132,4 +137,18 @@ test('edited Bluesky drafts link the canonical URL wherever it appears using byt
   expect(new TextDecoder().decode(new TextEncoder().encode(text).slice(index.byteStart, index.byteEnd))).toBe(url);
   return Response.json({});
  });
+});
+
+
+test('sync is needed only for a confirmed provider receipt missing from post metadata', async () => {
+ const app = setup(), publication = await publicationForPost(post, app.config.me);
+ expect((await editorDestinations(app.config, post)).some(d => d.needsSync)).toBe(false);
+ const key = await syndicationReceiptKey(publication.url, 'bluesky');
+ const url = 'https://bsky.app/profile/test/post/new';
+ app.rows.set(key, { etag: '1', value: JSON.stringify({ status: 'sent', startedAt: 1, leaseUntil: 0, url }) });
+ const olderLink = { ...post, syndication: ['https://bsky.app/profile/test/post/old'] };
+ expect((await editorDestinations(app.config, olderLink))[0].needsSync).toBe(true);
+ expect((await editorDestinations(app.config, { ...olderLink, syndication: [...olderLink.syndication, url] }))[0].needsSync).toBe(false);
+ app.rows.set(key, { etag: '2', value: JSON.stringify({ status: 'sent', startedAt: 1, leaseUntil: 0, url: 'https://bsky.app.evil.example/post/new' }) });
+ expect((await editorDestinations(app.config, post))[0].needsSync).toBe(false);
 });

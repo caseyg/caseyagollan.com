@@ -15,7 +15,7 @@ const services: Service[] = ['bluesky', 'mastodon'];
 const names = { bluesky: 'Bluesky', mastodon: 'Mastodon' };
 export interface Destination {
  service: Service; name: string; links: string[]; draft: string; limit: number;
- available: boolean; pending: boolean;
+ available: boolean; pending: boolean; needsSync: boolean;
 }
 
 /** Use the same owner session as /account, without minting an access token. */
@@ -51,10 +51,12 @@ export async function editorDestinations(config: PublishingConfig, post: Post): 
  return Promise.all(services.map(async service => {
   const receipt = config.state ? await readSyndicationReceipt(config.state, publication.url, service) : undefined;
   const links = recordedLinks(post, service, config);
-  if (receipt?.url) links.push(...recordedLinks({ ...post, syndication: [receipt.url] }, service, config));
+  const receiptLinks = receipt?.url ? recordedLinks({ ...post, syndication: [receipt.url] }, service, config) : [];
+  const needsSync = receipt?.status === 'sent' && receiptLinks.some(link => !links.includes(link));
+  links.push(...receiptLinks);
   const limit = service === 'bluesky' ? 300 : 500;
   return { service, name: names[service], links: [...new Set(links)], available: !!config.state && !!config.syndication?.[service],
-   pending: receipt?.status === 'sending', limit,
+   pending: receipt?.status === 'sending', needsSync, limit,
    draft: receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity) };
  }));
 }
