@@ -1,0 +1,6115 @@
+{
+  "updatedAt": "2026-11-13T18:13:34.755Z",
+  "accounts": [
+    {
+      "service": "mastodon",
+      "handle": "__nate__@mstdn.social",
+      "name": "__nate__"
+    },
+    {
+      "service": "bluesky",
+      "handle": "11ty.dev",
+      "name": "Build Awesome (11ty)"
+    },
+    {
+      "service": "mastodon",
+      "handle": "11ty@neighborhood.11ty.dev",
+      "name": "Build Awesome (11ty)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "14prinsp.bsky.social",
+      "name": "Paul Prinsloo 🏳️‍🌈🇿🇦🇵🇸"
+    },
+    {
+      "service": "mastodon",
+      "handle": "1994clipart@botsin.space",
+      "name": "Corel Gallery Clipart"
+    },
+    {
+      "service": "bluesky",
+      "handle": "404media.co",
+      "name": "404 Media"
+    },
+    {
+      "service": "mastodon",
+      "handle": "a_l@mastodon.social",
+      "name": "Al Shaw"
+    },
+    {
+      "service": "bluesky",
+      "handle": "aaranged.bsky.social",
+      "name": "Aaron Bradley"
+    },
+    {
+      "service": "mastodon",
+      "handle": "aaronpk@aaronparecki.com",
+      "name": "Aaron Parecki"
+    },
+    {
+      "service": "mastodon",
+      "handle": "aarontay@mastodon.cloud",
+      "name": "Aaron Tay"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ab.bsky.social",
+      "name": "Andrew Badr"
+    },
+    {
+      "service": "bluesky",
+      "handle": "abeba.blacksky.app",
+      "name": "Dr Abeba Birhane"
+    },
+    {
+      "service": "mastodon",
+      "handle": "abebab@scholar.social",
+      "name": "Abeba"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adactio.com",
+      "name": "Jeremy Keith"
+    },
+    {
+      "service": "mastodon",
+      "handle": "adactio@mastodon.social",
+      "name": "Jeremy Keith"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adalovelaceinst.bsky.social",
+      "name": "Ada Lovelace Institute"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adamcurtisbroll.bsky.social",
+      "name": "Future Adam Curtis B-Roll"
+    },
+    {
+      "service": "mastodon",
+      "handle": "adamgreenfield@social.coop",
+      "name": "Adam Greenfield"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adamwiggins.com",
+      "name": "Adam Wiggins"
+    },
+    {
+      "service": "mastodon",
+      "handle": "adamwiggins@mas.to",
+      "name": "Adam Wiggins"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adamwulf.bsky.social",
+      "name": "Adam Wulf"
+    },
+    {
+      "service": "mastodon",
+      "handle": "adamwulf@mstdn.social",
+      "name": "Adam Wulf"
+    },
+    {
+      "service": "mastodon",
+      "handle": "admin@social.coop",
+      "name": "Co-op Service Announcements"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adocomplete.com",
+      "name": "Ado Kukic"
+    },
+    {
+      "service": "mastodon",
+      "handle": "adrianh@mastodon.social",
+      "name": "Adrian Howard"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adriennelaf.bsky.social",
+      "name": "Adrienne LaFrance"
+    },
+    {
+      "service": "bluesky",
+      "handle": "adrjeffries.bsky.social",
+      "name": "adrianne"
+    },
+    {
+      "service": "bluesky",
+      "handle": "aftermath.site",
+      "name": "Aftermath"
+    },
+    {
+      "service": "mastodon",
+      "handle": "agaric@social.coop",
+      "name": "Agaric Tech Collective"
+    },
+    {
+      "service": "bluesky",
+      "handle": "agordon.me",
+      "name": "Aaron W. Gordon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ahrenlehnert.bsky.social",
+      "name": "ahrenlehnert.bsky.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "aial.ie",
+      "name": "AI Accountability Lab "
+    },
+    {
+      "service": "bluesky",
+      "handle": "aimeemann.bsky.social",
+      "name": "Aimee Mann"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ainowinstitute.bsky.social",
+      "name": "AI Now Institute"
+    },
+    {
+      "service": "bluesky",
+      "handle": "akpress.org",
+      "name": "AK Press"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alanlundgard.bsky.social",
+      "name": "𝒜ℒ"
+    },
+    {
+      "service": "bluesky",
+      "handle": "albanvillamil.bsky.social",
+      "name": "Alba Villamil"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alex-morrison.bsky.social",
+      "name": "Alex Morrison"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alex.bsky.team",
+      "name": "Alex"
+    },
+    {
+      "service": "mastodon",
+      "handle": "alex@cybervillains.com",
+      "name": "Alex Stamos"
+    },
+    {
+      "service": "mastodon",
+      "handle": "alex@dair-community.social",
+      "name": "Alex Hanna"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alexanderobenauer.com",
+      "name": "Alexander Obenauer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alexhanna.bsky.social",
+      "name": "Alex Hanna"
+    },
+    {
+      "service": "mastodon",
+      "handle": "alexismadrigal@sfba.social",
+      "name": "Alexis Madrigal"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alexwarth.bsky.social",
+      "name": "Alex Warth"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ali-alkhatib.com",
+      "name": "ali alkhatib"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ali@masto.al2.in",
+      "name": "Ali Alkhatib"
+    },
+    {
+      "service": "mastodon",
+      "handle": "alicethwaite@assemblag.es",
+      "name": "Alice Thwaite"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alistapart.com",
+      "name": "A List Apart “for people who make websites” 1997–? "
+    },
+    {
+      "service": "mastodon",
+      "handle": "alix@mastodon.online",
+      "name": "alix"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alixdunn.com",
+      "name": "Alix Dunn"
+    },
+    {
+      "service": "mastodon",
+      "handle": "aljavieera@zirk.us",
+      "name": "I ❤️ Placemaking"
+    },
+    {
+      "service": "mastodon",
+      "handle": "allenu@mastodon.social",
+      "name": "Allen"
+    },
+    {
+      "service": "mastodon",
+      "handle": "allianceofcivictechnologists@mastodon.social",
+      "name": "Alliance of CivicTechnologists"
+    },
+    {
+      "service": "mastodon",
+      "handle": "allison_horst@mastodon.social",
+      "name": "Allison Horst  :BlobhajReach:"
+    },
+    {
+      "service": "bluesky",
+      "handle": "allumeapp.bsky.social",
+      "name": "Allume (formerly Muse)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "alondra.bsky.social",
+      "name": "Alondra Nelson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "alundgard@mastodon.social",
+      "name": "𝒜ℒ"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ambakak.bsky.social",
+      "name": "Amba Kak"
+    },
+    {
+      "service": "mastodon",
+      "handle": "amdelvaz@mastodon.social",
+      "name": "Ángel M. Delgado-Vázquez"
+    },
+    {
+      "service": "bluesky",
+      "handle": "aminsamman.bsky.social",
+      "name": "Amin Samman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "amoorelouise.bsky.social",
+      "name": "Louise Amoore"
+    },
+    {
+      "service": "mastodon",
+      "handle": "andrew@mastodon.social",
+      "name": "Andrew Badr"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Andrewmaier@toot.cafe",
+      "name": "Andrew Maier"
+    },
+    {
+      "service": "mastodon",
+      "handle": "andrewmaynard@universeodon.com",
+      "name": "Andrew Maynard"
+    },
+    {
+      "service": "mastodon",
+      "handle": "andrewseal@mastodon.lol",
+      "name": "Andrew Seal"
+    },
+    {
+      "service": "mastodon",
+      "handle": "andybaio@xoxo.zone",
+      "name": "Andy Baio"
+    },
+    {
+      "service": "bluesky",
+      "handle": "andybudd.bsky.social",
+      "name": "Andy Budd"
+    },
+    {
+      "service": "bluesky",
+      "handle": "andymatuschak.org",
+      "name": "Andy Matuschak"
+    },
+    {
+      "service": "bluesky",
+      "handle": "andypressman.itch.io",
+      "name": "Andy Pressman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "andypressman@friend.camp",
+      "name": "andy pressman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "angiewaller@mastodon.social",
+      "name": "Angie Waller"
+    },
+    {
+      "service": "bluesky",
+      "handle": "anildash.com",
+      "name": "Anil Dash"
+    },
+    {
+      "service": "mastodon",
+      "handle": "anildash@me.dm",
+      "name": "Anil Dash"
+    },
+    {
+      "service": "bluesky",
+      "handle": "anilineapps.bsky.social",
+      "name": "Aniline Applications"
+    },
+    {
+      "service": "mastodon",
+      "handle": "anilineapps@mastodon.social",
+      "name": "Aniline Applications"
+    },
+    {
+      "service": "mastodon",
+      "handle": "annaleen@wandering.shop",
+      "name": "Annalee Newitz 🍜"
+    },
+    {
+      "service": "mastodon",
+      "handle": "annalizhaz@vis.social",
+      "name": "annalizhaz@vis.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "annelibby.bsky.social",
+      "name": "Anne Libby"
+    },
+    {
+      "service": "mastodon",
+      "handle": "annelibby@mastodon.social",
+      "name": "annelibby"
+    },
+    {
+      "service": "mastodon",
+      "handle": "annotated@mstdn.science",
+      "name": "sarah elizabeth"
+    },
+    {
+      "service": "bluesky",
+      "handle": "anselm.io",
+      "name": "Anselm Eickhoff"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Antanicus@social.coop",
+      "name": "Antanicus"
+    },
+    {
+      "service": "mastodon",
+      "handle": "anthrocypher@hachyderm.io",
+      "name": "Ana Hevesi"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Anyaanya@journa.host",
+      "name": "Anya Kamenetz"
+    },
+    {
+      "service": "mastodon",
+      "handle": "aparrish@friend.camp",
+      "name": "allison"
+    },
+    {
+      "service": "bluesky",
+      "handle": "apjanke.bsky.social",
+      "name": "apjanke"
+    },
+    {
+      "service": "mastodon",
+      "handle": "aral@mastodon.ar.al",
+      "name": "Aral Balkan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "architectofthought.bsky.social",
+      "name": "Architect of Thought"
+    },
+    {
+      "service": "bluesky",
+      "handle": "archive.org",
+      "name": "Internet Archive"
+    },
+    {
+      "service": "mastodon",
+      "handle": "archivist@scholar.social",
+      "name": "Eira Tansey"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ardc.edu.au",
+      "name": "Australian Research Data Commons (ARDC)"
+    },
+    {
+      "service": "mastodon",
+      "handle": "aredridel@wandering.shop",
+      "name": "Mx. Aria Stewart"
+    },
+    {
+      "service": "bluesky",
+      "handle": "aresluna.org",
+      "name": "Marcin Wichary"
+    },
+    {
+      "service": "bluesky",
+      "handle": "arielnorling.bsky.social",
+      "name": "Ariel Norling"
+    },
+    {
+      "service": "bluesky",
+      "handle": "arnicas.bsky.social",
+      "name": "Lynn Cherny"
+    },
+    {
+      "service": "mastodon",
+      "handle": "arnicas@mstdn.social",
+      "name": "arnicas"
+    },
+    {
+      "service": "bluesky",
+      "handle": "arquipelago.org",
+      "name": "cristóbal"
+    },
+    {
+      "service": "mastodon",
+      "handle": "arstechnica@mastodon.social",
+      "name": "Ars Technica"
+    },
+    {
+      "service": "bluesky",
+      "handle": "aspirationtech.bsky.social",
+      "name": "Aspiration"
+    },
+    {
+      "service": "bluesky",
+      "handle": "atmosphere.coop",
+      "name": "Atmosphere Community Cooperative"
+    },
+    {
+      "service": "bluesky",
+      "handle": "atproto.com",
+      "name": "AT Protocol Developers"
+    },
+    {
+      "service": "bluesky",
+      "handle": "atproto.nyc",
+      "name": "atproto.nyc"
+    },
+    {
+      "service": "bluesky",
+      "handle": "audreyt.org",
+      "name": "⿻ Audrey Tang 唐鳳"
+    },
+    {
+      "service": "bluesky",
+      "handle": "audreywatters.bsky.social",
+      "name": "Audrey Watters"
+    },
+    {
+      "service": "bluesky",
+      "handle": "automerge.org",
+      "name": "Automerge"
+    },
+    {
+      "service": "mastodon",
+      "handle": "autonomic@sunbeam.city",
+      "name": "Autonomic Co-op"
+    },
+    {
+      "service": "mastodon",
+      "handle": "awalkerinla@onewilshire.la",
+      "name": "Alissa Walker"
+    },
+    {
+      "service": "bluesky",
+      "handle": "awarm.space",
+      "name": "jared"
+    },
+    {
+      "service": "bluesky",
+      "handle": "aworkinglibrary.com",
+      "name": "mandy brown"
+    },
+    {
+      "service": "mastodon",
+      "handle": "aworkinglibrary@mstdn.social",
+      "name": "mandy brown"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bambrooklyn.bsky.social",
+      "name": "Brooklyn Academy of Music"
+    },
+    {
+      "service": "bluesky",
+      "handle": "barrythrew.com",
+      "name": "Barry Threw"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bastianallgeier.com",
+      "name": "Bastian Allgeier"
+    },
+    {
+      "service": "bluesky",
+      "handle": "batizlazo.bsky.social",
+      "name": "Bernardo Batiz-Lazo 🇲🇽🇬🇧🇪🇺"
+    },
+    {
+      "service": "bluesky",
+      "handle": "beccaquon.bsky.social",
+      "name": "becca"
+    },
+    {
+      "service": "mastodon",
+      "handle": "beebalm@sunny.garden",
+      "name": "erin (alt)"
+    },
+    {
+      "service": "mastodon",
+      "handle": "beep@follow.ethanmarcotte.com",
+      "name": "Ethan Marcotte"
+    },
+    {
+      "service": "bluesky",
+      "handle": "behzod.com",
+      "name": "Behzod"
+    },
+    {
+      "service": "bluesky",
+      "handle": "beingbrina.bsky.social",
+      "name": "Sabrina Hersi Issa"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bell.bz",
+      "name": "Andy Bell"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ben@werd.social",
+      "name": "Ben Werdmuller"
+    },
+    {
+      "service": "bluesky",
+      "handle": "benbraun.social",
+      "name": "Benjamin Braun"
+    },
+    {
+      "service": "bluesky",
+      "handle": "benjaminjackson.bsky.social",
+      "name": "Ben Jackson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "benjaminjackson@tilde.zone",
+      "name": "Benjamin Jackson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "benmccann.com",
+      "name": "Ben McCann"
+    },
+    {
+      "service": "mastodon",
+      "handle": "benmschmidt@sigmoid.social",
+      "name": "Ben Schmidt"
+    },
+    {
+      "service": "bluesky",
+      "handle": "benterrett.bsky.social",
+      "name": "Ben Terrett"
+    },
+    {
+      "service": "bluesky",
+      "handle": "benzevgreen.bsky.social",
+      "name": "Ben Green"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bhoggard.bsky.social",
+      "name": "Barry Hoggard"
+    },
+    {
+      "service": "mastodon",
+      "handle": "bhoggard@queer.dev",
+      "name": "Barry Hoggard"
+    },
+    {
+      "service": "bluesky",
+      "handle": "biancawylie.com",
+      "name": "bianca wylie"
+    },
+    {
+      "service": "bluesky",
+      "handle": "biella.bsky.social",
+      "name": "Gabriella \"Biella\" Coleman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bigtechalert.bsky.social",
+      "name": "Big Tech Alert"
+    },
+    {
+      "service": "bluesky",
+      "handle": "billmorrison.bsky.social",
+      "name": "Bill Morrison"
+    },
+    {
+      "service": "mastodon",
+      "handle": "billseitz@toolsforthought.social",
+      "name": "Bill Seitz"
+    },
+    {
+      "service": "mastodon",
+      "handle": "BillySmith@social.coop",
+      "name": "Billy Smith"
+    },
+    {
+      "service": "bluesky",
+      "handle": "birgitta410.bsky.social",
+      "name": "Birgitta B"
+    },
+    {
+      "service": "mastodon",
+      "handle": "birgitta410@hachyderm.io",
+      "name": "birgitta410"
+    },
+    {
+      "service": "mastodon",
+      "handle": "bjmbraun@mastodon.social",
+      "name": "Benjamin Braun"
+    },
+    {
+      "service": "mastodon",
+      "handle": "bksutherland@glasgow.social",
+      "name": "Brian Sutherland"
+    },
+    {
+      "service": "bluesky",
+      "handle": "blaine.bsky.social",
+      "name": "Blaine"
+    },
+    {
+      "service": "mastodon",
+      "handle": "blaine@mastodon.social",
+      "name": "blaine"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bluekamandy.bsky.social",
+      "name": "Blue 🟦"
+    },
+    {
+      "service": "mastodon",
+      "handle": "bmann.ca@bsky.brid.gy",
+      "name": "Boris"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bobdc.bsky.social",
+      "name": "Bob DuCharme"
+    },
+    {
+      "service": "mastodon",
+      "handle": "bobdc@mas.to",
+      "name": "Bob DuCharme"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bombmag.bsky.social",
+      "name": "BOMB Magazine"
+    },
+    {
+      "service": "mastodon",
+      "handle": "boris@cosocial.ca",
+      "name": "Boris Mann"
+    },
+    {
+      "service": "mastodon",
+      "handle": "borisanthony@c.im",
+      "name": "Boris"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bostonjoan.bsky.social",
+      "name": "BostonJoan 🏳️‍🌈 🦫"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bravohotelpapa.bsky.social",
+      "name": "Ben Platt"
+    },
+    {
+      "service": "mastodon",
+      "handle": "brewsterkahle@mastodon.archive.org",
+      "name": "Brewster Kahle"
+    },
+    {
+      "service": "bluesky",
+      "handle": "briancallaci.bsky.social",
+      "name": "Brian Callaci"
+    },
+    {
+      "service": "bluesky",
+      "handle": "brianlovin.com",
+      "name": "Brian Lovin"
+    },
+    {
+      "service": "mastodon",
+      "handle": "briansholis@indieweb.social",
+      "name": "Brian Sholis"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Brigette@aus.social",
+      "name": "Brigette"
+    },
+    {
+      "service": "bluesky",
+      "handle": "brimwats.com",
+      "name": "bri watson 🐝"
+    },
+    {
+      "service": "bluesky",
+      "handle": "brooklynmuseum.org",
+      "name": "Brooklyn Museum"
+    },
+    {
+      "service": "bluesky",
+      "handle": "brooklynwebworkers.com",
+      "name": "Brooklyn Web Workers"
+    },
+    {
+      "service": "bluesky",
+      "handle": "broskoski.bsky.social",
+      "name": "Charles Broskoski"
+    },
+    {
+      "service": "bluesky",
+      "handle": "brownorama.bsky.social",
+      "name": "Dan Brown"
+    },
+    {
+      "service": "bluesky",
+      "handle": "browsercompany.bsky.social",
+      "name": "browsercompany.bsky.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "brucel.bsky.social",
+      "name": "Bruce Lawson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "brucelabruce.bsky.social",
+      "name": "Bruce LaBruce"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bruces.bsky.social",
+      "name": "#BruceSterling"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bsky.app",
+      "name": "Bluesky"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bumble.blue",
+      "name": "Eileen (╹◡╹)"
+    },
+    {
+      "service": "mastodon",
+      "handle": "buster@me.dm",
+      "name": "Buster Benson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "busterbenson.com",
+      "name": "Buster Benson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "buzz@andersen.social",
+      "name": "Buzz Andersen"
+    },
+    {
+      "service": "mastodon",
+      "handle": "byjp@hachyderm.io",
+      "name": "JP"
+    },
+    {
+      "service": "bluesky",
+      "handle": "bypaulshen.com",
+      "name": "paul shen"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cabel.panic.com",
+      "name": "Cabel Sasser"
+    },
+    {
+      "service": "mastodon",
+      "handle": "cabel@panic.com",
+      "name": "Cabel Sasser"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cabinetmagazine.bsky.social",
+      "name": "Cabinet magazine"
+    },
+    {
+      "service": "mastodon",
+      "handle": "CaitlinWaddick@social.coop",
+      "name": "Caitlin Waddick"
+    },
+    {
+      "service": "bluesky",
+      "handle": "caitmckinney.bsky.social",
+      "name": "Cait Mckinney"
+    },
+    {
+      "service": "bluesky",
+      "handle": "calculatedvalues.bsky.social",
+      "name": "Will Deringer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "capndesign.com",
+      "name": "Matt Jacobs"
+    },
+    {
+      "service": "bluesky",
+      "handle": "carolinesyrup.bsky.social",
+      "name": "Caro Griffin"
+    },
+    {
+      "service": "mastodon",
+      "handle": "carvalho_bernau@typo.social",
+      "name": "Carvalho Bernau"
+    },
+    {
+      "service": "mastodon",
+      "handle": "casey@write.cag.computer",
+      "name": "casey"
+    },
+    {
+      "service": "mastodon",
+      "handle": "caseyboyle@assemblag.es",
+      "name": "Casey Boyle"
+    },
+    {
+      "service": "bluesky",
+      "handle": "caseynewton.bsky.social",
+      "name": "Casey Newton"
+    },
+    {
+      "service": "mastodon",
+      "handle": "caseynewton@mastodon.social",
+      "name": "Casey Newton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "castle.xyz",
+      "name": "castle.xyz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "catacalypto.bsky.social",
+      "name": "Cat Manning"
+    },
+    {
+      "service": "bluesky",
+      "handle": "catalyst.coop",
+      "name": "Catalyst Cooperative"
+    },
+    {
+      "service": "bluesky",
+      "handle": "causalislands.com",
+      "name": "Causal Islands Conference"
+    },
+    {
+      "service": "mastodon",
+      "handle": "cbmilstein@kolektiva.social",
+      "name": "Cindy Milstein (they)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cdha.bsky.social",
+      "name": "CUNY Digital History Archive"
+    },
+    {
+      "service": "mastodon",
+      "handle": "cfiesler@hci.social",
+      "name": "Dr. Casey Fiesler"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ChanceyFleet@mas.to",
+      "name": "ChanceyFleet"
+    },
+    {
+      "service": "mastodon",
+      "handle": "changelog@changelog.social",
+      "name": "Changelog"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chanpory.bsky.social",
+      "name": "Chanpory"
+    },
+    {
+      "service": "bluesky",
+      "handle": "charity.wtf",
+      "name": "Charity Majors"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chava.bsky.social",
+      "name": "chava"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chelseaspencer.bsky.social",
+      "name": "Chelsea Spencer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chenoehart.bsky.social",
+      "name": "Chenoe Hart"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chriscoyier.net",
+      "name": "Chris Coyier"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chrisdancy.bsky.social",
+      "name": "Chris Dancy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "christina@social.coop",
+      "name": "christina b"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Chronotope@indieweb.social",
+      "name": "Aram Zucker-Scharff"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chrysaora.bsky.social",
+      "name": "chris xu"
+    },
+    {
+      "service": "bluesky",
+      "handle": "chton.bsky.social",
+      "name": "Bram De Buyser"
+    },
+    {
+      "service": "mastodon",
+      "handle": "cjcolclough@someone.elses.computer",
+      "name": "Christina J Colclough"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cjforms.bsky.social",
+      "name": "Caroline Jarrett"
+    },
+    {
+      "service": "bluesky",
+      "handle": "clairedonato.bsky.social",
+      "name": "Claire Donato"
+    },
+    {
+      "service": "bluesky",
+      "handle": "clear-lab.bsky.social",
+      "name": "CLEAR lab"
+    },
+    {
+      "service": "bluesky",
+      "handle": "clearleft.com",
+      "name": "Clearleft"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Clearleft@mastodon.social",
+      "name": "Clearleft"
+    },
+    {
+      "service": "mastodon",
+      "handle": "clive@saturation.social",
+      "name": "Clive Thompson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "clivethompson.bsky.social",
+      "name": "Clive Thompson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cloudflare.social",
+      "name": "Cloudflare"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cnewf.bsky.social",
+      "name": "Chris Newfield"
+    },
+    {
+      "service": "mastodon",
+      "handle": "coachtony@me.dm",
+      "name": "Tony Stubblebine"
+    },
+    {
+      "service": "bluesky",
+      "handle": "colin-fraser.net",
+      "name": "Colin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "commonknowledge.coop",
+      "name": "Common Knowledge"
+    },
+    {
+      "service": "bluesky",
+      "handle": "controlflow.bsky.social",
+      "name": "controlflow"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cooperhewitt.org.web.brid.gy",
+      "name": "Cooper Hewitt, Smithsonian Design Museum"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cortexfutura.com",
+      "name": "CortexFutura"
+    },
+    {
+      "service": "bluesky",
+      "handle": "coudal.bsky.social",
+      "name": "coudal.bsky.social"
+    },
+    {
+      "service": "mastodon",
+      "handle": "courtney@dads.cool",
+      "name": "Courtney"
+    },
+    {
+      "service": "bluesky",
+      "handle": "coyotemedia.org",
+      "name": "COYOTE"
+    },
+    {
+      "service": "bluesky",
+      "handle": "craigmod.com",
+      "name": "Craig Mod"
+    },
+    {
+      "service": "mastodon",
+      "handle": "craigmod@mastodon.social",
+      "name": "Craig Mod"
+    },
+    {
+      "service": "bluesky",
+      "handle": "craigrobertson.bsky.social",
+      "name": "Craig Robertson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "CrimethInc@todon.eu",
+      "name": "CrimethInc. Ex-Workers"
+    },
+    {
+      "service": "bluesky",
+      "handle": "criticaldesignlab.bsky.social",
+      "name": "Critical Design Lab"
+    },
+    {
+      "service": "bluesky",
+      "handle": "criticalinternet.bsky.social",
+      "name": "Critical Internet Studies Institute"
+    },
+    {
+      "service": "mastodon",
+      "handle": "crossref@mastodon.online",
+      "name": "Crossref"
+    },
+    {
+      "service": "mastodon",
+      "handle": "crystaljjlee@mastodon.social",
+      "name": "Crystal Lee"
+    },
+    {
+      "service": "bluesky",
+      "handle": "csmapnyu.org",
+      "name": "NYU's Center for Social Media, AI, and Politics"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cvo.bsky.social",
+      "name": "Claire Vo 🖤"
+    },
+    {
+      "service": "bluesky",
+      "handle": "cydharrell.bsky.social",
+      "name": "Cyd Harrell"
+    },
+    {
+      "service": "mastodon",
+      "handle": "cydharrell@hachyderm.io",
+      "name": "Cyd Harrell"
+    },
+    {
+      "service": "mastodon",
+      "handle": "DAIR@dair-community.social",
+      "name": "DAIR"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dair@peertube.dair-institute.org",
+      "name": "DAIR Institute"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dairinstitute.bsky.social",
+      "name": "The Distributed AI Research (DAIR) Institute"
+    },
+    {
+      "service": "bluesky",
+      "handle": "daledesilva.bsky.social",
+      "name": "Dale de Silva"
+    },
+    {
+      "service": "bluesky",
+      "handle": "danabra.mov",
+      "name": "dan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "danbarak.bsky.social",
+      "name": "Dan Barak"
+    },
+    {
+      "service": "bluesky",
+      "handle": "danbri.bsky.social",
+      "name": "Dan Brickley"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dangillmor.bsky.social",
+      "name": "Dan Gillmor"
+    },
+    {
+      "service": "mastodon",
+      "handle": "danhill@mstdn.social",
+      "name": "Dan Hill"
+    },
+    {
+      "service": "bluesky",
+      "handle": "danhon.com",
+      "name": "Let the Right Hon In"
+    },
+    {
+      "service": "mastodon",
+      "handle": "danhon@dan.mastohon.com",
+      "name": "Dan Hon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "danielpunkass.punkitup.com",
+      "name": "Daniel Jalkut"
+    },
+    {
+      "service": "bluesky",
+      "handle": "danielroe.dev",
+      "name": "daniel roe"
+    },
+    {
+      "service": "mastodon",
+      "handle": "danny@mastodon.spesh.com",
+      "name": "Danny O'B"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dansinker@omfg.town",
+      "name": "Dan Sinker"
+    },
+    {
+      "service": "mastodon",
+      "handle": "darius@friend.camp",
+      "name": "Darius Kazemi"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dark-shark.bsky.social",
+      "name": "Brian Eno News"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dartar.bsky.social",
+      "name": "Dario Taraborelli"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dartar@mastodon.social",
+      "name": "Dario Taraborelli"
+    },
+    {
+      "service": "bluesky",
+      "handle": "datacite.org",
+      "name": "DataCite"
+    },
+    {
+      "service": "mastodon",
+      "handle": "datacite@openbiblio.social",
+      "name": "DataCite"
+    },
+    {
+      "service": "bluesky",
+      "handle": "datajusticelab.bsky.social",
+      "name": "Data Justice Lab"
+    },
+    {
+      "service": "bluesky",
+      "handle": "datasociety.bsky.social",
+      "name": "Data & Society"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dataverseorg.bsky.social",
+      "name": "The Dataverse Project"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Dave_Parisi@mastodon.social",
+      "name": "Dave Parisi"
+    },
+    {
+      "service": "mastodon",
+      "handle": "daveshea@cosocial.ca",
+      "name": "Dave Shea"
+    },
+    {
+      "service": "bluesky",
+      "handle": "davesresearch.com",
+      "name": "Dave"
+    },
+    {
+      "service": "mastodon",
+      "handle": "david@yee.camp",
+      "name": "David Yee"
+    },
+    {
+      "service": "bluesky",
+      "handle": "davidakennedy.com",
+      "name": "David A. Kennedy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "DavidHarvey@sciences.social",
+      "name": "David Harvey"
+    },
+    {
+      "service": "bluesky",
+      "handle": "davidhoang.com",
+      "name": "David Hoang"
+    },
+    {
+      "service": "bluesky",
+      "handle": "davidlublin.bsky.social",
+      "name": "David Lublin"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dazinism@social.coop",
+      "name": "dazinism"
+    },
+    {
+      "service": "bluesky",
+      "handle": "debcha.bsky.social",
+      "name": "Deb Chachra"
+    },
+    {
+      "service": "mastodon",
+      "handle": "debcha@saturation.social",
+      "name": "Deb Chachra"
+    },
+    {
+      "service": "mastodon",
+      "handle": "debirdify@digitalcourage.social",
+      "name": "Debirdify"
+    },
+    {
+      "service": "bluesky",
+      "handle": "defensecharts.xpost.bot",
+      "name": "Defense Charts (mirror bot)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "delibdemjournal.bsky.social",
+      "name": "Journal of Deliberative Democracy"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dennismhogan.bsky.social",
+      "name": "Dennis Hogan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dennismhogan@mstdn.social",
+      "name": "Dennismhogan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "deno.land",
+      "name": "Deno"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dens@home.social",
+      "name": "dens :verified:"
+    },
+    {
+      "service": "mastodon",
+      "handle": "derek@social.coop",
+      "name": "Derek Caelin is writing a book"
+    },
+    {
+      "service": "bluesky",
+      "handle": "derekseidman.bsky.social",
+      "name": "Derek Seidman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "designobserver.com",
+      "name": "Design Observer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dgrigar.bsky.social",
+      "name": "Dene Grigar"
+    },
+    {
+      "service": "mastodon",
+      "handle": "DianeCoyle1859@econtwitter.net",
+      "name": "Diane Coyle"
+    },
+    {
+      "service": "mastodon",
+      "handle": "digitalfreedomfund@eupolicy.social",
+      "name": "Digital Freedom Fund"
+    },
+    {
+      "service": "mastodon",
+      "handle": "disco_coop@social.coop",
+      "name": "DisCO"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dissentmag.bsky.social",
+      "name": "Dissent Magazine"
+    },
+    {
+      "service": "mastodon",
+      "handle": "divijualsuspect@someone.elses.computer",
+      "name": "divij"
+    },
+    {
+      "service": "bluesky",
+      "handle": "djacobs.bsky.social",
+      "name": "djacobs "
+    },
+    {
+      "service": "bluesky",
+      "handle": "dmehro.bsky.social",
+      "name": "Dhruv Mehrotra"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dmgreene.bsky.social",
+      "name": "Dan Greene"
+    },
+    {
+      "service": "bluesky",
+      "handle": "doaj.bsky.social",
+      "name": "DOAJ"
+    },
+    {
+      "service": "mastodon",
+      "handle": "doingitwrong@mastodon.xyz",
+      "name": "Tim Maly"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dominictarr.bsky.social",
+      "name": "Dominic 🔵"
+    },
+    {
+      "service": "mastodon",
+      "handle": "donato@masto.ai",
+      "name": "donato"
+    },
+    {
+      "service": "bluesky",
+      "handle": "donmoyn.bsky.social",
+      "name": "Don Moynihan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "donohoe.dev",
+      "name": "Michael"
+    },
+    {
+      "service": "bluesky",
+      "handle": "doriantaylor.com",
+      "name": "dorian"
+    },
+    {
+      "service": "mastodon",
+      "handle": "douginamug@mastodon.xyz",
+      "name": "Doug Webb"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dphiffer@social.coop",
+      "name": "Dan Phiffer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dsp.bsky.social",
+      "name": "Danny Spitzberg"
+    },
+    {
+      "service": "mastodon",
+      "handle": "DTinitiative@techpolicy.social",
+      "name": "Data Transfer Initiative"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dubbin@friend.camp",
+      "name": "rob dubbin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dustinsenos.com",
+      "name": "dustin"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dvelyk@mastodon.social",
+      "name": "Kyle"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dvsch.bsky.social",
+      "name": "Derrick has started yet another social site"
+    },
+    {
+      "service": "bluesky",
+      "handle": "dwh.bsky.social",
+      "name": "Daniel Hook"
+    },
+    {
+      "service": "mastodon",
+      "handle": "dymaxion@infosec.exchange",
+      "name": "Eleanor Saitta"
+    },
+    {
+      "service": "mastodon",
+      "handle": "eanakashima@hachyderm.io",
+      "name": "Emily Nakashima"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ecmascript_news@mastodon.online",
+      "name": "ECMAScript News"
+    },
+    {
+      "service": "bluesky",
+      "handle": "econsociology.bsky.social",
+      "name": "Economic Sociology & Political Economy"
+    },
+    {
+      "service": "bluesky",
+      "handle": "econsocjournal.bsky.social",
+      "name": "Economy & Society"
+    },
+    {
+      "service": "bluesky",
+      "handle": "eff.org",
+      "name": "Electronic Frontier Foundation"
+    },
+    {
+      "service": "bluesky",
+      "handle": "effect-ts.bsky.social",
+      "name": "Effect | TypeScript for the AI Era"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ehayot@zirk.us",
+      "name": "Eric Hayot"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ejb@vis.social",
+      "name": "Elliot Bentley"
+    },
+    {
+      "service": "mastodon",
+      "handle": "elazar@phpc.social",
+      "name": "Matthew Turland"
+    },
+    {
+      "service": "bluesky",
+      "handle": "eldiagram.bsky.social",
+      "name": "DIAGRAM"
+    },
+    {
+      "service": "mastodon",
+      "handle": "eleanorkonik@pkm.social",
+      "name": "Eleanor Konik"
+    },
+    {
+      "service": "bluesky",
+      "handle": "electric.ax",
+      "name": "ElectricSQL"
+    },
+    {
+      "service": "mastodon",
+      "handle": "elimeyerhoff@mas.to",
+      "name": "Eli Meyerhoff"
+    },
+    {
+      "service": "mastodon",
+      "handle": "elipariser@mastodon.social",
+      "name": "Eli Pariser"
+    },
+    {
+      "service": "mastodon",
+      "handle": "eloquence@social.coop",
+      "name": "Erik Moeller"
+    },
+    {
+      "service": "bluesky",
+      "handle": "emerkita.bsky.social",
+      "name": "エマーソン北村"
+    },
+    {
+      "service": "mastodon",
+      "handle": "emi@social.coop",
+      "name": "Emi"
+    },
+    {
+      "service": "bluesky",
+      "handle": "emilkowal.ski",
+      "name": "Emil Kowalski"
+    },
+    {
+      "service": "bluesky",
+      "handle": "emilyflitter.bsky.social",
+      "name": "Emily Flitter"
+    },
+    {
+      "service": "bluesky",
+      "handle": "emilymbender.bsky.social",
+      "name": "Emily M. Bender"
+    },
+    {
+      "service": "mastodon",
+      "handle": "emilymbender@dair-community.social",
+      "name": "Prof. Emily M. Bender(she/her)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "emmaboulton.bsky.social",
+      "name": "Emma Boulton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "emmy-ft.bsky.social",
+      "name": "Emmy Tsang"
+    },
+    {
+      "service": "mastodon",
+      "handle": "emmyft@mastodon.cloud",
+      "name": "Emmy Tsang"
+    },
+    {
+      "service": "bluesky",
+      "handle": "enjalot.bsky.social",
+      "name": "Ian Johnson 🔬🤖"
+    },
+    {
+      "service": "mastodon",
+      "handle": "entee@mstdn.party",
+      "name": "entee"
+    },
+    {
+      "service": "mastodon",
+      "handle": "episod@macaw.social",
+      "name": "Taylor Singletary"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ericaheinz.bsky.social",
+      "name": "Erica Heinz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ericajoy.astrel.la",
+      "name": "Erica Joy Astrella"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ericara.bsky.social",
+      "name": "erica robles anderson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "erikahall.bsky.social",
+      "name": "Erika Hall"
+    },
+    {
+      "service": "bluesky",
+      "handle": "erikbryn.bsky.social",
+      "name": "Erik Brynjolfsson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "erinmcel.bsky.social",
+      "name": "Erin McElroy"
+    },
+    {
+      "service": "bluesky",
+      "handle": "erosamon.bsky.social",
+      "name": "Emily Rosamond"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ethanmarcotte.com",
+      "name": "Ethan Marcotte"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ethanz.bsky.social",
+      "name": "Ethan Zuckerman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ethanz@social.coop",
+      "name": "Ethan Zuckerman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ethicistforhire.bsky.social",
+      "name": "Nolen Gertz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "eve.gd",
+      "name": "Martin Paul Eve"
+    },
+    {
+      "service": "bluesky",
+      "handle": "evergreenreview.bsky.social",
+      "name": "The Evergreen Review"
+    },
+    {
+      "service": "mastodon",
+      "handle": "everyplace@mastodon.social",
+      "name": "erin sparling"
+    },
+    {
+      "service": "bluesky",
+      "handle": "evgenymorozov.bsky.social",
+      "name": "Evgeny Morozov"
+    },
+    {
+      "service": "bluesky",
+      "handle": "evgrieve.bsky.social",
+      "name": "EV Grieve"
+    },
+    {
+      "service": "bluesky",
+      "handle": "evrat.bsky.social",
+      "name": "Evan Ratliff"
+    },
+    {
+      "service": "bluesky",
+      "handle": "excalidraw.com",
+      "name": "Excalidraw"
+    },
+    {
+      "service": "bluesky",
+      "handle": "fastmail.com",
+      "name": "Fastmail"
+    },
+    {
+      "service": "bluesky",
+      "handle": "felixsalmon.com",
+      "name": "Felix Salmon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "felixturner.bsky.social",
+      "name": "Felix Turner"
+    },
+    {
+      "service": "bluesky",
+      "handle": "femmebot.bsky.social",
+      "name": "Phoebe (フィービー)"
+    },
+    {
+      "service": "mastodon",
+      "handle": "feralvector@peoplemaking.games",
+      "name": "Feral Vector"
+    },
+    {
+      "service": "bluesky",
+      "handle": "finandsoc.bsky.social",
+      "name": "Finance and Society"
+    },
+    {
+      "service": "mastodon",
+      "handle": "flamed@social.lol",
+      "name": "fLaMEd"
+    },
+    {
+      "service": "bluesky",
+      "handle": "flancia.org",
+      "name": "Flancian"
+    },
+    {
+      "service": "mastodon",
+      "handle": "flancian@social.coop",
+      "name": "To #Flancia and beyond!"
+    },
+    {
+      "service": "bluesky",
+      "handle": "foodcoop.bsky.social",
+      "name": "Park Slope Food Coop"
+    },
+    {
+      "service": "mastodon",
+      "handle": "forgefed@floss.social",
+      "name": "ForgeFed"
+    },
+    {
+      "service": "mastodon",
+      "handle": "forresto@xoxo.zone",
+      "name": "forresto"
+    },
+    {
+      "service": "bluesky",
+      "handle": "fosborne.bsky.social",
+      "name": "Francesco Osborne"
+    },
+    {
+      "service": "mastodon",
+      "handle": "fossheim@front-end.social",
+      "name": "Sarah L. Fossheim"
+    },
+    {
+      "service": "bluesky",
+      "handle": "frank.computer",
+      "name": "Frank Elavsky (he/him) ⌁"
+    },
+    {
+      "service": "mastodon",
+      "handle": "frankelavsky@vis.social",
+      "name": "Frank ⌁"
+    },
+    {
+      "service": "mastodon",
+      "handle": "fraying@xoxo.zone",
+      "name": "Derek Powazek 🐐"
+    },
+    {
+      "service": "mastodon",
+      "handle": "freebliss@post.lurk.org",
+      "name": "Simon Repp"
+    },
+    {
+      "service": "mastodon",
+      "handle": "FreeScholar@social.coop",
+      "name": "Micky Metts"
+    },
+    {
+      "service": "bluesky",
+      "handle": "frogandtoadbot.bsky.social",
+      "name": "Frog and Toad Bot"
+    },
+    {
+      "service": "bluesky",
+      "handle": "fromedome.bsky.social",
+      "name": "Dan Frommer"
+    },
+    {
+      "service": "mastodon",
+      "handle": "frontiermagazine@indieweb.social",
+      "name": "Frontier Magazine"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ftrain.com",
+      "name": "Paul Ford"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ftrain@tilde.zone",
+      "name": "Paul Ford"
+    },
+    {
+      "service": "mastodon",
+      "handle": "gabestein@indieweb.social",
+      "name": "Gabriel Stein"
+    },
+    {
+      "service": "mastodon",
+      "handle": "gabrielopereira@aoir.social",
+      "name": "Gabriel Pereira"
+    },
+    {
+      "service": "bluesky",
+      "handle": "galaxykate.bsky.social",
+      "name": "Kate Compton"
+    },
+    {
+      "service": "mastodon",
+      "handle": "galaxykate@xoxo.zone",
+      "name": "Dr Kate Compton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "garden.co",
+      "name": "Garden Computing"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Gargron@mastodon.social",
+      "name": "Eugen Rochko"
+    },
+    {
+      "service": "mastodon",
+      "handle": "garry@post.lurk.org",
+      "name": "garry"
+    },
+    {
+      "service": "bluesky",
+      "handle": "garrying.com",
+      "name": "garry"
+    },
+    {
+      "service": "bluesky",
+      "handle": "garychou.com",
+      "name": "Gary Chou"
+    },
+    {
+      "service": "mastodon",
+      "handle": "garychou@mastodon.social",
+      "name": "Gary Chou"
+    },
+    {
+      "service": "bluesky",
+      "handle": "genesegrill.bsky.social",
+      "name": "Genese Grill"
+    },
+    {
+      "service": "bluesky",
+      "handle": "genmon.fyi",
+      "name": "Matt Webb 🌸🌼🌸"
+    },
+    {
+      "service": "mastodon",
+      "handle": "genmon@mastodon.social",
+      "name": "Matt Webb"
+    },
+    {
+      "service": "bluesky",
+      "handle": "geoffreylitt.com",
+      "name": "Geoffrey Litt"
+    },
+    {
+      "service": "bluesky",
+      "handle": "geomblog.bsky.social",
+      "name": "Suresh Venkatasubramanian "
+    },
+    {
+      "service": "mastodon",
+      "handle": "george@bright.rosy-colored.space",
+      "name": "George Ho"
+    },
+    {
+      "service": "bluesky",
+      "handle": "gergely.pragmaticengineer.com",
+      "name": "Gergely Orosz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "getdweb.net",
+      "name": "DWeb"
+    },
+    {
+      "service": "bluesky",
+      "handle": "getkirby.com",
+      "name": "Kirby CMS"
+    },
+    {
+      "service": "bluesky",
+      "handle": "gilduran.com",
+      "name": "Gil Durán"
+    },
+    {
+      "service": "bluesky",
+      "handle": "githubnext.com",
+      "name": "GitHub Next"
+    },
+    {
+      "service": "bluesky",
+      "handle": "glaubercosta.bsky.social",
+      "name": "Glauber Costa"
+    },
+    {
+      "service": "mastodon",
+      "handle": "gleemie@social.coop",
+      "name": "Lilly Irani"
+    },
+    {
+      "service": "mastodon",
+      "handle": "gleick@mas.to",
+      "name": "James Gleick"
+    },
+    {
+      "service": "bluesky",
+      "handle": "goedel.bsky.social",
+      "name": "Alexander Rink"
+    },
+    {
+      "service": "mastodon",
+      "handle": "golan@mstdn.social",
+      "name": "Golan Levin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "grahamsleight.bsky.social",
+      "name": "Graham Sleight"
+    },
+    {
+      "service": "mastodon",
+      "handle": "grahamsleight@mastodon.online",
+      "name": "Graham Sleight"
+    },
+    {
+      "service": "bluesky",
+      "handle": "grantcuster.com",
+      "name": "grant"
+    },
+    {
+      "service": "mastodon",
+      "handle": "grantcuster@mastodon.social",
+      "name": "Grant Custer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "greatdismal.bsky.social",
+      "name": "William Gibson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "GreatDismal@mastodon.social",
+      "name": "William Gibson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "gregg.io",
+      "name": "Gregg Bernstein"
+    },
+    {
+      "service": "mastodon",
+      "handle": "greggish@social.coop",
+      "name": "greggish"
+    },
+    {
+      "service": "mastodon",
+      "handle": "gretchen@sigmoid.social",
+      "name": "Gretchen M. Krueger"
+    },
+    {
+      "service": "bluesky",
+      "handle": "gretchenkrueger.bsky.social",
+      "name": "Gretchen Marina Krueger"
+    },
+    {
+      "service": "mastodon",
+      "handle": "gretchenmarina@mastodon.social",
+      "name": "Gretchen M. Krueger"
+    },
+    {
+      "service": "mastodon",
+      "handle": "grimalkina@mastodon.social",
+      "name": "Cat Hicks"
+    },
+    {
+      "service": "bluesky",
+      "handle": "grove-research.bsky.social",
+      "name": "Grove Research"
+    },
+    {
+      "service": "bluesky",
+      "handle": "gruber.foo",
+      "name": "John Gruber"
+    },
+    {
+      "service": "mastodon",
+      "handle": "gruber@mastodon.social",
+      "name": "John Gruber"
+    },
+    {
+      "service": "bluesky",
+      "handle": "gsvoss.bsky.social",
+      "name": "Georgina Voss"
+    },
+    {
+      "service": "mastodon",
+      "handle": "GuerillaOntologist@social.coop",
+      "name": "Jzero"
+    },
+    {
+      "service": "mastodon",
+      "handle": "hakanto@social.coop",
+      "name": "H. H. Hakanto"
+    },
+    {
+      "service": "bluesky",
+      "handle": "handle.invalid",
+      "name": "Zeve Sanderson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hannahwohl.bsky.social",
+      "name": "Hannah Wohl"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hannawallach.bsky.social",
+      "name": "Hanna Wallach"
+    },
+    {
+      "service": "mastodon",
+      "handle": "harrisj@hachyderm.io",
+      "name": "Jacob Harris"
+    },
+    {
+      "service": "bluesky",
+      "handle": "heestand-xyz.bsky.social",
+      "name": "Anton Heestand"
+    },
+    {
+      "service": "bluesky",
+      "handle": "heidihelfand.bsky.social",
+      "name": "heidihelfand.bsky.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hellgatenyc.com",
+      "name": "Hell Gate *subscribe today!*"
+    },
+    {
+      "service": "mastodon",
+      "handle": "hexatekin@mastodon.sdf.org",
+      "name": "Dorothy Howard"
+    },
+    {
+      "service": "mastodon",
+      "handle": "heyjovo@tech.lgbt",
+      "name": "John Voss :verified_gay:"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hf.co",
+      "name": "Hugging Face"
+    },
+    {
+      "service": "bluesky",
+      "handle": "histoftech.bsky.social",
+      "name": "Mar Hicks"
+    },
+    {
+      "service": "mastodon",
+      "handle": "histoftech@mastodon.social",
+      "name": "Mar Hicks"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hjoseph.bsky.social",
+      "name": "Heather Joseph"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hollyface1975.bsky.social",
+      "name": "Holly Cole | ReOps Community"
+    },
+    {
+      "service": "bluesky",
+      "handle": "honorharger.bsky.social",
+      "name": "Honor Harger"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hotosm.org",
+      "name": "Humanitarian OpenStreetMap Team"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hrheingold.bsky.social",
+      "name": "Howard Rheingold "
+    },
+    {
+      "service": "mastodon",
+      "handle": "hrheingold@mastodon.social",
+      "name": "Howard Rheingold"
+    },
+    {
+      "service": "bluesky",
+      "handle": "hxrts.bsky.social",
+      "name": "Sam Hart"
+    },
+    {
+      "service": "mastodon",
+      "handle": "hypervisible@mastodon.social",
+      "name": "hypervisible"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ia@mastodon.online",
+      "name": "iA"
+    },
+    {
+      "service": "bluesky",
+      "handle": "iamdanw.bsky.social",
+      "name": "Dan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ibogost.com",
+      "name": "Ian Bogost"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ibogost@journa.host",
+      "name": "Ian Bogost"
+    },
+    {
+      "service": "bluesky",
+      "handle": "idamantium.bsky.social",
+      "name": "Ida Benedetto"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ideoforms@assemblag.es",
+      "name": "daniel john jones"
+    },
+    {
+      "service": "mastodon",
+      "handle": "idmyn@social.coop",
+      "name": "David Mynors"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ifilljustice@mastodon.social",
+      "name": "Sherrilyn Ifill"
+    },
+    {
+      "service": "mastodon",
+      "handle": "impactology@mastodon.social",
+      "name": "Raghav Agrawal"
+    },
+    {
+      "service": "mastodon",
+      "handle": "impactology@spore.social",
+      "name": "Raghav Agrawal"
+    },
+    {
+      "service": "mastodon",
+      "handle": "indiamos@hachyderm.io",
+      "name": "India Amos"
+    },
+    {
+      "service": "bluesky",
+      "handle": "indiyoung.bsky.social",
+      "name": "Indi Young"
+    },
+    {
+      "service": "bluesky",
+      "handle": "inference.coop",
+      "name": "Inference Cooperative"
+    },
+    {
+      "service": "mastodon",
+      "handle": "infotroph@toot.cat",
+      "name": "Chris Black"
+    },
+    {
+      "service": "bluesky",
+      "handle": "infrequently.org",
+      "name": "Alex Russell"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ingrid@mapstodon.space",
+      "name": "Ingrid"
+    },
+    {
+      "service": "bluesky",
+      "handle": "inkandswitch.com",
+      "name": "Ink & Switch"
+    },
+    {
+      "service": "mastodon",
+      "handle": "inquiline@assemblag.es",
+      "name": "tools for commensality 🧿"
+    },
+    {
+      "service": "bluesky",
+      "handle": "inrupt.bsky.social",
+      "name": "Inrupt"
+    },
+    {
+      "service": "bluesky",
+      "handle": "insightcentre.bsky.social",
+      "name": "Insight Research Ireland Centre"
+    },
+    {
+      "service": "bluesky",
+      "handle": "interactives.bsky.social",
+      "name": "Interactive Journalism"
+    },
+    {
+      "service": "bluesky",
+      "handle": "internetarchive.eu",
+      "name": "Internet Archive Europe"
+    },
+    {
+      "service": "mastodon",
+      "handle": "internetarchive@mastodon.archive.org",
+      "name": "internetarchive"
+    },
+    {
+      "service": "mastodon",
+      "handle": "internetowners@social.coop",
+      "name": "Exit to Community"
+    },
+    {
+      "service": "mastodon",
+      "handle": "investinopen@indieweb.social",
+      "name": "Invest in Open Infrastructure"
+    },
+    {
+      "service": "bluesky",
+      "handle": "iqss.bsky.social",
+      "name": "Institute for Quantitative Social Science @ Harvard"
+    },
+    {
+      "service": "bluesky",
+      "handle": "irondavy.bsky.social",
+      "name": "David Cole"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ironicsans@mastodon.social",
+      "name": "David Friedman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "irwin@saturation.social",
+      "name": "irwin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "isrfoundation.bsky.social",
+      "name": "Independent Social Research Foundation"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ivory@tapbots.social",
+      "name": "Ivory by Tapbots :emoji_wink:"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jackcheng.bsky.social",
+      "name": "Jack Cheng"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jackcheng@indieweb.social",
+      "name": "Jack Cheng"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jackiebo.bsky.social",
+      "name": "Jackie Bavaro"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jackrusher.com",
+      "name": "Jack Rusher"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jacob@jacobian.org",
+      "name": "jacobian"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jacobgaboury.bsky.social",
+      "name": "Jacob Gaboury"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jakeburghardt.bsky.social",
+      "name": "Jake Burghardt"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jakedowsmith.bsky.social",
+      "name": "Jake Dow-Smith"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jamesbridle.bsky.social",
+      "name": "James Bridle"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jameswilsdon@mstdn.social",
+      "name": "James Wilsdon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jarango.bsky.social",
+      "name": "Jorge Arango"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jarango@mastodon.social",
+      "name": "Jorge Arango"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jasminemcnealy.com",
+      "name": "JEMc"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jasonkoebler.bsky.social",
+      "name": "Jason Koebler"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jasonli.bsky.social",
+      "name": "Jason Li"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jasonli@mastodon.social",
+      "name": "Jason Li"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jasonsantamaria@typo.social",
+      "name": "Jason Santa Maria"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jathansadowski.com",
+      "name": "Jathan Sadowski"
+    },
+    {
+      "service": "bluesky",
+      "handle": "javier.bsky.social",
+      "name": "Javier"
+    },
+    {
+      "service": "mastodon",
+      "handle": "javierarce@mastodon.social",
+      "name": "Javier"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jay.bsky.team",
+      "name": "Jay 🦋"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jayowens.bsky.social",
+      "name": "Jay Owens"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jaytiesse.bsky.social",
+      "name": "Jeffrey Schnapp"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jaz.sh",
+      "name": "Jaz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jazz.tools",
+      "name": "Jazz - the data layer you own"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jbrewer.bsky.social",
+      "name": "Josh Brewer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jburrell.bsky.social",
+      "name": "Jenna Burrell"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jcalpickard@assemblag.es",
+      "name": "Justin Pickard"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jcultecon.bsky.social",
+      "name": "Journal of Cultural Economy"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jed.is",
+      "name": "Jed Schmidt"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jenbee.bsky.social",
+      "name": "Jen Bekman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jenbee@sfba.social",
+      "name": "Jen Bekman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jenlindblad.bsky.social",
+      "name": "Jen Lindblad"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jenlowe@mastodon.social",
+      "name": "jen lowe"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jenn@gardenstate.social",
+      "name": "jenn schiffer"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jennamclaughlin@infosec.exchange",
+      "name": "Jenna.McLaughlin"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jennitaur@social.coop",
+      "name": "Jenny Odell"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jennschiffer.com",
+      "name": "jenn schiffer 😈"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jensimmons.bsky.social",
+      "name": "Jen Simmons"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jensimmons@front-end.social",
+      "name": "Jen Simmons"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Jermolene@mastodon.social",
+      "name": "Jeremy Ruston"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jerthorp@spore.social",
+      "name": "Jer Thorp"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jessamyn@glammr.us",
+      "name": "Jessamyn"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jessegrosjean.bsky.social",
+      "name": "Jesse Grosjean"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jessegrosjean@mastodon.social",
+      "name": "Jesse Grosjean"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jesszimmerman.com",
+      "name": "Jess Zimmerman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jevakallio.dev",
+      "name": "Jani Eväkallio"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jimray.net",
+      "name": "Jim Ray"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jjoque.bsky.social",
+      "name": "Justin Joque"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jjvincent.bsky.social",
+      "name": "James Vincent"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jkbuhler.bsky.social",
+      "name": "Jennifer Kaufmann-Buhler"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jkbuhler@c.im",
+      "name": "Jennifer Kaufmann-Buhler"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jkottke@saturation.social",
+      "name": "Jason Kottke"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jmspool.bsky.social",
+      "name": "Jared Spool"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jochenfm.bsky.social",
+      "name": "Jochen F. Mayer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "joeyabanks.me",
+      "name": "Joey Banks"
+    },
+    {
+      "service": "bluesky",
+      "handle": "joguldi.bsky.social",
+      "name": "Jo Guldi"
+    },
+    {
+      "service": "bluesky",
+      "handle": "johannesmutter.bsky.social",
+      "name": "Johannes Mutter"
+    },
+    {
+      "service": "bluesky",
+      "handle": "johncutle.fish",
+      "name": "John Cutler"
+    },
+    {
+      "service": "mastodon",
+      "handle": "johnnymac@social.coop",
+      "name": "JohnnyMac 🌲🌲"
+    },
+    {
+      "service": "bluesky",
+      "handle": "johnsurico.bsky.social",
+      "name": "John Surico"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jomc@friend.camp",
+      "name": "joanne mcneil"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Jon_Envisioneer@social.coop",
+      "name": "Jon Bean :TwinPines:"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jonas.do",
+      "name": "Jonas Downey"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jonasdowney@mastodon.social",
+      "name": "Jonas Downey"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jonathansterne@assemblag.es",
+      "name": "Jonathan Sterne"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jonnie.com",
+      "name": "Jonnie Hallman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "josef@uniteddiversity.coop",
+      "name": "Josef Davies-Coates"
+    },
+    {
+      "service": "mastodon",
+      "handle": "josephcox@infosec.exchange",
+      "name": "Joseph Cox"
+    },
+    {
+      "service": "mastodon",
+      "handle": "josh@hooray.computer",
+      "name": "Joshua Graves"
+    },
+    {
+      "service": "mastodon",
+      "handle": "josh@joshdata.me",
+      "name": "JoshData 🐢"
+    },
+    {
+      "service": "bluesky",
+      "handle": "joshgondelman.bsky.social",
+      "name": "Josh Gondelman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "JoshOn@mastodon.social",
+      "name": "Josh On"
+    },
+    {
+      "service": "bluesky",
+      "handle": "joshuahhh.com",
+      "name": "Josh Horowitz"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jotaemei@social.coop",
+      "name": "M. Page-Lieberman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jovo.design",
+      "name": "John Voss"
+    },
+    {
+      "service": "bluesky",
+      "handle": "joycetsengtw.bsky.social",
+      "name": "Joyce Tseng"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jpietruska.bsky.social",
+      "name": "Jamie Pietruska"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jstor.bsky.social",
+      "name": "JSTOR"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jtth@hachyderm.io",
+      "name": "Sara"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Julia@journa.host",
+      "name": "Julia Angwin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "juliaangwin.com",
+      "name": "Julia Angwin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "julian0liver.bsky.social",
+      "name": "Julian Oliver"
+    },
+    {
+      "service": "mastodon",
+      "handle": "JulianOliver@mastodon.social",
+      "name": "Julian Oliver"
+    },
+    {
+      "service": "bluesky",
+      "handle": "juliapowles.bsky.social",
+      "name": "Julia Powles"
+    },
+    {
+      "service": "bluesky",
+      "handle": "just-be.dev",
+      "name": "Justin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "justinfagnani.com",
+      "name": "Justin Fagnani"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jwherrman.bsky.social",
+      "name": "John Herrman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "jwillemricci@mastodon.green",
+      "name": "joe ricci"
+    },
+    {
+      "service": "bluesky",
+      "handle": "jzhao.xyz",
+      "name": "Jacky"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kanarinka.bsky.social",
+      "name": "Catherine D'Ignazio (she/her/ella)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "karaswisher.bsky.social",
+      "name": "Kara Swisher"
+    },
+    {
+      "service": "bluesky",
+      "handle": "karengregory.bsky.social",
+      "name": "Karen Gregory"
+    },
+    {
+      "service": "bluesky",
+      "handle": "karenhao.bsky.social",
+      "name": "Karen Hao"
+    },
+    {
+      "service": "bluesky",
+      "handle": "karenlevy.bsky.social",
+      "name": "Karen Levy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "karenmcgrane@phire.place",
+      "name": "Karen McGrane"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kashhill@mastodon.social",
+      "name": "Kashmir Hill"
+    },
+    {
+      "service": "bluesky",
+      "handle": "katearonoff.bsky.social",
+      "name": "Kate Aronoff"
+    },
+    {
+      "service": "bluesky",
+      "handle": "katejsim.bsky.social",
+      "name": "Kate Sim"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kateraworth.bsky.social",
+      "name": "Kate Raworth"
+    },
+    {
+      "service": "bluesky",
+      "handle": "katetowsey.bsky.social",
+      "name": "Kate Towsey"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kathyvsinternet.bsky.social",
+      "name": "ᴋᴀᴛʜʏ ᴢʜᴀɴɢ"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kaythaney@indieweb.social",
+      "name": "Kaitlin Thaney"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kcimc.bsky.social",
+      "name": "Kyle McDonald"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kellan@fiasco.social",
+      "name": "kellan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kellianderson.bsky.social",
+      "name": "kellianderson.bsky.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kelseyhightower.com",
+      "name": "Kelsey Hightower"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kelsiemvn.bsky.social",
+      "name": "Kelsie Nabben"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kenbot@hachyderm.io",
+      "name": "Ken Scambler"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kevinbaker@mastodon.social",
+      "name": "Kevin Baker"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kevindeliban.bsky.social",
+      "name": "Kevin De Liban"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kevindeliban@spore.social",
+      "name": "Kevin De Liban"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kinopio.club",
+      "name": "Kinopio"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kirstiejane.bsky.social",
+      "name": "Kirstie Whitaker"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kissane.myatproto.social",
+      "name": "Erin Kissane"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kissane@mas.to",
+      "name": "Erin Kissane"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kjhealy.co",
+      "name": "Kieran Healy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kjhealy@mastodon.social",
+      "name": "Kieran Healy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "KLdivergence@mastodon.social",
+      "name": "Kristian Lum"
+    },
+    {
+      "service": "bluesky",
+      "handle": "knights.bsky.social",
+      "name": "E.L. Guerrero"
+    },
+    {
+      "service": "mastodon",
+      "handle": "knights@avantwhatever.org",
+      "name": "E.L. Guerrero"
+    },
+    {
+      "service": "mastodon",
+      "handle": "knights@merveilles.town",
+      "name": "E.L. Guerrero"
+    },
+    {
+      "service": "mastodon",
+      "handle": "kottke@mastodon.social",
+      "name": "kottke.org"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kristy.bsky.social",
+      "name": "Kristy Tillman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "krusynth@mastodon.publicinterest.town",
+      "name": "Bill Hunt :blue_lantern:"
+    },
+    {
+      "service": "bluesky",
+      "handle": "kspoon.bsky.social",
+      "name": "Katie Spoon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ktk.netlabs.org",
+      "name": "Adrian Gschwend"
+    },
+    {
+      "service": "bluesky",
+      "handle": "langealexandra.bsky.social",
+      "name": "Alexandra Lange"
+    },
+    {
+      "service": "mastodon",
+      "handle": "langealexandra@mastodon.world",
+      "name": "Alexandra Lange"
+    },
+    {
+      "service": "bluesky",
+      "handle": "larivera.bsky.social",
+      "name": "Lauren Rivera"
+    },
+    {
+      "service": "mastodon",
+      "handle": "laura@saturation.social",
+      "name": "Laura Kurgan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "lauraklein@hachyderm.io",
+      "name": "lauraklein"
+    },
+    {
+      "service": "mastodon",
+      "handle": "laurencehorton@glammr.us",
+      "name": "Laurence Horton"
+    },
+    {
+      "service": "mastodon",
+      "handle": "laurenfklein@dair-community.social",
+      "name": "Lauren Klein"
+    },
+    {
+      "service": "bluesky",
+      "handle": "laurenloprete.bsky.social",
+      "name": "Lauren LoPrete"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lauriespiegel.bsky.social",
+      "name": "LaurieSpiegel"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lav.io",
+      "name": "Sam Lavigne"
+    },
+    {
+      "service": "bluesky",
+      "handle": "leaflet.pub",
+      "name": "Leaflet"
+    },
+    {
+      "service": "mastodon",
+      "handle": "leafo@mastodon.social",
+      "name": "leafo"
+    },
+    {
+      "service": "mastodon",
+      "handle": "LemmyDev@mastodon.social",
+      "name": "Lemmy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "lenacorinna@mastodon.world",
+      "name": "@lenacorinna"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Leonyin@mastodon.social",
+      "name": "Leon Yin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "leppert.me",
+      "name": "Greg Leppert"
+    },
+    {
+      "service": "mastodon",
+      "handle": "leppert@mastodon.social",
+      "name": "Greg Leppert"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lessig.bsky.social",
+      "name": "Lawrence Lessig"
+    },
+    {
+      "service": "bluesky",
+      "handle": "libereurope.bsky.social",
+      "name": "LIBER Europe"
+    },
+    {
+      "service": "mastodon",
+      "handle": "librarianshipwreck@mastodon.social",
+      "name": "Librarianshipwreck"
+    },
+    {
+      "service": "bluesky",
+      "handle": "libraryfutures.bsky.social",
+      "name": "Library Futures"
+    },
+    {
+      "service": "bluesky",
+      "handle": "librarythingtim.bsky.social",
+      "name": "LibraryThingTim"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lifewinning.com",
+      "name": "Ingrid Burrington"
+    },
+    {
+      "service": "bluesky",
+      "handle": "linkletter.org",
+      "name": "Ian Linkletter"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Linkletter@mastodon.social",
+      "name": "Ian Linkletter"
+    },
+    {
+      "service": "bluesky",
+      "handle": "liquidcity.bsky.social",
+      "name": "Keiichi Matsuda"
+    },
+    {
+      "service": "mastodon",
+      "handle": "lisa@bopjoy.cafe",
+      "name": "Lisa is."
+    },
+    {
+      "service": "mastodon",
+      "handle": "lisabrawley@mastodon.social",
+      "name": "Lisa Brawley"
+    },
+    {
+      "service": "mastodon",
+      "handle": "lisagillreimaginaire@mastodon.social",
+      "name": "Lisa Gill"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lither.land",
+      "name": "litherland"
+    },
+    {
+      "service": "mastodon",
+      "handle": "litherland@typo.social",
+      "name": "litherland"
+    },
+    {
+      "service": "bluesky",
+      "handle": "livestore.dev",
+      "name": "LiveStore"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lizafeatherstone.bsky.social",
+      "name": "Liza Featherstone"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lizbarry.bsky.social",
+      "name": "Liz Barry"
+    },
+    {
+      "service": "mastodon",
+      "handle": "lizbarry@social.coop",
+      "name": "lizbarry"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lizgreenspan.bsky.social",
+      "name": "Elizabeth Greenspan "
+    },
+    {
+      "service": "bluesky",
+      "handle": "lizthegrey.com",
+      "name": "Liz Fong-Jones (方禮真)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lkirchner.bsky.social",
+      "name": "Lauren Kirchner"
+    },
+    {
+      "service": "bluesky",
+      "handle": "llamaindex.bsky.social",
+      "name": "LlamaIndex"
+    },
+    {
+      "service": "bluesky",
+      "handle": "localfirst.fm",
+      "name": "localfirst.fm"
+    },
+    {
+      "service": "bluesky",
+      "handle": "localfirstconf.com",
+      "name": "Local-First Conf"
+    },
+    {
+      "service": "mastodon",
+      "handle": "localfirstconf@mastodon.social",
+      "name": "Local-First Conf"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lockhartl.bsky.social",
+      "name": "Leah Lockhart"
+    },
+    {
+      "service": "mastodon",
+      "handle": "loops@pixelfed.social",
+      "name": "loops"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lorenschmidt.bsky.social",
+      "name": "loren schmidt"
+    },
+    {
+      "service": "mastodon",
+      "handle": "loriemerson@post.lurk.org",
+      "name": "Lori Emerson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "louhicky.bsky.social",
+      "name": "Louise Hickman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "louhicky@mastodon.social",
+      "name": "Louise Hickman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "LouiseAmoore@mastodon.social",
+      "name": "Louise Amoore"
+    },
+    {
+      "service": "bluesky",
+      "handle": "louishyman.bsky.social",
+      "name": "louishyman.bsky.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "louisrosenfeld.com",
+      "name": "Louis Rosenfeld"
+    },
+    {
+      "service": "mastodon",
+      "handle": "lpnotes@macaw.social",
+      "name": "lpnotes"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lportwoodstacer.bsky.social",
+      "name": "Laura Portwood-Stacer"
+    },
+    {
+      "service": "mastodon",
+      "handle": "LudoWaltman@social.cwts.nl",
+      "name": "Ludo Waltman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "lukestark.bsky.social",
+      "name": "Luke Stark"
+    },
+    {
+      "service": "mastodon",
+      "handle": "lvk@mastodon.online",
+      "name": "L Ξ Ο N V Λ N Κ Λ Μ Μ Ξ N"
+    },
+    {
+      "service": "bluesky",
+      "handle": "m4rk3r.bsky.social",
+      "name": "mark beasley"
+    },
+    {
+      "service": "bluesky",
+      "handle": "machinepix.bsky.social",
+      "name": "MachinePix"
+    },
+    {
+      "service": "bluesky",
+      "handle": "macvie.bsky.social",
+      "name": "Lori McGlinchey"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Macvie@mastodon.social",
+      "name": "Lori McG"
+    },
+    {
+      "service": "bluesky",
+      "handle": "madelineashby.bsky.social",
+      "name": "Madeline Ashby"
+    },
+    {
+      "service": "mastodon",
+      "handle": "maggie@indieweb.social",
+      "name": "Maggie Appleton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "maggieappleton.com",
+      "name": "Maggie Appleton"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mai@social.coop",
+      "name": "mai ishikawa sutton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mainetransnet.bsky.social",
+      "name": "MaineTransNet"
+    },
+    {
+      "service": "bluesky",
+      "handle": "makedatacount.bsky.social",
+      "name": "Make Data Count"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mandon@mastodon.cc",
+      "name": "Amanda Wasielewski"
+    },
+    {
+      "service": "mastodon",
+      "handle": "manjusrii@mstdn.social",
+      "name": "Dr Belinda Barnet"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mapthepower.bsky.social",
+      "name": "LittleSis"
+    },
+    {
+      "service": "bluesky",
+      "handle": "marcbouchenoire.com",
+      "name": "Marc Bouchenoire"
+    },
+    {
+      "service": "mastodon",
+      "handle": "marcgarrett@mas.to",
+      "name": "Marc Garrett"
+    },
+    {
+      "service": "mastodon",
+      "handle": "marcoarment@mastodon.social",
+      "name": "Marco Arment"
+    },
+    {
+      "service": "mastodon",
+      "handle": "marcusolsson@hachyderm.io",
+      "name": "Marcus Olsson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "marianoguerra@hachyderm.io",
+      "name": "Mariano Guerra"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mariobrothblog.bsky.social",
+      "name": "Supper Mario Broth"
+    },
+    {
+      "service": "bluesky",
+      "handle": "markboulton.co.uk",
+      "name": "Mark Boulton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "martin.kleppmann.com",
+      "name": "Martin Kleppmann"
+    },
+    {
+      "service": "mastodon",
+      "handle": "martin@nondeterministic.computer",
+      "name": "Martin Kleppmann"
+    },
+    {
+      "service": "bluesky",
+      "handle": "martinfowler.com",
+      "name": "Martin Fowler"
+    },
+    {
+      "service": "mastodon",
+      "handle": "martingilbraith@mas.to",
+      "name": "Martin Gilbraith"
+    },
+    {
+      "service": "bluesky",
+      "handle": "martinklepsch.org",
+      "name": "Martin Klepsch"
+    },
+    {
+      "service": "bluesky",
+      "handle": "martintisne.bsky.social",
+      "name": "Martin Tisné"
+    },
+    {
+      "service": "bluesky",
+      "handle": "maryrosecook.bsky.social",
+      "name": "Mary Rose Cook"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Mastodon@mastodon.social",
+      "name": "Mastodon"
+    },
+    {
+      "service": "mastodon",
+      "handle": "MastodonEngineering@mastodon.social",
+      "name": "Mastodon Engineering"
+    },
+    {
+      "service": "mastodon",
+      "handle": "math_rachel@mastodon.social",
+      "name": "Rachel Thomas"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mathowie@xoxo.zone",
+      "name": "Matthew Haughey"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Matt_Noyes@social.coop",
+      "name": "Matt Noyes"
+    },
+    {
+      "service": "mastodon",
+      "handle": "matt@writing.exchange",
+      "name": "Matt Baer"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mattcropp@social.coop",
+      "name": "Matt Cropp 🌲🌲"
+    },
+    {
+      "service": "mastodon",
+      "handle": "matthewbattles@assemblag.es",
+      "name": "Matthew R. Battles"
+    },
+    {
+      "service": "mastodon",
+      "handle": "matthewskelton@mastodon.social",
+      "name": "Matthew Skelton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mattlemay.com",
+      "name": "Matt LeMay"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mauve@mastodon.mauve.moe",
+      "name": "Mauve 👁💜"
+    },
+    {
+      "service": "bluesky",
+      "handle": "maxbittker.bsky.social",
+      "name": "Max"
+    },
+    {
+      "service": "bluesky",
+      "handle": "maxdrake.md",
+      "name": "max drake"
+    },
+    {
+      "service": "bluesky",
+      "handle": "maxfenton.bsky.social",
+      "name": "Max Fenton"
+    },
+    {
+      "service": "mastodon",
+      "handle": "maxfenton@mas.to",
+      "name": "Max Fenton"
+    },
+    {
+      "service": "mastodon",
+      "handle": "maxfenton@mastodon.cloud",
+      "name": "Max Fenton (defunct)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "maxkreminski.bsky.social",
+      "name": "Max Kreminski"
+    },
+    {
+      "service": "bluesky",
+      "handle": "maxliboiron.bsky.social",
+      "name": "Max Liboiron"
+    },
+    {
+      "service": "mastodon",
+      "handle": "maxliboiron@mastodon.lol",
+      "name": "maxliboiron"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Mayameme@mastodon.social",
+      "name": "Frau Dr Auntie Occident"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mayel@social.coop",
+      "name": "Mayel - ghost account"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mayel@sunbeam.city",
+      "name": "Mayel"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mayonissen@mas.to",
+      "name": "Mayo"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mbeisen.bsky.social",
+      "name": "Michael Eisen"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mcforelle@assemblag.es",
+      "name": "MC Forelle"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mcfunley.com",
+      "name": "Dan McKinley"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mcsweeneys.net",
+      "name": "McSweeney's"
+    },
+    {
+      "service": "bluesky",
+      "handle": "means.tv",
+      "name": "MEANS TV"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mediatechdemocracy.bsky.social",
+      "name": "Centre for Media, Technology & Democracy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "medlab@social.medlab.host",
+      "name": "Media Economies Design Lab"
+    },
+    {
+      "service": "mastodon",
+      "handle": "meetar@mastodon.xyz",
+      "name": "Peter Richardson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "meg@dair-community.social",
+      "name": "Margaret Mitchell"
+    },
+    {
+      "service": "mastodon",
+      "handle": "megyoung@dair-community.social",
+      "name": "meg young"
+    },
+    {
+      "service": "bluesky",
+      "handle": "melissagiragrant.com",
+      "name": "Melissa Gira Grant"
+    },
+    {
+      "service": "bluesky",
+      "handle": "merbroussard.bsky.social",
+      "name": "Meredith Broussard, PhD"
+    },
+    {
+      "service": "bluesky",
+      "handle": "meredithmeredith.bsky.social",
+      "name": "Meredith Whittaker "
+    },
+    {
+      "service": "bluesky",
+      "handle": "metagov.bsky.social",
+      "name": "Metagov"
+    },
+    {
+      "service": "bluesky",
+      "handle": "metahaven.bsky.social",
+      "name": "metahaven"
+    },
+    {
+      "service": "bluesky",
+      "handle": "meyerweb.com",
+      "name": "Eric Meyer"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Meyerweb@mastodon.social",
+      "name": "Eric A. Meyer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mgarrett.bsky.social",
+      "name": "Marc Garrett"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mgiraldo.bsky.social",
+      "name": "mgiraldo.bsky.social"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mgiraldo@mstdn.social",
+      "name": "mgiraldo"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mhucka@fediscience.org",
+      "name": "Mike Hucka"
+    },
+    {
+      "service": "mastodon",
+      "handle": "michaelafisher@social.coop",
+      "name": "Mica Fisher"
+    },
+    {
+      "service": "bluesky",
+      "handle": "michaelaufreiter.com",
+      "name": "Michael Aufreiter"
+    },
+    {
+      "service": "bluesky",
+      "handle": "michaelbrennan.bsky.social",
+      "name": "Michael Brennan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "michaellewis@fosstodon.org",
+      "name": "Michael Lewis"
+    },
+    {
+      "service": "bluesky",
+      "handle": "michaelweinberg.org",
+      "name": "Michael Weinberg"
+    },
+    {
+      "service": "bluesky",
+      "handle": "midjourney.bsky.social",
+      "name": "midjourney.bsky.social"
+    },
+    {
+      "service": "mastodon",
+      "handle": "migurski@mastodon.social",
+      "name": "Michal Migurski 🍉"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mikarv@someone.elses.computer",
+      "name": "Michael Veale"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mike.teczno.com",
+      "name": "Michal Migurski"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mike.tig.as",
+      "name": "mike tigas"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mikeindustries.com",
+      "name": "Mike Davidson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mikeisaac.bsky.social",
+      "name": "rat king 🐀 👑 "
+    },
+    {
+      "service": "bluesky",
+      "handle": "mikepohjola.bsky.social",
+      "name": "Mike Pohjola"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mikeschmitz.bsky.social",
+      "name": "Mike Schmitz"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mil@xoxo.zone",
+      "name": "Dan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "millicentsomer@zirk.us",
+      "name": "Lili Loofbourow"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mindbranches.bsky.social",
+      "name": "MindBranches"
+    },
+    {
+      "service": "mastodon",
+      "handle": "miriamkp@dair-community.social",
+      "name": "Miriam Posner"
+    },
+    {
+      "service": "bluesky",
+      "handle": "miriamposner.com",
+      "name": "Miriam Posner"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mitpress.bsky.social",
+      "name": "MIT Press"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mjskay.com",
+      "name": "Matthew Kay"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mkirschenbaum.bsky.social",
+      "name": "Matthew Kirschenbaum"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mkirschenbaum@hcommons.social",
+      "name": "Matthew Kirschenbaum"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mkonings.bsky.social",
+      "name": "Martijn Konings"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mmasnick@mastodon.social",
+      "name": "Mike Masnick ✅"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mmitchell_ai@mastodon.social",
+      "name": "mmitchell_ai"
+    },
+    {
+      "service": "bluesky",
+      "handle": "mmitchell.bsky.social",
+      "name": "Margaret Mitchell"
+    },
+    {
+      "service": "bluesky",
+      "handle": "morajabi.com",
+      "name": "Mo Rajabi"
+    },
+    {
+      "service": "bluesky",
+      "handle": "moreperfectunion.bsky.social",
+      "name": "More Perfect Union"
+    },
+    {
+      "service": "mastodon",
+      "handle": "moritz@vis.social",
+      "name": "moritz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "moritzstefaner.bsky.social",
+      "name": "Moritz Stefaner / Truth & Beauty"
+    },
+    {
+      "service": "bluesky",
+      "handle": "morphss.bsky.social",
+      "name": "MORPHSS"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mpe@hcommons.social",
+      "name": "Martin Paul Eve"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mtigas@hachyderm.io",
+      "name": "mike tigas"
+    },
+    {
+      "service": "mastodon",
+      "handle": "muan@mastodon.social",
+      "name": "Mu-An"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mulegirl@sfba.social",
+      "name": "Erika"
+    },
+    {
+      "service": "mastodon",
+      "handle": "murakamiwood@mastodon.social",
+      "name": "keep your electric eye on me"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mutalenkonde@mstdn.social",
+      "name": "Mutale Nkonde (she/hers)"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mweinberg@mastodon.social",
+      "name": "Michael Weinberg"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mwichary@mastodon.online",
+      "name": "Marcin Wichary"
+    },
+    {
+      "service": "mastodon",
+      "handle": "mykd@mastodon.social",
+      "name": "Michael :mastodon:"
+    },
+    {
+      "service": "bluesky",
+      "handle": "narrowd.bsky.social",
+      "name": "narrowd.bsky.social"
+    },
+    {
+      "service": "mastodon",
+      "handle": "nasser@merveilles.town",
+      "name": "Ramsey Nasser"
+    },
+    {
+      "service": "bluesky",
+      "handle": "natematias.bsky.social",
+      "name": "J. Nathan Matias"
+    },
+    {
+      "service": "mastodon",
+      "handle": "natematias@social.coop",
+      "name": "J. Nathan Matias 🦣"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nateparrott.bsky.social",
+      "name": "nate parrott"
+    },
+    {
+      "service": "mastodon",
+      "handle": "naveen@social.coop",
+      "name": "naveen"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nayafia.bsky.social",
+      "name": "Nadia Asparouhova"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nbaschez.bsky.social",
+      "name": "Nathan Baschez"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ndkane.bsky.social",
+      "name": "Natalie D Kane"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ndkane@mastodon.social",
+      "name": "Natalie Kane"
+    },
+    {
+      "service": "mastodon",
+      "handle": "neauoire@merveilles.town",
+      "name": "Devine Lu Linvega"
+    },
+    {
+      "service": "bluesky",
+      "handle": "neb.me",
+      "name": "Ben Cerveny"
+    },
+    {
+      "service": "mastodon",
+      "handle": "neb@vis.social",
+      "name": "neb"
+    },
+    {
+      "service": "mastodon",
+      "handle": "neil@social.coop",
+      "name": "neil 🍄"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nescioquid.bsky.social",
+      "name": "Matthew L. Jones"
+    },
+    {
+      "service": "mastodon",
+      "handle": "nescioquid@mastodon.social",
+      "name": "Matthew L. Jones"
+    },
+    {
+      "service": "bluesky",
+      "handle": "newyorker.com",
+      "name": "The New Yorker"
+    },
+    {
+      "service": "mastodon",
+      "handle": "nextcloud@mastodon.xyz",
+      "name": "Nextcloud 📱☁️💻"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nextjs.org",
+      "name": "Next.js"
+    },
+    {
+      "service": "mastodon",
+      "handle": "nick@bath.social",
+      "name": "🍃 Nick 🍁"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nicke.bsky.social",
+      "name": "Nick Estes"
+    },
+    {
+      "service": "mastodon",
+      "handle": "nickmilo@pkm.social",
+      "name": "Nick Milo"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nickpinto.bsky.social",
+      "name": "Nick Pinto"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nickseaver.website",
+      "name": "Nick Seaver"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Niloufar@hci.social",
+      "name": "Niloufar Salehi"
+    },
+    {
+      "service": "mastodon",
+      "handle": "nitashatiku@mastodon.social",
+      "name": "Nitasha Tiku"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nlevin.bsky.social",
+      "name": "Noah"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nonprofitaf.bsky.social",
+      "name": "NonprofitAF"
+    },
+    {
+      "service": "mastodon",
+      "handle": "nordic_rse@fosstodon.org",
+      "name": "Nordic-RSE"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nordic-rse.bsky.social",
+      "name": "Nordic-RSE"
+    },
+    {
+      "service": "bluesky",
+      "handle": "notclosed.bsky.social",
+      "name": "Open"
+    },
+    {
+      "service": "mastodon",
+      "handle": "notsaved@zirk.us",
+      "name": "胡子哥"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nplusonemag.com",
+      "name": "n+1"
+    },
+    {
+      "service": "mastodon",
+      "handle": "npseaver@mastodon.social",
+      "name": "Nick Seaver"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nsrnicek.bsky.social",
+      "name": "Nick Srnicek"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nsylianteng.bsky.social",
+      "name": "Nikki Sylianteng"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ntaylormullen.bsky.social",
+      "name": "Taylor Mullen"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ntnsndr.in",
+      "name": "Nathan Schneider"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ntnsndr@social.coop",
+      "name": "Nathan Schneider"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nycasp.dfm.io",
+      "name": "Unofficial NYC Alt Side Parking Bot"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nycmesh.bsky.social",
+      "name": "NYC Mesh"
+    },
+    {
+      "service": "bluesky",
+      "handle": "nyt-first-said.bsky.social",
+      "name": "New New York Times "
+    },
+    {
+      "service": "bluesky",
+      "handle": "nytimes.com",
+      "name": "The New York Times"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oaspa.bsky.social",
+      "name": "OASPA - The Open Access Scholarly Publishing Association"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oatp.fediscience.org.ap.brid.gy",
+      "name": "Open Access Tracking Project"
+    },
+    {
+      "service": "mastodon",
+      "handle": "oatp@fediscience.org",
+      "name": "Open Access Tracking Project"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oblique-strategies.mas.to.ap.brid.gy",
+      "name": "Oblique Strategies"
+    },
+    {
+      "service": "bluesky",
+      "handle": "obryant.dev",
+      "name": "Jacob O'Bryant"
+    },
+    {
+      "service": "mastodon",
+      "handle": "obryant666@social.linux.pizza",
+      "name": "Jacob O'Bryant"
+    },
+    {
+      "service": "bluesky",
+      "handle": "observablehq.com",
+      "name": "Observable (@ IEEE VIS)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "obsidian.md",
+      "name": "Obsidian"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oclc.org",
+      "name": "OCLC"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oddletters.bsky.social",
+      "name": "m. r. sauter"
+    },
+    {
+      "service": "mastodon",
+      "handle": "oddletters@everything.happens.horse",
+      "name": "oddletters"
+    },
+    {
+      "service": "bluesky",
+      "handle": "okaysee.bsky.social",
+      "name": "KC Oh"
+    },
+    {
+      "service": "mastodon",
+      "handle": "okaysee@hachyderm.io",
+      "name": "KC"
+    },
+    {
+      "service": "mastodon",
+      "handle": "okdistribute@tilde.zone",
+      "name": "Rae"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oliviasolon.bsky.social",
+      "name": "Olivia Solon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "omar.website",
+      "name": "Omar Rizwan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "omershapira.com",
+      "name": "Omer Shapira"
+    },
+    {
+      "service": "mastodon",
+      "handle": "onejasonknight@mastodon.social",
+      "name": "Jason Knight"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oneknightinproduct.com",
+      "name": "Jason Knight"
+    },
+    {
+      "service": "bluesky",
+      "handle": "onyxfish.bsky.social",
+      "name": "Chris Groskopf"
+    },
+    {
+      "service": "mastodon",
+      "handle": "OohDirectory@mastodon.social",
+      "name": "ooh.directory"
+    },
+    {
+      "service": "bluesky",
+      "handle": "open-web-advocacy.org",
+      "name": "Open Web Advocacy"
+    },
+    {
+      "service": "bluesky",
+      "handle": "openaire.bsky.social",
+      "name": "OpenAIRE"
+    },
+    {
+      "service": "mastodon",
+      "handle": "OpenAlex@mastodon.social",
+      "name": "OpenAlex"
+    },
+    {
+      "service": "bluesky",
+      "handle": "opencitations.bsky.social",
+      "name": "OpenCitations"
+    },
+    {
+      "service": "mastodon",
+      "handle": "opencitations@scicomm.xyz",
+      "name": "OpenCitations"
+    },
+    {
+      "service": "bluesky",
+      "handle": "openculture.bsky.social",
+      "name": "Open Culture "
+    },
+    {
+      "service": "bluesky",
+      "handle": "opennews.bsky.social",
+      "name": "OpenNews"
+    },
+    {
+      "service": "bluesky",
+      "handle": "openvibe.social",
+      "name": "Openvibe"
+    },
+    {
+      "service": "mastodon",
+      "handle": "openvibe@mastodon.social",
+      "name": "Openvibe"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oppi.li",
+      "name": "akshay oppiliappan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "orfg.bsky.social",
+      "name": "Open Research Funders Group"
+    },
+    {
+      "service": "mastodon",
+      "handle": "orion@hci.social",
+      "name": "Orion Reed"
+    },
+    {
+      "service": "bluesky",
+      "handle": "orionreed.com",
+      "name": "Orion Reed"
+    },
+    {
+      "service": "bluesky",
+      "handle": "oritgat.bsky.social",
+      "name": "oritgat.bsky.social"
+    },
+    {
+      "service": "mastodon",
+      "handle": "orthat@orthis.social",
+      "name": "or that..."
+    },
+    {
+      "service": "bluesky",
+      "handle": "ournetworks.ca",
+      "name": "Our Networks"
+    },
+    {
+      "service": "mastodon",
+      "handle": "owa@mastodon.social",
+      "name": "Open Web Advocacy"
+    },
+    {
+      "service": "mastodon",
+      "handle": "p2173@norcal.social",
+      "name": "p2173"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pablod.bsky.social",
+      "name": "Pablo Defendini"
+    },
+    {
+      "service": "mastodon",
+      "handle": "pablod@xoxo.zone",
+      "name": "Pablo Defendini"
+    },
+    {
+      "service": "bluesky",
+      "handle": "paolo.ricciuti.me",
+      "name": "{🧪} +paoloricciuti.svelte"
+    },
+    {
+      "service": "bluesky",
+      "handle": "parismarx.com",
+      "name": "Paris Marx"
+    },
+    {
+      "service": "mastodon",
+      "handle": "parismarx@mastodon.online",
+      "name": "Paris Marx"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pascalpixel.com",
+      "name": "Pascal Pixel"
+    },
+    {
+      "service": "mastodon",
+      "handle": "pascalpixel@mastodon.social",
+      "name": "Pascal Pixel"
+    },
+    {
+      "service": "bluesky",
+      "handle": "patricio.io",
+      "name": "patricio gonzalez vivo"
+    },
+    {
+      "service": "mastodon",
+      "handle": "patricio@merveilles.town",
+      "name": "Patricio Gonzalez Vivo"
+    },
+    {
+      "service": "bluesky",
+      "handle": "patrickiber.bsky.social",
+      "name": "Patrick Iber"
+    },
+    {
+      "service": "bluesky",
+      "handle": "patternist.xyz",
+      "name": "Alex Good"
+    },
+    {
+      "service": "mastodon",
+      "handle": "paulrobertlloyd@mastodon.social",
+      "name": "Paul Robert Lloyd 🐢"
+    },
+    {
+      "service": "mastodon",
+      "handle": "PavelASamsonov@mastodon.social",
+      "name": "Pavel A. Samsonov"
+    },
+    {
+      "service": "bluesky",
+      "handle": "penberg.org",
+      "name": "Pekka Enberg"
+    },
+    {
+      "service": "bluesky",
+      "handle": "perfnow.nl",
+      "name": "performance.now() conference"
+    },
+    {
+      "service": "bluesky",
+      "handle": "peterme.com",
+      "name": "Peter Merholz"
+    },
+    {
+      "service": "mastodon",
+      "handle": "peterme@sfba.social",
+      "name": "Peter Merholz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "petersuber.bsky.social",
+      "name": "Peter Suber"
+    },
+    {
+      "service": "mastodon",
+      "handle": "petersuber@fediscience.org",
+      "name": "petersuber"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pfrazee.com",
+      "name": "P(aul) Frazee"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pftompkins.bsky.social",
+      "name": "Paul F. Tompkins"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pglite.dev",
+      "name": "PGlite"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pglolo.bsky.social",
+      "name": "Peter Gordon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pheezy.bsky.social",
+      "name": "Onsetsu Evan Cordes"
+    },
+    {
+      "service": "mastodon",
+      "handle": "pheezy@mastodon.social",
+      "name": "Onsetsu Evan Cordes"
+    },
+    {
+      "service": "bluesky",
+      "handle": "phenomenalworld.bsky.social",
+      "name": "Phenomenal World"
+    },
+    {
+      "service": "mastodon",
+      "handle": "philgyford@mastodon.social",
+      "name": "Phil Gyford"
+    },
+    {
+      "service": "bluesky",
+      "handle": "phoenixperry.bsky.social",
+      "name": "Phoenix Perry"
+    },
+    {
+      "service": "mastodon",
+      "handle": "piccalilli@front-end.social",
+      "name": "Piccalilli"
+    },
+    {
+      "service": "mastodon",
+      "handle": "pietercolpaert@mastodon.social",
+      "name": "Pieter Colpaert"
+    },
+    {
+      "service": "mastodon",
+      "handle": "pinafore@fosstodon.org",
+      "name": "Pinafore"
+    },
+    {
+      "service": "mastodon",
+      "handle": "piper@vis.social",
+      "name": "Piper Haywood"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pippinbarr.bsky.social",
+      "name": "Pippin Barr 🤔"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pketh.org",
+      "name": "Pirijan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "platformcoop@social.coop",
+      "name": "Platform Cooperativism"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pollicy.bsky.social",
+      "name": "Pollicy"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pomological.xor.blue",
+      "name": "old fruit pictures"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pontusab.bsky.social",
+      "name": "Pontus Abrahamsson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "poohlaga@mastodon.social",
+      "name": "lauren"
+    },
+    {
+      "service": "mastodon",
+      "handle": "prereview@mas.to",
+      "name": "PREreview"
+    },
+    {
+      "service": "bluesky",
+      "handle": "presenter.ia.net",
+      "name": "iA Presenter"
+    },
+    {
+      "service": "bluesky",
+      "handle": "privatellm.ai",
+      "name": "Private LLM"
+    },
+    {
+      "service": "bluesky",
+      "handle": "propublica.org",
+      "name": "ProPublica"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ProPublica@newsie.social",
+      "name": "ProPublica"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pslovic.bsky.social",
+      "name": "Paul Slovic"
+    },
+    {
+      "service": "bluesky",
+      "handle": "publicbooks.bsky.social",
+      "name": "Public Books "
+    },
+    {
+      "service": "mastodon",
+      "handle": "PublicKnowledgeProject@mastodon.social",
+      "name": "Public Knowledge Project"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pvh.ca",
+      "name": "pvh"
+    },
+    {
+      "service": "mastodon",
+      "handle": "QSS_ISSI@scicomm.xyz",
+      "name": "Quantitative Science Studies"
+    },
+    {
+      "service": "mastodon",
+      "handle": "qualmist@assemblag.es",
+      "name": "Josh Horowitz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "quasimondo.bsky.social",
+      "name": "Mario Klingemann"
+    },
+    {
+      "service": "bluesky",
+      "handle": "queerdesign.club",
+      "name": "Queer Design Club"
+    },
+    {
+      "service": "bluesky",
+      "handle": "queerinai.com",
+      "name": "Queer in AI"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rachsmith@mastodon.social",
+      "name": "Rach Smith"
+    },
+    {
+      "service": "mastodon",
+      "handle": "radiolab@journa.host",
+      "name": "Radiolab"
+    },
+    {
+      "service": "bluesky",
+      "handle": "randomwalker.bsky.social",
+      "name": "Arvind Narayanan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "randomwalker@mastodon.social",
+      "name": "Arvind Narayanan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rands@mastodon.social",
+      "name": "rands"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rarebookschool.bsky.social",
+      "name": "Rare Book School"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rauschma@fosstodon.org",
+      "name": "Axel Rauschmayer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rawsignal.ca",
+      "name": "Raw Signal Group"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rcvd@chaos.social",
+      "name": "Alexander Rink"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rd@social.coop",
+      "name": "rd"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rdn@mastodon.social",
+      "name": "David Riordan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "re3data@openbiblio.social",
+      "name": "re3data"
+    },
+    {
+      "service": "bluesky",
+      "handle": "react.dev",
+      "name": "React"
+    },
+    {
+      "service": "bluesky",
+      "handle": "readwise.bsky.social",
+      "name": "Readwise"
+    },
+    {
+      "service": "bluesky",
+      "handle": "recurse.com",
+      "name": "Recurse Center"
+    },
+    {
+      "service": "bluesky",
+      "handle": "redmonk.com",
+      "name": "RedMonk"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rek@merveilles.town",
+      "name": "R E K"
+    },
+    {
+      "service": "bluesky",
+      "handle": "remnote.bsky.social",
+      "name": "RemNote"
+    },
+    {
+      "service": "bluesky",
+      "handle": "renderg.host",
+      "name": "B. Prendergast"
+    },
+    {
+      "service": "bluesky",
+      "handle": "researchdataall.bsky.social",
+      "name": "Research Data Alliance (RDA)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "researchsoftware.bsky.social",
+      "name": "Research Software Alliance"
+    },
+    {
+      "service": "bluesky",
+      "handle": "restofworld.org",
+      "name": "Rest of World"
+    },
+    {
+      "service": "mastodon",
+      "handle": "RFish14@mstdn.social",
+      "name": "Rebecca from Round Sky"
+    },
+    {
+      "service": "mastodon",
+      "handle": "rich_harris@toot.cafe",
+      "name": "Rich Harris"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rich-harris.dev",
+      "name": "rich harris"
+    },
+    {
+      "service": "bluesky",
+      "handle": "richdecibels.bsky.social",
+      "name": "Rich Decibels"
+    },
+    {
+      "service": "mastodon",
+      "handle": "richdecibels@social.coop",
+      "name": "Richard D. Bartlett"
+    },
+    {
+      "service": "mastodon",
+      "handle": "RichMironov@mastodon.online",
+      "name": "RichMironov"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rlukedubois.bsky.social",
+      "name": "R. Luke DuBois"
+    },
+    {
+      "service": "mastodon",
+      "handle": "robb@social.lol",
+      "name": "Robb Knight"
+    },
+    {
+      "service": "bluesky",
+      "handle": "robertalearns.bsky.social",
+      "name": "Roberta Dombrowski ✨"
+    },
+    {
+      "service": "mastodon",
+      "handle": "robertalearns@mastodon.social",
+      "name": "roberta dombrowski"
+    },
+    {
+      "service": "bluesky",
+      "handle": "robhaisfield.com",
+      "name": "Rob Haisfield"
+    },
+    {
+      "service": "mastodon",
+      "handle": "robin@mastodon.social",
+      "name": "Robin Berjon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "robinsonmeyer.bsky.social",
+      "name": "Robinson Meyer"
+    },
+    {
+      "service": "mastodon",
+      "handle": "robinsonmeyer@mstdn.social",
+      "name": "robinsonmeyer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "robpalmer.bsky.social",
+      "name": "Rob Palmer"
+    },
+    {
+      "service": "bluesky",
+      "handle": "robyncaplan.bsky.social",
+      "name": "Robyn Caplan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "RobynCaplan@aoir.social",
+      "name": "Robyn Caplan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rocicorp.dev",
+      "name": "Rocicorp"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rodrigotello.me",
+      "name": "Rodrigo"
+    },
+    {
+      "service": "mastodon",
+      "handle": "roeldobbe@akademienl.social",
+      "name": "Roel Dobbe"
+    },
+    {
+      "service": "mastodon",
+      "handle": "RonDeeGee@social.coop",
+      "name": "RonDee  Gee"
+    },
+    {
+      "service": "bluesky",
+      "handle": "roocode.bsky.social",
+      "name": "Roo Code"
+    },
+    {
+      "service": "mastodon",
+      "handle": "RoRInstitute@indieweb.social",
+      "name": "Research on Research Institute"
+    },
+    {
+      "service": "bluesky",
+      "handle": "roryhyde.bsky.social",
+      "name": "Rory Hyde"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rosenfeldmedia.com",
+      "name": "Rosenfeld Media"
+    },
+    {
+      "service": "bluesky",
+      "handle": "rossandersen.bsky.social",
+      "name": "Ross Andersen"
+    },
+    {
+      "service": "bluesky",
+      "handle": "round.is",
+      "name": "Maxim Leyzerovich"
+    },
+    {
+      "service": "mastodon",
+      "handle": "round@mastodon.social",
+      "name": "Maxim Leyzerovich"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ruchowdh@mastodon.social",
+      "name": "Rumman Chowdhury"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ruha9.bsky.social",
+      "name": "Ruha Benjamin"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ruha9@mastodon.social",
+      "name": "Ruha Benjamin"
+    },
+    {
+      "service": "bluesky",
+      "handle": "runasand.bsky.social",
+      "name": "Runa Sandvik"
+    },
+    {
+      "service": "mastodon",
+      "handle": "russellquinn@mastodon.social",
+      "name": "russellquinn"
+    },
+    {
+      "service": "mastodon",
+      "handle": "RuthMalan@mastodon.social",
+      "name": "Ruth — of systems & design"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ryanboren.bsky.social",
+      "name": "Ryan Boren"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ryanboren@social.coop",
+      "name": "Ryan Boren"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ryanrumsey.bsky.social",
+      "name": "Ryan Rumsey"
+    },
+    {
+      "service": "mastodon",
+      "handle": "s3ththompson@mastodon.social",
+      "name": "Seth Thompson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "safiyanoble@dair-community.social",
+      "name": "Safiya Umoja Noble"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sam@social.coop",
+      "name": "Sam Whited"
+    },
+    {
+      "service": "bluesky",
+      "handle": "samanthadalal.bsky.social",
+      "name": "Samantha Dalal"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Sambarhino@dair-community.social",
+      "name": "Ramon Amaro"
+    },
+    {
+      "service": "mastodon",
+      "handle": "samlavigne@mastodon.social",
+      "name": "Sam Lavigne"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sammorr.is",
+      "name": "Sam Morris"
+    },
+    {
+      "service": "bluesky",
+      "handle": "samuelmoore.org",
+      "name": "Samuel Moore"
+    },
+    {
+      "service": "bluesky",
+      "handle": "samuelmt.bsky.social",
+      "name": "Samuel Timbó"
+    },
+    {
+      "service": "bluesky",
+      "handle": "samwillis.uk",
+      "name": "Sam Willis"
+    },
+    {
+      "service": "mastodon",
+      "handle": "samwillis@mastodon.social",
+      "name": "Sam Willis"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sarahavenir@tw.town",
+      "name": "Sarah Avenir"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sarahcsachs.bsky.social",
+      "name": "Sarah Sachs"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sarahghp@post.lurk.org",
+      "name": "sarahghp"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sarahjeong.bsky.social",
+      "name": "sarah jeong"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sarahjones.bsky.social",
+      "name": "Sarah Jones"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sarahljaffe@zirk.us",
+      "name": "sarahljaffe"
+    },
+    {
+      "service": "bluesky",
+      "handle": "saranrapjs.bsky.social",
+      "name": "Jeff Sisson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sava@mastodon.social",
+      "name": "rom comrade"
+    },
+    {
+      "service": "bluesky",
+      "handle": "savasavasava.myatproto.social",
+      "name": "rom comrade"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sawyerhood.com",
+      "name": "Sawyer Hood"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sbensu.com",
+      "name": "Sebastian Bensusan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "schickling.dev",
+      "name": "Johannes Schickling"
+    },
+    {
+      "service": "bluesky",
+      "handle": "schlage.town",
+      "name": "brendan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "schock.cc",
+      "name": "Sasha INDICTMENTS Costanza-Chock"
+    },
+    {
+      "service": "mastodon",
+      "handle": "schock@mas.to",
+      "name": "Sasha Costanza-Chock"
+    },
+    {
+      "service": "mastodon",
+      "handle": "schock@mastodon.lol",
+      "name": "Sasha Costanza-Chock"
+    },
+    {
+      "service": "mastodon",
+      "handle": "scottjenson@social.coop",
+      "name": "Scott Jenson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "scottsandage.bsky.social",
+      "name": "Scott Sandage"
+    },
+    {
+      "service": "bluesky",
+      "handle": "scottstowell.bsky.social",
+      "name": "Scott Stowell"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Sedista@mastodon.social",
+      "name": "Sedista"
+    },
+    {
+      "service": "bluesky",
+      "handle": "seeshespeak.bsky.social",
+      "name": "Sheila Liming"
+    },
+    {
+      "service": "mastodon",
+      "handle": "seeshespeak@zirk.us",
+      "name": "Sheila Liming"
+    },
+    {
+      "service": "bluesky",
+      "handle": "seldo.com",
+      "name": "Laurie Voss"
+    },
+    {
+      "service": "mastodon",
+      "handle": "seldo@alpaca.gold",
+      "name": "Laurie Voss"
+    },
+    {
+      "service": "bluesky",
+      "handle": "selinjessa.com",
+      "name": "Selin Jessa"
+    },
+    {
+      "service": "mastodon",
+      "handle": "selinjessa@genomic.social",
+      "name": "Selin Jessa"
+    },
+    {
+      "service": "bluesky",
+      "handle": "semiotexte.bsky.social",
+      "name": "Semiotexte"
+    },
+    {
+      "service": "bluesky",
+      "handle": "senongo.bsky.social",
+      "name": "Senongo"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sevensixfive.bsky.social",
+      "name": "Fred Scharmen"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sfpc.study",
+      "name": "School for Poetic Computation"
+    },
+    {
+      "service": "bluesky",
+      "handle": "shannonmattern.bsky.social",
+      "name": "Shannon Mattern"
+    },
+    {
+      "service": "mastodon",
+      "handle": "shannonmattern@saturation.social",
+      "name": "Shannon Mattern"
+    },
+    {
+      "service": "bluesky",
+      "handle": "shashashasha.bsky.social",
+      "name": "shashashasha.bsky.social"
+    },
+    {
+      "service": "mastodon",
+      "handle": "shashashasha@mastodon.publicinterest.town",
+      "name": "Sha Hwang"
+    },
+    {
+      "service": "bluesky",
+      "handle": "shaw.al",
+      "name": "Al Shaw"
+    },
+    {
+      "service": "mastodon",
+      "handle": "shibacomputer@post.lurk.org",
+      "name": "𝔰𝔥𝔦𝔟𝔠𝔬"
+    },
+    {
+      "service": "mastodon",
+      "handle": "shiflett@mastodon.social",
+      "name": "Chris Shiflett"
+    },
+    {
+      "service": "bluesky",
+      "handle": "shoptalkshow.com",
+      "name": "shoptalkshow.com"
+    },
+    {
+      "service": "bluesky",
+      "handle": "shouldhaveanimal.bsky.social",
+      "name": "shouldhaveanimal"
+    },
+    {
+      "service": "mastodon",
+      "handle": "shrinkthinks@spore.social",
+      "name": "Martha Crawford"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sicchio@post.lurk.org",
+      "name": "sicchio"
+    },
+    {
+      "service": "bluesky",
+      "handle": "silviolorusso.bsky.social",
+      "name": "Silvio Lorusso"
+    },
+    {
+      "service": "mastodon",
+      "handle": "simon@simonwillison.net",
+      "name": "Simon Willison"
+    },
+    {
+      "service": "bluesky",
+      "handle": "simonwillison.net",
+      "name": "Simon Willison"
+    },
+    {
+      "service": "mastodon",
+      "handle": "simonxix@mastodon.scot",
+      "name": "Simon"
+    },
+    {
+      "service": "bluesky",
+      "handle": "simplebits.com",
+      "name": "Dan Cederholm"
+    },
+    {
+      "service": "bluesky",
+      "handle": "simplybastow.com",
+      "name": "Janna Bastow "
+    },
+    {
+      "service": "mastodon",
+      "handle": "sindresorhus@mastodon.social",
+      "name": "Sindre Sorhus"
+    },
+    {
+      "service": "bluesky",
+      "handle": "siracusa.social",
+      "name": "John Siracusa"
+    },
+    {
+      "service": "mastodon",
+      "handle": "siracusa@mastodon.social",
+      "name": "John Siracusa"
+    },
+    {
+      "service": "bluesky",
+      "handle": "skamille.themanagerswrath.com",
+      "name": "Camille Fournier"
+    },
+    {
+      "service": "bluesky",
+      "handle": "skuwamoto.bsky.social",
+      "name": "Sho Kuwamoto"
+    },
+    {
+      "service": "mastodon",
+      "handle": "slightlyoff@toot.cafe",
+      "name": "Alex Russell"
+    },
+    {
+      "service": "bluesky",
+      "handle": "slim.bsky.social",
+      "name": "Nintendo .DS_Store"
+    },
+    {
+      "service": "mastodon",
+      "handle": "smallcircles@social.coop",
+      "name": "Social coding commons"
+    },
+    {
+      "service": "bluesky",
+      "handle": "smw.bsky.social",
+      "name": "Sarah Myers West"
+    },
+    {
+      "service": "mastodon",
+      "handle": "snarfed.org@snarfed.org",
+      "name": "Ryan Barrett"
+    },
+    {
+      "service": "mastodon",
+      "handle": "social_coop@social.coop",
+      "name": "social_coop"
+    },
+    {
+      "service": "mastodon",
+      "handle": "SocialCoop@social.coop",
+      "name": "Social.coop"
+    },
+    {
+      "service": "mastodon",
+      "handle": "SociocracyForAll@social.coop",
+      "name": "Sociocracy For All"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sofiaqt.bsky.social",
+      "name": "Sofia Quintero "
+    },
+    {
+      "service": "mastodon",
+      "handle": "SohiniKar@mstdn.jp",
+      "name": "Dr Sohini Kar"
+    },
+    {
+      "service": "bluesky",
+      "handle": "solidarityeconomy.bsky.social",
+      "name": "SEIZE"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sophiebishop.bsky.social",
+      "name": "Sophie Bishop"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sophiebishop@aoir.social",
+      "name": "sophiebishop"
+    },
+    {
+      "service": "mastodon",
+      "handle": "sparc@mastodon.social",
+      "name": "SPARC"
+    },
+    {
+      "service": "bluesky",
+      "handle": "spencer.place",
+      "name": "spencer chang"
+    },
+    {
+      "service": "mastodon",
+      "handle": "spencerbeacock@mstdn.ca",
+      "name": "Spencer Beacock"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Stacco@social.coop",
+      "name": "Stacco"
+    },
+    {
+      "service": "mastodon",
+      "handle": "starkcontrast@mastodon.social",
+      "name": "Luke Stark"
+    },
+    {
+      "service": "mastodon",
+      "handle": "stefhaustein@fediscience.org",
+      "name": "Stefanie Haustein"
+    },
+    {
+      "service": "mastodon",
+      "handle": "stelar@mas.to",
+      "name": "Your boy Monokuma"
+    },
+    {
+      "service": "bluesky",
+      "handle": "stephango.com",
+      "name": "kepano"
+    },
+    {
+      "service": "bluesky",
+      "handle": "steve8708.bsky.social",
+      "name": "Steve (Builder.io)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "stevekrouse.com",
+      "name": "Steve Krouse"
+    },
+    {
+      "service": "bluesky",
+      "handle": "stevenljohnson.org",
+      "name": "Steven L. Johnson"
+    },
+    {
+      "service": "bluesky",
+      "handle": "steveportigal.bsky.social",
+      "name": "Steve Portigal"
+    },
+    {
+      "service": "bluesky",
+      "handle": "steveruizok.bsky.social",
+      "name": "Steve Ruiz"
+    },
+    {
+      "service": "mastodon",
+      "handle": "steveruizok@mas.to",
+      "name": "Steve Ruiz"
+    },
+    {
+      "service": "mastodon",
+      "handle": "stop@me.dm",
+      "name": "Doug Bowman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "storybasedstrategy.bsky.social",
+      "name": "Center for Story-based Strategy"
+    },
+    {
+      "service": "bluesky",
+      "handle": "strandbooks.com",
+      "name": "Strand Bookstore"
+    },
+    {
+      "service": "bluesky",
+      "handle": "structuredsuccess.ca",
+      "name": "Structured Success"
+    },
+    {
+      "service": "bluesky",
+      "handle": "stuntbox.bsky.social",
+      "name": "David Sleight"
+    },
+    {
+      "service": "bluesky",
+      "handle": "supabase.bsky.social",
+      "name": "supabase.bsky.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "surfacepodcast.bsky.social",
+      "name": "Scratching the Surface"
+    },
+    {
+      "service": "bluesky",
+      "handle": "suryamattu.com",
+      "name": "Surya Mattu"
+    },
+    {
+      "service": "mastodon",
+      "handle": "suryamattu@journa.host",
+      "name": "Surya Mattu"
+    },
+    {
+      "service": "bluesky",
+      "handle": "susanpowter.bsky.social",
+      "name": "susanpowter.bsky.social"
+    },
+    {
+      "service": "bluesky",
+      "handle": "svelte.dev",
+      "name": "Svelte"
+    },
+    {
+      "service": "bluesky",
+      "handle": "sveltesociety.dev",
+      "name": "Svelte Society"
+    },
+    {
+      "service": "mastodon",
+      "handle": "symplectic@sciencemastodon.com",
+      "name": "Symplectic"
+    },
+    {
+      "service": "bluesky",
+      "handle": "syncconf.bsky.social",
+      "name": "Sync Conf"
+    },
+    {
+      "service": "bluesky",
+      "handle": "szymonkaliski.com",
+      "name": "Szymon Kaliski"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tagsavage.bsky.social",
+      "name": "Tag Savage"
+    },
+    {
+      "service": "mastodon",
+      "handle": "taliesan@dair-community.social",
+      "name": "Geoffrey MacDougall"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tamigraph.bsky.social",
+      "name": "Tamara Kneese"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tamigraph@mastodon.social",
+      "name": "Tamara Kneese"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tangled.org",
+      "name": "Tangled"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tapbots@tapbots.social",
+      "name": "Tapbots"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tarleton@aoir.social",
+      "name": "tarleton"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tarngerine.bsky.social",
+      "name": "jolios torng"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tate.bsky.social",
+      "name": "Tate Collection"
+    },
+    {
+      "service": "bluesky",
+      "handle": "taxobob.bsky.social",
+      "name": "Taxobob"
+    },
+    {
+      "service": "mastodon",
+      "handle": "taylorlorenz@mastodon.social",
+      "name": "Taylor Lorenz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tcarmody.bsky.social",
+      "name": "Tim Carmody"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tchoi8.bsky.social",
+      "name": "Taeyoon Choi"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tealtan.bsky.social",
+      "name": "Allen Tan"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tealtan@mastodon.xyz",
+      "name": "Allen Tan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "teamreops.bsky.social",
+      "name": "The ResearchOps Community"
+    },
+    {
+      "service": "mastodon",
+      "handle": "TeamTopologies@mastodon.social",
+      "name": "Team Topologies"
+    },
+    {
+      "service": "bluesky",
+      "handle": "techactions.bsky.social",
+      "name": "Collective Action in Tech"
+    },
+    {
+      "service": "bluesky",
+      "handle": "techemails.bsky.social",
+      "name": "Internal Tech Emails"
+    },
+    {
+      "service": "bluesky",
+      "handle": "techtonicjustice.bsky.social",
+      "name": "TechTonic Justice"
+    },
+    {
+      "service": "bluesky",
+      "handle": "techwontsave.us",
+      "name": "Tech Won’t Save Us"
+    },
+    {
+      "service": "bluesky",
+      "handle": "techworkerscoalition.org",
+      "name": "Tech Workers Coalition"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tedleo.bsky.social",
+      "name": "Ted Leo 🍉"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tega.bsky.social",
+      "name": "Tega Brain"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tej.as",
+      "name": "Tejas Kumar"
+    },
+    {
+      "service": "bluesky",
+      "handle": "textfiles.com",
+      "name": "Jason Scott"
+    },
+    {
+      "service": "mastodon",
+      "handle": "textfiles@digipres.club",
+      "name": "Jason Scott"
+    },
+    {
+      "service": "mastodon",
+      "handle": "textfiles@mastodon.archive.org",
+      "name": "Jason Scott"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tfoil2@mastodon.online",
+      "name": "Tinfoil 2.0 😱"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tfthacker.bsky.social",
+      "name": "TfT Hacker"
+    },
+    {
+      "service": "bluesky",
+      "handle": "thebestsophist.bsky.social",
+      "name": "mx cordelia yu"
+    },
+    {
+      "service": "mastodon",
+      "handle": "thebestsophist@scholar.social",
+      "name": "mx cordelia yu 余典鴻"
+    },
+    {
+      "service": "bluesky",
+      "handle": "thecscce.bsky.social",
+      "name": "The CSCCE"
+    },
+    {
+      "service": "bluesky",
+      "handle": "thedigradio.bsky.social",
+      "name": "The Dig"
+    },
+    {
+      "service": "bluesky",
+      "handle": "thedsp.bsky.social",
+      "name": "David Soria Parra"
+    },
+    {
+      "service": "bluesky",
+      "handle": "theetrain.ca",
+      "name": "Enrico Sacchetti"
+    },
+    {
+      "service": "mastodon",
+      "handle": "TheFederatedPipe@fedia.io",
+      "name": "TheFederatedPipe"
+    },
+    {
+      "service": "bluesky",
+      "handle": "theiaconf.bsky.social",
+      "name": "IAC - Information Architecture Conference"
+    },
+    {
+      "service": "bluesky",
+      "handle": "themarkup.org",
+      "name": "The Markup"
+    },
+    {
+      "service": "mastodon",
+      "handle": "themarkup@mastodon.themarkup.org",
+      "name": "The Markup"
+    },
+    {
+      "service": "bluesky",
+      "handle": "themexican.bsky.social",
+      "name": "Raul Gutierrez"
+    },
+    {
+      "service": "mastodon",
+      "handle": "themitpress@mastodon.mit.edu",
+      "name": "MIT Press"
+    },
+    {
+      "service": "bluesky",
+      "handle": "themountaingoats.bsky.social",
+      "name": "the Mountain Goats"
+    },
+    {
+      "service": "bluesky",
+      "handle": "theocharis.dev",
+      "name": "Jeremy Theocharis"
+    },
+    {
+      "service": "bluesky",
+      "handle": "theonion.com",
+      "name": "The Onion"
+    },
+    {
+      "service": "bluesky",
+      "handle": "thesophiaxu.bsky.social",
+      "name": "sophia xu"
+    },
+    {
+      "service": "bluesky",
+      "handle": "thisisaaronland.bsky.social",
+      "name": "Aaron Straup Cope"
+    },
+    {
+      "service": "mastodon",
+      "handle": "thisisaaronland@orthis.social",
+      "name": "thisisaaronland"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tim@phire.place",
+      "name": "Tim Carmody"
+    },
+    {
+      "service": "bluesky",
+      "handle": "timbl.bsky.social",
+      "name": "Tim Berners-Lee"
+    },
+    {
+      "service": "mastodon",
+      "handle": "timelfen@assemblag.es",
+      "name": "Timothy Elfenbein"
+    },
+    {
+      "service": "bluesky",
+      "handle": "timhwang.bsky.social",
+      "name": "Tim Hwang"
+    },
+    {
+      "service": "bluesky",
+      "handle": "timmaughan.bsky.social",
+      "name": "Tim Maughan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "timnitgebru.blacksky.app",
+      "name": "Timnit Gebru"
+    },
+    {
+      "service": "mastodon",
+      "handle": "timnitGebru@dair-community.social",
+      "name": "Timnit Gebru (she/her)."
+    },
+    {
+      "service": "bluesky",
+      "handle": "timoreilly.bsky.social",
+      "name": "Tim O'Reilly "
+    },
+    {
+      "service": "bluesky",
+      "handle": "tldraw.com",
+      "name": "tldraw"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tmcw.mastodon.social.ap.brid.gy",
+      "name": "Tom MacWright"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tmcw@mastodon.social",
+      "name": "Tom MacWright"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tobiasrogers@hachyderm.io",
+      "name": "Toby Rogers 🚀🤘"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tobyrogers.pm",
+      "name": "Toby Rogers"
+    },
+    {
+      "service": "bluesky",
+      "handle": "toddwords.bsky.social",
+      "name": "toddwords"
+    },
+    {
+      "service": "bluesky",
+      "handle": "todepond.com",
+      "name": "Lu wilson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "TodePond@mas.to",
+      "name": "Lu wilson"
+    },
+    {
+      "service": "mastodon",
+      "handle": "todrobbins@social.coop",
+      "name": "Tod Robbins"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tom@subculture.chat",
+      "name": "Tom"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tombubul.bsky.social",
+      "name": "Tom Bubul"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tomstafford.mastodon.online.ap.brid.gy",
+      "name": "Tom Stafford"
+    },
+    {
+      "service": "mastodon",
+      "handle": "tomstafford@mastodon.online",
+      "name": "Tom Stafford"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ton@m.tzyl.eu",
+      "name": "Ton Zijlstra"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tonerow.bsky.social",
+      "name": "Tone Row / Rob G"
+    },
+    {
+      "service": "bluesky",
+      "handle": "tonytula.com",
+      "name": "Tony Tulathimutte"
+    },
+    {
+      "service": "bluesky",
+      "handle": "topleftbrick.bsky.social",
+      "name": "▀"
+    },
+    {
+      "service": "mastodon",
+      "handle": "torinmonahan@mastodon.social",
+      "name": "Torin Monahan"
+    },
+    {
+      "service": "bluesky",
+      "handle": "transmediale.bsky.social",
+      "name": "transmediale/"
+    },
+    {
+      "service": "mastodon",
+      "handle": "transparenttech@mastodon.social",
+      "name": "Coalition for Independent Tech"
+    },
+    {
+      "service": "bluesky",
+      "handle": "trebors2025.bsky.social",
+      "name": "R. Trebor Scholz"
+    },
+    {
+      "service": "bluesky",
+      "handle": "trufelman.bsky.social",
+      "name": "Avery Trufelman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "twcnewsletter.bsky.social",
+      "name": "TWC Newsletter"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ubique.ch",
+      "name": "Ubique"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ubiquity75.xyz",
+      "name": "Sarah T Roberts, PhD"
+    },
+    {
+      "service": "mastodon",
+      "handle": "ubiquity75@dair-community.social",
+      "name": "Sarah T. Roberts, Ph.D."
+    },
+    {
+      "service": "bluesky",
+      "handle": "ucbitss.bsky.social",
+      "name": "BITSS"
+    },
+    {
+      "service": "bluesky",
+      "handle": "udara.io",
+      "name": "Udara"
+    },
+    {
+      "service": "bluesky",
+      "handle": "ukglo.bsky.social",
+      "name": "George Oates"
+    },
+    {
+      "service": "bluesky",
+      "handle": "uksg.bsky.social",
+      "name": "UKSG"
+    },
+    {
+      "service": "bluesky",
+      "handle": "unbreaking.org",
+      "name": "Unbreaking"
+    },
+    {
+      "service": "mastodon",
+      "handle": "untoldstories@typo.social",
+      "name": "Ruben Pater"
+    },
+    {
+      "service": "bluesky",
+      "handle": "us-rse.bsky.social",
+      "name": "US Research Software Engineer Association (US-RSE)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "us.graphics",
+      "name": "U.S. Graphics Company"
+    },
+    {
+      "service": "bluesky",
+      "handle": "usablelearning.bsky.social",
+      "name": "Julie Dirksen"
+    },
+    {
+      "service": "bluesky",
+      "handle": "vanessahistory.bsky.social",
+      "name": "Vanessa Ogle"
+    },
+    {
+      "service": "mastodon",
+      "handle": "veenadubal@mas.to",
+      "name": "Veena Dubal"
+    },
+    {
+      "service": "mastodon",
+      "handle": "veoc@vermont.masto.host",
+      "name": "VT Employee Ownership Center"
+    },
+    {
+      "service": "bluesky",
+      "handle": "vercel.com",
+      "name": "Vercel"
+    },
+    {
+      "service": "bluesky",
+      "handle": "vgr.bsky.social",
+      "name": "Venkatesh Rao 🔹"
+    },
+    {
+      "service": "mastodon",
+      "handle": "vicki@jawns.club",
+      "name": "Vicki Boykis"
+    },
+    {
+      "service": "mastodon",
+      "handle": "VirginiaEubanks@newsie.social",
+      "name": "Virginia Eubanks"
+    },
+    {
+      "service": "bluesky",
+      "handle": "viteconf.org",
+      "name": "ViteConf (Oct 15, 2026)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "viticci.macstories.net",
+      "name": "Federico Viticci"
+    },
+    {
+      "service": "bluesky",
+      "handle": "vivianne.bsky.social",
+      "name": "Vivianne Castillo"
+    },
+    {
+      "service": "mastodon",
+      "handle": "vmatekole@social.coop",
+      "name": "Victor Matekole"
+    },
+    {
+      "service": "bluesky",
+      "handle": "vruba.bsky.social",
+      "name": "Charlie Loyd"
+    },
+    {
+      "service": "mastodon",
+      "handle": "vruba@everything.happens.horse",
+      "name": "Charlie Loyd"
+    },
+    {
+      "service": "bluesky",
+      "handle": "vsoch.bsky.social",
+      "name": "vsoch"
+    },
+    {
+      "service": "mastodon",
+      "handle": "vtraag@social.cwts.nl",
+      "name": "Vincent Traag"
+    },
+    {
+      "service": "mastodon",
+      "handle": "w3c@w3c.social",
+      "name": "World Wide Web Consortium"
+    },
+    {
+      "service": "mastodon",
+      "handle": "wagnerblog@mastodon.lol",
+      "name": "James Wagner"
+    },
+    {
+      "service": "bluesky",
+      "handle": "wattenberger.com",
+      "name": "Amelia Wattenberger"
+    },
+    {
+      "service": "bluesky",
+      "handle": "waxy.org",
+      "name": "Waxy.org"
+    },
+    {
+      "service": "mastodon",
+      "handle": "webrecorder@digipres.club",
+      "name": "Webrecorder"
+    },
+    {
+      "service": "bluesky",
+      "handle": "wesleygoatley.bsky.social",
+      "name": "Wesley Goatley"
+    },
+    {
+      "service": "mastodon",
+      "handle": "wetpaper@social.coop",
+      "name": "juniper cameryn"
+    },
+    {
+      "service": "bluesky",
+      "handle": "whitingx.bsky.social",
+      "name": "Rob Whiting 📓"
+    },
+    {
+      "service": "mastodon",
+      "handle": "whitingx@vivaldi.net",
+      "name": "Rob Whiting 📓"
+    },
+    {
+      "service": "bluesky",
+      "handle": "willie-agnew.bsky.social",
+      "name": "Willie Agnew"
+    },
+    {
+      "service": "bluesky",
+      "handle": "willowbl00.bsky.social",
+      "name": "Willow Idlewild"
+    },
+    {
+      "service": "mastodon",
+      "handle": "willowbl00@hachyderm.io",
+      "name": "willowbl00"
+    },
+    {
+      "service": "bluesky",
+      "handle": "wimlworkshop.bsky.social",
+      "name": "Women in Machine Learning (WiML)"
+    },
+    {
+      "service": "bluesky",
+      "handle": "winston.cc",
+      "name": "winston"
+    },
+    {
+      "service": "mastodon",
+      "handle": "wnstn@phire.place",
+      "name": "winston"
+    },
+    {
+      "service": "bluesky",
+      "handle": "wolkenmachine.bsky.social",
+      "name": "Marcel Goethals"
+    },
+    {
+      "service": "bluesky",
+      "handle": "workersobservatory.org",
+      "name": "The Workers' Observatory"
+    },
+    {
+      "service": "mastodon",
+      "handle": "workingwriter@fosstodon.org",
+      "name": "Michael McCallister"
+    },
+    {
+      "service": "bluesky",
+      "handle": "worrydream.com",
+      "name": "Bret Victor"
+    },
+    {
+      "service": "mastodon",
+      "handle": "writefreelyhost@musing.studio",
+      "name": "WriteFreely.host"
+    },
+    {
+      "service": "mastodon",
+      "handle": "Wtebbens@social.coop",
+      "name": "Wouter Tebbens ⁂"
+    },
+    {
+      "service": "mastodon",
+      "handle": "wtfismyip@gnu.gl",
+      "name": "wtfismyip"
+    },
+    {
+      "service": "bluesky",
+      "handle": "wynkenhimself.bsky.social",
+      "name": "Sarah Werner"
+    },
+    {
+      "service": "mastodon",
+      "handle": "wynkenhimself@glammr.us",
+      "name": "Sarah"
+    },
+    {
+      "service": "bluesky",
+      "handle": "xiaochang.bsky.social",
+      "name": "xiaochang"
+    },
+    {
+      "service": "mastodon",
+      "handle": "xor@tech.intersects.art",
+      "name": "Parker Higgins"
+    },
+    {
+      "service": "mastodon",
+      "handle": "xuhulk@mastodon.cloud",
+      "name": "Christina Xu"
+    },
+    {
+      "service": "bluesky",
+      "handle": "xyflow.com",
+      "name": "xyflow"
+    },
+    {
+      "service": "bluesky",
+      "handle": "yaak.app",
+      "name": "Yaak API Client"
+    },
+    {
+      "service": "mastodon",
+      "handle": "yala@degrowth.social",
+      "name": "jon r"
+    },
+    {
+      "service": "mastodon",
+      "handle": "yala@occitanie.social",
+      "name": "jon r"
+    },
+    {
+      "service": "bluesky",
+      "handle": "yeartimeprogress.web.app",
+      "name": "Year Progress"
+    },
+    {
+      "service": "bluesky",
+      "handle": "yee.camp",
+      "name": "david yee"
+    },
+    {
+      "service": "mastodon",
+      "handle": "yindi@mastodon.social",
+      "name": "yindi"
+    },
+    {
+      "service": "bluesky",
+      "handle": "yoz.bsky.social",
+      "name": "Yoz Grahame"
+    },
+    {
+      "service": "mastodon",
+      "handle": "yunohost@toot.aquilenet.fr",
+      "name": "YunoHost :neopossum_uwu:"
+    },
+    {
+      "service": "mastodon",
+      "handle": "yvonne@digipres.club",
+      "name": "Yvonne Ng"
+    },
+    {
+      "service": "bluesky",
+      "handle": "yvonnezlam.bsky.social",
+      "name": "Yvonne Lam"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zachkrall.com",
+      "name": "Zach Krall"
+    },
+    {
+      "service": "mastodon",
+      "handle": "zachkrall@merveilles.town",
+      "name": "Zach Krall"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zachleat.com",
+      "name": "Zach Leatherman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "zachleat@zachleat.com",
+      "name": "Zach Leatherman"
+    },
+    {
+      "service": "mastodon",
+      "handle": "zackseuberling@mastodon.social",
+      "name": "Zack"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zarinahagnew.bsky.social",
+      "name": "Zarinah"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zeldman.bsky.social",
+      "name": "zeldman"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zephoria.bsky.social",
+      "name": "danah boyd"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zettlr.com",
+      "name": "Zettlr"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zinelibraries.bsky.social",
+      "name": "Zine Libraries"
+    },
+    {
+      "service": "bluesky",
+      "handle": "zsw.bsky.social",
+      "name": "ZSW"
+    },
+    {
+      "service": "mastodon",
+      "handle": "zunguzungu@sfba.social",
+      "name": "Aaron Bady"
+    }
+  ]
+}

@@ -75,7 +75,7 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
   const draft = drafts[target.service];
   try {
    if (typeof draft !== 'string' || draft.length > 10000) throw new Error();
-   syndicationText({ ...publication, idempotencyKey: 'validate', draft }, target.limit, target.service === 'bluesky' ? 3000 : Infinity);
+   syndicationText({ ...publication, idempotencyKey: 'validate', draft }, target.limit, target.service === 'bluesky' ? 3000 : Infinity, target.service);
   } catch { throw new ProtocolError(422, 'invalid_request', `The ${target.name} draft must contain 1–${target.limit} characters.`); }
  }
  const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath };

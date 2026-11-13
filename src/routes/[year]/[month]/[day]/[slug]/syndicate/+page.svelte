@@ -6,6 +6,31 @@
  import type { PageData, ActionData } from './$types';
  let { data, form }: { data: PageData; form: ActionData } = $props();
  import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
+ import { characterCount, mentionQuery, type SocialService, type FollowedAccount } from '$lib/social-text';
+ import follows from '$lib/data/social-follows.json';
+ const initiallyLinked = form && 'linked' in form ? form.linked : !form?.drafts;
+ let linked = $state(initiallyLinked);
+ const initial = form?.drafts ?? Object.fromEntries((data.destinations ?? []).map(d => [d.service, d.draft]));
+ let drafts = $state<Record<string,string>>({ ...initial, ...(initiallyLinked ? { mastodon: initial.bluesky ?? initial.mastodon ?? '' } : {}) });
+ let active = $state<SocialService | null>(null);
+ let query = $state<ReturnType<typeof mentionQuery>>(null);
+ let field: HTMLTextAreaElement | null = null;
+ const suggestions = $derived(query && active ? (follows.accounts as FollowedAccount[]).filter(a => a.service === active && `${a.handle} ${a.name}`.toLowerCase().includes(query!.query)).slice(0,8) : []);
+ function edit(service: SocialService, event: Event) {
+  field = event.target as HTMLTextAreaElement;
+  drafts[service] = field.value;
+  if (linked) drafts[service === 'bluesky' ? 'mastodon' : 'bluesky'] = field.value;
+  active = service; query = mentionQuery(field.value, field.selectionStart);
+ }
+ function insert(account: FollowedAccount) {
+  if (!query || !active || !field) return;
+  const end = query.start + account.handle.length + 2;
+  drafts[active] = drafts[active].slice(0,query.start) + '@' + account.handle + ' ' + drafts[active].slice(query.end);
+  if (linked) drafts[active === 'bluesky' ? 'mastodon' : 'bluesky'] = drafts[active];
+  const target = field;
+  query = null;
+  setTimeout(() => { target.focus(); target.setSelectionRange(end,end); });
+ }
  let sending = $state(false);
  let signingIn = $state(false);
  let signInError = $state('');
@@ -43,6 +68,11 @@
   <form method="POST" onsubmit={() => { sending = true; }}>
    <input type="hidden" name="csrf" value={data.csrf} />
    <input type="hidden" name="revision" value={data.revision} />
+   <Checkbox name="linked" checked={linked} onchange={(event: Event) => {
+    linked = (event.target as HTMLInputElement).checked;
+    if (linked) drafts.mastodon = drafts.bluesky;
+   }}>Keep text in sync</Checkbox>
+   <p class="hint">Turn off to edit each post separately. Turning on copies the Bluesky draft to Mastodon. Mentions use each network’s handles.</p>
    {#each data.destinations ?? [] as destination (destination.service)}
     <Section title={destination.name} variant="card">
      {#if destination.links.length}
@@ -53,7 +83,15 @@
       <p>This destination is not configured yet.</p>
      {:else}
       <Checkbox name="targets" value={destination.service} checked={form?.targets?.includes(destination.service) ?? false}>Send to {destination.name}</Checkbox>
-      <TextField multiline label="Draft · maximum {destination.limit} characters" id={destination.service} name={destination.service} rows={8} value={form?.drafts?.[destination.service] ?? destination.draft} />
+      <TextField multiline label="Draft · maximum {destination.limit} characters" id={destination.service} name={destination.service} rows={8} value={drafts[destination.service]} oninput={(event: Event) => edit(destination.service, event)} onkeyup={(event: KeyboardEvent) => { if (event.key === 'Escape') { query = null; return; } field = event.target as HTMLTextAreaElement; active = destination.service; query = mentionQuery(field.value, field.selectionStart); }} onclick={(event: MouseEvent) => { field = event.target as HTMLTextAreaElement; active = destination.service; query = mentionQuery(field.value, field.selectionStart); }} />
+      {@const count = characterCount(drafts[destination.service] ?? '', destination.service)}
+      <p class="hint" class:over={count > destination.limit} role="status">{count} / {destination.limit}{count > destination.limit ? ` · ${count - destination.limit} over limit` : ` · ${destination.limit - count} remaining`}</p>
+      {#if active === destination.service && query}
+       <div class="mentions" aria-label="Mention suggestions">
+        {#each suggestions as account}<button type="button" onclick={() => insert(account)}>{account.name} <span>@{account.handle}</span></button>{/each}
+        {#if !suggestions.length}<p class="hint">No matching followed accounts. You can type a full handle.</p>{/if}
+       </div>
+      {/if}
      {/if}
     </Section>
    {/each}
@@ -70,5 +108,9 @@
  a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
  .lede { font-size: var(--fs-md); }
  .hint { color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); margin: var(--space-2) 0; max-width: 40rem; }
+ .over { color: var(--text-primary); font-weight: 700; }
+ .mentions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+ .mentions button { font: inherit; color: inherit; background: var(--surface-sunken); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: var(--space-2); cursor: pointer; }
+ .mentions span { color: var(--text-muted); }
  .actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
 </style>
