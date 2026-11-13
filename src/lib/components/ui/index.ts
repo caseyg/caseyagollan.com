@@ -14,5 +14,6 @@ export { default as Section } from './Section.svelte';
 export { default as SegmentedPill } from './SegmentedPill.svelte';
 export { default as SelectMenu } from './SelectMenu.svelte';
 export { default as TextField } from './TextField.svelte';
+export { default as Toggle } from './Toggle.svelte';
 export type { Segment } from './SegmentedPill.svelte';
 export type { MenuOption } from './SelectMenu.svelte';

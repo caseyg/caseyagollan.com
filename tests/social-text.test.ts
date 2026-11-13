@@ -25,3 +25,18 @@ test('Bluesky mentions resolve to DID facets with UTF-8 offsets and deduplicated
  });
  expect(lookups).toBe(1);
 });
+test('edited drafts link external URLs alongside mentions, using UTF-8 ranges', async () => {
+ const draft = '🦋 — @aworkinglibrary.com\r\n\r\nhttps://aworkinglibrary.com/writing/against-disliteracy\nAlso (https://example.org/wiki/A_(B)), https://example.net/end.';
+ let sent = false;
+ await syndicate('bluesky', {url:'https://caseyagollan.com/original/',text:'',draft,published:'2026-11-13',idempotencyKey:'external'}, {bluesky:{service:'https://bsky.social',identifier:'test',password:'fake'}}, async (url,init) => {
+  if (url.endsWith('createSession')) return Response.json({did:'did:plc:test',accessJwt:'fake'});
+  if (url.includes('resolveHandle')) return Response.json({did:'did:plc:library'});
+  const {record} = JSON.parse(String(init?.body)); sent = true;
+  const links = record.facets.filter((f: any) => f.features[0].$type.endsWith('#link'));
+  expect(links.map((f: any) => f.features[0].uri)).toEqual(['https://aworkinglibrary.com/writing/against-disliteracy','https://example.org/wiki/A_(B)','https://example.net/end']);
+  for (const link of links) expect(new TextDecoder().decode(new TextEncoder().encode(draft).slice(link.index.byteStart,link.index.byteEnd))).toBe(link.features[0].uri);
+  expect(record.facets.filter((f: any) => f.features[0].$type.endsWith('#mention'))).toHaveLength(1);
+  return Response.json({});
+ });
+ expect(sent).toBe(true);
+});
