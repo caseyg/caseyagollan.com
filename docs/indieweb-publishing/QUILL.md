@@ -18,3 +18,4 @@ After the owner signs in with a passkey, dated posts show an Edit link that open
 - The Edit link is shown from a browser-local sign-in hint because post pages are static. The session cookie still gates the edit page and every save.
 - `q=source` reports explicit Markdown bodies with `p3k-content-type: ["text/markdown"]`. Adding `p3k-content-type=text/markdown` to the query also returns older Markdown bodies as source instead of rendered HTML.
 - Published date, slug, photos and structured properties are not editable in the form and are left unchanged.
+- Markdown content opens in a rich text editor ([svelte-lexical](https://github.com/umaranis/svelte-lexical)) that reads and writes the same Markdown source; a toggle shows the raw Markdown. The stored source is rewritten only after an edit. Posts whose Markdown the editor cannot reproduce exactly open as source with a warning. Text and HTML content use a plain textarea, which is also the fallback without JavaScript.

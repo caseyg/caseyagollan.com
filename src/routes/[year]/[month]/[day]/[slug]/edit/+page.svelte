@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import { passkeyError, signInWithPasskey } from '$lib/passkey-login';
@@ -15,12 +15,28 @@
 	// A failed save keeps what was typed; otherwise show the stored post.
 	const fields = $derived<EditorFields | undefined>((form && 'fields' in form ? form.fields as EditorFields : undefined) ?? (data.signedIn ? data.fields : undefined));
 	const reaction = $derived(!!fields && ('like-of' in fields.urls || 'repost-of' in fields.urls));
+	// Native saves reload the page, so these start from the stored post each time.
+	let content = $state(untrack(() => fields?.content ?? ''));
+	let format = $state(untrack(() => fields?.format ?? 'markdown'));
+	// The textarea stays the form field; the rich editor is a view over it, loaded in the browser only.
+	let Editor = $state<typeof import('$lib/components/MarkdownEditor.svelte').default>();
+	let source = $state(false);
+	// Set when the rich editor would rewrite Markdown it cannot represent exactly.
+	let lossy = $state(false);
+	const rich = $derived(!!Editor && format === 'markdown' && !source);
 	let saving = $state(false);
 	let signingIn = $state(false);
 	let signInError = $state('');
 	let passkeysSupported = $state(false);
 	let ready = $state(false);
-	onMount(() => { passkeysSupported = browserSupportsWebAuthn(); ready = true; rememberOwner(data.signedIn); });
+	onMount(() => {
+		passkeysSupported = browserSupportsWebAuthn(); ready = true; rememberOwner(data.signedIn);
+		if (data.signedIn) void Promise.all([import('$lib/components/MarkdownEditor.svelte'), import('$lib/markdown-editor')]).then(([module, markdown]) => {
+			lossy = format === 'markdown' && !markdown.roundTrips(content);
+			source = lossy;
+			Editor = module.default;
+		}).catch(() => { /* The Markdown textarea remains usable. */ });
+	});
 	async function login() {
 		if (signingIn) return;
 		signingIn = true; signInError = '';
@@ -54,10 +70,25 @@
 			{/each}
 			{#if fields.name !== undefined || (!reaction && !('in-reply-to' in fields.urls))}<TextField label="Title" name="name" value={fields.name ?? ''} autocomplete="off" />{/if}
 			{#if fields.summary !== undefined || (fields.name && !('bookmark-of' in fields.urls))}<TextField multiline label="Summary" name="summary" rows={3} value={fields.summary ?? ''} />{/if}
-			<TextField multiline mono={fields.format !== 'text'} label="Content" name="content" rows={reaction ? 4 : 16} value={fields.content} />
+			{#if Editor && format === 'markdown'}
+				<div class="modes" role="group" aria-label="Content editor">
+					<button type="button" aria-pressed={!source} onclick={() => { source = false; }}>Rich text</button>
+					<button type="button" aria-pressed={source} onclick={() => { source = true; }}>Markdown</button>
+				</div>
+			{/if}
+			{#if lossy && Editor && format === 'markdown'}<p class="hint">This post uses Markdown the rich text editor would rewrite, so it opened as source. Editing it as rich text may change formatting you did not touch.</p>{/if}
+			{#if rich && Editor}
+				<div class="rich">
+					<span class="label">Content</span>
+					<Editor bind:value={content} label="Content" />
+				</div>
+			{/if}
+			<div hidden={rich}>
+				<TextField multiline mono={format !== 'text'} label="Content" name="content" rows={reaction ? 4 : 16} bind:value={content} />
+			</div>
 			<div class="row">
 				<label class="select">Content Type
-					<select name="format" value={fields.format}>
+					<select name="format" bind:value={format}>
 						<option value="text">Text</option>
 						<option value="markdown">Markdown</option>
 						<option value="html">HTML</option>
@@ -86,6 +117,11 @@
 </Page>
 
 <style>
+	.modes { display: flex; justify-content: flex-end; gap: var(--space-1); margin: var(--space-3) 0 calc(-1 * var(--space-3)); }
+	.modes button { padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+	.modes button[aria-pressed='true'] { background: var(--surface-2); color: var(--text-primary); }
+	.rich { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-3) 0; }
+	.label { color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-snug); }
 	.row { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 	.select { display: flex; flex-direction: column; gap: var(--space-1); flex: 1 1 10rem; margin: var(--space-3) 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-snug); }
 	select { box-sizing: border-box; width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: var(--fs-base); line-height: var(--lh-normal); }
