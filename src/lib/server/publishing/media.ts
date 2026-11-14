@@ -9,7 +9,7 @@ const types: Record<string, string> = {
 	'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
 	'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/ogg': 'ogg', 'audio/wav': 'wav', 'audio/webm': 'webm', 'audio/flac': 'flac'
 };
-const socialKeyPattern = /^social\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/;
+const socialKeyPattern = /^social\/[a-f0-9]{64}\.(?:png|jpg|gif|webp|mp4)$/;
 const keyPattern = /^\d{4}\/(?:0[1-9]|1[0-2])\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(?:jpg|png|gif|webp|avif|mp4|mov|webm|mp3|m4a|ogg|wav|flac)$/;
 const error = (status: number, message: string) => new ProtocolError(status, status === 503 ? 'temporarily_unavailable' : 'invalid_request', message);
 

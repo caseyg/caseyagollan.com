@@ -12,7 +12,7 @@ const schema = {
   '*': [...(defaultSchema.attributes?.['*'] ?? []), 'className'],
   a: [...(defaultSchema.attributes?.a ?? []).filter(attribute => !(Array.isArray(attribute) && attribute[0] === 'className')), 'className', 'rel'],
   time: ['dateTime', 'className'],
-  video: ['src', 'poster', 'controls', 'preload', 'width', 'height'],
+  video: ['src', 'poster', 'controls', 'preload', 'width', 'height', 'autoPlay', 'loop', 'muted', 'playsInline', 'ariaLabel'],
   audio: ['src', 'controls', 'preload'],
   source: ['src', 'type'],
   iframe: ['src', 'title', 'width', 'height', 'allowFullScreen', 'loading']

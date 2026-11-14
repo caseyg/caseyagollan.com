@@ -14,6 +14,7 @@ export interface SocialSnapshot {
  html: string;
  warning?: string;
  preview?: { url: string; title: string; description: string; site?: string; image?: string };
+ video?: { src: string; alt: string; presentation?: 'gif' };
  images: { src: string; alt: string }[];
  quote?: SocialSnapshot;
 }
@@ -24,11 +25,13 @@ const https = (v: unknown): v is string => {
  try { const u = new URL(v); return u.protocol === 'https:' && !u.username && !u.password; } catch { return false; }
 };
 /** Only saved object paths are accepted; never hotlink original social media/CDNs. */
-export function savedImageUrl(value: unknown): value is string {
+function savedMediaUrl(value: unknown, extensions: string): value is string {
  if (!https(value)) return false;
  const url = new URL(value);
- return !url.search && !url.hash && !url.port && /^\/(?:publishing|media)\/social\/[a-f0-9]{64}\.(?:png|jpg|gif|webp)$/.test(url.pathname);
+ return !url.search && !url.hash && !url.port && new RegExp(`^/(?:publishing|media)/social/[a-f0-9]{64}\\.(?:${extensions})$`).test(url.pathname);
 }
+export function savedImageUrl(value: unknown): value is string { return savedMediaUrl(value,'png|jpg|gif|webp'); }
+function savedVideoUrl(value: unknown): value is string { return savedMediaUrl(value,'mp4'); }
 export const MAX_QUOTE_DEPTH = 3;
 export function socialSnapshots(value: unknown, depth = 0, seen = new Set<unknown>()): SocialSnapshot[] {
  if (!Array.isArray(value) || depth > MAX_QUOTE_DEPTH) return [];
@@ -38,21 +41,23 @@ export function socialSnapshots(value: unknown, depth = 0, seen = new Set<unknow
   typeof s.published === 'string' && Number.isFinite(Date.parse(s.published)) && typeof s.fetchedAt === 'string' &&
   (s.warning === undefined || typeof s.warning === 'string') && Array.isArray(s.images) && s.images.length <= 5 &&
   (s.preview === undefined || (https(s.preview?.url) && typeof s.preview.title === 'string' && typeof s.preview.description === 'string' && (s.preview.site === undefined || typeof s.preview.site === 'string') && (s.preview.image === undefined || savedImageUrl(s.preview.image)))) &&
+  (s.video === undefined || (savedVideoUrl(s.video?.src) && typeof s.video.alt === 'string' && (s.video.presentation === undefined || s.video.presentation === 'gif'))) &&
   s.images.every((i: {src?: unknown; alt?: unknown}) => savedImageUrl(i?.src) && typeof i.alt === 'string') &&
   (s.quote === undefined || socialSnapshots([s.quote],depth+1,new Set([...seen,s])).length === 1));
 }
 const escape = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-/** All remote markup is sanitized again at the render boundary. Images are saved bytes only. */
+/** All remote markup is sanitized again at the render boundary. Media uses saved bytes only. */
 export function renderSocialSnapshot(snapshot: SocialSnapshot, options: { omitSource?: boolean } = {}): string {
  const s = socialSnapshots([snapshot])[0];
  if (!s) return '';
  const body = sanitizePublishingHtml(s.html).replace(/<(?:img|iframe|video|audio|source)\b[^>]*>(?:<\/(?:iframe|video|audio)>)?/gi,'');
  const images = s.images.map(i=>`<a class="social-image-link" href="${escape(i.src)}"><img class="social-attachment" src="${escape(i.src)}" alt="${escape(i.alt)}" loading="lazy"></a>`).join('');
  const gallery = images ? `<div class="social-images social-images-${s.images.length}">${images}</div>` : '';
+ const video = s.video ? `<video class="social-attachment social-video" src="${escape(s.video.src)}" aria-label="${escape(s.video.alt)}" controls playsinline preload="metadata"${s.video.presentation === 'gif' ? ' autoplay loop muted' : ''}></video>` : '';
  const preview = s.preview;
  const card = preview ? `<a class="social-link-preview" href="${escape(preview.url)}">${preview.image ? `<img src="${escape(preview.image)}" alt="" loading="lazy">` : ''}<span class="social-link-preview-text"><span class="social-link-preview-site">${escape(preview.site || new URL(preview.url).hostname)}</span><strong>${escape(preview.title || preview.url)}</strong>${preview.description ? `<span class="social-link-preview-description">${escape(preview.description)}</span>` : ''}</span></a>` : '';
  const quote = s.quote ? `<div class="social-quoted-post">${renderSocialSnapshot(s.quote)}</div>` : '';
- const content = `<div class="social-post-content">${body}</div>${gallery}${card}${quote}`;
+ const content = `<div class="social-post-content">${body}</div>${gallery}${video}${card}${quote}`;
  return `<blockquote class="social-snapshot">${renderSocialCardHeader(s.author, options.omitSource ? undefined : snapshotSource(s))}${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}${renderSocialCardFooter(s.published, s.url)}</blockquote>`;
 }
 
