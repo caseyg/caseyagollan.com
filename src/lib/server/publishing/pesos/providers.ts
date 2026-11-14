@@ -1,5 +1,7 @@
 import { sanitizePublishingHtml } from '../../../utils/sanitizeHtml';
 import type { Properties } from '../document';
+import { publicUrl } from '../public-fetch';
+import { blueskyFacetLinks, blueskyRichText, webHref } from '../bluesky-richtext';
 
 export interface Activity {
  id: string;
@@ -46,6 +48,19 @@ export function blueUrl(uri: string): string {
  if (!match) throw new Error('Invalid Bluesky post URI');
  return `https://bsky.app/profile/${match[1]}/post/${match[2]}`;
 }
+const escapeHtml = (v: string) => v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function linkHtml(url: string): string {
+ try { const href = webHref(url); return `<a href="${escapeHtml(href)}">${escapeHtml(url)}</a>`; } catch { return escapeHtml(url); }
+}
+/** The card Bluesky shows for an external embed. The thumbnail is a remote URL until archived. */
+export function blueskyLinkPreview(external: any, actor: string): {url:string;title:string;description:string;image?:string} | undefined {
+ if (typeof external?.uri !== 'string') return;
+ let url: string;
+ try { url = publicUrl(external.uri).href; } catch { return; }
+ const cid = external.thumb?.ref?.$link;
+ return {url,title:typeof external.title === 'string' ? external.title.slice(0,2000) : '',description:typeof external.description === 'string' ? external.description.slice(0,5000) : '',
+  ...(typeof cid === 'string' && /^[a-zA-Z0-9]+$/.test(cid) ? {image:`https://cdn.bsky.app/img/feed_thumbnail/plain/${actor}/${cid}@jpeg`} : {})};
+}
 export function blueskyActivity(record: any, kind: Activity['kind']): Activity | undefined {
  const value = record.value;
  if (!iso(value?.createdAt) || typeof record.uri !== 'string') return;
@@ -53,7 +68,6 @@ export function blueskyActivity(record: any, kind: Activity['kind']): Activity |
  const properties: Properties = {};
  if (kind === 'post') {
   if (typeof value.text !== 'string') return;
-  properties.content = [value.text];
   if (value.reply?.parent?.uri) properties['in-reply-to'] = [blueUrl(value.reply.parent.uri)];
   const embed = value.embed?.$type === 'app.bsky.embed.recordWithMedia' ? value.embed.media : value.embed;
   const actor = record.uri.split('/')[2];
@@ -61,13 +75,18 @@ export function blueskyActivity(record: any, kind: Activity['kind']): Activity |
    const cid = image.image?.ref?.$link;
    if (typeof cid === 'string') (properties.photo ??= []).push({url:`https://cdn.bsky.app/img/feed_fullsize/plain/${actor}/${cid}@jpeg`,alt:String(image.alt ?? '')});
   }
-  // Preserve external links and quoted post references alongside the original text.
-  const links: string[] = (value.facets ?? []).flatMap((f: any)=>(f.features ?? []).filter((x:any)=>x.$type === 'app.bsky.richtext.facet#link' && typeof x.uri === 'string').map((x:any)=>x.uri));
-  if (embed?.external?.uri) links.push(embed.external.uri);
+  // Apply facets so Bluesky's shortened link labels point at the full URL and mentions link
+  // to profiles. The external embed becomes a link card rather than a repeated URL.
+  const rich = blueskyRichText(value.text, value.facets);
+  const links = blueskyFacetLinks(value.facets);
+  const preview = blueskyLinkPreview(embed?.external, actor);
+  if (preview) properties._micropubLinkPreviews = [preview];
+  else if (typeof embed?.external?.uri === 'string') links.push(embed.external.uri);
   const quote = value.embed?.record?.record?.uri ?? value.embed?.record?.uri;
-  if (quote) {links.push(blueUrl(quote));properties['quotation-of']=[blueUrl(quote)];}
-  const missing = [...new Set(links)].filter(link=>!value.text.includes(link));
-  if (missing.length) properties.content = [value.text + '\n\n' + missing.join('\n')];
+  // Quoted posts are shown as their saved card (or a link to them) from quotation-of.
+  if (quote) properties['quotation-of']=[blueUrl(quote)];
+  const missing = [...new Set(links)].filter(link=>!rich.links.includes(link) && !value.text.includes(link));
+  properties.content = [{html: rich.html + missing.map(link=>`<p>${linkHtml(link)}</p>`).join('')}];
   if (embed?.video?.ref?.$link) properties.video = [{url:`https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(actor)}&cid=${encodeURIComponent(embed.video.ref.$link)}`,alt:String(embed.alt ?? '')}];
  }
  const target = kind === 'post' ? undefined : blueUrl(value.subject.uri);

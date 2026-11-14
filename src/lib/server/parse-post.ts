@@ -1,5 +1,5 @@
 import { parse } from 'yaml';
-import { socialSnapshots } from '../social-snapshots';
+import { linkPreviews, socialSnapshots } from '../social-snapshots';
 import type { Post, MediaItem } from '../posts-types';
 
 function normalizeMedia(
@@ -74,6 +74,7 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		title: data.title,
 		bookmarkOf: data.bookmarkOf,
 		socialSnapshots: socialSnapshots(data._micropubSocialSnapshots),
+		linkPreviews: linkPreviews(data._micropubLinkPreviews),
 		inReplyTo: data.inReplyTo,
 		summary: data.summary,
 		category: data.category,

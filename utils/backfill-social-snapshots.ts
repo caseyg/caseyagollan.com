@@ -1,21 +1,22 @@
 import { resolve, relative, isAbsolute } from 'node:path';
 import { realpath } from 'node:fs/promises';
-import { archivePhotoProperties, socialImageKey, type SocialImageStore } from '../src/lib/server/publishing/social-media';
+import { archiveLinkPreviewProperties, archivePhotoProperties, socialImageKey, type SocialImageStore } from '../src/lib/server/publishing/social-media';
 import { parseDocument } from 'yaml';
-import { blueskyPublic, mastodonActivity } from '../src/lib/server/publishing/pesos/providers';
+import { blueskyActivity, blueskyPublic, mastodonActivity } from '../src/lib/server/publishing/pesos/providers';
 import { backfillNetwork } from './lib/backfill-network';
 import { enrichSocialSnapshots, formatSnapshotScalars } from '../src/lib/server/publishing/social-snapshots';
 
 const raw = process.argv.slice(2);
 let platform='all',concurrency=8,limit=Infinity,resumeAfter=0;
 const ownImages=raw.includes('--own-images');
+const blueskyText=raw.includes('--bluesky-richtext');
 const args:string[]=[];
 for(let i=0;i<raw.length;i++) {
  if(raw[i]==='--platform') platform=raw[++i];
  else if(raw[i]==='--concurrency') concurrency=Number(raw[++i]);
  else if(raw[i]==='--resume-after') resumeAfter=Date.parse(raw[++i]);
  else if(raw[i]==='--limit') limit=Number(raw[++i]);
- else if(raw[i]!=='--own-images') args.push(raw[i]);
+ else if(raw[i]!=='--own-images'&&raw[i]!=='--bluesky-richtext') args.push(raw[i]);
 }
 if(!['all','bluesky','mastodon'].includes(platform)||!Number.isInteger(concurrency)||concurrency<1||concurrency>8||!(limit>0)) throw new Error('Use --platform all|bluesky|mastodon, --concurrency 1..8 and --limit N');
 const network=backfillNetwork();
@@ -24,7 +25,7 @@ let uploaded=0,reused=0,uploadFailures=0;
 
 if (args.some(arg => arg.startsWith('--') && !['--write','--refresh','--remote-media','--help'].includes(arg))) throw new Error('Unknown option');
 if (args.includes('--help')) {
- console.log('bun run backfill-social-snapshots [content/likes/post.md ...] [--write --remote-media] [--refresh]\nDefaults to missing likes/reposts, replies and authored quotations; --platform all|bluesky|mastodon --concurrency 1..8 --limit N --resume-after ISO_TIMESTAMP. Use --own-images for original photos. Dry run unless --write is supplied. Use --refresh to re-fetch existing snapshots. Commit changed Markdown in the content repository.');
+ console.log('bun run backfill-social-snapshots [content/likes/post.md ...] [--write --remote-media] [--refresh]\nDefaults to missing likes/reposts, replies and authored quotations; --platform all|bluesky|mastodon --concurrency 1..8 --limit N --resume-after ISO_TIMESTAMP. Use --own-images for original photos. Use --bluesky-richtext to re-render imported Bluesky text with its links, mentions and link card. Dry run unless --write is supplied. Use --refresh to re-fetch existing snapshots. Commit changed Markdown in the content repository.');
  process.exit(0);
 }
 if(args.includes('--write') && !args.includes('--remote-media')) throw new Error('--write requires --remote-media to save associated images to R2');
@@ -61,8 +62,14 @@ for(const path of paths) {
  const full=await realpath(resolve(path));const inside=relative(root,full);
  if(inside.startsWith('..')||isAbsolute(inside)||!/^[^/]+\/[^/]+\.md$/.test(inside))throw new Error('Use Markdown files in a canonical content folder');
  const before=await Bun.file(full).text();const match=before.match(/^---\r?\n([\s\S]*?)\r?\n---/);if(!match)continue;
- const data=parseDocument(match[1]).toJS();if(data.deleted||data._micropubSocialSnapshots?.length&&!args.includes('--refresh'))continue;
+ const data=parseDocument(match[1]).toJS();if(data.deleted||data._micropubSocialSnapshots?.length&&!args.includes('--refresh')&&!blueskyText)continue;
  if(resumeAfter&&data._micropubSocialSnapshots?.length&&data._micropubSocialSnapshots.every((snapshot:any)=>Date.parse(snapshot.fetchedAt)>=resumeAfter))continue;
+ if(blueskyText){
+  // Only plain-text imports whose body is still exactly what the old importer wrote.
+  const source=data['pesos-source']?.find((s:any)=>/^at:\/\/[^/]+\/app\.bsky\.feed\.post\/[a-zA-Z0-9]+$/.test(String(s)));
+  if(data._micropubContentFormat==='text'&&source)candidates.push({full,before,host:'bsky.app'});
+  continue;
+ }
  const targets=ownImages?(data.syndication?.[0]):(data['like-of']??data['repost-of']??data['in-reply-to']??data.inReplyTo??data['quotation-of']);const target=typeof targets==='string'?targets:targets?.[0];if(typeof target!=='string')continue;
  if(ownImages&&(!data.photo?.length||!data['pesos-source']?.some((s:any)=>/^mastodon:post:/.test(String(s))||/^at:\/\/[^/]+\/app.bsky.feed.post\//.test(String(s)))))continue;
  const blue=new URL(target).hostname==='bsky.app';if(platform!=='all'&&platform!==(blue?'bluesky':'mastodon'))continue;
@@ -76,7 +83,21 @@ const work=ordered.slice(0,limit);let next=0,changed=0,unavailable=0,done=0;
 await Promise.all(Array.from({length:concurrency},async()=>{
  while(next<work.length){const {full,before}=work[next++];
   let after:string;
-  if(ownImages){
+  if(blueskyText){
+   const match=before.match(/^---\r?\n([\s\S]*?)\r?\n---/)!;const data=parseDocument(match[1]).toJS();
+   const source=data['pesos-source'].find((s:any)=>/^at:\/\/[^/]+\/app\.bsky\.feed\.post\/[a-zA-Z0-9]+$/.test(String(s)));
+   const [,repo,rkey]=source.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/(.+)$/);
+   const get=async(url:string)=>{const r=await network.fetcher(url,{headers:{accept:'application/json'}});if(!r.ok)throw Object.assign(new Error('Public lookup failed'),{status:r.status});return {data:await r.json()};};
+   let record:any;try{if(await blueskyPublic(get,source))record=(await get(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?${new URLSearchParams({repo,collection:'app.bsky.feed.post',rkey})}`)).data;}catch{}
+   const activity=record?.uri===source?blueskyActivity(record,'post'):undefined;
+   if(!activity||before.slice(match[0].length).trim()!==legacyBlueskyText(record.value).trim()){unavailable++;done++;continue;}
+   const properties=await archiveLinkPreviewProperties(activity.properties,storeImage,network.fetcher);
+   // Edit only the format key and body so saved snapshots keep their exact YAML.
+   const doc=parseDocument(match[1]);doc.set('_micropubContentFormat','html');
+   if(properties._micropubLinkPreviews){doc.set('_micropubLinkPreviews',doc.createNode(properties._micropubLinkPreviews));formatSnapshotScalars(doc.get('_micropubLinkPreviews',true));}
+   const html=(properties.content![0] as {html:string}).html;
+   after=`---\n${doc.toString({lineWidth:0,doubleQuotedAsJSON:true})}---\n${html}`;
+  }else if(ownImages){
    const match=before.match(/^---\r?\n([\s\S]*?)\r?\n---/)!;const doc=parseDocument(match[1]);const data=doc.toJS();const source=data['pesos-source'][0];
    const get=async(url:string)=>{const r=await network.fetcher(url,{headers:{accept:'application/json'}});if(!r.ok)throw Object.assign(new Error('Public lookup failed'),{status:r.status});return {data:await r.json()};};
    let allowed=false;try{if(source.startsWith('at://'))allowed=await blueskyPublic(get,source);else{const {data:s}=await get(`${mastodonInstance}/api/v1/statuses/${source.split(':').pop()}`);allowed=!!mastodonActivity(s,'post','')&&s.account?.locked===false&&data.syndication.includes(s.url);}}catch{}
@@ -91,3 +112,14 @@ await Promise.all(Array.from({length:concurrency},async()=>{
 }));
 console.log(JSON.stringify({mode:args.includes('--write')?'write':'dry-run',total:work.length,changed,unavailable,uploaded,reused,uploadFailures,...network.stats}));
 if(uploadFailures)process.exitCode=1;
+
+/** What the importer wrote before it applied facets: the text plus any link not spelled out in full. */
+function legacyBlueskyText(value:any):string {
+ const embed=value.embed?.$type==='app.bsky.embed.recordWithMedia'?value.embed.media:value.embed;
+ const links:string[]=(value.facets??[]).flatMap((f:any)=>(f.features??[]).filter((x:any)=>x.$type==='app.bsky.richtext.facet#link'&&typeof x.uri==='string').map((x:any)=>x.uri));
+ if(embed?.external?.uri)links.push(embed.external.uri);
+ const quote=value.embed?.record?.record?.uri??value.embed?.record?.uri;
+ if(typeof quote==='string'){const m=quote.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([a-zA-Z0-9]+)$/);if(m)links.push(`https://bsky.app/profile/${m[1]}/post/${m[2]}`);}
+ const missing=[...new Set(links)].filter(link=>!value.text.includes(link));
+ return missing.length?value.text+'\n\n'+missing.join('\n'):value.text;
+}
