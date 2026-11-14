@@ -4,7 +4,7 @@ import { validPostParams } from '$lib/server/github-posts';
 import { publishingConfig } from '$lib/server/publishing/config';
 import { ProtocolError } from '$lib/server/publishing/auth';
 import { editorSession, validateEditorSubmission } from '$lib/server/publishing/syndication-editor';
-import { loadEditorSource, saveEditorPost, URL_FIELDS, type ContentFormat, type EditorFields } from '$lib/server/publishing/post-editor';
+import { loadEditorSource, saveEditorPost, type ContentFormat, type EditorFields } from '$lib/server/publishing/post-editor';
 
 export const prerender = false;
 
@@ -22,12 +22,24 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
 	const config = publishingConfig(platform?.env);
 	if (!config) error(503, 'Publishing is unavailable.');
 	try {
-		return { signedIn: true as const, csrf: session.csrf, ...(await loadEditorSource(config, postUrl(params, config.me))) };
+		const source = await loadEditorSource(config, postUrl(params, config.me));
+		const github = source.path ? `https://github.com/${config.owner}/${config.repo}/blob/${config.branch.split('/').map(encodeURIComponent).join('/')}/${source.path.split('/').map(encodeURIComponent).join('/')}` : undefined;
+		return { signedIn: true as const, csrf: session.csrf, github, ...source };
 	} catch (cause) {
 		if (cause instanceof ProtocolError) error(cause.status, cause.message);
 		throw cause;
 	}
 };
+
+/** The properties panel posts its rows as JSON: { key: [values] }. Anything else is ignored. */
+function frontmatter(value: string | null): Record<string, string[]> | undefined {
+	if (!value) return;
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+		return Object.fromEntries(Object.entries(parsed).filter(([, values]) => Array.isArray(values) && values.every(item => typeof item === 'string')));
+	} catch { return; }
+}
 
 export const actions: Actions = {
 	default: async ({ request, params, platform }) => {
@@ -46,14 +58,13 @@ export const actions: Actions = {
 			text += decoder.decode(value, { stream: true });
 		}
 		const values = new URLSearchParams(text + decoder.decode());
-		// Fields the form did not render stay undefined, so they are left untouched.
-		const optional = (name: string) => values.get(name) ?? undefined;
 		const format = values.get('format');
 		const fields: EditorFields = {
-			urls: Object.fromEntries(URL_FIELDS.flatMap(([key]) => values.has(key) ? [[key, values.get(key)!]] : [])),
-			name: optional('name'), summary: optional('summary'),
+			// A form without a title field leaves the title untouched.
+			name: values.get('name') ?? undefined,
 			content: values.get('content') ?? '', format: (['text', 'markdown', 'html'].includes(format ?? '') ? format : 'markdown') as ContentFormat,
-			category: values.get('category') ?? '', status: values.get('status') === 'draft' ? 'draft' : 'published'
+			status: values.get('status') === 'draft' ? 'draft' : 'published',
+			properties: frontmatter(values.get('properties'))
 		};
 		try {
 			await validateEditorSubmission(request, session, values.get('csrf'));

@@ -1,23 +1,35 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { page } from '$app/state';
-	import { browserSupportsWebAuthn } from '@simplewebauthn/browser';
-	import { passkeyError, signInWithPasskey } from '$lib/passkey-login';
 	import { rememberOwner } from '$lib/owner';
-	import { formatAbsoluteDate } from '$lib/utils/formatDate';
-	import { Button, Heading, Notice, Page, PageHeader, TextField } from '$lib/components/ui';
+	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
+	import Icon, { type IconName } from '$lib/components/composer/ComposerIcon.svelte';
+	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
+	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
+	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
+	import FrontmatterProperties from '$lib/components/editor/FrontmatterProperties.svelte';
+	import { Heading, Notice, Page, PageHeader } from '$lib/components/ui';
 	import type { PageData, ActionData } from './$types';
 	import type { EditorFields } from '$lib/server/publishing/post-editor';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	const urlLabels: Record<string, string> = { 'in-reply-to': 'Reply To (a URL you are replying to)', 'bookmark-of': 'Bookmark URL', 'like-of': 'Like of', 'repost-of': 'Repost of' };
+	// Content folders, named and drawn as in the composer's post-type menu.
+	const KINDS: Record<string, [string, IconName]> = {
+		notes: ['note', 'note'], articles: ['article', 'article'], replies: ['reply', 'reply'], bookmarks: ['bookmark', 'bookmark'], likes: ['like', 'heart'],
+		reposts: ['repost', 'repost'], photos: ['photo', 'image'], videos: ['video', 'video'], events: ['event', 'calendar'], reviews: ['review', 'star'],
+		itineraries: ['itinerary', 'plane'], foods: ['food', 'food'], drinks: ['drink', 'drink'], media: ['post', 'image']
+	};
 	// A failed save keeps what was typed; otherwise show the stored post.
-	const fields = $derived<EditorFields | undefined>((form && 'fields' in form ? form.fields as EditorFields : undefined) ?? (data.signedIn ? data.fields : undefined));
-	const reaction = $derived(!!fields && ('like-of' in fields.urls || 'repost-of' in fields.urls));
+	const initial = untrack(() => (form && 'fields' in form ? form.fields as EditorFields : undefined) ?? (data.signedIn ? data.fields : undefined));
+	const [kindLabel, kindIcon] = $derived<[string, IconName]>((data.signedIn && data.path ? KINDS[data.path.split('/')[0]] : undefined) ?? ['post', 'note']);
+	const reaction = $derived(!!initial?.properties && ('like-of' in initial.properties || 'repost-of' in initial.properties));
 	// Native saves reload the page, so these start from the stored post each time.
-	let content = $state(untrack(() => fields?.content ?? ''));
-	let format = $state(untrack(() => fields?.format ?? 'markdown'));
+	let name = $state(untrack(() => initial?.name ?? ''));
+	let content = $state(untrack(() => initial?.content ?? ''));
+	let format = $state(untrack(() => initial?.format ?? 'markdown'));
+	let status = $state<'published' | 'draft'>(untrack(() => initial?.status ?? 'published'));
+	let properties = $state<Record<string, string[]>>(untrack(() => structuredClone(initial?.properties ?? {})));
+	let showOptions = $state(untrack(() => initial?.format !== 'markdown'));
 	// The textarea stays the form field; the rich editor is a view over it, loaded in the browser only.
 	let Editor = $state<typeof import('$lib/components/MarkdownEditor.svelte').default>();
 	let source = $state(false);
@@ -25,107 +37,85 @@
 	let lossy = $state(false);
 	const rich = $derived(!!Editor && format === 'markdown' && !source);
 	let saving = $state(false);
-	let signingIn = $state(false);
-	let signInError = $state('');
-	let passkeysSupported = $state(false);
-	let ready = $state(false);
 	onMount(() => {
-		passkeysSupported = browserSupportsWebAuthn(); ready = true; rememberOwner(data.signedIn);
+		rememberOwner(data.signedIn);
 		if (data.signedIn) void Promise.all([import('$lib/components/MarkdownEditor.svelte'), import('$lib/markdown-editor')]).then(([module, markdown]) => {
-			lossy = format === 'markdown' && !markdown.roundTrips(content);
+			lossy = format === 'markdown' && !!content && !markdown.roundTrips(content);
 			source = lossy;
 			Editor = module.default;
 		}).catch(() => { /* The Markdown textarea remains usable. */ });
 	});
-	async function login() {
-		if (signingIn) return;
-		signingIn = true; signInError = '';
-		try {
-			await signInWithPasskey();
-			window.location.replace(page.url.pathname + page.url.search + page.url.hash);
-		} catch (cause) { signInError = passkeyError(cause); }
-		finally { signingIn = false; }
-	}
 </script>
 
-<svelte:head><title>Edit post — Casey Gollan</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
+<svelte:head><title>Edit {kindLabel} — Casey Gollan</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
 
-<Page as="main">
-	<PageHeader backHref="../" backText="Original post" tight>
-		<Heading level={1} size="display">Edit post</Heading>
-	</PageHeader>
-	{#if !data.signedIn || !fields}
-		<p>Sign in to edit this post.</p>
-		{#if signInError}<Notice tone="error">{signInError}</Notice>{/if}
-		{#if ready && !passkeysSupported}<Notice tone="error">This browser does not support passkeys. Open this page in a browser with passkey support to sign in.</Notice>{/if}
-		<Button variant="primary" disabled={signingIn || !passkeysSupported} onclick={login}>{signingIn ? 'Signing in…' : 'Sign in with passkey'}</Button>
-		<noscript><p>Enable JavaScript to sign in with your passkey.</p></noscript>
+<Page as="main" class="compose-page">
+	{#if !data.signedIn || !initial}
+		<PageHeader backHref="../" backText="Original post" tight><Heading level={1} size="display">Edit post</Heading></PageHeader>
+		<OwnerSignIn message="Sign in to edit this post." />
 	{:else}
+		<ComposerBar>
+			<ComposerButton variant="icon" icon="close" label="Back to the post" href="../" />
+			<span class="kind"><Icon name={kindIcon} size={18} /> Edit {kindLabel}</span>
+			{#snippet actions()}
+				{#if data.github}<ComposerButton variant="icon" icon="github" label="Open on GitHub" href={data.github} target="_blank" rel="noopener noreferrer" />{/if}
+				{#if !reaction}<ComposerButton variant="icon" icon="share" label="Syndicate" href="../syndicate/" />{/if}
+				<ComposerButton variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</ComposerButton>
+			{/snippet}
+		</ComposerBar>
 		{#if form?.message}<Notice tone={form && 'saved' in form ? 'info' : 'error'}>{form.message}</Notice>{/if}
-		<form method="POST" onsubmit={() => { saving = true; }}>
+		<form id="editor" class="composer" method="POST" onsubmit={() => { saving = true; }}>
 			<input type="hidden" name="csrf" value={data.csrf} />
 			<input type="hidden" name="revision" value={data.revision} />
-			{#each Object.entries(fields.urls) as [key, value] (key)}
-				<TextField label={urlLabels[key]} name={key} type="url" {value} required autocomplete="off" spellcheck="false" />
-			{/each}
-			{#if fields.name !== undefined || (!reaction && !('in-reply-to' in fields.urls))}<TextField label="Title" name="name" value={fields.name ?? ''} autocomplete="off" />{/if}
-			{#if fields.summary !== undefined || (fields.name && !('bookmark-of' in fields.urls))}<TextField multiline label="Summary" name="summary" rows={3} value={fields.summary ?? ''} />{/if}
-			{#if Editor && format === 'markdown'}
-				<div class="modes" role="group" aria-label="Content editor">
-					<button type="button" aria-pressed={!source} onclick={() => { source = false; }}>Rich text</button>
-					<button type="button" aria-pressed={source} onclick={() => { source = true; }}>Markdown</button>
-				</div>
+			{#if !reaction}
+				<input class="title" class:small={!name && kindLabel !== 'article'} name="name" bind:value={name} placeholder={kindLabel === 'article' ? 'Title' : 'Title (optional)'} aria-label="Title" autocomplete="off" />
 			{/if}
-			{#if lossy && Editor && format === 'markdown'}<p class="hint">This post uses Markdown the rich text editor would rewrite, so it opened as source. Editing it as rich text may change formatting you did not touch.</p>{/if}
+			<FrontmatterProperties bind:properties bind:status readOnly={data.readOnly} published={data.published} updated={data.updated} />
 			{#if rich && Editor}
-				<div class="rich">
-					<span class="label">Content</span>
-					<Editor bind:value={content} label="Content" />
-				</div>
+				<div class="rich"><Editor bind:value={content} label="Content" bare /></div>
 			{/if}
 			<div hidden={rich}>
-				<TextField multiline mono={format !== 'text'} label="Content" name="content" rows={reaction ? 4 : 16} bind:value={content} />
+				<textarea class="body" class:mono={format !== 'text'} name="content" bind:value={content} placeholder={reaction ? 'Add a comment (optional)' : 'Write something'} aria-label="Content" rows={reaction ? 3 : 8}></textarea>
 			</div>
-			<div class="row">
-				<label class="select">Content Type
-					<select name="format" bind:value={format}>
-						<option value="text">Text</option>
-						<option value="markdown">Markdown</option>
-						<option value="html">HTML</option>
-					</select>
-				</label>
-				<label class="select">Status
-					<select name="status" value={fields.status}>
-						<option value="published">Published</option>
-						<option value="draft">Draft</option>
-					</select>
-				</label>
+			{#if data.convertedFromHtml}<p class="hint">This post was stored as HTML. It opens as Markdown, and saving stores it as Markdown.</p>
+			{:else if format === 'html'}<p class="hint">This post uses HTML that has no Markdown equivalent, so it stays HTML.</p>{/if}
+			{#if lossy && Editor && format === 'markdown'}<p class="hint">This post uses Markdown the rich text editor would rewrite, so it opened as source.</p>{/if}
+			<div class="panel options" hidden={!showOptions}>
+				<label class="mini">Format<select name="format" bind:value={format}><option value="text">Plain text</option><option value="markdown">Markdown</option><option value="html">HTML</option></select></label>
+				{#if Editor && format === 'markdown'}<label class="check"><input type="checkbox" bind:checked={source} /> Edit Markdown source</label>{/if}
 			</div>
-			<TextField label="Tags" name="category" value={fields.category} placeholder="e.g. web, personal" autocomplete="off" autocapitalize="off" />
-			<p class="hint">
-				Published {data.published ? formatAbsoluteDate(data.published) : 'date unknown'}. The date and address of a post stay fixed.
-				{#if data.photos}{data.photos} attached {data.photos === 1 ? 'photo stays' : 'photos stay'} as {data.photos === 1 ? 'it is' : 'they are'}.{/if}
-				Drafts leave the public site, but their source remains visible in the content repository.
-			</p>
-			<div class="actions">
-				<Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
-				<Button href="../" variant="quiet">Cancel</Button>
-				{#if !reaction}<Button href="../syndicate/" variant="quiet">Syndicate…</Button>{/if}
-			</div>
+			<ComposerToolbar label="Post options">
+				<ComposerButton variant="icon" icon="sliders" label="Format" pressed={showOptions} onclick={() => { showOptions = !showOptions; }} />
+				{#snippet end()}<span class="count">{content.length || ''}</span>{/snippet}
+			</ComposerToolbar>
 		</form>
+		<p class="hint footer">
+			The date and address of a post stay fixed.
+			{#if data.photos}{data.photos} attached {data.photos === 1 ? 'photo stays' : 'photos stay'} as {data.photos === 1 ? 'it is' : 'they are'}.{/if}
+			Drafts leave the public site, but their source stays visible in the content repository{#if data.github}, where you can <a href={data.github} target="_blank" rel="noopener noreferrer">edit the file directly</a>{/if}.
+		</p>
 	{/if}
 </Page>
 
 <style>
-	.modes { display: flex; justify-content: flex-end; gap: var(--space-1); margin: var(--space-3) 0 calc(-1 * var(--space-3)); }
-	.modes button { padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
-	.modes button[aria-pressed='true'] { background: var(--surface-2); color: var(--text-primary); }
-	.rich { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-3) 0; }
-	.label { color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-snug); }
-	.row { display: flex; flex-wrap: wrap; gap: var(--space-4); }
-	.select { display: flex; flex-direction: column; gap: var(--space-1); flex: 1 1 10rem; margin: var(--space-3) 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-snug); }
-	select { box-sizing: border-box; width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: var(--fs-base); line-height: var(--lh-normal); }
-	select:hover, select:focus { border-color: var(--text-primary); }
-	.hint { max-width: 40rem; margin: var(--space-2) 0 var(--space-4); color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
-	.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+	:global(.compose-page) { max-width: 40rem; }
+	[hidden] { display: none !important; }
+	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
+	.kind { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+	.composer { display: flex; flex-direction: column; gap: var(--space-2); }
+	input, select, textarea { font: inherit; color: var(--text-primary); }
+	input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
+	.title, .body { width: 100%; box-sizing: border-box; padding: 0; border: 0; background: transparent; outline: none; }
+	.title { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); letter-spacing: var(--tracking-tight); }
+	.title.small { font-size: var(--fs-lg); font-weight: var(--fw-regular); }
+	.body { min-height: 6rem; resize: none; font-size: var(--fs-lg); line-height: var(--lh-normal); field-sizing: content; }
+	.body.mono { font-family: var(--font-mono); font-size: var(--fs-base); }
+	.rich { margin: var(--space-1) 0; }
+	.panel.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); align-items: end; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+	.mini { display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-size: var(--fs-xs); }
+	.mini select { box-sizing: border-box; width: 100%; padding: 0.4rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-sunken); font-size: var(--fs-sm); }
+	.check { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--fs-sm); }
+	.count { min-width: 2.5rem; color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
+	.hint { margin: var(--space-1) 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
+	.footer { margin-top: var(--space-4); font-size: var(--fs-xs); }
 </style>

@@ -1,11 +1,15 @@
 import { fromHtml } from 'hast-util-from-html';
 import type { Properties } from '../document';
 import type { Activity } from './providers';
+import { renderContent } from '../../../utils/renderContent';
 
 function body(properties: Properties): string {
  const value = properties.content?.[0];
  let text = typeof value === 'string' ? value : '';
- if (value && typeof value === 'object' && !Array.isArray(value) && typeof value.html === 'string') {
+ // Markdown is compared as rendered, so a post matches its HTML copy on another network.
+ const html = typeof value === 'string' && properties['p3k-content-type']?.[0] === 'text/markdown' ? renderContent(value,'markdown')
+  : value && typeof value === 'object' && !Array.isArray(value) && typeof value.html === 'string' ? value.html : undefined;
+ if (html !== undefined) {
   const visit = (node: any): string => {
    if (node.type === 'text') return node.value;
    const children = (node.children ?? []).map(visit).join('');
@@ -19,7 +23,7 @@ function body(properties: Properties): string {
    }
    return ['p','div','br','li'].includes(node.tagName) ? ` ${children} ` : children;
   };
-  text = visit(fromHtml(value.html,{fragment:true}));
+  text = visit(fromHtml(html,{fragment:true}));
  }
  return text.normalize('NFC').replace(/\s+/g,' ').trim();
 }
