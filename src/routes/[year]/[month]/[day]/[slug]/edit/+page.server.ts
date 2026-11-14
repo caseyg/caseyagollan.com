@@ -21,14 +21,16 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
 	if (!session) return { signedIn: false as const };
 	const config = publishingConfig(platform?.env);
 	if (!config) error(503, 'Publishing is unavailable.');
-	try {
-		const source = await loadEditorSource(config, postUrl(params, config.me));
-		const github = source.path ? `https://github.com/${config.owner}/${config.repo}/blob/${config.branch.split('/').map(encodeURIComponent).join('/')}/${source.path.split('/').map(encodeURIComponent).join('/')}` : undefined;
-		return { signedIn: true as const, csrf: session.csrf, github, ...source };
-	} catch (cause) {
-		if (cause instanceof ProtocolError) error(cause.status, cause.message);
-		throw cause;
-	}
+	// The post is streamed: the page shell renders at once and fills in when GitHub answers.
+	const editor = loadEditorSource(config, postUrl(params, config.me)).then(source => ({
+		...source,
+		github: source.path ? `https://github.com/${config.owner}/${config.repo}/blob/${config.branch.split('/').map(encodeURIComponent).join('/')}/${source.path.split('/').map(encodeURIComponent).join('/')}` : undefined,
+		error: undefined
+	}), (cause: unknown) => {
+		if (!(cause instanceof ProtocolError)) console.warn(JSON.stringify({ event: 'post_editor_load_failed' }));
+		return { error: cause instanceof ProtocolError ? cause.message : 'The post could not be loaded. Reload to try again.' };
+	});
+	return { signedIn: true as const, csrf: session.csrf, editor };
 };
 
 /** The properties panel posts its rows as JSON: { key: [values] }. Anything else is ignored. */
