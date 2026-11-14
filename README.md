@@ -58,7 +58,7 @@ The preview loads the site's global styles and uses readable component-scale typ
 
 ## Deployment
 
-Cloudflare Workers Builds watches this repository. Production uses `bun run build`, followed by `bun run wrangler deploy`; branches use `bun run wrangler versions upload`. SvelteKit generates its fetch handler and static assets in `.svelte-kit/cloudflare/`; `worker.mjs` delegates requests to that handler and adds the publishing-delivery cron. `wrangler.sveltekit.jsonc` controls adapter output so it cannot overwrite the source wrapper. `wrangler.jsonc` defines routes and runtime bindings.
+Cloudflare Workers Builds watches this repository. Production uses `bun run build`, followed by `bun run wrangler deploy`; branches use `bun run wrangler preview`, which creates a Worker Preview per branch from the `previews` block in `wrangler.jsonc` (sign-in, publishing, and imports disabled; version URLs are unavailable because the Worker implements a Durable Object). SvelteKit generates its fetch handler and static assets in `.svelte-kit/cloudflare/`; `worker.mjs` delegates requests to that handler and adds the publishing-delivery cron. `wrangler.sveltekit.jsonc` controls adapter output so it cannot overwrite the source wrapper. `wrangler.jsonc` defines routes and runtime bindings.
 
 Build caching is enabled. Both triggers exclude documentation, tests, and agent planning metadata from starting builds: `docs/*`, `tests/*`, `.superpowers/*`, `README.md`, `AGENTS.md`, `PLAN.md`, and `TODO.md`. Application source, static assets, the content submodule pointer, lockfile, and configuration continue to trigger builds. Trigger settings live in Cloudflare, not Wrangler configuration.
 
