@@ -9,6 +9,7 @@
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
 	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
+	import ComposerChip from '$lib/components/composer/ComposerChip.svelte';
 	import { Heading, Notice, Page, PageHeader, Popover } from '$lib/components/ui';
 	import type { ActionData, PageData } from './$types';
 
@@ -333,7 +334,7 @@
 				{#if data.syndication.length && kind !== 'like' && kind !== 'repost'}
 					<span class="share" role="group" aria-label="Also post to">
 						{#each data.syndication as destination (destination.uid)}
-							<label class="chip" title="Also post to {destination.name}"><input type="checkbox" name="syndicate-to" value={destination.uid} bind:group={syndicateTo} /><span>{destination.name}</span></label>
+							<ComposerChip name="syndicate-to" value={destination.uid} bind:group={syndicateTo} title="Also post to {destination.name}">{destination.name}</ComposerChip>
 						{/each}
 					</span>
 				{/if}
@@ -404,12 +405,11 @@
 	.add { align-self: flex-start; }
 
 	.segmented { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
-	.segmented label, .chip { position: relative; cursor: pointer; }
-	.segmented input, .chip input, .stars input { position: absolute; opacity: 0; pointer-events: none; }
-	.segmented span, .chip span { display: inline-block; padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: 999px; color: var(--text-secondary); font-size: var(--fs-sm); }
-	.chip span { padding: 0.15rem var(--space-2); font-size: var(--fs-xs); }
-	.segmented input:checked + span, .chip input:checked + span { border-color: var(--text-primary); background: var(--text-primary); color: var(--bg-primary); }
-	.segmented input:focus-visible + span, .chip input:focus-visible + span { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+	.segmented label { position: relative; cursor: pointer; }
+	.segmented input, .stars input { position: absolute; opacity: 0; pointer-events: none; }
+	.segmented span { display: inline-block; padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: 999px; color: var(--text-secondary); font-size: var(--fs-sm); }
+	.segmented input:checked + span { border-color: var(--text-primary); background: var(--text-primary); color: var(--bg-primary); }
+	.segmented input:focus-visible + span { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 	.stars { display: flex; gap: var(--space-1); margin: 0; padding: 0; border: 0; }
 	.stars label { color: var(--text-muted); cursor: pointer; }
 	.stars label.on { color: var(--text-primary); }

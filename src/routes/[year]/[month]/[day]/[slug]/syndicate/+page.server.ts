@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
  try {
   const post = await getGitHubPost(params, fetch, config.token, config);
   if (!post) error(404, 'Post not found');
-  return { signedIn: true as const, csrf: session.csrf, revision: await publicationRevision(post), title: post.title,
+  return { signedIn: true as const, csrf: session.csrf, revision: await publicationRevision(post), title: post.title, kind: post.type,
    postUrl: new URL(`/${params.year}/${params.month}/${params.day}/${params.slug}/`, config.me).href,
    destinations: await editorDestinations(config, post) };
  } catch (cause) {

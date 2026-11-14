@@ -11,7 +11,7 @@ import type { DeliveryEvent } from '../src/lib/server/publishing/outbox';
 
 const markdown = '---\ndate: 2026-11-06T12:00:00-05:00\n---\nOriginal post';
 const post = parsePost(markdown, 'notes', '2026-11-06-note.md');
-function setup() {
+function setup(source = markdown) {
  const rows = new Map<string, { etag: string; value: string }>(); let version = 0;
  const bucket = {
   async get(key: string) { const row = rows.get(key); return row ? { etag: row.etag, json: async () => JSON.parse(row.value) } : null; },
@@ -23,7 +23,7 @@ function setup() {
  } as unknown as R2Bucket;
  const config: PublishingConfig = { me: 'https://example.com/', owner: 'caseyg', repo: 'content', branch: 'main', token: 'fake-git', timeZone: 'America/New_York', introspectionEndpoint: 'https://example.com/auth/introspect', state: bucket,
   syndication: { mastodon: { instance: 'https://social.coop', token: 'fake' }, bluesky: { service: 'https://bsky.social', identifier: 'test', password: 'fake' } } };
- let content = markdown; let failWrite = false; let writes = 0;
+ let content = source; let failWrite = false; let writes = 0;
  const gitFetch = (async (url: string, init: RequestInit) => {
   if (url.endsWith('/git/ref/heads/main')) return Response.json({ object: { sha: 'head' } });
   if (url.endsWith('/graphql')) {
@@ -132,4 +132,43 @@ test('edited Bluesky drafts link the canonical URL wherever it appears using byt
   expect(new TextDecoder().decode(new TextEncoder().encode(text).slice(index.byteStart, index.byteEnd))).toBe(url);
   return Response.json({});
  });
+});
+
+test('a Bluesky send saved under its handle URL is listed once and not written back as a DID URL', async () => {
+ // The 2026-11-06 changelog: the send recorded a DID URL, then the post was edited to the handle URL for Bridgy.
+ const handleUrl = 'https://bsky.app/profile/caseyagollan.com/post/RKEY';
+ const app = setup(`---\ndate: 2026-11-06T12:00:00-05:00\nsyndication:\n  - ${handleUrl}\n---\nOriginal post`);
+ const saved = parsePost(app.content(), 'notes', '2026-11-06-note.md');
+ const publication = await publicationForPost(saved, app.config.me);
+ const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: ['bluesky'], text: 'Original', published: publication.published };
+ const didUrl = await syndicationOnce(app.bucket, event, 'bluesky', app.config.syndication!, async url => url.endsWith('createSession') ? Response.json({ did: 'did:plc:test', accessJwt: 'fake' }) : Response.json({}), () => 1);
+ expect(didUrl).toStartWith('https://bsky.app/profile/did:plc:test/post/');
+ // Point the saved link at the same record the receipt names.
+ const rkey = didUrl.split('/').at(-1)!;
+ const sameRecord = { ...saved, syndication: [handleUrl.replace('RKEY', rkey)] };
+ const bluesky = (await editorDestinations(app.config, sameRecord)).find(d => d.service === 'bluesky')!;
+ expect(bluesky.links).toEqual([handleUrl.replace('RKEY', rkey)]); expect(bluesky.unrecorded).toBe(false);
+ // Without the saved link, the receipt's URL shows once and is marked for syncing.
+ const unsaved = (await editorDestinations(app.config, { ...saved, syndication: [] })).find(d => d.service === 'bluesky')!;
+ expect(unsaved.links).toEqual([didUrl]); expect(unsaved.unrecorded).toBe(true);
+});
+
+test('syncing links does not add a DID URL beside the saved handle URL of the same post', async () => {
+ const seed = setup(), first = await publicationForPost(post, seed.config.me);
+ const didUrl = await syndicationOnce(seed.bucket, { source: first.url, revision: first.revision, action: 'publish', targets: [], syndicateTo: ['bluesky'], text: 'Original', published: first.published }, 'bluesky', seed.config.syndication!, async url => url.endsWith('createSession') ? Response.json({ did: 'did:plc:test', accessJwt: 'fake' }) : Response.json({}), () => 1);
+ const handleUrl = didUrl.replace('did:plc:test', 'caseyagollan.com');
+ const app = setup(`---\ndate: 2026-11-06T12:00:00-05:00\nsyndication:\n  - ${handleUrl}\n---\nOriginal post`);
+ const saved = parsePost(app.content(), 'notes', '2026-11-06-note.md');
+ const message = await sendEditorDrafts({ ...app.config, state: seed.bucket }, saved, (await publicationForPost(saved, app.config.me)).revision, [], {}, { syncOnly: true, gitFetch: app.gitFetch });
+ expect(message).toContain('synced'); expect(app.writes()).toBe(0);
+ expect(readDocument(app.content()).properties.syndication).toEqual([handleUrl]);
+});
+
+test('Bluesky sends link by handle, falling back to the DID', async () => {
+ const config = { bluesky: { service: 'https://bsky.social', identifier: 'test', password: 'fake' } };
+ const input = { url: 'https://example.com/a/', text: 'Hi', published: post.date, idempotencyKey: 'test' };
+ const send = (session: Record<string, string>) => syndicate('bluesky', input, config, async target => target.endsWith('createSession') ? Response.json({ accessJwt: 'fake', ...session }) : Response.json({}));
+ expect(await send({ did: 'did:plc:test', handle: 'caseyagollan.com' })).toStartWith('https://bsky.app/profile/caseyagollan.com/post/');
+ expect(await send({ did: 'did:plc:test', handle: 'handle.invalid' })).toStartWith('https://bsky.app/profile/did:plc:test/post/');
+ expect(await send({ did: 'did:plc:test' })).toStartWith('https://bsky.app/profile/did:plc:test/post/');
 });

@@ -6,6 +6,18 @@ export interface SyndicationConfig {
  bluesky?: {service:string;identifier:string;password:string};
 }
 export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string}
+/**
+ * One key per social post. Bluesky links name the same post by DID or by handle
+ * (bsky.app/profile/did:plc:…/post/X and bsky.app/profile/caseyagollan.com/post/X),
+ * so they compare by record key; other links compare by URL.
+ */
+export function syndicationKey(url:string):string {
+ try {
+  const link=new URL(url);
+  const bluesky=link.origin==='https://bsky.app' && link.pathname.match(/^\/profile\/[^/]+\/post\/([^/]+)\/?$/);
+  return bluesky ? `bsky:${bluesky[1]}` : link.href.replace(/\/$/,'');
+ } catch { return url; }
+}
 const segmenter=new Intl.Segmenter('en',{granularity:'grapheme'});
 function graphemes(text:string): string[] {return Array.from(segmenter.segment(text),s=>s.segment);}
 export function syndicationText(post:SyndicationPost,limit:number,byteLimit=Infinity,service:'bluesky'|'mastodon'='bluesky'):string {
@@ -97,5 +109,7 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  }
  facets.sort((a,b)=>a.index.byteStart-b.index.byteStart);
  await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt:post.published,facets}},{authorization:`Bearer ${session.accessJwt}`});
- return `https://bsky.app/profile/${session.did}/post/${rkey}`;
+ // Bridgy and readers expect handle URLs; the DID form is the fallback when the handle is unverified.
+ const handle=typeof session.handle==='string' && session.handle!=='handle.invalid' && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(session.handle) ? session.handle : session.did;
+ return `https://bsky.app/profile/${handle}/post/${rkey}`;
 }

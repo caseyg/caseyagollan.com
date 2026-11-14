@@ -4,6 +4,7 @@
 	import ComposerBar from './ComposerBar.svelte';
 	import ComposerButton from './ComposerButton.svelte';
 	import ComposerToolbar from './ComposerToolbar.svelte';
+	import ComposerChip from './ComposerChip.svelte';
 
 	const { Story } = defineMeta({ title: 'Composer/Parts', tags: ['!autodocs'] });
 	const names = Object.keys(ICONS) as IconName[];
@@ -40,13 +41,25 @@
 	</ComposerBar>
 </Story>
 
+<script lang="ts">
+	let targets = $state(['bluesky']);
+</script>
+
+<Story name="Chips">
+	<div class="row" role="group" aria-label="Post to">
+		<ComposerChip name="targets" value="bluesky" bind:group={targets}>Bluesky</ComposerChip>
+		<ComposerChip name="targets" value="mastodon" bind:group={targets}>Mastodon</ComposerChip>
+		<ComposerChip value="off" disabled>Disabled</ComposerChip>
+	</div>
+</Story>
+
 <Story name="Toolbar">
 	<ComposerToolbar>
 		<ComposerButton variant="icon" icon="image" label="Add photos" />
 		<ComposerButton variant="icon" icon="pin" label="Location" pressed />
 		<ComposerButton variant="icon" icon="hash" label="Tags" />
 		<ComposerButton variant="icon" icon="sliders" label="More options" />
-		{#snippet end()}<small>128/300</small>{/snippet}
+		{#snippet end()}<ComposerChip value="bluesky" checked>Bluesky</ComposerChip><small>128/300</small>{/snippet}
 	</ComposerToolbar>
 </Story>
 
