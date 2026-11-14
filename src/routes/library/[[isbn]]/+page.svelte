@@ -15,6 +15,7 @@
 	import { orderShelfBooks, coverflowPosition, coverflowDestination, coverflowPose } from '$lib/library-coverflow';
 	import { createShelfMotion, sampleShelfMotion, type ShelfMotion, type ShelfPose } from '$lib/library-motion';
 	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
+	import { libraryGraphBatches, type GraphBatch } from '$lib/library-stream';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -153,6 +154,61 @@
 	}
 	let isDestroyed = false;
 
+	// Books not yet added to the graph. The first batch renders before the
+	// loading screen lifts; the rest grow in a few at a time afterwards.
+	let pendingGraphBatches: GraphBatch<Node, Link>[] = [];
+	let graphNodesById = new Map<string, Node>();
+
+	const linkEnd = (end: string | Node) => (typeof end === 'object' ? end : graphNodesById.get(end));
+
+	// Start new nodes beside a linked node that already has a position, so the
+	// graph grows outward from its subjects instead of new books flying in.
+	function seedBatchPositions(batch: GraphBatch<Node, Link>) {
+		for (let pass = 0; pass < 2; pass++) {
+			for (const link of batch.links) {
+				const source = linkEnd(link.source);
+				const target = linkEnd(link.target);
+				if (!source || !target) continue;
+				for (const [node, anchor] of [[source, target], [target, source]]) {
+					if (node.x !== undefined || anchor.x === undefined) continue;
+					node.x = anchor.x + (Math.random() - 0.5) * 20;
+					node.y = (anchor.y ?? 0) + (Math.random() - 0.5) * 20;
+					node.z = (anchor.z ?? 0) + (Math.random() - 0.5) * 20;
+				}
+			}
+		}
+	}
+
+	function addGraphBatch(batch: GraphBatch<Node, Link>) {
+		seedBatchPositions(batch);
+		const current = Graph.graphData();
+		Graph.graphData({ nodes: [...current.nodes, ...batch.nodes], links: [...current.links, ...batch.links] });
+	}
+
+	function streamGraphBatches() {
+		if (isDestroyed || isGridModeActive) return;
+		const batch = pendingGraphBatches.shift();
+		if (!batch) return;
+		addGraphBatch(batch);
+		// Batches are small enough to add one per frame.
+		if (pendingGraphBatches.length) scheduleFrame(streamGraphBatches);
+	}
+
+	// Shelves, search results, and mode changes need every book at once.
+	function finishGraphStream() {
+		if (!Graph || !pendingGraphBatches.length) return;
+		const remaining = pendingGraphBatches;
+		pendingGraphBatches = [];
+		addGraphBatch({ nodes: remaining.flatMap((batch) => batch.nodes), links: remaining.flatMap((batch) => batch.links) });
+	}
+
+	// Run every letter's shine from the same clock. CSS animations start when
+	// their element is created, so letters added when the message grows would
+	// otherwise fall out of step with the letters that were already there.
+	function shimmerLetter(letter: HTMLElement) {
+		for (const animation of letter.getAnimations()) animation.startTime = 0;
+	}
+
 	// Mobile detection and limits
 	const isMobile = browser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 	// Reserve capacity for real covers even when placeholders appear first.
@@ -168,10 +224,25 @@
 	let coverCtx: CanvasRenderingContext2D;
 
 	function initCanvases() {
+		// Texture canvases are read back with getImageData for every book. Keep
+		// them in CPU memory so each read does not wait on the GPU.
 		spineCanvas = document.createElement('canvas');
-		spineCtx = spineCanvas.getContext('2d')!;
+		spineCtx = spineCanvas.getContext('2d', { willReadFrequently: true })!;
 		coverCanvas = document.createElement('canvas');
-		coverCtx = coverCanvas.getContext('2d')!;
+		coverCtx = coverCanvas.getContext('2d', { willReadFrequently: true })!;
+	}
+
+	// Width scales with font size, so measure each string once at a reference
+	// size. Changing the canvas font for every trial size dominated texture time.
+	const spineTextWidths = new Map<string, number>();
+	function measureSpineText(text: string, size: number) {
+		let width = spineTextWidths.get(text);
+		if (width === undefined) {
+			spineCtx.font = '600 100px Arial';
+			width = spineCtx.measureText(text).width;
+			spineTextWidths.set(text, width);
+		}
+		return (width * size) / 100;
 	}
 
 	// Performance: Create spine texture with cached canvas
@@ -200,10 +271,7 @@
 		const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 		spineCtx.fillStyle = luminance > 0.18 ? '#111111' : '#ffffff';
 		const layout = layoutSpine(libraryText(node.id), libraryText(node.authorLastName || ''), spineCanvas.height, spineCanvas.width,
-			(text, size) => {
-				spineCtx.font = `600 ${size}px Arial`;
-				return spineCtx.measureText(text).width;
-			});
+			measureSpineText);
 		spineCtx.save();
 		spineCtx.translate(spineCanvas.width / 2, spineCanvas.height / 2);
 		spineCtx.rotate(-Math.PI / 2);
@@ -256,16 +324,44 @@
 	}
 
 	// Performance: Load texture with caching
-	function loadTexture(url: string): Three.Texture {
+	// The material shows the spine color until its cover is decoded and uploaded.
+	function loadCoverInto(material: Three.MeshBasicMaterial, url: string): Three.Texture {
 		if (textureCache.has(url)) {
 			return textureCache.get(url)!;
 		}
 
-		const loader = new THREE.TextureLoader();
-		const texture = loader.load(url);
+		const texture = new THREE.Texture();
+		const image = new Image();
+		image.src = url;
+		// Decode off the main thread, then hand the cover to the GPU a few per
+		// frame. Covers that arrive together otherwise upload in one long frame.
+		image.decode().then(() => {
+			if (isDestroyed) return;
+			coverUploads.push(() => {
+				texture.image = image;
+				texture.needsUpdate = true;
+				// A selected or coverflow book shows a larger cover for now; give
+				// this one to the material it restores when that view ends.
+				const borrowed = [highResolutionCover, ...filmstripTextures.values()].filter((entry) => entry?.material === material);
+				for (const entry of borrowed) { entry!.original = texture; entry!.color.set(0xffffff); }
+				if (borrowed.length) return;
+				material.map = texture;
+				material.color.set(0xffffff);
+				material.needsUpdate = true;
+			});
+			if (coverUploadFrame === null) coverUploadFrame = scheduleFrame(uploadCovers);
+		}, () => {});
 		textureCache.set(url, texture);
 		coverTextureCount++;
 		return texture;
+	}
+
+	const coverUploads: (() => void)[] = [];
+	let coverUploadFrame: number | null = null;
+	function uploadCovers() {
+		coverUploadFrame = null;
+		for (const upload of coverUploads.splice(0, 4)) upload();
+		if (coverUploads.length) coverUploadFrame = scheduleFrame(uploadCovers);
 	}
 
 	// Performance: Create placeholder cover for books without images
@@ -380,12 +476,9 @@
 		if (node.img && node.w && node.h && !isNaN(node.w) && !isNaN(node.h)) {
 			const cacheKey = `front_${node.img}`;
 			if (!materialCache.has(cacheKey)) {
-				const map = !isMobile || coverTextureCount < maxCoverTexturesOnMobile
-					? loadTexture('/library/' + node.img)
-					: null;
-				materialCache.set(cacheKey, new THREE.MeshBasicMaterial(
-					map ? { map } : { color: averageColor }
-				));
+				const material = new THREE.MeshBasicMaterial({ color: averageColor });
+				if (!isMobile || coverTextureCount < maxCoverTexturesOnMobile) loadCoverInto(material, '/library/' + node.img);
+				materialCache.set(cacheKey, material);
 			}
 			frontMaterial = materialCache.get(cacheKey)!;
 			width = Math.max(0.1, node.w / 10);
@@ -663,6 +756,7 @@
 		const isbn = match[1] ? decodeURIComponent(match[1]) : null;
 		const bookId = url.searchParams.get('book');
 		if (!isbn && !bookId) return false;
+		finishGraphStream();
 		const node = Graph.graphData().nodes.find(
 			(n: Node) => n.group === 'book' && (isbn ? n.isbn === isbn : String(n.bookid) === bookId)
 		);
@@ -1279,6 +1373,9 @@
 			if (isDestroyed) return;
 			const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
 			loadingProgress = `Organizing ${bookCount} books…`;
+			graphNodesById = new Map(graphData.nodes.map((node) => [node.id, node]));
+			const [firstBatch, ...laterBatches] = libraryGraphBatches(graphData, { firstId: selectedBook?.id });
+			pendingGraphBatches = laterBatches;
 
 			// Allow UI to update before heavy graph creation
 			await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -1286,7 +1383,7 @@
 			if (isDestroyed) return;
 			Graph = new ForceGraph3D(graphContainer, { controlType: 'orbit' })
 				.enableNodeDrag(!isMobile)
-				.graphData(graphData)
+				.graphData({ nodes: [...firstBatch.nodes], links: [...firstBatch.links] })
 				.nodeLabel((graphNode) => {
 					if (isMobile || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return '';
 					const node = graphNode as Node;
@@ -1424,7 +1521,7 @@
 			installTouchSelection();
 
 			// Store original data for mode switching
-			originalGraphData = { ...Graph.graphData() };
+			originalGraphData = graphData;
 
 			// Restore shared view options before selecting a deep-linked book.
 			restoreLibraryView();
@@ -1445,6 +1542,7 @@
 					if (isDestroyed) return;
 					sceneReady = true;
 					isLoading = false;
+					scheduleFrame(streamGraphBatches);
 				}));
 			});
 
@@ -1683,6 +1781,7 @@
 
 	function toggleMode(updateUrl = true, preserveSelection = false) {
 		if (!Graph) return;
+		if (!isGridModeActive) finishGraphStream();
 
 		beginShelfLayoutTransition();
 		if (!preserveSelection) deselectBook();
@@ -2092,7 +2191,7 @@
 			</span>
 			<p class="shimmer-text">
 				{#each loadingProgress.split('') as letter, i}
-					<span class="shimmer-letter" style="animation-delay: {i * 0.03}s">{letter === ' ' ? '\u00A0' : letter}</span>
+					<span class="shimmer-letter" style="animation-delay: {i * 0.03}s" use:shimmerLetter>{letter === ' ' ? '\u00A0' : letter}</span>
 				{/each}
 			</p>
 		</div>
