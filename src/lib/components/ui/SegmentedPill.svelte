@@ -20,7 +20,7 @@
 
 	interface Props {
 		segments: Segment[];
-		/** `sm` labels a group of posts, `md` is a page's trail, `lg` is a page title. */
+		/** `sm` labels a group of posts in gray, `md` is a page's trail, `lg` is a page title. */
 		size?: 'sm' | 'md' | 'lg';
 		/** Accessible name for the group, e.g. "Date archive". */
 		label?: string;
@@ -117,6 +117,20 @@
 		--segment-padding: var(--space-1) var(--space-2);
 		font-size: var(--fs-xs);
 		letter-spacing: 0.02em;
+	}
+
+	/* A small pill labels content inside the page, so it wears the grays of tags and filters. Blue is kept for the pinned navigation. */
+	.pill--sm {
+		background: var(--surface-2);
+	}
+
+	.pill--sm .segment + .segment {
+		box-shadow: inset 1px 0 0 var(--border);
+	}
+
+	.pill--sm .segment:hover,
+	.pill--sm .segment.current {
+		background: var(--surface-3);
 	}
 
 	.pill--md {
