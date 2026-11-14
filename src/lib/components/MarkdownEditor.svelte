@@ -13,9 +13,11 @@
 		/** Markdown source. Rewritten only after an edit, so untouched posts keep their exact source. */
 		value: string;
 		label: string;
+		/** Borderless, for a full-page writing surface such as the composer. */
+		bare?: boolean;
 	}
 
-	let { value = $bindable(''), label }: Props = $props();
+	let { value = $bindable(''), label, bare = false }: Props = $props();
 
 	const initialConfig = {
 		namespace: 'post-content',
@@ -54,7 +56,7 @@
 	];
 </script>
 
-<div class="markdown-editor">
+<div class="markdown-editor" class:bare>
 	<div class="toolbar" role="toolbar" aria-label="Formatting">
 		{#each tools as tool (tool.title)}
 			<!-- Keep the selection in the editor while a tool is pressed. -->
@@ -121,6 +123,23 @@
 		padding: 0.5rem 0.65rem;
 		outline: 0;
 		font-size: inherit;
+	}
+
+	.markdown-editor.bare {
+		border: 0;
+		background: transparent;
+	}
+
+	.bare .toolbar {
+		border-bottom: 1px solid var(--border-subtle);
+		padding: 0 0 var(--space-1);
+	}
+
+	.bare :global(.md-editable) {
+		min-height: 18rem;
+		max-height: none;
+		padding: var(--space-3) 0;
+		line-height: var(--lh-relaxed);
 	}
 
 	.markdown-editor :global(.md-strikethrough) {

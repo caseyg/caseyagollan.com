@@ -1,13 +1,26 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { rememberOwner } from '$lib/owner';
-	import { COMPOSER_KINDS, LEG_KEYS, type ComposerFields, type LegFields } from '$lib/composer-kinds';
+	import { COMPOSER_KINDS, type ComposerFields, type ComposerKind, type LegFields } from '$lib/composer-kinds';
+	import { formatAbsoluteDate } from '$lib/utils/formatDate';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
-	import { Button, Checkbox, Heading, Notice, Page, PageHeader, TextField } from '$lib/components/ui';
+	import Icon, { type IconName } from '$lib/components/composer/ComposerIcon.svelte';
+	import { Heading, Notice, Page, PageHeader } from '$lib/components/ui';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
+
+	const KIND_ICONS: Record<ComposerKind, IconName> = {
+		note: 'note', article: 'article', reply: 'reply', bookmark: 'bookmark', like: 'heart', repost: 'repost', rsvp: 'rsvp',
+		photo: 'image', video: 'video', event: 'calendar', review: 'star', itinerary: 'plane', food: 'food', drink: 'drink'
+	};
+	const kinds = Object.entries(COMPOSER_KINDS) as [ComposerKind, (typeof COMPOSER_KINDS)[ComposerKind]][];
+	const PLACEHOLDERS: Partial<Record<ComposerKind, string>> = {
+		note: 'What’s on your mind?', article: 'Tell your story…', reply: 'Write your reply', bookmark: 'Add a comment (optional)',
+		repost: 'Add a comment (optional)', rsvp: 'Add a note (optional)', photo: 'Add a caption', video: 'Add a caption',
+		event: 'Describe the event (optional)', review: 'What did you think?', itinerary: 'Add a note (optional)', food: 'How was it? (optional)', drink: 'How was it? (optional)'
+	};
 
 	const kind = $derived(data.kind);
 	const info = $derived(COMPOSER_KINDS[data.kind]);
@@ -15,14 +28,23 @@
 	const initial: ComposerFields = untrack(() => (form && 'fields' in form ? form.fields as ComposerFields : undefined) ?? (data.signedIn ? data.fields : {}));
 	const value = (key: string) => typeof initial[key] === 'string' ? initial[key] as string : '';
 	const emptyLeg = (): LegFields => ({ 'transit-type': 'air', operator: '', number: '', origin: '', destination: '', departure: '', arrival: '' });
+	const startKind = untrack(() => data.kind);
 
 	let content = $state(value('content'));
-	let format = $state(value('format') || (untrack(() => data.kind) === 'article' ? 'markdown' : 'text'));
+	let format = $state(value('format') || (startKind === 'article' ? 'markdown' : 'text'));
 	let location = $state(value('location'));
+	let category = $state(value('category'));
+	let replyTo = $state(value('in-reply-to'));
 	let syndicateTo = $state<string[]>((initial['syndicate-to'] as string[] | undefined) ?? []);
 	let photos = $state<{ url: string; alt: string }[]>(((initial.photo as string[] | undefined) ?? []).map((url, index) => ({ url, alt: (initial['photo-alt'] as string[] | undefined)?.[index] ?? '' })));
 	let videos = $state<string[]>((initial.video as string[] | undefined) ?? []);
 	let legs = $state<LegFields[]>((initial.legs as LegFields[] | undefined)?.length ? initial.legs as LegFields[] : [emptyLeg()]);
+	let rating = $state(value('rating'));
+	// Optional fields stay out of sight until their icon is pressed, or they already hold a value.
+	let open = $state({
+		reply: startKind === 'note' && !!value('in-reply-to'), location: !!value('location'), tags: !!value('category'),
+		options: !!(value('slug') || value('published') || (startKind === 'review' && value('name'))), photoUrl: false
+	});
 	let uploading = $state(0);
 	let uploadError = $state('');
 	let locating = $state(false);
@@ -31,15 +53,19 @@
 	// Disabling the buttons on submit drops the clicked button's name/value from the form data, so carry it in a hidden field.
 	let intent = $state('');
 	let photoUrl = $state('');
+	let photoInput: HTMLInputElement | undefined = $state();
+	let videoInput: HTMLInputElement | undefined = $state();
 
 	let Editor = $state<typeof import('$lib/components/MarkdownEditor.svelte').default>();
 	let source = $state(false);
 	const rich = $derived(!!Editor && format === 'markdown' && !source);
 
 	const hasContent = $derived(kind !== 'like');
-	const hasPhotos = $derived(!['like', 'repost', 'video', 'itinerary', 'event'].includes(kind));
+	const hasPhotos = $derived(data.signedIn && data.mediaEnabled && !['like', 'repost', 'video', 'itinerary', 'event'].includes(kind));
 	const hasLocation = $derived(['note', 'photo', 'article', 'reply', 'food', 'drink', 'review', 'video'].includes(kind));
-	const short = $derived(!['article', 'event', 'review'].includes(kind));
+	const limit = $derived(syndicateTo.some(uid => uid.endsWith('/bluesky')) ? 300 : syndicateTo.some(uid => uid.endsWith('/mastodon')) ? 500 : 0);
+	const published = $derived(page.url.searchParams.get('published'));
+	const bookmarklet = $derived(`javascript:(()=>{location.href=${JSON.stringify(`${page.url.origin}/new/bookmark/?url=`)}+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+'&selection='+encodeURIComponent(String(getSelection()))})()`);
 
 	onMount(() => {
 		if (!data.signedIn) return;
@@ -49,6 +75,11 @@
 			Editor = module.default;
 		}).catch(() => { /* The Markdown textarea remains usable. */ });
 	});
+
+	async function reveal(panel: keyof typeof open, id: string) {
+		open[panel] = !open[panel];
+		if (open[panel]) { await tick(); document.getElementById(id)?.focus(); }
+	}
 
 	async function upload(files: FileList | null, target: 'photo' | 'video') {
 		if (!files?.length || !data.signedIn) return;
@@ -79,22 +110,64 @@
 			locating = false;
 		}, () => { locationError = 'Your location could not be found.'; locating = false; }, { enableHighAccuracy: true, timeout: 15000 });
 	}
-
-	const legLabels: Record<(typeof LEG_KEYS)[number], string> = { 'transit-type': 'Mode', operator: 'Operator', number: 'Number', origin: 'From', destination: 'To', departure: 'Departs', arrival: 'Arrives' };
 </script>
 
-<svelte:head><title>New {info.label.toLowerCase()} — Casey Gollan</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
+<svelte:head>
+	<title>New {info.label.toLowerCase()} — Casey Gollan</title>
+	<meta name="robots" content="noindex,nofollow" />
+	<!-- Without JavaScript the icons cannot open their fields, so show every field. -->
+	<noscript><style>.composer [hidden].panel { display: flex !important; }</style></noscript>
+</svelte:head>
 
-<Page as="main">
-	<PageHeader backHref="/new/" backText="New post" tight>
-		<Heading level={1} size="display">{data.draft ? `Edit ${info.label.toLowerCase()} draft` : `New ${info.label.toLowerCase()}`}</Heading>
-	</PageHeader>
+<Page as="main" class="compose-page">
 	{#if !data.signedIn}
+		<PageHeader backHref="/" backText="Home" tight><Heading level={1} size="display">New post</Heading></PageHeader>
 		<OwnerSignIn message="Sign in to post." />
 	{:else}
+		<header class="bar">
+			<a class="icon-button" href="/account" aria-label="Close" title="Close"><Icon name="close" /></a>
+			<details class="menu kinds">
+				<summary aria-label="Post type: {info.label}"><Icon name={KIND_ICONS[kind]} size={18} /> {info.label} <Icon name="chevron" size={16} /></summary>
+				<ul class="popover kind-list">
+					{#each kinds as [option, details] (option)}
+						<li><a href="/new/{option}/" title={details.hint} aria-current={option === kind ? 'page' : undefined}><Icon name={KIND_ICONS[option]} size={18} /><span>{details.label}</span></a></li>
+					{/each}
+				</ul>
+			</details>
+			<span class="spacer"></span>
+			{#if data.draftsEnabled}
+				<details class="menu drafts">
+					<summary aria-label="Drafts ({data.drafts.length})" title="Drafts"><Icon name="drafts" size={18} /><span class="count-badge">{data.drafts.length}</span></summary>
+					<div class="popover draft-list">
+						{#if data.draftsError}<p class="hint">{data.draftsError}</p>
+						{:else if !data.drafts.length}<p class="hint">No drafts yet. “Save draft” keeps a post in your private drafts repository.</p>
+						{:else}
+							<ul>
+								{#each data.drafts as draft (draft.id)}
+									<li class:current={draft.id === data.draft?.id}>
+										<a href="/new/{draft.kind}/?draft={draft.id}"><Icon name={KIND_ICONS[draft.kind]} size={16} /><span><strong>{draft.title}</strong><small>Saved {formatAbsoluteDate(draft.updated)}</small></span></a>
+										<form method="POST" action="?/discard">
+											<input type="hidden" name="csrf" value={data.csrf} />
+											<input type="hidden" name="id" value={draft.id} />
+											<button class="icon-button small" type="submit" aria-label="Discard {draft.title}" title="Discard"><Icon name="close" size={16} /></button>
+										</form>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
+				</details>
+				<button class="text-button" type="submit" form="composer" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</button>
+			{/if}
+			<button class="publish" type="submit" form="composer" name="intent" value="publish" disabled={submitting || uploading > 0}>{submitting && intent === 'publish' ? 'Posting…' : 'Publish'}</button>
+		</header>
+
 		{#if form?.message}<Notice tone="error">{form.message}</Notice>
-		{:else if page.url.searchParams.has('saved')}<Notice>Draft saved to the private drafts repository.</Notice>{/if}
-		<form method="POST" onsubmit={event => { intent = (event.submitter as HTMLButtonElement | null)?.value ?? 'publish'; submitting = true; }}>
+		{:else if published}<Notice>Posted. <a href={published}>It will appear here</a> after the site rebuilds, usually within a few minutes.{#if page.url.searchParams.has('draft-kept')} The draft could not be removed; discard it from Drafts.{/if}</Notice>
+		{:else if page.url.searchParams.has('saved')}<Notice>Draft saved.</Notice>
+		{:else if page.url.searchParams.has('discarded')}<Notice>Draft discarded.</Notice>{/if}
+
+		<form id="composer" class="composer" method="POST" action="?/submit" onsubmit={event => { intent = (event.submitter as HTMLButtonElement | null)?.value ?? 'publish'; submitting = true; }}>
 			{#if intent}<input type="hidden" name="intent" value={intent} />{/if}
 			<input type="hidden" name="csrf" value={data.csrf} />
 			{#if data.draft}
@@ -102,204 +175,266 @@
 				<input type="hidden" name="draft-sha" value={data.draft.sha} />
 			{/if}
 
-			{#if kind === 'reply' || kind === 'rsvp'}
-				<TextField label={kind === 'rsvp' ? 'Event URL' : 'Reply to'} name="in-reply-to" type="url" value={value('in-reply-to')} required autocomplete="off" spellcheck="false" />
-			{:else if kind === 'note'}
-				<TextField label="Reply to (optional)" name="in-reply-to" type="url" value={value('in-reply-to')} autocomplete="off" spellcheck="false" />
-			{:else if kind === 'bookmark'}
-				<TextField label="Bookmark URL" name="bookmark-of" type="url" value={value('bookmark-of')} required autocomplete="off" spellcheck="false" />
-			{:else if kind === 'like'}
-				<TextField label="Like of" name="like-of" type="url" value={value('like-of')} required autocomplete="off" spellcheck="false" />
-			{:else if kind === 'repost'}
-				<TextField label="Repost of" name="repost-of" type="url" value={value('repost-of')} required autocomplete="off" spellcheck="false" />
+			{#snippet target(name: string, label: string, icon: IconName, required = true)}
+				<label class="target"><Icon name={icon} size={18} /><span class="visually-hidden">{label}</span>
+					<input {name} type="url" value={value(name)} placeholder={label} {required} autocomplete="off" spellcheck="false" />
+				</label>
+			{/snippet}
+			{#if kind === 'reply'}{@render target('in-reply-to', 'URL you are replying to', 'reply')}
+			{:else if kind === 'rsvp'}{@render target('in-reply-to', 'Event URL', 'calendar')}
+			{:else if kind === 'bookmark'}{@render target('bookmark-of', 'URL to bookmark', 'link')}
+			{:else if kind === 'like'}{@render target('like-of', 'URL of the post you like', 'heart')}
+			{:else if kind === 'repost'}{@render target('repost-of', 'URL of the post to repost', 'repost')}{/if}
+
+			{#if kind === 'note'}
+				<label class="target panel" hidden={!open.reply}><Icon name="reply" size={18} /><span class="visually-hidden">Reply to</span>
+					<input id="field-reply" name="in-reply-to" type="url" bind:value={replyTo} placeholder="Replying to a URL (optional)" autocomplete="off" spellcheck="false" />
+				</label>
 			{/if}
 
 			{#if kind === 'rsvp'}
-				<fieldset class="choices">
-					<legend>RSVP</legend>
-					{#each [['yes', 'Going'], ['maybe', 'Maybe'], ['interested', 'Interested'], ['no', 'Not going']] as [answer, label] (answer)}
-						<label><input type="radio" name="rsvp" value={answer} checked={value('rsvp') === answer} required /> {label}</label>
+				<fieldset class="segmented"><legend class="visually-hidden">RSVP</legend>
+					{#each [['yes', 'Going'], ['maybe', 'Maybe'], ['interested', 'Interested'], ['no', 'Can’t go']] as [answer, label] (answer)}
+						<label><input type="radio" name="rsvp" value={answer} checked={value('rsvp') === answer} required /><span>{label}</span></label>
 					{/each}
 				</fieldset>
 			{/if}
 
-			{#if kind === 'article' || kind === 'bookmark' || kind === 'event' || kind === 'review'}
-				<TextField label={kind === 'event' ? 'Event name' : kind === 'review' ? 'Review title (optional)' : kind === 'bookmark' ? 'Title' : 'Title'} name="name" value={value('name')} required={kind === 'article' || kind === 'event'} autocomplete="off" />
+			{#if kind === 'article' || kind === 'event'}
+				<input class="title" name="name" value={value('name')} placeholder={kind === 'event' ? 'Event name' : 'Title'} aria-label={kind === 'event' ? 'Event name' : 'Title'} required autocomplete="off" />
+			{:else if kind === 'bookmark'}
+				<input class="title small" name="name" value={value('name')} placeholder="Title" aria-label="Title" autocomplete="off" />
+			{:else if kind === 'food' || kind === 'drink'}
+				<input class="title" name="food-name" value={value('food-name')} placeholder={kind === 'food' ? 'What did you eat?' : 'What did you drink?'} aria-label={kind === 'food' ? 'What you ate' : 'What you drank'} required autocomplete="off" />
 			{/if}
-			{#if kind === 'article'}<TextField multiline label="Summary" name="summary" rows={2} value={value('summary')} />{/if}
+			{#if kind === 'article'}<input class="subtitle" name="summary" value={value('summary')} placeholder="Summary (optional)" aria-label="Summary" autocomplete="off" />{/if}
 
 			{#if kind === 'event'}
-				<div class="row">
-					<TextField label="Starts" name="start" type="datetime-local" value={value('start')} required />
-					<TextField label="Ends" name="end" type="datetime-local" value={value('end')} />
+				<div class="grid two">
+					<label class="mini">Starts<input name="start" type="datetime-local" value={value('start')} required /></label>
+					<label class="mini">Ends<input name="end" type="datetime-local" value={value('end')} /></label>
 				</div>
-				<TextField label="Venue" name="location-name" value={value('location-name')} autocomplete="off" />
+				<label class="target"><Icon name="pin" size={18} /><span class="visually-hidden">Venue</span><input name="location-name" value={value('location-name')} placeholder="Venue (optional)" autocomplete="off" /></label>
 			{/if}
 
 			{#if kind === 'review'}
-				<div class="row">
-					<TextField label="What you are reviewing" name="item-name" value={value('item-name')} required autocomplete="off" />
-					<TextField label="Its URL (optional)" name="item-url" type="url" value={value('item-url')} autocomplete="off" spellcheck="false" />
-				</div>
-				<fieldset class="choices">
-					<legend>Rating</legend>
+				<input class="title" name="item-name" value={value('item-name')} placeholder="What are you reviewing?" aria-label="What you are reviewing" required autocomplete="off" />
+				<label class="target"><Icon name="link" size={18} /><span class="visually-hidden">Its URL</span><input name="item-url" type="url" value={value('item-url')} placeholder="Its URL (optional)" autocomplete="off" spellcheck="false" /></label>
+				<fieldset class="stars"><legend class="visually-hidden">Rating</legend>
 					{#each [1, 2, 3, 4, 5] as stars (stars)}
-						<label><input type="radio" name="rating" value={String(stars)} checked={value('rating') === String(stars)} /> {'★'.repeat(stars)}</label>
+						<label class:on={Number(rating) >= stars} title="{stars} of 5"><input type="radio" name="rating" value={String(stars)} bind:group={rating} /><Icon name="star" size={24} /><span class="visually-hidden">{stars} of 5 stars</span></label>
 					{/each}
 				</fieldset>
-			{/if}
-
-			{#if kind === 'food' || kind === 'drink'}
-				<TextField label={kind === 'food' ? 'What did you eat?' : 'What did you drink?'} name="food-name" value={value('food-name')} required autocomplete="off" />
 			{/if}
 
 			{#if kind === 'itinerary'}
 				{#each legs as leg, index (index)}
-					<fieldset class="leg">
-						<legend>Leg {index + 1}</legend>
-						<label class="select">{legLabels['transit-type']}
-							<select name="leg-transit-type" bind:value={leg['transit-type']}>
-								{#each ['air', 'train', 'bus', 'boat', 'car', 'generic'] as mode (mode)}<option value={mode}>{mode}</option>{/each}
-							</select>
-						</label>
-						<TextField label={legLabels.operator} name="leg-operator" bind:value={leg.operator} autocomplete="off" />
-						<TextField label={legLabels.number} name="leg-number" bind:value={leg.number} autocomplete="off" />
-						<TextField label={legLabels.origin} name="leg-origin" bind:value={leg.origin} required autocomplete="off" />
-						<TextField label={legLabels.destination} name="leg-destination" bind:value={leg.destination} required autocomplete="off" />
-						<TextField label={legLabels.departure} name="leg-departure" type="datetime-local" bind:value={leg.departure} required />
-						<TextField label={legLabels.arrival} name="leg-arrival" type="datetime-local" bind:value={leg.arrival} required />
-						{#if legs.length > 1}<Button size="sm" variant="quiet" onclick={() => legs.splice(index, 1)}>Remove leg</Button>{/if}
+					<fieldset class="leg"><legend class="visually-hidden">Leg {index + 1}</legend>
+						<div class="grid three">
+							<label class="mini">Mode<select name="leg-transit-type" bind:value={leg['transit-type']}>{#each ['air', 'train', 'bus', 'boat', 'car', 'generic'] as mode (mode)}<option value={mode}>{mode}</option>{/each}</select></label>
+							<label class="mini">Operator<input name="leg-operator" bind:value={leg.operator} autocomplete="off" /></label>
+							<label class="mini">Number<input name="leg-number" bind:value={leg.number} autocomplete="off" /></label>
+						</div>
+						<div class="grid two">
+							<label class="mini">From<input name="leg-origin" bind:value={leg.origin} required autocomplete="off" /></label>
+							<label class="mini">To<input name="leg-destination" bind:value={leg.destination} required autocomplete="off" /></label>
+							<label class="mini">Departs<input name="leg-departure" type="datetime-local" bind:value={leg.departure} required /></label>
+							<label class="mini">Arrives<input name="leg-arrival" type="datetime-local" bind:value={leg.arrival} required /></label>
+						</div>
+						{#if legs.length > 1}<button class="icon-button small remove-leg" type="button" aria-label="Remove leg {index + 1}" onclick={() => legs.splice(index, 1)}><Icon name="close" size={16} /></button>{/if}
 					</fieldset>
 				{/each}
-				<Button size="sm" onclick={() => legs.push(emptyLeg())}>Add leg</Button>
+				<button class="text-button add" type="button" onclick={() => legs.push(emptyLeg())}><Icon name="plus" size={16} /> Add leg</button>
 			{/if}
 
 			{#if hasContent}
-				{#if Editor && format === 'markdown'}
-					<div class="modes" role="group" aria-label="Content editor">
-						<button type="button" aria-pressed={!source} onclick={() => { source = false; }}>Rich text</button>
-						<button type="button" aria-pressed={source} onclick={() => { source = true; }}>Markdown</button>
-					</div>
-				{/if}
 				{#if rich && Editor}
-					<div class="rich">
-						<span class="label">Content</span>
-						<Editor bind:value={content} label="Content" />
-					</div>
+					<div class="rich"><Editor bind:value={content} label="Content" bare /></div>
 				{/if}
 				<div hidden={rich}>
-					<TextField multiline mono={format !== 'text'} label={kind === 'bookmark' ? 'Comment' : kind === 'repost' ? 'Comment (optional)' : 'Content'} name="content" rows={short ? 5 : 16} bind:value={content} />
+					<textarea class="body" class:mono={format !== 'text'} class:long={kind === 'article'} name="content" bind:value={content} placeholder={PLACEHOLDERS[kind]} aria-label="Content" rows={kind === 'article' ? 12 : 4}></textarea>
 				</div>
-				<p class="count" aria-live="polite">{content.length} characters</p>
 			{/if}
 
-			{#if hasPhotos && data.mediaEnabled}
-				<fieldset class="media">
-					<legend>Photos</legend>
+			{#if photos.length || videos.length}
+				<ul class="attachments">
 					{#each photos as photo, index (photo.url)}
-						<div class="photo">
-							<img src={photo.url} alt="" />
+						<li>
+							<img src={photo.url} alt={photo.alt} />
 							<input type="hidden" name="photo" value={photo.url} />
-							<TextField label="Alt text" name="photo-alt" bind:value={photo.alt} autocomplete="off" />
-							<Button size="sm" variant="quiet" onclick={() => photos.splice(index, 1)}>Remove</Button>
-						</div>
+							<input class="alt" name="photo-alt" bind:value={photo.alt} placeholder="Alt text" aria-label="Alt text for photo {index + 1}" autocomplete="off" />
+							<button class="remove" type="button" aria-label="Remove photo {index + 1}" onclick={() => photos.splice(index, 1)}><Icon name="close" size={14} /></button>
+						</li>
 					{/each}
-					<label class="upload">Add photos <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" multiple onchange={event => { void upload(event.currentTarget.files, 'photo'); event.currentTarget.value = ''; }} /></label>
-					<div class="row inline">
-						<TextField label="Or a photo URL" type="url" bind:value={photoUrl} autocomplete="off" spellcheck="false" />
-						<Button size="sm" disabled={!photoUrl} onclick={() => { photos.push({ url: photoUrl, alt: '' }); photoUrl = ''; }}>Add</Button>
-					</div>
-				</fieldset>
-			{/if}
-			{#if kind === 'video'}
-				<fieldset class="media">
-					<legend>Video</legend>
 					{#each videos as video, index (video)}
-						<div class="photo">
-						<!-- svelte-ignore a11y_media_has_caption -->
-							<video src={video} controls preload="metadata"></video>
+						<li>
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video src={video} preload="metadata" controls></video>
 							<input type="hidden" name="video" value={video} />
-							<Button size="sm" variant="quiet" onclick={() => videos.splice(index, 1)}>Remove</Button>
-						</div>
+							<button class="remove" type="button" aria-label="Remove video {index + 1}" onclick={() => videos.splice(index, 1)}><Icon name="close" size={14} /></button>
+						</li>
 					{/each}
-					{#if data.mediaEnabled}<label class="upload">Add a video <input type="file" accept="video/mp4,video/quicktime,video/webm" onchange={event => { void upload(event.currentTarget.files, 'video'); event.currentTarget.value = ''; }} /></label>
-					{:else}<p class="hint">Media uploads are not configured.</p>{/if}
-				</fieldset>
+				</ul>
 			{/if}
 			{#if uploading}<p class="hint" aria-live="polite">Uploading…</p>{/if}
 			{#if uploadError}<Notice tone="error">{uploadError}</Notice>{/if}
+			{#if kind === 'photo' && !photos.length}<p class="hint">Add photos with the image button below.</p>{/if}
+			{#if kind === 'video' && !videos.length}<p class="hint">Add a video with the video button below.</p>{/if}
 
+			{#if hasPhotos}
+				<div class="panel row" hidden={!open.photoUrl}>
+					<label class="target grow"><Icon name="link" size={18} /><span class="visually-hidden">Photo URL</span><input id="field-photo-url" type="url" bind:value={photoUrl} placeholder="Add a photo by URL" autocomplete="off" spellcheck="false" /></label>
+					<button class="text-button" type="button" disabled={!photoUrl} onclick={() => { photos.push({ url: photoUrl, alt: '' }); photoUrl = ''; open.photoUrl = false; }}>Add</button>
+				</div>
+			{/if}
 			{#if hasLocation}
-				<div class="row inline">
-					<TextField label="Location" name="location" bind:value={location} placeholder="A place name, or use your current location" autocomplete="off" />
-					<Button size="sm" disabled={locating} onclick={locate}>{locating ? 'Locating…' : 'Use current location'}</Button>
+				<div class="panel row" hidden={!open.location}>
+					<label class="target grow"><Icon name="pin" size={18} /><span class="visually-hidden">Location</span><input id="field-location" name="location" bind:value={location} placeholder="Add a place" autocomplete="off" /></label>
+					<button class="icon-button" type="button" disabled={locating} onclick={locate} aria-label="Use current location" title="Use current location"><Icon name="locate" size={18} /></button>
 				</div>
 				{#if locationError}<p class="hint">{locationError}</p>{/if}
 			{/if}
-
-			<TextField label="Tags" name="category" value={value('category')} placeholder="e.g. web, personal" autocomplete="off" autocapitalize="off" />
-
-			{#if data.syndication.length && kind !== 'like' && kind !== 'repost'}
-				<fieldset class="choices">
-					<legend>Syndicate to</legend>
-					{#each data.syndication as target (target.uid)}
-						<Checkbox name="syndicate-to" value={target.uid} bind:group={syndicateTo}>{target.name}</Checkbox>
-					{/each}
-				</fieldset>
-			{/if}
-
-			<details class="more" open={!!(value('slug') || value('published'))}>
-				<summary>More options</summary>
+			<label class="target panel" hidden={!open.tags}><Icon name="hash" size={18} /><span class="visually-hidden">Tags</span>
+				<input id="field-tags" name="category" bind:value={category} placeholder="Tags, separated by commas" autocomplete="off" autocapitalize="off" />
+			</label>
+			<div class="panel options" hidden={!open.options}>
 				{#if hasContent}
-					<label class="select">Content Type
-						<select name="format" bind:value={format}>
-							<option value="text">Text</option>
-							<option value="markdown">Markdown</option>
-							<option value="html">HTML</option>
-						</select>
-					</label>
+					<label class="mini">Format<select name="format" bind:value={format}><option value="text">Plain text</option><option value="markdown">Markdown</option><option value="html">HTML</option></select></label>
 				{/if}
-				<TextField label="Slug" name="slug" value={value('slug')} hint="Letters, numbers and hyphens. Left blank, one is made from the title." autocomplete="off" autocapitalize="off" spellcheck="false" />
-				<TextField label="Published" name="published" type="datetime-local" value={value('published')} hint={`Left blank, the post is dated when it is published. Times are in ${data.timeZone}.`} />
-			</details>
-
-			<div class="actions">
-				<Button type="submit" variant="primary" name="intent" value="publish" disabled={submitting || uploading > 0}>Publish</Button>
-				{#if data.draftsEnabled}<Button type="submit" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</Button>{/if}
-				<Button href="/new/" variant="quiet">Cancel</Button>
+				{#if kind === 'review'}<label class="mini">Headline<input name="name" value={value('name')} placeholder="Optional" autocomplete="off" /></label>{/if}
+				<label class="mini">Slug<input id="field-slug" name="slug" value={value('slug')} placeholder="From the title" autocomplete="off" autocapitalize="off" spellcheck="false" /></label>
+				<label class="mini">Published<input name="published" type="datetime-local" value={value('published')} /><small>Blank means now. {data.timeZone}.</small></label>
+				{#if Editor && format === 'markdown' && hasContent}
+					<label class="check"><input type="checkbox" bind:checked={source} /> Edit Markdown source</label>
+				{/if}
 			</div>
-			<p class="hint">
-				{#if data.draftsEnabled}Drafts are saved to a private GitHub repository and never appear on the public site or in the content repository.{:else}Drafts are not configured, so this post can only be published.{/if}
-				{#if data.draft} Publishing removes this draft.{/if}
-			</p>
+
+			<div class="toolbar" role="toolbar" aria-label="Add to post">
+				{#if hasPhotos}
+					<button class="icon-button" type="button" onclick={() => photoInput?.click()} aria-label="Add photos" title="Add photos"><Icon name="image" /></button>
+					<input bind:this={photoInput} class="visually-hidden" tabindex="-1" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" multiple onchange={event => { void upload(event.currentTarget.files, 'photo'); event.currentTarget.value = ''; }} />
+					<button class="icon-button" type="button" aria-pressed={open.photoUrl} onclick={() => reveal('photoUrl', 'field-photo-url')} aria-label="Add a photo by URL" title="Photo by URL"><Icon name="link" /></button>
+				{/if}
+				{#if kind === 'video' && data.mediaEnabled}
+					<button class="icon-button" type="button" onclick={() => videoInput?.click()} aria-label="Add a video" title="Add a video"><Icon name="video" /></button>
+					<input bind:this={videoInput} class="visually-hidden" tabindex="-1" type="file" accept="video/mp4,video/quicktime,video/webm" onchange={event => { void upload(event.currentTarget.files, 'video'); event.currentTarget.value = ''; }} />
+				{/if}
+				{#if kind === 'note'}<button class="icon-button" type="button" aria-pressed={open.reply || !!replyTo} onclick={() => reveal('reply', 'field-reply')} aria-label="Reply to a URL" title="Reply to a URL"><Icon name="reply" /></button>{/if}
+				{#if hasLocation}<button class="icon-button" type="button" aria-pressed={open.location || !!location} onclick={() => reveal('location', 'field-location')} aria-label="Add location" title="Location"><Icon name="pin" /></button>{/if}
+				<button class="icon-button" type="button" aria-pressed={open.tags || !!category} onclick={() => reveal('tags', 'field-tags')} aria-label="Add tags" title="Tags"><Icon name="hash" /></button>
+				<button class="icon-button" type="button" aria-pressed={open.options} onclick={() => reveal('options', 'field-slug')} aria-label="More options" title="Slug, date and format"><Icon name="sliders" /></button>
+				<span class="spacer"></span>
+				{#if data.syndication.length && kind !== 'like' && kind !== 'repost'}
+					<span class="share" role="group" aria-label="Also post to">
+						{#each data.syndication as destination (destination.uid)}
+							<label class="chip" title="Also post to {destination.name}"><input type="checkbox" name="syndicate-to" value={destination.uid} bind:group={syndicateTo} /><span>{destination.name}</span></label>
+						{/each}
+					</span>
+				{/if}
+				{#if hasContent && kind !== 'article'}<span class="count" class:over={limit && content.length > limit} aria-live="polite">{limit ? `${content.length}/${limit}` : content.length || ''}</span>{/if}
+			</div>
 		</form>
+		<p class="hint footer">
+			{#if data.draftsEnabled}Drafts stay in your private drafts repository and never reach the public site.{#if data.draft} Publishing removes this draft.{/if}{:else}Drafts are not configured, so posts can only be published.{/if}
+			<a href={bookmarklet} title="Drag to your bookmarks bar to bookmark the page you are reading">Bookmarklet</a>
+		</p>
 	{/if}
 </Page>
 
 <style>
-	.row { display: flex; flex-wrap: wrap; gap: 0 var(--space-4); }
-	.row > :global(*) { flex: 1 1 14rem; }
-	.row.inline { align-items: flex-end; }
-	.row.inline > :global(.button) { flex: 0 0 auto; margin-bottom: var(--space-3); }
-	fieldset { margin: var(--space-3) 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-	legend { padding: 0 var(--space-1); color: var(--text-secondary); font-size: var(--fs-sm); }
-	.choices label { display: inline-flex; align-items: center; gap: var(--space-1); margin-right: var(--space-4); }
-	.leg { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0 var(--space-3); align-items: start; }
-	.leg .select { margin-top: var(--space-3); }
-	.photo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); margin: var(--space-2) 0; }
-	.photo img, .photo video { width: 6rem; max-height: 6rem; object-fit: cover; border-radius: var(--radius-sm); }
-	.photo > :global(.field) { flex: 1 1 14rem; }
-	.upload { display: inline-flex; flex-direction: column; gap: var(--space-1); margin: var(--space-2) 0; color: var(--text-secondary); font-size: var(--fs-sm); }
-	.modes { display: flex; justify-content: flex-end; gap: var(--space-1); margin: var(--space-3) 0 calc(-1 * var(--space-3)); }
-	.modes button { padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
-	.modes button[aria-pressed='true'] { background: var(--surface-2); color: var(--text-primary); }
-	.rich { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-3) 0; }
-	.label { color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-snug); }
-	.count { margin: calc(-1 * var(--space-2)) 0 var(--space-3); color: var(--text-muted); font-size: var(--fs-xs); text-align: right; }
-	.more { margin: var(--space-3) 0; }
-	.more summary { color: var(--text-secondary); font-size: var(--fs-sm); cursor: pointer; }
-	.select { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-3) 0; color: var(--text-secondary); font-size: var(--fs-sm); line-height: var(--lh-snug); }
-	select { box-sizing: border-box; width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--text-primary); font: inherit; font-size: var(--fs-base); line-height: var(--lh-normal); }
-	.hint { max-width: 40rem; margin: var(--space-2) 0 var(--space-4); color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
-	.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); margin-top: var(--space-4); }
+	:global(.compose-page) { max-width: 40rem; }
+	.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+	[hidden] { display: none !important; }
+	.spacer { flex: 1; }
+	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
+
+	.bar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--space-2); margin: calc(-1 * var(--space-4)) 0 var(--space-3); padding: var(--space-3) 0; background: var(--bg-primary); }
+	.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--text-secondary); cursor: pointer; }
+	.icon-button.small { width: 1.75rem; height: 1.75rem; }
+	.icon-button:hover:not(:disabled), .icon-button:focus-visible { background: var(--surface-2); color: var(--text-primary); }
+	.icon-button[aria-pressed='true'] { color: var(--text-primary); background: var(--surface-1); }
+	.icon-button:disabled { opacity: 0.5; cursor: default; }
+	.text-button { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-3); border: 0; border-radius: 999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+	.text-button:hover:not(:disabled), .text-button:focus-visible { background: var(--surface-2); color: var(--text-primary); }
+	.text-button:disabled { opacity: 0.5; }
+	.publish { white-space: nowrap; padding: var(--space-2) var(--space-4); border: 0; border-radius: 999px; background: var(--accent); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-semibold); cursor: pointer; }
+	.publish:hover:not(:disabled) { background: var(--accent-hover); }
+	.publish:disabled { opacity: 0.6; cursor: default; }
+
+	.menu { position: relative; }
+	.menu summary { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-radius: 999px; color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); list-style: none; cursor: pointer; }
+	.menu summary::-webkit-details-marker { display: none; }
+	.menu summary:hover, .menu[open] summary { background: var(--surface-2); }
+	.drafts summary { padding: var(--space-2); color: var(--text-secondary); }
+	.count-badge { min-width: 1em; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+	.popover { position: absolute; z-index: 4; top: calc(100% + var(--space-1)); min-width: 17rem; max-height: 70vh; overflow: auto; margin: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.3); list-style: none; }
+	.kinds .popover { left: 0; display: grid; grid-template-columns: repeat(2, minmax(8.5rem, 1fr)); min-width: 0; }
+	.kind-list a { align-items: center; }
+	.drafts .popover { right: 0; width: min(22rem, 85vw); }
+	.popover ul { margin: 0; padding: 0; list-style: none; }
+	.kind-list a, .draft-list a { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); text-decoration: none; }
+	.kind-list a:hover, .kind-list a[aria-current='page'], .draft-list a:hover { background: var(--surface-2); }
+	.kind-list span, .draft-list a span { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
+	.draft-list small { color: var(--text-muted); font-size: var(--fs-xs); }
+	.draft-list li { display: flex; align-items: center; gap: var(--space-1); }
+	.draft-list li > a { flex: 1; min-width: 0; }
+	.draft-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.draft-list li.current { background: var(--surface-1); border-radius: var(--radius-sm); }
+	.draft-list .hint { margin: var(--space-2); }
+
+	.composer { display: flex; flex-direction: column; gap: var(--space-2); }
+	input, select, textarea { font: inherit; color: var(--text-primary); }
+	input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
+	.title, .subtitle, .body, .target input { width: 100%; box-sizing: border-box; padding: 0; border: 0; background: transparent; outline: none; }
+	.title { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); letter-spacing: var(--tracking-tight); }
+	.title.small { font-size: var(--fs-lg); }
+	.subtitle { color: var(--text-secondary); font-size: var(--fs-lg); }
+	.body { min-height: 6rem; resize: none; font-size: var(--fs-lg); line-height: var(--lh-normal); field-sizing: content; }
+	.body.long { min-height: 18rem; font-size: var(--fs-md); line-height: var(--lh-relaxed); }
+	.body.mono { font-family: var(--font-mono); font-size: var(--fs-base); }
+	.rich { margin: var(--space-1) 0; }
+	.target { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: 999px; color: var(--text-muted); }
+	.target:focus-within { border-color: var(--border-strong); color: var(--text-primary); }
+	.target input { font-size: var(--fs-sm); }
+	.grow { flex: 1; }
+	.row { display: flex; align-items: center; gap: var(--space-2); }
+	.panel.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+	.grid { display: grid; gap: var(--space-2) var(--space-3); }
+	.grid.two { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+	.grid.three { grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); }
+	.mini { display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-size: var(--fs-xs); }
+	.mini input, .mini select { box-sizing: border-box; width: 100%; padding: 0.4rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-sunken); font-size: var(--fs-sm); }
+	.mini input:focus, .mini select:focus { border-color: var(--border-strong); outline: none; }
+	.check { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--fs-sm); }
+	.leg { position: relative; margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: var(--space-2); }
+	.remove-leg { position: absolute; top: var(--space-1); right: var(--space-1); }
+	.add { align-self: flex-start; }
+
+	.segmented { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
+	.segmented label, .chip { position: relative; cursor: pointer; }
+	.segmented input, .chip input, .stars input { position: absolute; opacity: 0; pointer-events: none; }
+	.segmented span, .chip span { display: inline-block; padding: var(--space-1) var(--space-3); border: 1px solid var(--border); border-radius: 999px; color: var(--text-secondary); font-size: var(--fs-sm); }
+	.chip span { padding: 0.15rem var(--space-2); font-size: var(--fs-xs); }
+	.segmented input:checked + span, .chip input:checked + span { border-color: var(--text-primary); background: var(--text-primary); color: var(--bg-primary); }
+	.segmented input:focus-visible + span, .chip input:focus-visible + span { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+	.stars { display: flex; gap: var(--space-1); margin: 0; padding: 0; border: 0; }
+	.stars label { color: var(--text-muted); cursor: pointer; }
+	.stars label.on { color: var(--text-primary); }
+	.stars label.on :global(svg) { fill: currentColor; }
+	.stars label:focus-within { outline: 2px solid var(--text-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+	.attachments { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: var(--space-2); margin: var(--space-1) 0; padding: 0; list-style: none; }
+	.attachments li { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-sm); background: var(--surface-sunken); }
+	.attachments img, .attachments video { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+	.alt { box-sizing: border-box; width: 100%; padding: var(--space-1) var(--space-2); border: 0; border-top: 1px solid var(--border-subtle); background: transparent; font-size: var(--fs-xs); outline: none; }
+	.remove { position: absolute; top: var(--space-1); right: var(--space-1); display: flex; padding: var(--space-1); border: 0; border-radius: 999px; background: rgb(0 0 0 / 0.6); color: white; cursor: pointer; }
+
+	.toolbar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle); background: var(--bg-primary); }
+	.share { display: inline-flex; gap: var(--space-1); }
+	.count { min-width: 2.5rem; color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
+	.count.over { color: var(--text-primary); text-decoration: underline wavy; font-weight: var(--fw-semibold); }
+	.hint { margin: var(--space-1) 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
+	.footer { margin-top: var(--space-4); font-size: var(--fs-xs); }
+	.footer a { margin-left: var(--space-2); }
+	@media (max-width: 30rem) { .bar { gap: 0; } .menu summary { padding-left: var(--space-2); } }
 </style>
