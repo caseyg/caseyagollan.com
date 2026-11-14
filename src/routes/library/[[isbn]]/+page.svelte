@@ -15,7 +15,6 @@
 	import { orderShelfBooks, coverflowPosition, coverflowDestination, coverflowPose } from '$lib/library-coverflow';
 	import { createShelfMotion, sampleShelfMotion, type ShelfMotion, type ShelfPose } from '$lib/library-motion';
 	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
-	import { libraryGraphBatches, type GraphBatch } from '$lib/library-stream';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -154,52 +153,28 @@
 	}
 	let isDestroyed = false;
 
-	// Books not yet added to the graph. The first batch renders before the
-	// loading screen lifts; the rest grow in a few at a time afterwards.
-	let pendingGraphBatches: GraphBatch<Node, Link>[] = [];
-	let graphNodesById = new Map<string, Node>();
-
-	const linkEnd = (end: string | Node) => (typeof end === 'object' ? end : graphNodesById.get(end));
-
-	// Start new nodes beside a linked node that already has a position, so the
-	// graph grows outward from its subjects instead of new books flying in.
-	function seedBatchPositions(batch: GraphBatch<Node, Link>) {
-		for (let pass = 0; pass < 2; pass++) {
-			for (const link of batch.links) {
-				const source = linkEnd(link.source);
-				const target = linkEnd(link.target);
-				if (!source || !target) continue;
-				for (const [node, anchor] of [[source, target], [target, source]]) {
-					if (node.x !== undefined || anchor.x === undefined) continue;
-					node.x = anchor.x + (Math.random() - 0.5) * 20;
-					node.y = (anchor.y ?? 0) + (Math.random() - 0.5) * 20;
-					node.z = (anchor.z ?? 0) + (Math.random() - 0.5) * 20;
-				}
+	// Textures and labels are painted after the graph appears, a few each
+	// frame, so the layout settles once instead of waiting on 1,000 canvases.
+	// Keyed by what is painted, so a recreated object replaces its stale entry.
+	const pendingLabels = new Map<object, () => void>();
+	const pendingPaint = new Map<object, () => void>();
+	let paintFrame: number | null = null;
+	function queuePaint(queue: Map<object, () => void>, key: object, paint: () => void) {
+		queue.set(key, paint);
+		if (paintFrame === null && !isLoading) paintFrame = scheduleFrame(paintQueued);
+	}
+	function paintQueued() {
+		paintFrame = null;
+		const deadline = performance.now() + 6;
+		for (const queue of [pendingLabels, pendingPaint]) {
+			for (const [key, paint] of queue) {
+				queue.delete(key);
+				paint();
+				if (performance.now() > deadline) break;
 			}
+			if (performance.now() > deadline) break;
 		}
-	}
-
-	function addGraphBatch(batch: GraphBatch<Node, Link>) {
-		seedBatchPositions(batch);
-		const current = Graph.graphData();
-		Graph.graphData({ nodes: [...current.nodes, ...batch.nodes], links: [...current.links, ...batch.links] });
-	}
-
-	function streamGraphBatches() {
-		if (isDestroyed || isGridModeActive) return;
-		const batch = pendingGraphBatches.shift();
-		if (!batch) return;
-		addGraphBatch(batch);
-		// Batches are small enough to add one per frame.
-		if (pendingGraphBatches.length) scheduleFrame(streamGraphBatches);
-	}
-
-	// Shelves, search results, and mode changes need every book at once.
-	function finishGraphStream() {
-		if (!Graph || !pendingGraphBatches.length) return;
-		const remaining = pendingGraphBatches;
-		pendingGraphBatches = [];
-		addGraphBatch({ nodes: remaining.flatMap((batch) => batch.nodes), links: remaining.flatMap((batch) => batch.links) });
+		if (pendingLabels.size || pendingPaint.size) paintFrame = scheduleFrame(paintQueued);
 	}
 
 	// Run every letter's shine from the same clock. CSS animations start when
@@ -245,6 +220,10 @@
 		return (width * size) / 100;
 	}
 
+	function spineCacheKey(node: Node, depth: number, averageColor: string, bookHeight?: number) {
+		return `spine_${node.id}_${node.authorLastName || ""}_${depth}_${averageColor}_${bookHeight}`;
+	}
+
 	// Performance: Create spine texture with cached canvas
 	function createSpineTexture(
 		node: Node,
@@ -252,7 +231,7 @@
 		averageColor: string,
 		bookHeight?: number
 	): Three.MeshBasicMaterial {
-		const cacheKey = `spine_${node.id}_${node.authorLastName || ""}_${depth}_${averageColor}_${bookHeight}`;
+		const cacheKey = spineCacheKey(node, depth, averageColor, bookHeight);
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
@@ -340,14 +319,7 @@
 			coverUploads.push(() => {
 				texture.image = image;
 				texture.needsUpdate = true;
-				// A selected or coverflow book shows a larger cover for now; give
-				// this one to the material it restores when that view ends.
-				const borrowed = [highResolutionCover, ...filmstripTextures.values()].filter((entry) => entry?.material === material);
-				for (const entry of borrowed) { entry!.original = texture; entry!.color.set(0xffffff); }
-				if (borrowed.length) return;
-				material.map = texture;
-				material.color.set(0xffffff);
-				material.needsUpdate = true;
+				applyCoverTexture(material, texture);
 			});
 			if (coverUploadFrame === null) coverUploadFrame = scheduleFrame(uploadCovers);
 		}, () => {});
@@ -356,17 +328,29 @@
 		return texture;
 	}
 
+	function applyCoverTexture(material: Three.MeshBasicMaterial, texture: Three.Texture) {
+		// A selected or coverflow book shows a larger cover for now; give this
+		// one to the material it restores when that view ends.
+		const borrowed = [highResolutionCover, ...filmstripTextures.values()].filter((entry) => entry?.material === material);
+		for (const entry of borrowed) { entry!.original = texture; entry!.color.set(0xffffff); }
+		if (borrowed.length) return;
+		material.map = texture;
+		material.color.set(0xffffff);
+		material.needsUpdate = true;
+	}
+
 	const coverUploads: (() => void)[] = [];
 	let coverUploadFrame: number | null = null;
 	function uploadCovers() {
 		coverUploadFrame = null;
-		for (const upload of coverUploads.splice(0, 4)) upload();
+		if (!isLoading) for (const upload of coverUploads.splice(0, 4)) upload();
 		if (coverUploads.length) coverUploadFrame = scheduleFrame(uploadCovers);
 	}
 
 	// Performance: Create placeholder cover for books without images
 	function createPlaceholderCover(node: Node): {
 		material: Three.MeshBasicMaterial;
+		paint?: () => void;
 		width: number;
 		height: number;
 		averageColor: string;
@@ -390,26 +374,17 @@
 			};
 		}
 
-		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) {
-			const simpleMaterial = new THREE.MeshBasicMaterial({ color: bgColor });
-			materialCache.set(cacheKey, simpleMaterial);
-			return {
-				material: simpleMaterial,
-				width: (120 + randomSeed * 80) / 10,
-				height: (180 + randomSeed * 100) / 10,
-				averageColor: bgColor
-			};
-		}
-
-		const texture = createPlaceholderTexture(node, bgColor, `hsl(${hue}, 60%, 90%)`);
-
-		const material = new THREE.MeshBasicMaterial({ map: texture });
+		// Start as a solid color; the lettered cover is painted later.
+		const material = new THREE.MeshBasicMaterial({ color: bgColor });
 		materialCache.set(cacheKey, material);
-		textureCount++;
-
 		return {
 			material,
+			paint: () => {
+				// On mobile, keep the simple colored material once the limit is reached.
+				if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) return;
+				applyCoverTexture(material, createPlaceholderTexture(node, bgColor, `hsl(${hue}, 60%, 90%)`));
+				textureCount++;
+			},
 			width: (120 + randomSeed * 80) / 10,
 			height: (180 + randomSeed * 100) / 10,
 			averageColor: bgColor
@@ -468,7 +443,7 @@
 	function createBookObject(node: Node): Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]> {
 		const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20;
 		let frontMaterial: Three.MeshBasicMaterial;
-		let spineMaterial: Three.MeshBasicMaterial;
+		let paintPlaceholder: (() => void) | undefined;
 		let width: number;
 		let height: number;
 		let averageColor = spineColor(node);
@@ -483,16 +458,17 @@
 			frontMaterial = materialCache.get(cacheKey)!;
 			width = Math.max(0.1, node.w / 10);
 			height = Math.max(0.1, node.h / 10);
-			spineMaterial = createSpineTexture(node, depth, averageColor, height);
 		} else {
 			const placeholder = createPlaceholderCover(node);
 			frontMaterial = placeholder.material;
+			paintPlaceholder = placeholder.paint;
 			const cover = libraryMetadata(node.bookid);
 			width = cover.coverWidth && cover.coverHeight ? 25 * cover.coverWidth / cover.coverHeight : placeholder.width;
 			height = cover.coverHeight ? 25 : placeholder.height;
 			averageColor = placeholder.averageColor;
-			spineMaterial = createSpineTexture(node, depth, averageColor, height);
 		}
+		const spineKey = spineCacheKey(node, depth, averageColor, height);
+		const spineMaterial = materialCache.get(spineKey) ?? createBackCoverMaterial(averageColor);
 
 		const depthVal = Math.max(0.1, depth / 10);
 
@@ -523,7 +499,15 @@
 		cube.rotation.y = Math.random() * 2 * Math.PI;
 		cube.rotation.z = Math.random() * 2 * Math.PI;
 
-		if (selectedBook?.id === node.id) showHighResolutionCover(node, cube);
+		const paintSpine = () => { materials[1] = createSpineTexture(node, depth, averageColor, height); };
+		if (selectedBook?.id === node.id) {
+			paintPlaceholder?.();
+			paintSpine();
+			showHighResolutionCover(node, cube);
+		} else {
+			if (paintPlaceholder) queuePaint(pendingPaint, frontMaterial, paintPlaceholder);
+			if (!materialCache.has(spineKey)) queuePaint(pendingPaint, node, paintSpine);
+		}
 		return cube;
 	}
 
@@ -756,7 +740,6 @@
 		const isbn = match[1] ? decodeURIComponent(match[1]) : null;
 		const bookId = url.searchParams.get('book');
 		if (!isbn && !bookId) return false;
-		finishGraphStream();
 		const node = Graph.graphData().nodes.find(
 			(n: Node) => n.group === 'book' && (isbn ? n.isbn === isbn : String(n.bookid) === bookId)
 		);
@@ -1067,7 +1050,8 @@
 
 		if (books.length === 0) return;
 		if (isGridModeActive) {
-			const nextBook = adjacentShelfBook(books, selectedBook.id, direction);
+			const shelfBooks = books.map((book) => ({ node: book, id: book.id, x: book.x, y: book.y, height: book.__threeObj?.geometry.parameters.height }));
+			const nextBook = adjacentShelfBook(shelfBooks, selectedBook.id, direction)?.node;
 			if (nextBook) selectBook(nextBook);
 			return;
 		}
@@ -1373,9 +1357,6 @@
 			if (isDestroyed) return;
 			const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
 			loadingProgress = `Organizing ${bookCount} books…`;
-			graphNodesById = new Map(graphData.nodes.map((node) => [node.id, node]));
-			const [firstBatch, ...laterBatches] = libraryGraphBatches(graphData, { firstId: selectedBook?.id });
-			pendingGraphBatches = laterBatches;
 
 			// Allow UI to update before heavy graph creation
 			await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -1383,7 +1364,7 @@
 			if (isDestroyed) return;
 			Graph = new ForceGraph3D(graphContainer, { controlType: 'orbit' })
 				.enableNodeDrag(!isMobile)
-				.graphData({ nodes: [...firstBatch.nodes], links: [...firstBatch.links] })
+				.graphData(graphData)
 				.nodeLabel((graphNode) => {
 					if (isMobile || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return '';
 					const node = graphNode as Node;
@@ -1487,6 +1468,16 @@
 							const emptyGroup = new THREE.Group();
 							return emptyGroup;
 						}
+						if (!isGridModeActive) {
+							const label = new THREE.Group();
+							queuePaint(pendingLabels, node, () => {
+								const sprite = new SpriteText(node.id);
+								sprite.color = 'blue';
+								sprite.textHeight = Math.max((node.points || 1) / 2, 3);
+								label.add(sprite);
+							});
+							return label;
+						}
 						const sprite = new SpriteText(node.id);
 						sprite.color = 'blue';
 						sprite.textHeight = isGridModeActive ? 5 : Math.max((node.points || 1) / 2, 3);
@@ -1521,7 +1512,7 @@
 			installTouchSelection();
 
 			// Store original data for mode switching
-			originalGraphData = graphData;
+			originalGraphData = { ...Graph.graphData() };
 
 			// Restore shared view options before selecting a deep-linked book.
 			restoreLibraryView();
@@ -1542,7 +1533,7 @@
 					if (isDestroyed) return;
 					sceneReady = true;
 					isLoading = false;
-					scheduleFrame(streamGraphBatches);
+					if (paintFrame === null) paintFrame = scheduleFrame(paintQueued);
 				}));
 			});
 
@@ -1781,7 +1772,6 @@
 
 	function toggleMode(updateUrl = true, preserveSelection = false) {
 		if (!Graph) return;
-		if (!isGridModeActive) finishGraphStream();
 
 		beginShelfLayoutTransition();
 		if (!preserveSelection) deselectBook();
