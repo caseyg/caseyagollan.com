@@ -62,8 +62,8 @@
 		color: var(--text-primary);
 	}
 
+	/* In running metadata the current item stays text, a shade brighter; the page's trail already names it. */
 	.chip--ghost.active {
-		background: var(--surface-3);
 		color: var(--text-primary);
 	}
 
