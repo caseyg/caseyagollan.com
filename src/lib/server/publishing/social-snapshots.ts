@@ -69,6 +69,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
  const get = (u: string) => { publicUrl(u); return fetcher(u, {headers:{accept:'application/json'},signal}); };
  let result: Omit<SocialSnapshot,'images'>;
  let media: {url:string;alt:string}[] = [];
+ let video: {url:string;alt:string;presentation?:'gif'} | undefined;
  let avatar: string | undefined;
  let previewImage: string | undefined;
  const preview = (value: any, blue = false) => {
@@ -128,6 +129,26 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   const embed = post.embed?.$type === 'app.bsky.embed.recordWithMedia#view' ? post.embed.media : post.embed;
   media = (embed?.images ?? []).slice(0,4).filter((i:any)=>typeof i.fullsize === 'string').map((i:any)=>({url:i.fullsize,alt:typeof i.alt === 'string' ? i.alt : ''}));
   preview(embed?.external, true);
+  const recordEmbed = post.record.embed?.$type === 'app.bsky.embed.recordWithMedia' ? post.record.embed.media : post.record.embed;
+  const cid = recordEmbed?.video?.ref?.$link;
+  if(embed?.$type === 'app.bsky.embed.video#view' && typeof cid === 'string' && /^[a-zA-Z0-9]+$/.test(cid)) {
+   // Resolve the author's actual PDS; bsky.social cannot serve custom-hosted blobs.
+   const did = post.author.did;
+   let documentUrl: string | undefined;
+   if (/^did:plc:[a-z0-9]+$/.test(did)) documentUrl = `https://plc.directory/${did}`;
+   else if (did.startsWith('did:web:')) {
+    const [host,...path] = did.slice(8).split(':').map(decodeURIComponent);
+    documentUrl = publicUrl(`https://${host}/${path.length ? path.map(encodeURIComponent).join('/') : '.well-known'}/did.json`).href;
+   }
+   if (documentUrl) try {
+    const response = await get(documentUrl);
+    const identity = response.ok ? await response.json() as any : undefined;
+    const service = identity?.id === did && Array.isArray(identity.service) ? identity.service.find((s:any)=>[`${did}#atproto_pds`,'#atproto_pds'].includes(s.id) && s.type === 'AtprotoPersonalDataServer') : undefined;
+    const pds = publicUrl(service?.serviceEndpoint);
+    video = {url:new URL(`/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`,pds).href,alt:typeof embed.alt === 'string' ? embed.alt : '',...(embed.presentation === 'gif' ? {presentation:'gif' as const} : {})};
+   } catch { /* A failed lookup must not remove previously saved media. */ }
+   if (!video && previous?.video) return previous;
+  }
  } else if(mastodon) {
   const response = await get(`${target.origin}/api/v1/statuses/${mastodon[1]}`);
   if([404,410].includes(response.status))throw new SocialSnapshotUnavailable('Original deleted');
@@ -155,20 +176,21 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
  if(!socialSnapshots([saved]).length) return;
  if(!storeImage) return saved;
  let mediaComplete = true;
- const assets = [...(avatar ? [{url:avatar,alt:'',kind:'avatar'}] : []),...(previewImage ? [{url:previewImage,alt:'',kind:'preview'}] : []),...media.map(image=>({...image,kind:'attachment'}))];
+ const assets = [...(avatar ? [{url:avatar,alt:'',kind:'avatar'}] : []),...(previewImage ? [{url:previewImage,alt:'',kind:'preview'}] : []),...media.map(image=>({...image,kind:'attachment'})),...(video ? [{...video,kind:'video'}] : [])];
  for(const image of assets) {
   try {
    if(signal.aborted) {mediaComplete=false; break;}
    publicUrl(image.url);
-   const response = await fetcher(image.url,{headers:{accept:'image/png,image/jpeg,image/webp,image/gif'},signal});
+   const response = await fetcher(image.url,{headers:{accept:image.kind === 'video' ? 'video/mp4' : 'image/png,image/jpeg,image/webp,image/gif'},signal});
    if(!response.ok) {mediaComplete=false;continue;}
    const type = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ?? '';
    if(Number(response.headers.get('content-length')) > MAX_IMAGE_BYTES) {await response.body?.cancel(); mediaComplete=false; continue;}
    const bytes = new Uint8Array(await response.arrayBuffer());
-   if(!bytes.length || bytes.length > MAX_IMAGE_BYTES || budget.bytes + bytes.length > MAX_SAVED_IMAGE_BYTES || !raster(bytes,type)) {mediaComplete=false;continue;}
+   if(!bytes.length || bytes.length > MAX_IMAGE_BYTES || budget.bytes + bytes.length > MAX_SAVED_IMAGE_BYTES || !(image.kind === 'video' ? type === 'video/mp4' && String.fromCharCode(...bytes.slice(4,8)) === 'ftyp' && !/avif|avis/.test(String.fromCharCode(...bytes.slice(8,64))) : raster(bytes,type))) {mediaComplete=false;continue;}
    budget.bytes += bytes.length;
    const src = await storeImage(bytes,type);
-   if(image.kind === 'avatar') saved.author.avatar = src;
+   if(image.kind === 'video') saved.video = {src,alt:image.alt,...(video?.presentation ? {presentation:video.presentation} : {})};
+   else if(image.kind === 'avatar') saved.author.avatar = src;
    else if(image.kind === 'preview' && saved.preview) saved.preview.image = src;
    else saved.images.push({src,alt:image.alt});
   } catch { mediaComplete=false; /* Keep the last complete snapshot during refresh. */ }

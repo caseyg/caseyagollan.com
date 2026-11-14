@@ -357,3 +357,43 @@ test('manual Bluesky post links recurse with bounded cycles and native quote pre
  await enrich(source(),async url=>url.includes('getProfile')?Response.json({did:'did:plc:grant'}):new URL(url).searchParams.get('uri')!.includes('grantcuster')?Response.json({thread:{post:native}}):fetchLinked(url));
  expect(requests[0]).toBe('at://native.example/app.bsky.feed.post/native1');
 });
+
+test('Bluesky GIF presentations archive MP4 bytes and survive the full render sanitizer', async()=>{
+ const videoUrl=imageUrl.replace('.png','.mp4');
+ const mp4=new Uint8Array([0,0,0,24,...new TextEncoder().encode('ftypisom'),0,0,0,0]);
+ for(const wrapped of [false,true]) for(const gif of [false,true]) {
+  const recordMedia={$type:'app.bsky.embed.video',video:{ref:{$link:'bafkreivideo'}},presentation:gif?'gif':undefined};
+  const viewMedia={$type:'app.bsky.embed.video#view',alt:'Eating a leaf <peacefully>',presentation:gif?'gif':undefined};
+  const post={...blueskyPost,record:{...blueskyPost.record,text:'',embed:wrapped?{$type:'app.bsky.embed.recordWithMedia',media:recordMedia}:recordMedia},embed:wrapped?{$type:'app.bsky.embed.recordWithMedia#view',media:viewMedia}:viewMedia};
+  const requests:string[]=[];
+  const saved=await enrichSocialSnapshots(source(),async url=>{
+   requests.push(url);
+   return url.includes('plc.directory')?Response.json({id:'did:plc:grant',service:[{id:'#atproto_pds',type:'AtprotoPersonalDataServer',serviceEndpoint:'https://custom-pds.example'}]}):url.includes('getPostThread')?Response.json({thread:{post}}):new Response(mp4,{headers:{'content-type':'video/mp4'}});
+  },{storeImage:async(bytes,type)=>{expect(type).toBe('video/mp4');expect(bytes).toEqual(mp4);return videoUrl;}});
+  const parsed=parsePost(saved,'likes','2026-11-06-video.md');
+  expect(parsed.socialSnapshots![0].video).toEqual({src:videoUrl,alt:viewMedia.alt,...(gif?{presentation:'gif'}:{})});
+  expect(requests).toContain('https://custom-pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Agrant&cid=bafkreivideo');
+  const html=renderPostDetails(parsed);
+  expect(html).toContain('<video');expect(html).toContain(`src="${videoUrl}"`);
+  expect(html).toContain('controls');expect(html).toContain('playsinline');
+  expect(html.includes('autoplay')).toBe(gif);expect(html.includes('loop')).toBe(gif);expect(html.includes('muted')).toBe(gif);
+  expect(html).toContain('aria-label="Eating a leaf <peacefully>"');
+  expect(html).not.toContain('getBlob');
+  const {socialSnapshots}=await import('../src/lib/social-snapshots');
+  expect(socialSnapshots([{...parsed.socialSnapshots![0],video:{src:'https://cdn.example/video.mp4',alt:''}}])).toEqual([]);
+  const failed=await enrichSocialSnapshots(saved,async url=>url.includes('plc.directory')?Response.json({id:'did:plc:grant',service:[{id:'#atproto_pds',type:'AtprotoPersonalDataServer',serviceEndpoint:'https://custom-pds.example'}]}):url.includes('getPostThread')?Response.json({thread:{post}}):new Response(png,{headers:{'content-type':'video/mp4'}}),{refresh:true});
+  expect(failed).toBe(saved);
+ }
+});
+
+test('saved social MP4s use immutable storage and can be served by the media route',async()=>{
+ const {socialImageStore}=await import('../src/lib/server/publishing/social-media');
+ const {serveMedia}=await import('../src/lib/server/publishing/media');
+ const bytes=new Uint8Array([0,0,0,24,...new TextEncoder().encode('ftypisom')]);
+ let path='';
+ const store=socialImageStore({put:async(key:string,_bytes:Uint8Array,options:any)=>{path=key;expect(options.httpMetadata.contentType).toBe('video/mp4');return {key};}} as unknown as R2Bucket,'https://caseyagollan.com/');
+ const url=await store!(bytes,'video/mp4');
+ expect(url).toMatch(/\/media\/social\/[a-f0-9]{64}\.mp4$/);
+ const response=await serveMedia(new Request(url,{method:'HEAD'}),path.replace('publishing/',''),{head:async()=>({size:bytes.length,httpEtag:'"clip"',httpMetadata:{contentType:'video/mp4'}})} as unknown as R2Bucket);
+ expect(response.status).toBe(200);expect(response.headers.get('Content-Type')).toBe('video/mp4');
+});

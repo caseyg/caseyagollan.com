@@ -2,7 +2,7 @@
  import { Chip } from '$lib/components/ui';
  import SocialCard from './SocialCard.svelte';
  import PostCard from './PostCard.svelte';
- import type { Post } from '$lib/posts-types';
+ import { getPostPermalink, type Post } from '$lib/posts-types';
  let { post, showType = true, activeTag }: {post: Post; showType?: boolean; activeTag?: string} = $props();
  const members = $derived(post.indexThreadPosts ?? []);
  const hasReplies = $derived(members.some(member => member.type === 'reply'));
@@ -11,7 +11,7 @@
 
 <section class="thread-group" class:likes-only={likesOnly} aria-label="Conversation activity">
  {#if likesOnly}
-  <div class="thread-meta"><Chip href="/type/likes/"><span aria-hidden="true">♥</span> liked {members.length} posts in a thread</Chip></div>
+  <div class="thread-meta"><Chip href={getPostPermalink(post).replace(/[^/]+\/$/, '')}><span aria-hidden="true">♥</span> liked {members.length} posts in a thread</Chip></div>
   <SocialCard variant="thread">
    {#each members as member (member.filePath)}
     <PostCard post={member} {showType} {activeTag} groupedLike />

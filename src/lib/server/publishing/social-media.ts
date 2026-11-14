@@ -1,7 +1,7 @@
 import type { Properties } from './document';
 import { safePublicImageFetch, publicUrl, type PublicFetcher } from './public-fetch';
 export type SocialImageStore = (bytes: Uint8Array, contentType: string) => Promise<string>;
-const extensions: Record<string,string> = {'image/png':'png','image/jpeg':'jpg','image/gif':'gif','image/webp':'webp'};
+const extensions: Record<string,string> = {'image/png':'png','image/jpeg':'jpg','image/gif':'gif','image/webp':'webp','video/mp4':'mp4'};
 export async function socialImageKey(bytes: Uint8Array, contentType: string): Promise<string> {
  const extension = extensions[contentType];
  if(!extension) throw new Error('Unsupported saved image');

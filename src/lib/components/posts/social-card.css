@@ -56,3 +56,5 @@
 
  /* A conversation shares the same shell as a reply and its context. */
  .social-card-scope > .social-thread { padding: 0; margin: 0; overflow: hidden; }
+
+ .social-card-scope .social-video { margin-top: var(--space-3); }
