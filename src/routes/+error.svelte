@@ -30,7 +30,7 @@
 			There is no page at <span class="path">{page.url.pathname}</span>. It may have moved, or the link may have been mistyped.
 		</p>
 	{:else}
-		<p class="detail">{(page.error?.message ?? 'The page could not be shown').replace(/\.$/, '')}. Trying again in a moment may help.</p>
+		<p class="detail">{page.error?.message ?? 'The page could not be shown. Trying again in a moment may help.'}</p>
 	{/if}
 
 	<p class="next">Search from the corner, or start from one of these.</p>
