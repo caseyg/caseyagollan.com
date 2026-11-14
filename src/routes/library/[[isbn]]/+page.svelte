@@ -91,7 +91,22 @@
 	let isLoading = $state(true);
 	let sceneReady = $state(false);
 	let previewRect = $state<{ left: number; top: number; width: number; height: number } | null>(null);
-	const initialCover = data.initialBook?.img ? `/library/${data.initialBook.img}` : null;
+	// The preview shows the same picture the 3D book will wear: its catalog image,
+	// its larger cover, or (drawn in the browser) its lettered placeholder.
+	const initialCover = data.initialBook?.img ? `/library/${data.initialBook.img}`
+		: data.initialBook && libraryMetadata(data.initialBook.bookid).coverUrl ? `/library/covers/${data.initialBook.bookid}` : null;
+	// Drawn after hydration, so the server's markup and the first client render agree.
+	let generatedPreview = $state<{ src: string; aspect: number } | null>(null);
+	function drawGeneratedPreview() {
+		const book = data.initialBook;
+		if (!book || initialCover) return null;
+		const canvas = document.createElement('canvas');
+		drawPlaceholderCover(canvas, canvas.getContext('2d')!, book, placeholderColor(book.id), placeholderInk(book), 2);
+		const cover = libraryMetadata(book.bookid);
+		const seed = Math.abs(titleHash(book.id)) / 2147483647;
+		const aspect = cover.coverWidth && cover.coverHeight ? cover.coverWidth / cover.coverHeight : (120 + seed * 80) / (180 + seed * 100);
+		return { src: canvas.toDataURL(), aspect };
+	}
 	let loadingProgress = $state('Loading library...');
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
@@ -515,18 +530,51 @@
 		};
 	}
 
-	function placeholderInk(node: Node) {
-		const titleHash = node.id.split('').reduce((a, b) => {
+	function titleHash(id: string) {
+		return id.split('').reduce((a, b) => {
 			a = (a << 5) - a + b.charCodeAt(0);
 			return a & a;
 		}, 0);
-		return `hsl(${Math.abs(titleHash) % 360}, 60%, 90%)`;
+	}
+
+	function placeholderInk(node: Node) {
+		return `hsl(${Math.abs(titleHash(node.id)) % 360}, 60%, 90%)`;
 	}
 
 	// scale 1 is the shelf-sized texture; a selected book gets a sharp, larger one.
 	function createPlaceholderTexture(node: Node, bgColor: string, textColor = "#ffffff", scale = 1): Three.Texture {
 		const canvas = scale === 1 ? coverCanvas : document.createElement('canvas');
 		const ctx = scale === 1 ? coverCtx : canvas.getContext('2d')!;
+		drawPlaceholderCover(canvas, ctx, node, bgColor, textColor, scale);
+
+		if (scale !== 1) {
+			const texture = new THREE.CanvasTexture(canvas);
+			texture.colorSpace = THREE.SRGBColorSpace;
+			texture.anisotropy = 8;
+			return texture;
+		}
+
+		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		const texture = new THREE.DataTexture(
+			imageData.data,
+			canvas.width,
+			canvas.height,
+			THREE.RGBAFormat
+		);
+		texture.needsUpdate = true;
+		texture.flipY = true;
+		texture.colorSpace = THREE.SRGBColorSpace;
+		// DataTexture defaults to nearest-pixel sampling, which looks blocky up close.
+		texture.magFilter = THREE.LinearFilter;
+		texture.minFilter = THREE.LinearMipmapLinearFilter;
+		texture.generateMipmaps = true;
+
+		return texture;
+	}
+
+	// The lettered cover for books without a cover image. The first-load preview
+	// draws the same picture, so it matches the 3D book it crossfades into.
+	function drawPlaceholderCover(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, node: Node, bgColor: string, textColor: string, scale: number) {
 		canvas.width = 256 * scale;
 		canvas.height = 384 * scale;
 
@@ -559,30 +607,6 @@
 		lines.forEach((line, index) => {
 			ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
 		});
-
-		if (scale !== 1) {
-			const texture = new THREE.CanvasTexture(canvas);
-			texture.colorSpace = THREE.SRGBColorSpace;
-			texture.anisotropy = 8;
-			return texture;
-		}
-
-		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-		const texture = new THREE.DataTexture(
-			imageData.data,
-			canvas.width,
-			canvas.height,
-			THREE.RGBAFormat
-		);
-		texture.needsUpdate = true;
-		texture.flipY = true;
-		texture.colorSpace = THREE.SRGBColorSpace;
-		// DataTexture defaults to nearest-pixel sampling, which looks blocky up close.
-		texture.magFilter = THREE.LinearFilter;
-		texture.minFilter = THREE.LinearMipmapLinearFilter;
-		texture.generateMipmaps = true;
-
-		return texture;
 	}
 
 	// BoxGeometry draws each face separately. The three paper edges share a
@@ -707,11 +731,11 @@
 		shelfSavedCamera = null;
 	}
 
-	function animateShelfCamera(position: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }) {
+	function animateShelfCamera(position: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }, durationOverride?: number) {
 		stopShelfCameraAnimation();
 		const startPosition = { ...Graph.camera().position };
 		const startTarget = { ...Graph.controls().target };
-		const duration = isLoading || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const duration = durationOverride ?? (isLoading || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600);
 		const started = performance.now();
 		shelfFramingUntil = started + duration + 50;
 		function step(now: number) {
@@ -730,7 +754,7 @@
 		animationFrameIds.add(shelfCameraAnimation);
 	}
 
-	function animateShelfBook(node: Node, open: boolean) {
+	function animateShelfBook(node: Node, open: boolean, durationOverride?: number) {
 		const book = node.__threeObj;
 		if (!book) return;
 		const previous = shelfBookPresentations.get(node.id);
@@ -738,12 +762,14 @@
 			cancelAnimationFrame(previous.frame);
 			animationFrameIds.delete(previous.frame);
 		}
-		const from: BookPose = { x: book.position.x, y: book.position.y, z: book.position.z, rotationY: book.rotation.y };
+		// A re-sort rebuilds the meshes; carry on from the pose the book was shown in.
+		const from: BookPose = previous ? { ...previous.pose }
+			: { x: book.position.x, y: book.position.y, z: book.position.z, rotationY: book.rotation.y };
 		const pullDistance = Math.max(book.geometry.parameters.width, book.geometry.parameters.height) * 1.4;
 		const to: BookPose = { x: node.x || 0, y: node.y || 0, z: open ? pullDistance : 0, rotationY: open ? 0 : Math.PI / 2 };
 		const state = { node, pose: { ...from }, frame: null as number | null, open };
 		shelfBookPresentations.set(node.id, state);
-		const duration = isLoading || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const duration = durationOverride ?? (isLoading || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600);
 		const started = performance.now();
 		const step = (now: number) => {
 			if (state.frame !== null) animationFrameIds.delete(state.frame);
@@ -763,11 +789,11 @@
 		if (open) {
 			const view = shelfCoverCamera({ ...to, width: book.geometry.parameters.width, height: book.geometry.parameters.height },
 				{ width: graphContainer.clientWidth, height: graphContainer.clientHeight }, Graph.camera().fov);
-			animateShelfCamera(view.position, view.target);
+			animateShelfCamera(view.position, view.target, durationOverride);
 		}
 	}
 
-	function presentShelfBook(node: Node) {
+	function presentShelfBook(node: Node, duration?: number) {
 		if (!shelfSavedCamera) shelfSavedCamera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target },
 			minDistance: Graph.controls().minDistance, maxDistance: Graph.controls().maxDistance };
 		if (graphContainer.clientWidth <= 600) {
@@ -775,7 +801,7 @@
 			return;
 		}
 		for (const state of shelfBookPresentations.values()) if (state.open && state.node.id !== node.id) animateShelfBook(state.node, false);
-		animateShelfBook(node, true);
+		animateShelfBook(node, true, duration);
 	}
 
 	// Keep a small film strip in front of a stationary camera. Flying between actual
@@ -1570,6 +1596,7 @@
 	}
 
 	onMount(async () => {
+		generatedPreview = drawGeneratedPreview();
 		if (!browser) return;
 
 		if (selectedBook) void selectBook(selectedBook, false);
@@ -2014,6 +2041,15 @@
 		if (!Graph) return;
 		Graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
 		if (isGridModeActive && selectedBook) {
+			const open = !coverflow && graphContainer.clientWidth > 600 && shelfBookPresentations.get(selectedBook.id)?.open;
+			if (open) {
+				// Reframe around the open book without pulling it back onto the shelf first.
+				const camera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } };
+				shelfSavedCamera = frameShelves(0);
+				Graph.cameraPosition(camera.position, camera.target, 0);
+				presentShelfBook(selectedBook, 0);
+				return;
+			}
 			clearShelfPresentations();
 			frameShelves(0);
 			focusGraphBook(selectedBook, false);
@@ -2046,11 +2082,13 @@
 		shelfLayoutMotions.clear();
 	}
 
-	function refreshShelves() {
-		clearShelfPresentations();
+	function refreshShelves(changingMode = true) {
+		// A re-sort keeps the open book where it is; it glides to its new slot once laid out.
+		if (changingMode || !selectedBook || coverflow || !shelfBookPresentations.get(selectedBook.id)?.open) clearShelfPresentations();
 		shelfDraggedPositions.clear();
 		// Recreate labels when changing modes; graph labels use popularity-based sizes.
-		Graph.nodeThreeObject(Graph.nodeThreeObject());
+		// A re-sort reuses the meshes, so the selected book is not rebuilt mid-presentation.
+		if (changingMode) Graph.nodeThreeObject(Graph.nodeThreeObject());
 		shelfLayoutDirty = true;
 		shelfFramePending = true;
 		// graphData reheats the simulation after its deferred update.
@@ -2276,7 +2314,7 @@
 		const filteredNodes = shelfNodes(originalGraphData.nodes);
 		Graph.graphData({ nodes: filteredNodes, links: [] });
 		Graph.d3Force('custom', customForce);
-		refreshShelves();
+		refreshShelves(false);
 	}
 
 	function customForce() {
@@ -2507,8 +2545,12 @@
 			<img src={initialCover} alt="" fetchpriority="high" loading="eager" class:placed={previewRect}
 				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
 				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} />
+		{:else if generatedPreview}
+			<img src={generatedPreview.src} alt="" class="generated" class:placed={previewRect} style:aspect-ratio={generatedPreview.aspect}
+				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
+				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} />
 		{:else}
-			<div class="preview-placeholder" class:placed={previewRect} style:background={spineColor(data.initialBook)}
+			<div class="preview-placeholder" class:placed={previewRect} style:background={placeholderColor(data.initialBook.id)} style:color={placeholderInk(data.initialBook)}
 				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
 				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`}>{libraryText(data.initialBook.id)}</div>
 		{/if}
@@ -2608,7 +2650,8 @@
 		object-fit: contain;
 		box-shadow: 0 12px 32px #0004;
 	}
-	.preview-placeholder { padding: 24px; color: white; aspect-ratio: 2 / 3; box-sizing: border-box; }
+	.book-preview img.generated { object-fit: fill; }
+	.preview-placeholder { padding: 24px; aspect-ratio: 2 / 3; box-sizing: border-box; display: grid; place-items: center; text-align: center; font: bold 18px Arial, sans-serif; }
 	.book-preview .placed {
 		position: fixed;
 		max-width: none;
