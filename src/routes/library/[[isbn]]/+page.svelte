@@ -15,6 +15,7 @@
 	import { orderShelfBooks, coverflowPosition, coverflowDestination, coverflowPose } from '$lib/library-coverflow';
 	import { createShelfMotion, sampleShelfMotion, type ShelfMotion, type ShelfPose } from '$lib/library-motion';
 	import { shelfCameraFrame, clampShelfTarget, type ShelfBounds } from '$lib/library-camera';
+	import type { LayoutRequest, LayoutTick } from '$lib/library/layout.worker';
 
 	interface PageData {
 		graphData: GraphData | null;
@@ -89,7 +90,23 @@
 	let Graph: any;
 	let isLoading = $state(true);
 	let sceneReady = $state(false);
-	const initialCover = data.initialBook?.img ? `/library/${data.initialBook.img}` : null;
+	let previewRect = $state<{ left: number; top: number; width: number; height: number } | null>(null);
+	// The preview shows the same picture the 3D book will wear: its catalog image,
+	// its larger cover, or (drawn in the browser) its lettered placeholder.
+	const initialCover = data.initialBook?.img ? `/library/${data.initialBook.img}`
+		: data.initialBook && libraryMetadata(data.initialBook.bookid).coverUrl ? `/library/covers/${data.initialBook.bookid}` : null;
+	// Drawn after hydration, so the server's markup and the first client render agree.
+	let generatedPreview = $state<{ src: string; aspect: number } | null>(null);
+	function drawGeneratedPreview() {
+		const book = data.initialBook;
+		if (!book || initialCover) return null;
+		const canvas = document.createElement('canvas');
+		drawPlaceholderCover(canvas, canvas.getContext('2d')!, book, placeholderColor(book.id), placeholderInk(book), 2);
+		const cover = libraryMetadata(book.bookid);
+		const seed = Math.abs(titleHash(book.id)) / 2147483647;
+		const aspect = cover.coverWidth && cover.coverHeight ? cover.coverWidth / cover.coverHeight : (120 + seed * 80) / (180 + seed * 100);
+		return { src: canvas.toDataURL(), aspect };
+	}
 	let loadingProgress = $state('Loading library...');
 	let isGridModeActive = $state(false);
 	let sortIndex = $state(0);
@@ -153,6 +170,157 @@
 	}
 	let isDestroyed = false;
 
+	// The force layout runs in a worker during the opening animation. The page
+	// replays one worker tick per frame instead of computing the physics itself.
+	let layoutWorker: Worker | null = null;
+	const layoutTicks: Float32Array[] = [];
+	let layoutDone = false;
+	let layoutNodes: Node[] = [];
+	let resolveLayout: () => void = () => {};
+	const layoutFinished = new Promise<void>((resolve) => (resolveLayout = resolve));
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let savedForces: Record<string, any> | null = null;
+
+	function startWorkerLayout(graph: GraphData) {
+		layoutNodes = graph.nodes;
+		layoutWorker = new Worker(new URL('$lib/library/layout.worker.ts', import.meta.url), { type: 'module' });
+		layoutWorker.onmessage = (event: MessageEvent<LayoutTick>) => {
+			layoutTicks.push(event.data.positions);
+			if (event.data.done) {
+				layoutDone = true;
+				resolveLayout();
+				layoutWorker?.terminate();
+				layoutWorker = null;
+			}
+		};
+		const request: LayoutRequest = {
+			ids: graph.nodes.map((node) => node.id),
+			links: graph.links.map((link) => [String(link.source), String(link.target)]),
+			ticks: 300
+		};
+		layoutWorker.postMessage(request);
+	}
+
+	function followWorkerLayout() {
+		if (!layoutNodes.length) return;
+		// Park the main-thread physics; the worker's ticks drive the nodes. The
+		// link force stays: it is cheap and resolves link ends to node objects.
+		savedForces = { charge: Graph.d3Force('charge'), center: Graph.d3Force('center') };
+		for (const name of Object.keys(savedForces)) Graph.d3Force(name, null);
+		let start: number | null = null;
+		Graph.d3Force('worker', () => {
+			if (!layoutTicks.length) return;
+			// Play the worker's ticks at 60 per second, whatever the frame rate.
+			start ??= performance.now();
+			const layoutTick = Math.min(layoutTicks.length - 1, Math.floor((performance.now() - start) / (1000 / 60)));
+			const positions = layoutTicks[layoutTick];
+			layoutNodes.forEach((node, index) => {
+				node.fx = positions[index * 3];
+				node.fy = positions[index * 3 + 1];
+				node.fz = positions[index * 3 + 2];
+			});
+			if (layoutDone && layoutTick >= layoutTicks.length - 1) finishWorkerLayout();
+		});
+	}
+
+	// settle jumps straight to the final layout and stops the engine there.
+	function finishWorkerLayout(settle = false) {
+		if (!savedForces || !Graph) return;
+		if (settle && layoutTicks.length) {
+			const positions = layoutTicks[layoutTicks.length - 1];
+			layoutNodes.forEach((node, index) => {
+				node.x = positions[index * 3];
+				node.y = positions[index * 3 + 1];
+				node.z = positions[index * 3 + 2];
+				Object.assign(node, { vx: 0, vy: 0, vz: 0 });
+			});
+		}
+		layoutWorker?.terminate();
+		layoutWorker = null;
+		Graph.d3Force('worker', null);
+		for (const node of layoutNodes) {
+			delete node.fx;
+			delete node.fy;
+			delete node.fz;
+		}
+		layoutNodes = [];
+		layoutTicks.length = 0;
+		const forces = savedForces;
+		savedForces = null;
+		for (const [name, force] of Object.entries(forces)) Graph.d3Force(name, force);
+		// The layout has settled; stop ticking physics instead of running it to the 15 s cooldown.
+		if (!isGridModeActive) Graph.d3AlphaMin(0.001);
+		if (settle) {
+			// One more tick moves the meshes to the final positions, then the engine stops.
+			Graph.d3AlphaDecay(1);
+			scheduleFrame(() => scheduleFrame(() => Graph?.d3AlphaDecay(0.0228)));
+		}
+	}
+
+	// All links share one LineSegments: one draw call instead of one per link.
+	let linkLines: Three.LineSegments<Three.BufferGeometry, Three.LineBasicMaterial> | null = null;
+	function syncLinkLines() {
+		const links = Graph.graphData().links as { source: Node | string; target: Node | string }[];
+		if (!linkLines) {
+			linkLines = new THREE.LineSegments(new THREE.BufferGeometry(),
+				new THREE.LineBasicMaterial({ color: 0xf0f0f0, transparent: true, opacity: 0.2, depthWrite: false }));
+			linkLines!.frustumCulled = false;
+			Graph.scene().add(linkLines);
+		}
+		const geometry = linkLines!.geometry;
+		let attribute = geometry.getAttribute('position') as Three.BufferAttribute | undefined;
+		if (!attribute || attribute.count < links.length * 2) {
+			attribute = new THREE.BufferAttribute(new Float32Array(Math.max(links.length, 1) * 6), 3);
+			attribute!.setUsage(THREE.DynamicDrawUsage);
+			geometry.setAttribute('position', attribute!);
+		}
+		const array = attribute!.array as Float32Array;
+		let count = 0;
+		for (const link of links) {
+			if (typeof link.source !== 'object' || typeof link.target !== 'object') continue;
+			array[count * 6] = link.source.x || 0;
+			array[count * 6 + 1] = link.source.y || 0;
+			array[count * 6 + 2] = link.source.z || 0;
+			array[count * 6 + 3] = link.target.x || 0;
+			array[count * 6 + 4] = link.target.y || 0;
+			array[count * 6 + 5] = link.target.z || 0;
+			count++;
+		}
+		geometry.setDrawRange(0, count * 2);
+		attribute!.needsUpdate = true;
+	}
+
+	// Textures and labels are painted after the graph appears, a few each
+	// frame, so the layout settles once instead of waiting on 1,000 canvases.
+	// Keyed by what is painted, so a recreated object replaces its stale entry.
+	const pendingLabels = new Map<object, () => void>();
+	const pendingPaint = new Map<object, () => void>();
+	let paintFrame: number | null = null;
+	function queuePaint(queue: Map<object, () => void>, key: object, paint: () => void) {
+		queue.set(key, paint);
+		if (paintFrame === null && !isLoading) paintFrame = scheduleFrame(paintQueued);
+	}
+	function paintQueued() {
+		paintFrame = null;
+		const deadline = performance.now() + 4;
+		for (const queue of [pendingLabels, pendingPaint]) {
+			for (const [key, paint] of queue) {
+				queue.delete(key);
+				paint();
+				if (performance.now() > deadline) break;
+			}
+			if (performance.now() > deadline) break;
+		}
+		if (pendingLabels.size || pendingPaint.size) paintFrame = scheduleFrame(paintQueued);
+	}
+
+	// Run every letter's shine from the same clock. CSS animations start when
+	// their element is created, so letters added when the message grows would
+	// otherwise fall out of step with the letters that were already there.
+	function shimmerLetter(letter: HTMLElement) {
+		for (const animation of letter.getAnimations()) animation.startTime = 0;
+	}
+
 	// Mobile detection and limits
 	const isMobile = browser && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 	// Reserve capacity for real covers even when placeholders appear first.
@@ -168,10 +336,29 @@
 	let coverCtx: CanvasRenderingContext2D;
 
 	function initCanvases() {
+		// Texture canvases are read back with getImageData for every book. Keep
+		// them in CPU memory so each read does not wait on the GPU.
 		spineCanvas = document.createElement('canvas');
-		spineCtx = spineCanvas.getContext('2d')!;
+		spineCtx = spineCanvas.getContext('2d', { willReadFrequently: true })!;
 		coverCanvas = document.createElement('canvas');
-		coverCtx = coverCanvas.getContext('2d')!;
+		coverCtx = coverCanvas.getContext('2d', { willReadFrequently: true })!;
+	}
+
+	// Width scales with font size, so measure each string once at a reference
+	// size. Changing the canvas font for every trial size dominated texture time.
+	const spineTextWidths = new Map<string, number>();
+	function measureSpineText(text: string, size: number) {
+		let width = spineTextWidths.get(text);
+		if (width === undefined) {
+			spineCtx.font = '600 100px Arial';
+			width = spineCtx.measureText(text).width;
+			spineTextWidths.set(text, width);
+		}
+		return (width * size) / 100;
+	}
+
+	function spineCacheKey(node: Node, depth: number, averageColor: string, bookHeight?: number) {
+		return `spine_${node.id}_${node.authorLastName || ""}_${depth}_${averageColor}_${bookHeight}`;
 	}
 
 	// Performance: Create spine texture with cached canvas
@@ -181,7 +368,7 @@
 		averageColor: string,
 		bookHeight?: number
 	): Three.MeshBasicMaterial {
-		const cacheKey = `spine_${node.id}_${node.authorLastName || ""}_${depth}_${averageColor}_${bookHeight}`;
+		const cacheKey = spineCacheKey(node, depth, averageColor, bookHeight);
 		if (materialCache.has(cacheKey)) {
 			return materialCache.get(cacheKey)!;
 		}
@@ -200,10 +387,7 @@
 		const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 		spineCtx.fillStyle = luminance > 0.18 ? '#111111' : '#ffffff';
 		const layout = layoutSpine(libraryText(node.id), libraryText(node.authorLastName || ''), spineCanvas.height, spineCanvas.width,
-			(text, size) => {
-				spineCtx.font = `600 ${size}px Arial`;
-				return spineCtx.measureText(text).width;
-			});
+			measureSpineText);
 		spineCtx.save();
 		spineCtx.translate(spineCanvas.width / 2, spineCanvas.height / 2);
 		spineCtx.rotate(-Math.PI / 2);
@@ -256,21 +440,56 @@
 	}
 
 	// Performance: Load texture with caching
-	function loadTexture(url: string): Three.Texture {
+	// The material shows the spine color until its cover is decoded and uploaded.
+	function loadCoverInto(material: Three.MeshBasicMaterial, url: string): Three.Texture {
 		if (textureCache.has(url)) {
 			return textureCache.get(url)!;
 		}
 
-		const loader = new THREE.TextureLoader();
-		const texture = loader.load(url);
+		const texture = new THREE.Texture();
+		// Cover images are sRGB; without this three.js shows them washed out.
+		texture.colorSpace = THREE.SRGBColorSpace;
+		const image = new Image();
+		image.src = url;
+		// Decode off the main thread, then hand the cover to the GPU a few per
+		// frame. Covers that arrive together otherwise upload in one long frame.
+		image.decode().then(() => {
+			if (isDestroyed) return;
+			coverUploads.push(() => {
+				texture.image = image;
+				texture.needsUpdate = true;
+				applyCoverTexture(material, texture);
+			});
+			if (coverUploadFrame === null) coverUploadFrame = scheduleFrame(uploadCovers);
+		}, () => {});
 		textureCache.set(url, texture);
 		coverTextureCount++;
 		return texture;
 	}
 
+	function applyCoverTexture(material: Three.MeshBasicMaterial, texture: Three.Texture) {
+		// A selected or coverflow book shows a larger cover for now; give this
+		// one to the material it restores when that view ends.
+		const borrowed = [highResolutionCover, ...filmstripTextures.values()].filter((entry) => entry?.material === material);
+		for (const entry of borrowed) { entry!.original = texture; entry!.color.set(0xffffff); }
+		if (borrowed.length) return;
+		material.map = texture;
+		material.color.set(0xffffff);
+		material.needsUpdate = true;
+	}
+
+	const coverUploads: (() => void)[] = [];
+	let coverUploadFrame: number | null = null;
+	function uploadCovers() {
+		coverUploadFrame = null;
+		if (!isLoading) for (const upload of coverUploads.splice(0, 4)) upload();
+		if (coverUploads.length) coverUploadFrame = scheduleFrame(uploadCovers);
+	}
+
 	// Performance: Create placeholder cover for books without images
 	function createPlaceholderCover(node: Node): {
 		material: Three.MeshBasicMaterial;
+		paint?: () => void;
 		width: number;
 		height: number;
 		averageColor: string;
@@ -294,44 +513,78 @@
 			};
 		}
 
-		// On mobile, use simple colored material instead of texture if limit reached
-		if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) {
-			const simpleMaterial = new THREE.MeshBasicMaterial({ color: bgColor });
-			materialCache.set(cacheKey, simpleMaterial);
-			return {
-				material: simpleMaterial,
-				width: (120 + randomSeed * 80) / 10,
-				height: (180 + randomSeed * 100) / 10,
-				averageColor: bgColor
-			};
-		}
-
-		const texture = createPlaceholderTexture(node, bgColor, `hsl(${hue}, 60%, 90%)`);
-
-		const material = new THREE.MeshBasicMaterial({ map: texture });
+		// Start as a solid color; the lettered cover is painted later.
+		const material = new THREE.MeshBasicMaterial({ color: bgColor });
 		materialCache.set(cacheKey, material);
-		textureCount++;
-
 		return {
 			material,
+			paint: () => {
+				// On mobile, keep the simple colored material once the limit is reached.
+				if (isMobile && textureCount >= maxGeneratedTexturesOnMobile) return;
+				applyCoverTexture(material, createPlaceholderTexture(node, bgColor, `hsl(${hue}, 60%, 90%)`));
+				textureCount++;
+			},
 			width: (120 + randomSeed * 80) / 10,
 			height: (180 + randomSeed * 100) / 10,
 			averageColor: bgColor
 		};
 	}
 
-	function createPlaceholderTexture(node: Node, bgColor: string, textColor = "#ffffff"): Three.Texture {
-		coverCanvas.width = 256;
-		coverCanvas.height = 384;
+	function titleHash(id: string) {
+		return id.split('').reduce((a, b) => {
+			a = (a << 5) - a + b.charCodeAt(0);
+			return a & a;
+		}, 0);
+	}
 
+	function placeholderInk(node: Node) {
+		return `hsl(${Math.abs(titleHash(node.id)) % 360}, 60%, 90%)`;
+	}
 
-		coverCtx.fillStyle = bgColor;
-		coverCtx.fillRect(0, 0, coverCanvas.width, coverCanvas.height);
+	// scale 1 is the shelf-sized texture; a selected book gets a sharp, larger one.
+	function createPlaceholderTexture(node: Node, bgColor: string, textColor = "#ffffff", scale = 1): Three.Texture {
+		const canvas = scale === 1 ? coverCanvas : document.createElement('canvas');
+		const ctx = scale === 1 ? coverCtx : canvas.getContext('2d')!;
+		drawPlaceholderCover(canvas, ctx, node, bgColor, textColor, scale);
 
-		coverCtx.fillStyle = textColor;
-		coverCtx.font = 'bold 18px Arial';
-		coverCtx.textAlign = 'center';
-		coverCtx.textBaseline = 'middle';
+		if (scale !== 1) {
+			const texture = new THREE.CanvasTexture(canvas);
+			texture.colorSpace = THREE.SRGBColorSpace;
+			texture.anisotropy = 8;
+			return texture;
+		}
+
+		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		const texture = new THREE.DataTexture(
+			imageData.data,
+			canvas.width,
+			canvas.height,
+			THREE.RGBAFormat
+		);
+		texture.needsUpdate = true;
+		texture.flipY = true;
+		texture.colorSpace = THREE.SRGBColorSpace;
+		// DataTexture defaults to nearest-pixel sampling, which looks blocky up close.
+		texture.magFilter = THREE.LinearFilter;
+		texture.minFilter = THREE.LinearMipmapLinearFilter;
+		texture.generateMipmaps = true;
+
+		return texture;
+	}
+
+	// The lettered cover for books without a cover image. The first-load preview
+	// draws the same picture, so it matches the 3D book it crossfades into.
+	function drawPlaceholderCover(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, node: Node, bgColor: string, textColor: string, scale: number) {
+		canvas.width = 256 * scale;
+		canvas.height = 384 * scale;
+
+		ctx.fillStyle = bgColor;
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+		ctx.fillStyle = textColor;
+		ctx.font = `bold ${18 * scale}px Arial`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
 
 		const words = libraryText(node.id).split(' ');
 		const lines: string[] = [];
@@ -339,8 +592,8 @@
 
 		words.forEach((word) => {
 			const testLine = currentLine + word + ' ';
-			const metrics = coverCtx.measureText(testLine);
-			if (metrics.width > coverCanvas.width - 40 && currentLine !== '') {
+			const metrics = ctx.measureText(testLine);
+			if (metrics.width > canvas.width - 40 * scale && currentLine !== '') {
 				lines.push(currentLine.trim());
 				currentLine = word + ' ';
 			} else {
@@ -349,30 +602,33 @@
 		});
 		lines.push(currentLine.trim());
 
-		const lineHeight = 22;
-		const startY = coverCanvas.height / 2 - (lines.length * lineHeight) / 2;
+		const lineHeight = 22 * scale;
+		const startY = canvas.height / 2 - (lines.length * lineHeight) / 2;
 		lines.forEach((line, index) => {
-			coverCtx.fillText(line, coverCanvas.width / 2, startY + index * lineHeight);
+			ctx.fillText(line, canvas.width / 2, startY + index * lineHeight);
 		});
+	}
 
-		const imageData = coverCtx.getImageData(0, 0, coverCanvas.width, coverCanvas.height);
-		const texture = new THREE.DataTexture(
-			imageData.data,
-			coverCanvas.width,
-			coverCanvas.height,
-			THREE.RGBAFormat
-		);
-		texture.needsUpdate = true;
-		texture.flipY = true;
-
-		return texture;
+	// BoxGeometry draws each face separately. The three paper edges share a
+	// material, so put them in one group: four draw calls per book instead of six.
+	function paperFacesTogether(geometry: Three.BoxGeometry) {
+		const index = geometry.getIndex()!;
+		const faces = [0, 1, 2, 3, 4, 5].map((face) => Array.from(index.array.slice(face * 6, face * 6 + 6)));
+		const order = [0, 2, 3, 1, 4, 5];
+		geometry.setIndex(order.flatMap((face) => faces[face]));
+		geometry.clearGroups();
+		geometry.addGroup(0, 18, 0);
+		geometry.addGroup(18, 6, 1);
+		geometry.addGroup(24, 6, 4);
+		geometry.addGroup(30, 6, 5);
+		return geometry;
 	}
 
 	// Create book 3D object
 	function createBookObject(node: Node): Three.Mesh<Three.BoxGeometry, Three.MeshBasicMaterial | Three.MeshBasicMaterial[]> {
 		const depth = node.pages ? Math.max(1, Math.ceil(node.pages / 10)) : 20;
 		let frontMaterial: Three.MeshBasicMaterial;
-		let spineMaterial: Three.MeshBasicMaterial;
+		let paintPlaceholder: (() => void) | undefined;
 		let width: number;
 		let height: number;
 		let averageColor = spineColor(node);
@@ -380,26 +636,24 @@
 		if (node.img && node.w && node.h && !isNaN(node.w) && !isNaN(node.h)) {
 			const cacheKey = `front_${node.img}`;
 			if (!materialCache.has(cacheKey)) {
-				const map = !isMobile || coverTextureCount < maxCoverTexturesOnMobile
-					? loadTexture('/library/' + node.img)
-					: null;
-				materialCache.set(cacheKey, new THREE.MeshBasicMaterial(
-					map ? { map } : { color: averageColor }
-				));
+				const material = new THREE.MeshBasicMaterial({ color: averageColor });
+				if (!isMobile || coverTextureCount < maxCoverTexturesOnMobile) loadCoverInto(material, '/library/' + node.img);
+				materialCache.set(cacheKey, material);
 			}
 			frontMaterial = materialCache.get(cacheKey)!;
 			width = Math.max(0.1, node.w / 10);
 			height = Math.max(0.1, node.h / 10);
-			spineMaterial = createSpineTexture(node, depth, averageColor, height);
 		} else {
 			const placeholder = createPlaceholderCover(node);
 			frontMaterial = placeholder.material;
+			paintPlaceholder = placeholder.paint;
 			const cover = libraryMetadata(node.bookid);
 			width = cover.coverWidth && cover.coverHeight ? 25 * cover.coverWidth / cover.coverHeight : placeholder.width;
 			height = cover.coverHeight ? 25 : placeholder.height;
 			averageColor = placeholder.averageColor;
-			spineMaterial = createSpineTexture(node, depth, averageColor, height);
 		}
+		const spineKey = spineCacheKey(node, depth, averageColor, height);
+		const spineMaterial = materialCache.get(spineKey) ?? createBackCoverMaterial(averageColor);
 
 		const depthVal = Math.max(0.1, depth / 10);
 
@@ -409,7 +663,7 @@
 		if (geometryCache.has(geometryKey)) {
 			geometry = geometryCache.get(geometryKey)!;
 		} else {
-			geometry = new THREE.BoxGeometry(width, height, depthVal);
+			geometry = paperFacesTogether(new THREE.BoxGeometry(width, height, depthVal));
 			geometryCache.set(geometryKey, geometry);
 		}
 
@@ -430,7 +684,23 @@
 		cube.rotation.y = Math.random() * 2 * Math.PI;
 		cube.rotation.z = Math.random() * 2 * Math.PI;
 
-		if (selectedBook?.id === node.id) showHighResolutionCover(node, cube);
+		const paintSpine = () => {
+			const spine = createSpineTexture(node, depth, averageColor, height);
+			// A spine painted while another book is selected joins that fade.
+			if (fadedBooks && fadedBooks.id !== node.id && spine.opacity !== fadedBooks.opacity) {
+				if (!spine.transparent) { spine.transparent = true; spine.needsUpdate = true; }
+				spine.opacity = fadedBooks.opacity;
+			}
+			materials[1] = spine;
+		};
+		if (selectedBook?.id === node.id) {
+			paintPlaceholder?.();
+			paintSpine();
+			showHighResolutionCover(node, cube);
+		} else {
+			if (paintPlaceholder) queuePaint(pendingPaint, frontMaterial, paintPlaceholder);
+			if (!materialCache.has(spineKey)) queuePaint(pendingPaint, node, paintSpine);
+		}
 		return cube;
 	}
 
@@ -461,11 +731,11 @@
 		shelfSavedCamera = null;
 	}
 
-	function animateShelfCamera(position: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }) {
+	function animateShelfCamera(position: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }, durationOverride?: number) {
 		stopShelfCameraAnimation();
 		const startPosition = { ...Graph.camera().position };
 		const startTarget = { ...Graph.controls().target };
-		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const duration = durationOverride ?? (isLoading || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600);
 		const started = performance.now();
 		shelfFramingUntil = started + duration + 50;
 		function step(now: number) {
@@ -484,7 +754,7 @@
 		animationFrameIds.add(shelfCameraAnimation);
 	}
 
-	function animateShelfBook(node: Node, open: boolean) {
+	function animateShelfBook(node: Node, open: boolean, durationOverride?: number) {
 		const book = node.__threeObj;
 		if (!book) return;
 		const previous = shelfBookPresentations.get(node.id);
@@ -492,12 +762,14 @@
 			cancelAnimationFrame(previous.frame);
 			animationFrameIds.delete(previous.frame);
 		}
-		const from: BookPose = { x: book.position.x, y: book.position.y, z: book.position.z, rotationY: book.rotation.y };
+		// A re-sort rebuilds the meshes; carry on from the pose the book was shown in.
+		const from: BookPose = previous ? { ...previous.pose }
+			: { x: book.position.x, y: book.position.y, z: book.position.z, rotationY: book.rotation.y };
 		const pullDistance = Math.max(book.geometry.parameters.width, book.geometry.parameters.height) * 1.4;
 		const to: BookPose = { x: node.x || 0, y: node.y || 0, z: open ? pullDistance : 0, rotationY: open ? 0 : Math.PI / 2 };
 		const state = { node, pose: { ...from }, frame: null as number | null, open };
 		shelfBookPresentations.set(node.id, state);
-		const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+		const duration = durationOverride ?? (isLoading || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600);
 		const started = performance.now();
 		const step = (now: number) => {
 			if (state.frame !== null) animationFrameIds.delete(state.frame);
@@ -517,11 +789,11 @@
 		if (open) {
 			const view = shelfCoverCamera({ ...to, width: book.geometry.parameters.width, height: book.geometry.parameters.height },
 				{ width: graphContainer.clientWidth, height: graphContainer.clientHeight }, Graph.camera().fov);
-			animateShelfCamera(view.position, view.target);
+			animateShelfCamera(view.position, view.target, durationOverride);
 		}
 	}
 
-	function presentShelfBook(node: Node) {
+	function presentShelfBook(node: Node, duration?: number) {
 		if (!shelfSavedCamera) shelfSavedCamera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target },
 			minDistance: Graph.controls().minDistance, maxDistance: Graph.controls().maxDistance };
 		if (graphContainer.clientWidth <= 600) {
@@ -529,7 +801,7 @@
 			return;
 		}
 		for (const state of shelfBookPresentations.values()) if (state.open && state.node.id !== node.id) animateShelfBook(state.node, false);
-		animateShelfBook(node, true);
+		animateShelfBook(node, true, duration);
 	}
 
 	// Keep a small film strip in front of a stationary camera. Flying between actual
@@ -586,6 +858,7 @@
 		material.map = texture;
 		material.color.set(0xffffff);
 		material.needsUpdate = true;
+		texture.colorSpace = THREE.SRGBColorSpace;
 		// Browsing a whole library must not retain a whole library of GPU textures.
 		for (const [id, entry] of filmstripTextures) {
 			if (filmstripTextures.size <= 16) break;
@@ -822,22 +1095,101 @@
 		highResolutionCover.texture.dispose();
 		highResolutionCover = null;
 	}
+	// Where the front cover of a book mesh lands on screen, in CSS pixels.
+	function coverScreenRect(book: Three.Mesh<Three.BoxGeometry>) {
+		const { width, height, depth } = book.geometry.parameters;
+		const camera = Graph.camera();
+		camera.updateMatrixWorld();
+		book.updateMatrixWorld();
+		const bounds = graphContainer.getBoundingClientRect();
+		let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+		for (const [x, y] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+			const corner = book.localToWorld(new THREE.Vector3(x * width / 2, y * height / 2, depth / 2)).project(camera);
+			const px = bounds.left + (corner.x + 1) / 2 * bounds.width;
+			const py = bounds.top + (1 - corner.y) / 2 * bounds.height;
+			left = Math.min(left, px); right = Math.max(right, px);
+			top = Math.min(top, py); bottom = Math.max(bottom, py);
+		}
+		if (![left, right, top, bottom].every(Number.isFinite) || right - left < 8) return null;
+		return { left, top, width: right - left, height: bottom - top };
+	}
+
+	// Settles once the selected book's large cover is on its mesh (or there is none).
+	let highResolutionReady: Promise<void> = Promise.resolve();
 	function showHighResolutionCover(node: Node, object = node.__threeObj) {
-		if (!libraryMetadata(node.bookid).coverUrl || !Array.isArray(object?.material)) return;
+		if (!Array.isArray(object?.material)) return;
 		const material = object.material[4];
 		if (material === highResolutionMaterial) return;
+		const hasCover = Boolean(libraryMetadata(node.bookid).coverUrl);
+		// Catalog thumbnails without a larger source keep their own texture.
+		if (!hasCover && node.img) return;
 		clearHighResolutionCover();
 		highResolutionMaterial = material;
-		const request = coverRequest;
-		new THREE.TextureLoader().load(`/library/covers/${node.bookid}`, (texture: Three.Texture) => {
-			if (request !== coverRequest || selectedBook?.id !== node.id) { texture.dispose(); return; }
+		if (!hasCover) {
+			const texture = createPlaceholderTexture(node, placeholderColor(node.id), placeholderInk(node), 4);
 			highResolutionCover = { material, original: material.map, color: material.color.clone(), texture };
 			material.map = texture;
 			material.color.set(0xffffff);
 			material.needsUpdate = true;
-		}, undefined, () => {
-			if (request === coverRequest) highResolutionMaterial = null;
+			highResolutionReady = Promise.resolve();
+			return;
+		}
+		const request = coverRequest;
+		highResolutionReady = new Promise((resolve) => {
+			new THREE.TextureLoader().load(`/library/covers/${node.bookid}`, (texture: Three.Texture) => {
+				texture.colorSpace = THREE.SRGBColorSpace;
+				texture.anisotropy = 8;
+				resolve();
+				if (request !== coverRequest || selectedBook?.id !== node.id) { texture.dispose(); return; }
+				highResolutionCover = { material, original: material.map, color: material.color.clone(), texture };
+				material.map = texture;
+				material.color.set(0xffffff);
+				material.needsUpdate = true;
+			}, undefined, () => {
+				resolve();
+				if (request === coverRequest) highResolutionMaterial = null;
+			});
 		});
+	}
+
+	// Fade other books to 25% opacity, easing from their current opacity.
+	let fadeFrame: number | null = null;
+	// The opacity books other than the selected one are heading to, for meshes painted mid-fade.
+	let fadedBooks: { id: string; opacity: number } | null = null;
+	function fadeOtherBooks(node: Node, opacity = 0.25, duration = 800) {
+		fadedBooks = { id: node.id, opacity };
+		const fades = new Map<Three.Material, { from: number; to: number }>();
+		// Paper and cached spines are shared between books. Give the selected book
+		// its own copies so it stays opaque while every other book fades.
+		const own = node.__threeObj?.material;
+		if (Array.isArray(own)) {
+			const shared = new Set<Three.Material>();
+			for (const n of Graph.graphData().nodes as Node[]) {
+				if (n === node || !Array.isArray(n.__threeObj?.material)) continue;
+				for (const mat of n.__threeObj.material) shared.add(mat);
+			}
+			own.forEach((mat, index) => { if (shared.has(mat)) own[index] = mat.clone(); });
+		}
+		const selected = new Set<Three.Material>(Array.isArray(own) ? own : own ? [own] : []);
+		for (const n of Graph.graphData().nodes as Node[]) {
+			if (!n.__threeObj || n.group !== 'book') continue;
+			const materials = Array.isArray(n.__threeObj.material) ? n.__threeObj.material : [n.__threeObj.material];
+			for (const mat of materials as Three.Material[]) {
+				if (!('opacity' in mat) || fades.has(mat)) continue;
+				// three.js compiles opaque materials to ignore opacity; recompile on the switch.
+				if (!mat.transparent) { mat.transparent = true; mat.needsUpdate = true; }
+				fades.set(mat, { from: mat.opacity, to: selected.has(mat) ? 1 : opacity });
+			}
+		}
+		if (fadeFrame !== null) cancelAnimationFrame(fadeFrame);
+		const started = performance.now();
+		const step = (now: number) => {
+			const p = duration ? Math.min((now - started) / duration, 1) : 1;
+			const t = p * p * (3 - 2 * p);
+			for (const [mat, fade] of fades) mat.opacity = fade.from + (fade.to - fade.from) * t;
+			fadeFrame = p < 1 ? scheduleFrame(step) : null;
+		};
+		step(started);
 	}
 
 	function focusGraphBook(node: Node, animate = true) {
@@ -846,22 +1198,7 @@
 		Graph.controls().minDistance = 0.1;
 		Graph.controls().maxDistance = Infinity;
 		if (coverflow) return;
-		// Fade other books to 25% opacity
-		const graphData = Graph.graphData();
-		graphData.nodes.forEach((n: Node) => {
-			if (n.__threeObj && n.group === 'book') {
-				const isSelected = n.id === node.id;
-				const materials = Array.isArray(n.__threeObj.material)
-					? n.__threeObj.material
-					: [n.__threeObj.material];
-				materials.forEach((mat: Three.Material) => {
-					if ('opacity' in mat) {
-						mat.transparent = true;
-						mat.opacity = isSelected ? 1.0 : 0.25;
-					}
-				});
-			}
-		});
+		fadeOtherBooks(node);
 
 		if (!isGridModeActive) {
 			// Start orbit animation around the selected book
@@ -871,6 +1208,9 @@
 			const orbitRadius = 40;
 			const orbitSpeed = 0.0003; // radians per millisecond
 			let startTime: number | null = null;
+			const blendDuration = 1400;
+			let blendFrom: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null =
+				animate ? { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } } : null;
 
 			// Random orbit direction each time
 			orbitDirection = Math.random() > 0.5 ? 1 : -1;
@@ -901,25 +1241,42 @@
 				const bookZ = node.z || 0;
 
 				// Orbit in XZ plane around the book
-				const cameraX = bookX + orbitRadius * Math.cos(angle);
-				const cameraZ = bookZ + orbitRadius * Math.sin(angle);
-				const cameraY = bookY + 10; // Slightly above
+				let cameraX = bookX + orbitRadius * Math.cos(angle);
+				let cameraZ = bookZ + orbitRadius * Math.sin(angle);
+				let cameraY = bookY + 10; // Slightly above
+				let targetX = bookX, targetY = bookY, targetZ = bookZ;
+				// Center the book in the part of the view the sidebar leaves open, as
+				// shelfCoverCamera does: slide camera and target along the view's right
+				// (desktop sidebar) or down (mobile bottom sheet).
+				const reach = Math.hypot(orbitRadius, 10) * Math.tan(Graph.camera().fov * Math.PI / 360);
+				const viewWidth = graphContainer.clientWidth, viewHeight = graphContainer.clientHeight;
+				const slide = viewWidth > 600 ? 320 / viewHeight * reach : 0;
+				const drop = viewWidth > 600 ? 0 : 0.5 * reach;
+				const slideX = slide * Math.sin(angle), slideZ = -slide * Math.cos(angle);
+				cameraX += slideX; cameraZ += slideZ; cameraY -= drop;
+				targetX += slideX; targetZ += slideZ; targetY -= drop;
+				// Blend from where the camera was into the moving orbit, so the zoom
+				// and the orbit are one continuous motion with no stop between them.
+				if (blendFrom && elapsed < blendDuration) {
+					const p = elapsed / blendDuration;
+					const t = p * p * (3 - 2 * p);
+					const mix = (a: number, b: number) => a + (b - a) * t;
+					cameraX = mix(blendFrom.position.x, cameraX);
+					cameraY = mix(blendFrom.position.y, cameraY);
+					cameraZ = mix(blendFrom.position.z, cameraZ);
+					targetX = mix(blendFrom.target.x, targetX);
+					targetY = mix(blendFrom.target.y, targetY);
+					targetZ = mix(blendFrom.target.z, targetZ);
+				} else blendFrom = null;
 
 				Graph.cameraPosition(
 					{ x: cameraX, y: cameraY, z: cameraZ },
-					{ x: bookX, y: bookY, z: bookZ },
+					{ x: targetX, y: targetY, z: targetZ },
 					0 // Instant update for smooth orbit
 				);
 
 				orbitAnimationId = scheduleFrame(orbitCamera);
 			}
-
-			// Start the orbit with a zoom-in first
-			Graph.cameraPosition(
-				{ x: bookX, y: bookY + 10, z: bookZ + orbitRadius },
-				{ x: bookX, y: bookY, z: bookZ },
-				animate ? 1000 : 0
-			);
 
 			// Set up pause on user interaction
 			const controls = Graph.controls();
@@ -937,6 +1294,7 @@
 					if (selectedBook) {
 						orbitPaused = false;
 						startTime = null; // Reset start time so orbit continues smoothly
+						blendFrom = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } };
 					}
 				}, 5000);
 			};
@@ -946,13 +1304,9 @@
 			controls.addEventListener('start', pauseOrbit);
 			removeOrbitListener = () => controls.removeEventListener('start', pauseOrbit);
 
-			// Start orbiting after zoom completes
 			clearTimeout(orbitStartTimeoutId);
-			orbitStartTimeoutId = setTimeout(() => {
-				if (!isDestroyed && selectedBook === node) {
-					orbitAnimationId = scheduleFrame(orbitCamera);
-				}
-			}, animate ? 1000 : 0);
+			if (orbitAnimationId !== null) cancelAnimationFrame(orbitAnimationId);
+			orbitAnimationId = scheduleFrame(orbitCamera);
 
 		}
 
@@ -973,7 +1327,8 @@
 
 		if (books.length === 0) return;
 		if (isGridModeActive) {
-			const nextBook = adjacentShelfBook(books, selectedBook.id, direction);
+			const shelfBooks = books.map((book) => ({ node: book, id: book.id, x: book.x, y: book.y, height: book.__threeObj?.geometry.parameters.height }));
+			const nextBook = adjacentShelfBook(shelfBooks, selectedBook.id, direction)?.node;
 			if (nextBook) selectBook(nextBook);
 			return;
 		}
@@ -1020,20 +1375,7 @@
 
 		const nextBook = nearbyBooks[nextIndex];
 		if (nextBook && nextBook.id !== selectedBook.id) {
-			// Deselect current book (restore opacity) but don't reset camera
-			const currentData = Graph.graphData();
-			currentData.nodes.forEach((n: Node) => {
-				if (n.__threeObj && n.group === 'book') {
-					const materials = Array.isArray(n.__threeObj.material)
-						? n.__threeObj.material
-						: [n.__threeObj.material];
-					materials.forEach((mat: Three.Material) => {
-						if ('opacity' in mat) {
-							mat.opacity = 1.0;
-						}
-					});
-				}
-			});
+			// focusGraphBook crossfades the opacity from the old book to the new one.
 
 			// Stop current orbit animation
 			if (orbitAnimationId !== null) {
@@ -1071,6 +1413,22 @@
 	}
 
 	// Deselect book and restore view
+	function stopOrbit() {
+		removeOrbitListener?.();
+		removeOrbitListener = undefined;
+		clearTimeout(orbitStartTimeoutId);
+		if (orbitAnimationId !== null) {
+			cancelAnimationFrame(orbitAnimationId);
+			animationFrameIds.delete(orbitAnimationId);
+			orbitAnimationId = null;
+		}
+		if (orbitResumeTimeoutId) {
+			clearTimeout(orbitResumeTimeoutId);
+			orbitResumeTimeoutId = null;
+		}
+		orbitPaused = false;
+	}
+
 	function deselectBook() {
 		clearHighResolutionCover();
 		if (!selectedBook) return;
@@ -1095,6 +1453,8 @@
 
 		if (Graph) {
 			// Restore all books to full opacity
+			if (fadeFrame !== null) { cancelAnimationFrame(fadeFrame); fadeFrame = null; }
+			fadedBooks = null;
 			const graphData = Graph.graphData();
 			graphData.nodes.forEach((n: Node) => {
 				if (n.__threeObj && n.group === 'book') {
@@ -1236,6 +1596,7 @@
 	}
 
 	onMount(async () => {
+		generatedPreview = drawGeneratedPreview();
 		if (!browser) return;
 
 		if (selectedBook) void selectBook(selectedBook, false);
@@ -1280,6 +1641,8 @@
 			const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
 			loadingProgress = `Organizing ${bookCount} books…`;
 
+			startWorkerLayout(graphData);
+
 			// Allow UI to update before heavy graph creation
 			await new Promise((resolve) => requestAnimationFrame(resolve));
 
@@ -1314,7 +1677,9 @@
 					if (settled) shelfLayoutMotions.delete(node.id);
 					return true;
 				})
+				.linkVisibility(false)
 				.onEngineTick(() => {
+					syncLinkLines();
 					if (isGridModeActive && shelfFramePending) {
 						shelfFramePending = false;
 						// graphData creates its meshes in a deferred update. Measure the
@@ -1322,9 +1687,14 @@
 						shelfLayoutDirty = true;
 						customForce();
 						startShelfLayoutMotions();
-						frameShelves(isLoading ? 0 : 600);
+						const framed = frameShelves(isLoading ? 0 : 600);
 						const book = Graph.graphData().nodes.find((node: Node) => node.id === selectedBook?.id);
-						if (book) { selectedBook = book; focusGraphBook(book, false); }
+						if (book) {
+							// Closing the book returns to the framed shelves, not the camera mid-transition.
+							shelfSavedCamera = framed;
+							selectedBook = book;
+							focusGraphBook(book, false);
+						}
 					}
 				})
 				.onNodeDrag((graphNode) => {
@@ -1390,6 +1760,16 @@
 							const emptyGroup = new THREE.Group();
 							return emptyGroup;
 						}
+						if (!isGridModeActive) {
+							const label = new THREE.Group();
+							queuePaint(pendingLabels, node, () => {
+								const sprite = new SpriteText(node.id);
+								sprite.color = 'blue';
+								sprite.textHeight = Math.max((node.points || 1) / 2, 3);
+								label.add(sprite);
+							});
+							return label;
+						}
 						const sprite = new SpriteText(node.id);
 						sprite.color = 'blue';
 						sprite.textHeight = isGridModeActive ? 5 : Math.max((node.points || 1) / 2, 3);
@@ -1422,6 +1802,7 @@
 			};
 
 			installTouchSelection();
+			followWorkerLayout();
 
 			// Store original data for mode switching
 			originalGraphData = { ...Graph.graphData() };
@@ -1430,23 +1811,53 @@
 			restoreLibraryView();
 			window.addEventListener('popstate', restoreLibraryView);
 
-			// Prepare the selected camera before revealing the visualization.
-			scheduleFrame(() => {
-				// Attach the current selection to its graph node without reloading details.
-				if (selectedBook) {
-					const bookNode = graphData.nodes.find((node) => node.id === selectedBook?.id);
-					if (bookNode) {
-						selectedBook = bookNode;
-						if (!shelfFramePending) focusGraphBook(bookNode, false);
-					}
+			const reveal = async () => {
+				// Crossfade only once the 3D book wears the same cover as the preview.
+				await Promise.race([highResolutionReady, new Promise((resolve) => setTimeout(resolve, 1500))]);
+				await new Promise((resolve) => scheduleFrame(() => scheduleFrame(resolve)));
+				if (isDestroyed) return;
+				// Glide the preview onto the 3D cover's exact spot, then crossfade.
+				const rect = selectedBook?.__threeObj?.visible ? coverScreenRect(selectedBook.__threeObj) : null;
+				if (rect) {
+					previewRect = rect;
+					await new Promise((resolve) => setTimeout(resolve, 320));
 				}
-				// Paint the focused scene offscreen before crossfading the cover.
-				scheduleFrame(() => scheduleFrame(() => {
-					if (isDestroyed) return;
-					sceneReady = true;
-					isLoading = false;
-				}));
-			});
+				sceneReady = true;
+				isLoading = false;
+				if (paintFrame === null) paintFrame = scheduleFrame(paintQueued);
+			};
+			const bookNode = selectedBook ? graphData.nodes.find((node) => node.id === selectedBook?.id) : undefined;
+			if (bookNode) selectedBook = bookNode;
+			if (bookNode && isGridModeActive) {
+				// The shelf presents the book with no motion while loading; reveal once it has.
+				const waitForShelf = () => (shelfFramePending ? scheduleFrame(waitForShelf) : reveal());
+				scheduleFrame(waitForShelf);
+			} else if (bookNode) {
+				// A book link skips the opening animation: settle the layout in the
+				// worker, then show the 3D book exactly where the cover image sits.
+				await layoutFinished;
+				if (isDestroyed || isGridModeActive || selectedBook !== bookNode) { reveal(); return; }
+				finishWorkerLayout(true);
+				await new Promise((resolve) => scheduleFrame(() => scheduleFrame(resolve)));
+				const book = bookNode.__threeObj;
+				if (book) {
+					book.rotation.set(0, 0, 0);
+					const { width, height } = book.geometry.parameters;
+					const view = shelfCoverCamera({ x: bookNode.x || 0, y: bookNode.y || 0, z: bookNode.z || 0, width, height },
+						{ width: graphContainer.clientWidth, height: graphContainer.clientHeight }, Graph.camera().fov);
+					Graph.cameraPosition(view.position, view.target, 0);
+					showHighResolutionCover(bookNode, book);
+					// The cover stands alone at first; the graph fades in as the camera pulls back.
+					fadeOtherBooks(bookNode, 0, 0);
+				}
+				await reveal();
+				// After the crossfade, ease from the cover into the usual orbit.
+				setTimeout(() => {
+					if (!isDestroyed && selectedBook === bookNode && !isGridModeActive) focusGraphBook(bookNode);
+				}, 700);
+			} else {
+				scheduleFrame(reveal);
+			}
 
 			// Add keyboard event listener for arrow key navigation
 			window.addEventListener('keydown', handleKeydown);
@@ -1459,6 +1870,9 @@
 	onDestroy(() => {
 		clearHighResolutionCover();
 		if (!browser) return;
+		layoutWorker?.terminate();
+		linkLines?.geometry.dispose();
+		linkLines?.material.dispose();
 		cancelShelfGesture?.();
 		stopCoverflowAnimation();
 		clearFilmstripTextures();
@@ -1591,7 +2005,7 @@
 
 	function frameShelves(duration = 0) {
 		stopShelfCameraAnimation();
-		if (!Graph || !Graph.graphData().nodes.length) return;
+		if (!Graph || !Graph.graphData().nodes.length) return null;
 		shelfBounds = getShelfBounds();
 		const camera = Graph.camera();
 		const frame = shelfCameraFrame(shelfBounds, graphContainer.clientWidth, graphContainer.clientHeight, camera.fov);
@@ -1605,6 +2019,7 @@
 		const target = { x: frame.x, y: frame.y, z: 0 };
 		if (duration) animateShelfCamera(position, target);
 		else Graph.cameraPosition(position, target, 0);
+		return { position, target, minDistance: controls.minDistance, maxDistance: controls.maxDistance };
 	}
 
 	function constrainShelfCamera() {
@@ -1626,6 +2041,15 @@
 		if (!Graph) return;
 		Graph.width(graphContainer.clientWidth).height(graphContainer.clientHeight);
 		if (isGridModeActive && selectedBook) {
+			const open = !coverflow && graphContainer.clientWidth > 600 && shelfBookPresentations.get(selectedBook.id)?.open;
+			if (open) {
+				// Reframe around the open book without pulling it back onto the shelf first.
+				const camera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } };
+				shelfSavedCamera = frameShelves(0);
+				Graph.cameraPosition(camera.position, camera.target, 0);
+				presentShelfBook(selectedBook, 0);
+				return;
+			}
 			clearShelfPresentations();
 			frameShelves(0);
 			focusGraphBook(selectedBook, false);
@@ -1658,11 +2082,13 @@
 		shelfLayoutMotions.clear();
 	}
 
-	function refreshShelves() {
-		clearShelfPresentations();
+	function refreshShelves(changingMode = true) {
+		// A re-sort keeps the open book where it is; it glides to its new slot once laid out.
+		if (changingMode || !selectedBook || coverflow || !shelfBookPresentations.get(selectedBook.id)?.open) clearShelfPresentations();
 		shelfDraggedPositions.clear();
 		// Recreate labels when changing modes; graph labels use popularity-based sizes.
-		Graph.nodeThreeObject(Graph.nodeThreeObject());
+		// A re-sort reuses the meshes, so the selected book is not rebuilt mid-presentation.
+		if (changingMode) Graph.nodeThreeObject(Graph.nodeThreeObject());
 		shelfLayoutDirty = true;
 		shelfFramePending = true;
 		// graphData reheats the simulation after its deferred update.
@@ -1684,11 +2110,15 @@
 	function toggleMode(updateUrl = true, preserveSelection = false) {
 		if (!Graph) return;
 
+		finishWorkerLayout();
 		beginShelfLayoutTransition();
 		if (!preserveSelection) deselectBook();
+		else stopOrbit();
 		shelfDraggedPositions.clear();
 		clearShelfPresentations();
 		isGridModeActive = !isGridModeActive;
+		// Shelf motions are sampled on physics ticks, so shelves keep ticking to the cooldown.
+		Graph.d3AlphaMin(isGridModeActive ? 0 : 0.001);
 
 		if (isGridModeActive) {
 			// Store original data before switching to grid mode
@@ -1767,7 +2197,18 @@
 			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
 
 			Graph.nodeThreeObject(Graph.nodeThreeObject());
-			Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 700);
+			if (preserveSelection && selectedBook) {
+				// The graph recreates its nodes and objects; refocus the same book once they exist.
+				const id = selectedBook.id;
+				scheduleFrame(() => scheduleFrame(() => {
+					const node = (Graph.graphData().nodes as Node[]).find((n) => n.group === 'book' && n.id === id);
+					if (!node || isGridModeActive || selectedBook?.id !== id) return;
+					selectedBook = node;
+					focusGraphBook(node);
+				}));
+			} else {
+				Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 700);
+			}
 
 			// Re-enable full 3D controls
 			const controls = Graph.controls();
@@ -1851,7 +2292,7 @@
 	function toggleSort() {
 		if (!Graph || !isGridModeActive) return;
 
-		deselectBook();
+		// The re-sorted shelves present the selected book again once laid out.
 		sortIndex = (sortIndex + 1) % sortModes.length;
 		applyShelfSort();
 		updateLibraryUrl();
@@ -1873,7 +2314,7 @@
 		const filteredNodes = shelfNodes(originalGraphData.nodes);
 		Graph.graphData({ nodes: filteredNodes, links: [] });
 		Graph.d3Force('custom', customForce);
-		refreshShelves();
+		refreshShelves(false);
 	}
 
 	function customForce() {
@@ -2092,7 +2533,7 @@
 			</span>
 			<p class="shimmer-text">
 				{#each loadingProgress.split('') as letter, i}
-					<span class="shimmer-letter" style="animation-delay: {i * 0.03}s">{letter === ' ' ? '\u00A0' : letter}</span>
+					<span class="shimmer-letter" style="animation-delay: {i * 0.03}s" use:shimmerLetter>{letter === ' ' ? '\u00A0' : letter}</span>
 				{/each}
 			</p>
 		</div>
@@ -2101,16 +2542,24 @@
 {#if data.initialBook && selectedBook}
 	<div class="book-preview" class:ready={sceneReady} aria-hidden="true">
 		{#if initialCover}
-			<img src={initialCover} alt="" fetchpriority="high" loading="eager" />
+			<img src={initialCover} alt="" fetchpriority="high" loading="eager" class:placed={previewRect}
+				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
+				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} />
+		{:else if generatedPreview}
+			<img src={generatedPreview.src} alt="" class="generated" class:placed={previewRect} style:aspect-ratio={generatedPreview.aspect}
+				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
+				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} />
 		{:else}
-			<div class="preview-placeholder" style:background={spineColor(data.initialBook)}>{libraryText(data.initialBook.id)}</div>
+			<div class="preview-placeholder" class:placed={previewRect} style:background={placeholderColor(data.initialBook.id)} style:color={placeholderInk(data.initialBook)}
+				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
+				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`}>{libraryText(data.initialBook.id)}</div>
 		{/if}
 	</div>
 {/if}
 <div bind:this={graphContainer} class="graph-container" class:ready={sceneReady}></div>
 <Nav currentPage="library" onSearchResultClick={selectSearchResult} />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
+	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode(true, true)}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
 	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
 	>
@@ -2193,16 +2642,25 @@
 	}
 	.book-preview.ready { opacity: 0; }
 	.book-preview img, .preview-placeholder {
+		/* Roughly where shelfCoverCamera frames the 3D book (1/1.35 of the view);
+		   .placed then glides it onto the exact spot before the crossfade. */
 		width: auto;
-		max-width: 55%;
-		height: auto;
-		max-height: 55vh;
+		max-width: 74%;
+		height: 74vh;
+		object-fit: contain;
 		box-shadow: 0 12px 32px #0004;
 	}
-	.preview-placeholder { padding: 24px; color: white; }
+	.book-preview img.generated { object-fit: fill; }
+	.preview-placeholder { padding: 24px; aspect-ratio: 2 / 3; box-sizing: border-box; display: grid; place-items: center; text-align: center; font: bold 18px Arial, sans-serif; }
+	.book-preview .placed {
+		position: fixed;
+		max-width: none;
+		object-fit: fill;
+		transition: left 300ms ease, top 300ms ease, width 300ms ease, height 300ms ease;
+	}
 	@media (max-width: 600px) {
-		.book-preview { inset: 60px 0 50vh; }
-		.book-preview img, .preview-placeholder { max-height: 30vh; }
+		.book-preview { inset: 0 0 50vh; }
+		.book-preview img, .preview-placeholder { height: 37vh; }
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.book-preview, .graph-container { transition: none !important; }
