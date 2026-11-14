@@ -1,3 +1,5 @@
+import { orderShelfBooks } from './library-coverflow';
+
 export function shelfCoverCamera(book: { x: number; y: number; z: number; width: number; height: number }, viewport: { width: number; height: number }, fov: number) {
 	const sidebarWidth = viewport.width > 600 ? 320 : 0;
 	const availableWidth = Math.max(100, viewport.width - sidebarWidth);
@@ -13,8 +15,13 @@ export function shelfCoverCamera(book: { x: number; y: number; z: number; width:
 	return { position: { ...target, z: target.z + distance }, target };
 }
 
-export function adjacentShelfBook<T extends { id: string; x?: number; y?: number }>(books: readonly T[], currentId: string, direction: 'left' | 'right'): T | undefined {
-	const ordered = [...books].sort((a, b) => (b.y || 0) - (a.y || 0) || (a.x || 0) - (b.x || 0) || a.id.localeCompare(b.id));
+/**
+ * Books on one shelf share a bottom edge, but their centers sit at different
+ * heights. Order by that bottom edge, then left to right, so arrows walk each
+ * row in the order it is drawn instead of jumping to taller books first.
+ */
+export function adjacentShelfBook<T extends { id: string; x?: number; y?: number; height?: number }>(books: readonly T[], currentId: string, direction: 'left' | 'right'): T | undefined {
+	const ordered = orderShelfBooks(books);
 	const index = ordered.findIndex((book) => book.id === currentId);
 	if (index < 0 || ordered.length < 2) return undefined;
 	return ordered[(index + (direction === 'right' ? 1 : -1) + ordered.length) % ordered.length];

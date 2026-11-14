@@ -44,3 +44,16 @@ test('navigation includes every shelf instead of limiting choices to the nearest
 	expect(adjacentShelfBook(books, '50', 'left')?.id).toBe('49');
 	expect(adjacentShelfBook(books, '118', 'right')?.id).toBe('119');
 });
+
+test('shelf arrows walk a row left to right even when taller books sit higher', async () => {
+	const { adjacentShelfBook } = await import('../src/lib/library-selection');
+	// Centered geometries: a 30-tall book on the same shelf has a higher center than a 20-tall one.
+	const books = [
+		{ id: 'a', x: 0, y: 10, height: 20 }, { id: 'b', x: 2, y: 15, height: 30 },
+		{ id: 'c', x: 4, y: 10, height: 20 }, { id: 'd', x: 0, y: -40, height: 30 }
+	];
+	expect(adjacentShelfBook(books, 'a', 'right')?.id).toBe('b');
+	expect(adjacentShelfBook(books, 'b', 'right')?.id).toBe('c');
+	expect(adjacentShelfBook(books, 'c', 'right')?.id).toBe('d');
+	expect(adjacentShelfBook(books, 'c', 'left')?.id).toBe('b');
+});
