@@ -1149,6 +1149,22 @@
 	}
 
 	// Deselect book and restore view
+	function stopOrbit() {
+		removeOrbitListener?.();
+		removeOrbitListener = undefined;
+		clearTimeout(orbitStartTimeoutId);
+		if (orbitAnimationId !== null) {
+			cancelAnimationFrame(orbitAnimationId);
+			animationFrameIds.delete(orbitAnimationId);
+			orbitAnimationId = null;
+		}
+		if (orbitResumeTimeoutId) {
+			clearTimeout(orbitResumeTimeoutId);
+			orbitResumeTimeoutId = null;
+		}
+		orbitPaused = false;
+	}
+
 	function deselectBook() {
 		clearHighResolutionCover();
 		if (!selectedBook) return;
@@ -1400,9 +1416,14 @@
 						shelfLayoutDirty = true;
 						customForce();
 						startShelfLayoutMotions();
-						frameShelves(isLoading ? 0 : 600);
+						const framed = frameShelves(isLoading ? 0 : 600);
 						const book = Graph.graphData().nodes.find((node: Node) => node.id === selectedBook?.id);
-						if (book) { selectedBook = book; focusGraphBook(book, false); }
+						if (book) {
+							// Closing the book returns to the framed shelves, not the camera mid-transition.
+							shelfSavedCamera = framed;
+							selectedBook = book;
+							focusGraphBook(book, false);
+						}
 					}
 				})
 				.onNodeDrag((graphNode) => {
@@ -1680,7 +1701,7 @@
 
 	function frameShelves(duration = 0) {
 		stopShelfCameraAnimation();
-		if (!Graph || !Graph.graphData().nodes.length) return;
+		if (!Graph || !Graph.graphData().nodes.length) return null;
 		shelfBounds = getShelfBounds();
 		const camera = Graph.camera();
 		const frame = shelfCameraFrame(shelfBounds, graphContainer.clientWidth, graphContainer.clientHeight, camera.fov);
@@ -1694,6 +1715,7 @@
 		const target = { x: frame.x, y: frame.y, z: 0 };
 		if (duration) animateShelfCamera(position, target);
 		else Graph.cameraPosition(position, target, 0);
+		return { position, target, minDistance: controls.minDistance, maxDistance: controls.maxDistance };
 	}
 
 	function constrainShelfCamera() {
@@ -1775,6 +1797,7 @@
 
 		beginShelfLayoutTransition();
 		if (!preserveSelection) deselectBook();
+		else stopOrbit();
 		shelfDraggedPositions.clear();
 		clearShelfPresentations();
 		isGridModeActive = !isGridModeActive;
@@ -1856,7 +1879,18 @@
 			Graph.graphData({ nodes: restoredNodes, links: originalGraphData.links });
 
 			Graph.nodeThreeObject(Graph.nodeThreeObject());
-			Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 700);
+			if (preserveSelection && selectedBook) {
+				// The graph recreates its nodes and objects; refocus the same book once they exist.
+				const id = selectedBook.id;
+				scheduleFrame(() => scheduleFrame(() => {
+					const node = (Graph.graphData().nodes as Node[]).find((n) => n.group === 'book' && n.id === id);
+					if (!node || isGridModeActive || selectedBook?.id !== id) return;
+					selectedBook = node;
+					focusGraphBook(node);
+				}));
+			} else {
+				Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 700);
+			}
 
 			// Re-enable full 3D controls
 			const controls = Graph.controls();
@@ -1940,7 +1974,7 @@
 	function toggleSort() {
 		if (!Graph || !isGridModeActive) return;
 
-		deselectBook();
+		// The re-sorted shelves present the selected book again once laid out.
 		sortIndex = (sortIndex + 1) % sortModes.length;
 		applyShelfSort();
 		updateLibraryUrl();
@@ -2199,7 +2233,7 @@
 <div bind:this={graphContainer} class="graph-container" class:ready={sceneReady}></div>
 <Nav currentPage="library" onSearchResultClick={selectSearchResult} />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
+	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode(true, true)}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
 	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
 		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
 	>
