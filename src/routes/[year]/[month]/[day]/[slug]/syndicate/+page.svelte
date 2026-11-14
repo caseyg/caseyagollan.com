@@ -5,6 +5,8 @@
  import { passkeyError, signInWithPasskey } from '$lib/passkey-login';
  import type { PageData, ActionData } from './$types';
  let { data, form }: { data: PageData; form: ActionData } = $props();
+ // Absolute, so the link works whether or not the address ends in a slash.
+ const postHref = $derived(`/${page.params.year}/${page.params.month}/${page.params.day}/${encodeURIComponent(page.params.slug ?? '')}/`);
  import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField, Toggle } from '$lib/components/ui';
  import { characterCount, mentionQuery, type SocialService, type FollowedAccount } from '$lib/social-text';
  import follows from '$lib/data/social-follows.json';
@@ -51,7 +53,7 @@
 <svelte:head><title>Syndicate post — Casey Gollan</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
 
 <Page as="main" width="wide">
- <PageHeader trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Original post', href: '../' }]} tight>
+ <PageHeader trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Original post', href: postHref }]} tight>
   <Heading level={1} size="display">Syndicate post</Heading>
  </PageHeader>
  {#if !data.signedIn}

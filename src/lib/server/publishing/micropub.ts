@@ -137,8 +137,13 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				const ms = Date.parse(`${target.date}T00:00:00Z`);
 				const dates = [target.date, new Date(ms + 86400000).toISOString().slice(0, 10), new Date(ms - 86400000).toISOString().slice(0, 10)];
 				let found: { path: string; content: string; sha: string } | undefined;
-				for (const folder of folders) for (const date of dates) {
-					const file = await store.read(`${folder}/${date}-${target.slug}.md`);
+				const candidates = folders.flatMap(folder => dates.map(date => `${folder}/${date}-${target.slug}.md`));
+				// One tree request narrows dozens of probes to the files that exist; read those together.
+				const existing = await store.paths();
+				const files = existing
+					? await Promise.all(candidates.filter(path => existing.has(path)).map(path => store.read(path)))
+					: await candidates.reduce<Promise<Awaited<ReturnType<typeof store.read>>[]>>(async (all, path) => [...await all, await store.read(path)], Promise.resolve([]));
+				for (const file of files) {
 					if (file && readDocument(file.content).properties.published?.[0]?.toString().startsWith(target.date)) {
 						if (found) throw new ProtocolError(409, 'invalid_request', 'Multiple content files share this URL');
 						found = file;

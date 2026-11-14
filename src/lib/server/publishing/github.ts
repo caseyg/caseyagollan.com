@@ -76,6 +76,19 @@ export function createGitHubStore(config: Config, fetcher: Fetcher = fetch) {
 				return target.sha;
 			} catch { throw new GitHubStoreError('unavailable'); }
 		},
+		/**
+		 * Every file path on the branch, from one Git tree request, so lookups need not probe
+		 * each folder and date. Undefined when the tree is unavailable or truncated.
+		 */
+		async paths(): Promise<Set<string> | undefined> {
+			const response = await request(`https://api.github.com/repos/${config.owner}/${config.repo}/git/trees/${config.branch.split('/').map(encodeURIComponent).join('/')}?recursive=1`, { method: 'GET' }).catch(() => undefined);
+			if (!response?.ok) return;
+			try {
+				const tree = object(await response.json());
+				if (tree.truncated !== false || !Array.isArray(tree.tree)) return;
+				return new Set(tree.tree.flatMap(entry => entry && typeof entry === 'object' && (entry as { type?: unknown }).type === 'blob' && typeof (entry as { path?: unknown }).path === 'string' ? [(entry as { path: string }).path] : []));
+			} catch { return; }
+		},
 		async read(path: string): Promise<{ path: string; sha: string; content: string } | null> {
 			validatePath(path);
 			const response = await request(`${fileUrl(path)}?ref=${encodeURIComponent(config.branch)}`, { method: 'GET' });

@@ -10,6 +10,7 @@
 
 <script lang="ts">
 	import Count from './Count.svelte';
+	import Popover from './Popover.svelte';
 
 	interface Props {
 		/** Label of the selected option, shown on the trigger. */
@@ -22,66 +23,33 @@
 	}
 
 	let { current, currentIcon, count, options, segment = false }: Props = $props();
-
-	const menuId = $props.id();
-	let isOpen = $state(false);
-	let container: HTMLElement | undefined = $state();
-
-	let trigger: HTMLButtonElement | undefined = $state();
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key !== 'Escape' || !isOpen) return;
-		isOpen = false;
-		trigger?.focus();
-	}
-
-	function handleClickOutside(event: MouseEvent) {
-		if (container && !container.contains(event.target as Node)) isOpen = false;
-	}
 </script>
 
-<svelte:window onkeydown={handleKeydown} onclick={handleClickOutside} />
-
-<div class="select-menu" class:segment bind:this={container}>
-	<button
-		bind:this={trigger}
-		type="button"
-		class="trigger"
-		onclick={() => (isOpen = !isOpen)}
-		aria-expanded={isOpen}
-		aria-controls={menuId}
-	>
+<Popover class="select-menu {segment ? 'segment' : ''}" triggerClass="trigger" panelClass="menu">
+	{#snippet trigger(open)}
 		<span class="current" title={current}>{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}{current}</span>
 		{#if count !== undefined}<Count value={count} label="{count} posts" />{/if}
-		<span class="arrow" class:open={isOpen} aria-hidden="true">▾</span>
-	</button>
-
-	{#if isOpen}
-		<ul class="menu" id={menuId}>
-			{#each options as option (option.value)}
-				<li>
-					<a
-						href={option.href}
-						class="item"
-						class:active={option.label === current}
-						aria-current={option.label === current ? 'page' : undefined}
-					>
-						<span>{#if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}{option.label}</span>
-						{#if option.count !== undefined}<Count value={option.count} />{/if}
-					</a>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-</div>
+		<span class="arrow" class:open aria-hidden="true">▾</span>
+	{/snippet}
+	<ul>
+		{#each options as option (option.value)}
+			<li>
+				<a
+					href={option.href}
+					class="item"
+					class:active={option.label === current}
+					aria-current={option.label === current ? 'page' : undefined}
+				>
+					<span>{#if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}{option.label}</span>
+					{#if option.count !== undefined}<Count value={option.count} />{/if}
+				</a>
+			</li>
+		{/each}
+	</ul>
+</Popover>
 
 <style>
-	.select-menu {
-		position: relative;
-		width: fit-content;
-	}
-
-	.trigger {
+	:global(.select-menu .trigger) {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -98,13 +66,13 @@
 		transition: background var(--duration) var(--ease);
 	}
 
-	.trigger:hover,
-	.trigger[aria-expanded='true'] {
+	:global(.select-menu .trigger:hover),
+	:global(.select-menu .trigger[aria-expanded='true']) {
 		background: var(--accent-hover);
 	}
 
 	/* Inside a segmented pill the trigger is one more segment. */
-	.segment .trigger {
+	:global(.select-menu.segment .trigger) {
 		padding: var(--segment-padding, var(--space-1) var(--space-3));
 		border-radius: 0;
 		background: none;
@@ -114,12 +82,12 @@
 		letter-spacing: inherit;
 	}
 
-	.segment .trigger:hover,
-	.segment .trigger[aria-expanded='true'] {
+	:global(.select-menu.segment .trigger:hover),
+	:global(.select-menu.segment .trigger[aria-expanded='true']) {
 		background: var(--segment-hover);
 	}
 
-	.segment .trigger:focus-visible {
+	:global(.select-menu.segment .trigger:focus-visible) {
 		outline-offset: -2px;
 	}
 
@@ -143,11 +111,7 @@
 		margin-right: var(--space-2);
 	}
 
-	.menu {
-		position: absolute;
-		top: calc(100% + var(--space-1));
-		left: 0;
-		z-index: var(--z-menu);
+	:global(.select-menu .menu) {
 		min-width: 12rem;
 		max-height: 19rem;
 		margin: 0;
@@ -164,10 +128,16 @@
 	}
 
 	@starting-style {
-		.menu {
+		:global(.select-menu .menu) {
 			opacity: 0;
 			transform: scale(0.97);
 		}
+	}
+
+	ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
 	.item {

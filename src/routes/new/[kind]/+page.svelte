@@ -9,7 +9,7 @@
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
 	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
-	import { Heading, Notice, Page, PageHeader } from '$lib/components/ui';
+	import { Heading, Notice, Page, PageHeader, Popover } from '$lib/components/ui';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -129,19 +129,21 @@
 	{:else}
 		<ComposerBar>
 			<ComposerButton variant="icon" icon="close" label="Close" href="/account" />
-			<details class="menu kinds">
-				<summary aria-label="Post type: {info.label}"><Icon name={KIND_ICONS[kind]} size={18} /> {info.label} <Icon name="chevron" size={16} /></summary>
-				<ul class="popover kind-list">
+			<Popover class="menu kinds" triggerClass="menu-trigger" panelClass="menu-panel kind-panel" label="Post type: {info.label}">
+				{#snippet trigger()}<Icon name={KIND_ICONS[kind]} size={18} /> {info.label} <Icon name="chevron" size={16} />{/snippet}
+				<!-- Full page loads: switching type must start the form from the server data. -->
+				<ul class="kind-list" data-sveltekit-reload>
 					{#each kinds as [option, details] (option)}
 						<li><a href="/new/{option}/" title={details.hint} aria-current={option === kind ? 'page' : undefined}><Icon name={KIND_ICONS[option]} size={18} /><span>{details.label}</span></a></li>
 					{/each}
 				</ul>
-			</details>
+			</Popover>
 			{#snippet actions()}
 			{#if data.draftsEnabled}
-				<details class="menu drafts">
-					<summary aria-label="Drafts ({data.drafts.length})" title="Drafts"><Icon name="drafts" size={18} /><span class="count-badge">{data.drafts.length}</span></summary>
-					<div class="popover draft-list">
+				<Popover class="menu drafts" triggerClass="menu-trigger" panelClass="menu-panel drafts-panel" align="end" label="Drafts ({data.drafts.length})" title="Drafts">
+					{#snippet trigger()}<Icon name="drafts" size={18} /><span class="count-badge">{data.drafts.length}</span>{/snippet}
+					<!-- Full page loads: opening a draft must start the form from the draft, not the current state. -->
+					<div class="draft-list" data-sveltekit-reload>
 						{#if data.draftsError}<p class="hint">{data.draftsError}</p>
 						{:else if !data.drafts.length}<p class="hint">No drafts yet. “Save draft” keeps a post in your private drafts repository.</p>
 						{:else}
@@ -159,7 +161,7 @@
 							</ul>
 						{/if}
 					</div>
-				</details>
+				</Popover>
 				<ComposerButton type="submit" form="composer" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</ComposerButton>
 			{/if}
 			<ComposerButton variant="primary" type="submit" form="composer" name="intent" value="publish" disabled={submitting || uploading > 0}>{submitting && intent === 'publish' ? 'Posting…' : 'Publish'}</ComposerButton>
@@ -339,7 +341,7 @@
 				{/snippet}
 			</ComposerToolbar>
 		</form>
-		<p class="hint footer">
+		<p class="hint footer" data-sveltekit-reload>
 			{#if data.draftsEnabled}Drafts stay in your private drafts repository and never reach the public site.{#if data.draft} Publishing removes this draft.{/if}{:else}Drafts are not configured, so posts can only be published.{/if}
 			<a href={bookmarklet} title="Drag to your bookmarks bar to bookmark the page you are reading">Bookmarklet</a>
 		</p>
@@ -353,17 +355,16 @@
 	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
 
 
-	.menu { position: relative; }
-	.menu summary { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-radius: 999px; color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); list-style: none; cursor: pointer; }
-	.menu summary::-webkit-details-marker { display: none; }
-	.menu summary:hover, .menu[open] summary { background: var(--surface-2); }
-	.drafts summary { padding: var(--space-2); color: var(--text-secondary); }
+	:global(.menu .menu-trigger) { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border: 0; border-radius: var(--radius-full); background: transparent; color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+	:global(.menu .menu-trigger:hover), :global(.menu .menu-trigger[aria-expanded='true']) { background: var(--surface-2); }
+	:global(.drafts .menu-trigger) { padding: var(--space-2); color: var(--text-secondary); }
 	.count-badge { min-width: 1em; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
-	.popover { position: absolute; z-index: 4; top: calc(100% + var(--space-1)); min-width: 17rem; max-height: 70vh; overflow: auto; margin: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.3); list-style: none; }
-	.kinds .popover { left: 0; display: grid; grid-template-columns: repeat(2, minmax(8.5rem, 1fr)); min-width: 0; }
+	:global(.menu .menu-panel) { min-width: 17rem; margin: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.3); }
+	:global(.menu .kind-panel) { min-width: 0; }
+	ul.kind-list, .draft-list ul { margin: 0; padding: 0; list-style: none; }
+	ul.kind-list { display: grid; grid-template-columns: repeat(2, minmax(8.5rem, 1fr)); }
 	.kind-list a { align-items: center; }
-	.drafts .popover { right: 0; width: min(22rem, 85vw); }
-	.popover ul { margin: 0; padding: 0; list-style: none; }
+	:global(.menu .drafts-panel) { width: min(22rem, 85vw); }
 	.kind-list a, .draft-list a { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); text-decoration: none; }
 	.kind-list a:hover, .kind-list a[aria-current='page'], .draft-list a:hover { background: var(--surface-2); }
 	.kind-list span, .draft-list a span { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
@@ -427,5 +428,5 @@
 	.hint { margin: var(--space-1) 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
 	.footer { margin-top: var(--space-4); font-size: var(--fs-xs); }
 	.footer a { margin-left: var(--space-2); }
-	@media (max-width: 30rem) { .menu summary { padding-left: var(--space-2); } }
+	@media (max-width: 30rem) { :global(.menu .menu-trigger) { padding-left: var(--space-2); } }
 </style>

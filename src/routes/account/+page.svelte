@@ -58,7 +58,8 @@
 	}
 	async function refresh() {
 		session = await api<Session>('/auth/session');
-		rememberOwner(session.authenticated);
+		// Only signing out clears the owner hint; an expired session keeps Edit links visible.
+		if (session.authenticated) rememberOwner(true);
 		if (session.authenticated) {
 			if (returnToPage()) return;
 			[tokens, credentials] = await Promise.all([api<Token[]>('/auth/tokens'), api<Credential[]>('/auth/credentials')]);
@@ -193,7 +194,7 @@
 				<div class="actions"><Button disabled={busy} onclick={() => run(async () => { await navigator.clipboard.writeText(newToken); notice = 'Token copied.'; })}>Copy token</Button>
 				<Button variant="quiet" disabled={busy} onclick={() => { newToken = ''; }}>Dismiss token</Button></div></div>{/if}
 		</Section>
-		<Button disabled={busy} onclick={() => run(async () => { await api('/auth/logout', { csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'You are signed out.'; })}>Sign out</Button>
+		<Button disabled={busy} onclick={() => run(async () => { await api('/auth/logout', { csrf: session?.csrf }); rememberOwner(false); newToken = ''; await refresh(); notice = 'You are signed out.'; })}>Sign out</Button>
 	{/if}
 </Page>
 

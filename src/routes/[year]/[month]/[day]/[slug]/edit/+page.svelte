@@ -1,121 +1,78 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import { rememberOwner } from '$lib/owner';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
-	import Icon, { type IconName } from '$lib/components/composer/ComposerIcon.svelte';
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
 	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
-	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
-	import FrontmatterProperties from '$lib/components/editor/FrontmatterProperties.svelte';
 	import { Heading, Notice, Page, PageHeader } from '$lib/components/ui';
+	import PostEditor from './PostEditor.svelte';
 	import type { PageData, ActionData } from './$types';
-	import type { EditorFields } from '$lib/server/publishing/post-editor';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// Content folders, named and drawn as in the composer's post-type menu.
-	const KINDS: Record<string, [string, IconName]> = {
-		notes: ['note', 'note'], articles: ['article', 'article'], replies: ['reply', 'reply'], bookmarks: ['bookmark', 'bookmark'], likes: ['like', 'heart'],
-		reposts: ['repost', 'repost'], photos: ['photo', 'image'], videos: ['video', 'video'], events: ['event', 'calendar'], reviews: ['review', 'star'],
-		itineraries: ['itinerary', 'plane'], foods: ['food', 'food'], drinks: ['drink', 'drink'], media: ['post', 'image']
-	};
-	// A failed save keeps what was typed; otherwise show the stored post.
-	const initial = untrack(() => (form && 'fields' in form ? form.fields as EditorFields : undefined) ?? (data.signedIn ? data.fields : undefined));
-	const [kindLabel, kindIcon] = $derived<[string, IconName]>((data.signedIn && data.path ? KINDS[data.path.split('/')[0]] : undefined) ?? ['post', 'note']);
-	const reaction = $derived(!!initial?.properties && ('like-of' in initial.properties || 'repost-of' in initial.properties));
-	// Native saves reload the page, so these start from the stored post each time.
-	let name = $state(untrack(() => initial?.name ?? ''));
-	let content = $state(untrack(() => initial?.content ?? ''));
-	let format = $state(untrack(() => initial?.format ?? 'markdown'));
-	let status = $state<'published' | 'draft'>(untrack(() => initial?.status ?? 'published'));
-	let properties = $state<Record<string, string[]>>(untrack(() => structuredClone(initial?.properties ?? {})));
-	let showOptions = $state(untrack(() => initial?.format !== 'markdown'));
-	// The textarea stays the form field; the rich editor is a view over it, loaded in the browser only.
-	let Editor = $state<typeof import('$lib/components/MarkdownEditor.svelte').default>();
-	let source = $state(false);
-	// Set when the rich editor would rewrite Markdown it cannot represent exactly.
-	let lossy = $state(false);
-	const rich = $derived(!!Editor && format === 'markdown' && !source);
-	let saving = $state(false);
+	// Absolute, so links work whether or not the address ends in a slash.
+	const base = $derived(`/${page.params.year}/${page.params.month}/${page.params.day}/${encodeURIComponent(page.params.slug ?? '')}/`);
 	onMount(() => {
-		rememberOwner(data.signedIn);
-		if (data.signedIn) void Promise.all([import('$lib/components/MarkdownEditor.svelte'), import('$lib/markdown-editor')]).then(([module, markdown]) => {
-			lossy = format === 'markdown' && !!content && !markdown.roundTrips(content);
-			source = lossy;
-			Editor = module.default;
-		}).catch(() => { /* The Markdown textarea remains usable. */ });
+		if (!data.signedIn) return;
+		rememberOwner(true);
+		// Fetch the rich editor while the post is still loading.
+		void import('$lib/components/MarkdownEditor.svelte').catch(() => undefined);
+		void import('$lib/markdown-editor').catch(() => undefined);
 	});
 </script>
 
-<svelte:head><title>Edit {kindLabel} — Casey Gollan</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
+<svelte:head><title>Edit post — Casey Gollan</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
 
 <Page as="main" class="compose-page">
-	{#if !data.signedIn || !initial}
-		<PageHeader trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Original post', href: '../' }]} tight><Heading level={1} size="display">Edit post</Heading></PageHeader>
+	{#if !data.signedIn}
+		<PageHeader trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Original post', href: base }]} tight><Heading level={1} size="display">Edit post</Heading></PageHeader>
 		<OwnerSignIn message="Sign in to edit this post." />
 	{:else}
-		<ComposerBar>
-			<ComposerButton variant="icon" icon="close" label="Back to the post" href="../" />
-			<span class="kind"><Icon name={kindIcon} size={18} /> Edit {kindLabel}</span>
-			{#snippet actions()}
-				{#if data.github}<ComposerButton variant="icon" icon="github" label="Open on GitHub" href={data.github} target="_blank" rel="noopener noreferrer" />{/if}
-				{#if !reaction}<ComposerButton variant="icon" icon="share" label="Syndicate" href="../syndicate/" />{/if}
-				<ComposerButton variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</ComposerButton>
-			{/snippet}
-		</ComposerBar>
-		{#if form?.message}<Notice tone={form && 'saved' in form ? 'info' : 'error'}>{form.message}</Notice>{/if}
-		<form id="editor" class="composer" method="POST" onsubmit={() => { saving = true; }}>
-			<input type="hidden" name="csrf" value={data.csrf} />
-			<input type="hidden" name="revision" value={data.revision} />
-			{#if !reaction}
-				<input class="title" class:small={!name && kindLabel !== 'article'} name="name" bind:value={name} placeholder={kindLabel === 'article' ? 'Title' : 'Title (optional)'} aria-label="Title" autocomplete="off" />
-			{/if}
-			<FrontmatterProperties bind:properties bind:status readOnly={data.readOnly} published={data.published} updated={data.updated} />
-			{#if rich && Editor}
-				<div class="rich"><Editor bind:value={content} label="Content" bare /></div>
-			{/if}
-			<div hidden={rich}>
-				<textarea class="body" class:mono={format !== 'text'} name="content" bind:value={content} placeholder={reaction ? 'Add a comment (optional)' : 'Write something'} aria-label="Content" rows={reaction ? 3 : 8}></textarea>
+		{#await data.editor}
+			<ComposerBar>
+				<ComposerButton variant="icon" icon="close" label="Back to the post" href={base} />
+				<span class="kind">Edit post</span>
+				{#snippet actions()}<ComposerButton variant="primary" disabled>Save</ComposerButton>{/snippet}
+			</ComposerBar>
+			<div class="skeleton" role="status" aria-live="polite">
+				<span class="visually-hidden">Loading the post from GitHub…</span>
+				<div class="bar"></div>
+				<div class="line title"></div>
+				<div class="line label"></div>
+				{#each [62, 48, 74] as width (width)}<div class="row"><div class="line key"></div><div class="line" style:width="{width}%"></div></div>{/each}
+				<div class="line body"></div>
+				<div class="line body" style:width="88%"></div>
+				<div class="line body" style:width="54%"></div>
 			</div>
-			{#if data.convertedFromHtml}<p class="hint">This post was stored as HTML. It opens as Markdown, and saving stores it as Markdown.</p>
-			{:else if format === 'html'}<p class="hint">This post uses HTML that has no Markdown equivalent, so it stays HTML.</p>{/if}
-			{#if lossy && Editor && format === 'markdown'}<p class="hint">This post uses Markdown the rich text editor would rewrite, so it opened as source.</p>{/if}
-			<div class="panel options" hidden={!showOptions}>
-				<label class="mini">Format<select name="format" bind:value={format}><option value="text">Plain text</option><option value="markdown">Markdown</option><option value="html">HTML</option></select></label>
-				{#if Editor && format === 'markdown'}<label class="check"><input type="checkbox" bind:checked={source} /> Edit Markdown source</label>{/if}
-			</div>
-			<ComposerToolbar label="Post options">
-				<ComposerButton variant="icon" icon="sliders" label="Format" pressed={showOptions} onclick={() => { showOptions = !showOptions; }} />
-				{#snippet end()}<span class="count">{content.length || ''}</span>{/snippet}
-			</ComposerToolbar>
-		</form>
-		<p class="hint footer">
-			The date and address of a post stay fixed.
-			{#if data.photos}{data.photos} attached {data.photos === 1 ? 'photo stays' : 'photos stay'} as {data.photos === 1 ? 'it is' : 'they are'}.{/if}
-			Drafts leave the public site, but their source stays visible in the content repository{#if data.github}, where you can <a href={data.github} target="_blank" rel="noopener noreferrer">edit the file directly</a>{/if}.
-		</p>
+		{:then editor}
+			{#if !('revision' in editor)}
+				<ComposerBar>
+					<ComposerButton variant="icon" icon="close" label="Back to the post" href={base} />
+					<span class="kind">Edit post</span>
+				</ComposerBar>
+				<Notice tone="error">{editor.error}</Notice>
+			{:else}
+				<PostEditor {editor} csrf={data.csrf} form={form as never} {base} />
+			{/if}
+		{/await}
 	{/if}
 </Page>
 
 <style>
 	:global(.compose-page) { max-width: 40rem; }
-	[hidden] { display: none !important; }
-	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
-	.kind { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2); color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
-	.composer { display: flex; flex-direction: column; gap: var(--space-2); }
-	input, select, textarea { font: inherit; color: var(--text-primary); }
-	input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
-	.title, .body { width: 100%; box-sizing: border-box; padding: 0; border: 0; background: transparent; outline: none; }
-	.title { font-size: var(--fs-2xl); font-weight: var(--fw-semibold); line-height: var(--lh-tight); letter-spacing: var(--tracking-tight); }
-	.title.small { font-size: var(--fs-lg); font-weight: var(--fw-regular); }
-	.body { min-height: 6rem; resize: none; font-size: var(--fs-lg); line-height: var(--lh-normal); field-sizing: content; }
-	.body.mono { font-family: var(--font-mono); font-size: var(--fs-base); }
-	.rich { margin: var(--space-1) 0; }
-	.panel.options { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); align-items: end; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-	.mini { display: flex; flex-direction: column; gap: var(--space-1); color: var(--text-muted); font-size: var(--fs-xs); }
-	.mini select { box-sizing: border-box; width: 100%; padding: 0.4rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-sunken); font-size: var(--fs-sm); }
-	.check { display: flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--fs-sm); }
-	.count { min-width: 2.5rem; color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
-	.hint { margin: var(--space-1) 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
-	.footer { margin-top: var(--space-4); font-size: var(--fs-xs); }
+	.kind { padding: var(--space-1) var(--space-2); color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
+	.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+	.skeleton { position: relative; display: flex; flex-direction: column; gap: var(--space-3); }
+	.bar { position: absolute; top: calc(-1 * var(--space-3)); left: 0; height: 2px; width: 30%; border-radius: var(--radius-full); background: var(--text-primary); animation: progress 1.4s var(--ease) infinite; }
+	.line { height: 0.9rem; width: 100%; border-radius: var(--radius-sm); background: var(--surface-2); animation: pulse 1.4s ease-in-out infinite; }
+	.title { height: 2rem; width: 55%; }
+	.label { width: 6rem; height: 0.7rem; margin-top: var(--space-2); }
+	.row { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr; gap: var(--space-2); }
+	.key { width: 70%; }
+	.body { height: 1.1rem; }
+	.line.body:first-of-type { margin-top: var(--space-4); }
+	@keyframes pulse { 50% { opacity: 0.45; } }
+	@keyframes progress { from { left: 0; width: 10%; } 50% { width: 35%; } to { left: 100%; width: 10%; } }
+	@media (prefers-reduced-motion: reduce) { .line, .bar { animation: none; } }
 </style>
