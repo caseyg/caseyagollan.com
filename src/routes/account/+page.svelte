@@ -6,6 +6,7 @@
 	import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { passkeyError, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
+	import { rememberOwner } from '$lib/owner';
 
 	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean };
 	type Request = { clientId: string; redirectUri: string; scope: string[] };
@@ -57,6 +58,7 @@
 	}
 	async function refresh() {
 		session = await api<Session>('/auth/session');
+		rememberOwner(session.authenticated);
 		if (session.authenticated) {
 			if (returnToPage()) return;
 			[tokens, credentials] = await Promise.all([api<Token[]>('/auth/tokens'), api<Credential[]>('/auth/credentials')]);

@@ -1,3 +1,4 @@
+import { rememberOwner } from './owner';
 import { startAuthentication, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 
 /** Only return to local pages, including their query and fragment. */
@@ -31,4 +32,5 @@ export async function signInWithPasskey(): Promise<void> {
  const challenge = await post<{ id: string; options: PublicKeyCredentialRequestOptionsJSON }>('/auth/passkey/login/options', {});
  const response = await startAuthentication({ optionsJSON: challenge.options });
  await post('/auth/passkey/login/verify', { id: challenge.id, response });
+ rememberOwner(true);
 }

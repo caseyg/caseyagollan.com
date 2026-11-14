@@ -159,7 +159,11 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				const properties: Properties = { ...doc.properties };
 				delete properties.syndicationTargets;
 				if (doc.channel) properties['mp-channel'] = [doc.channel];
-				if (!properties.content && doc.body) properties.content = [{ html: sanitizePublishingHtml(marked.parse(doc.body, { async: false })) }];
+				// Legacy Markdown bodies are rendered for clients unless the editor asks for the source.
+				if (!properties.content && doc.body) {
+					if (url.searchParams.get('p3k-content-type') === 'text/markdown') Object.assign(properties, { content: [doc.body], 'p3k-content-type': ['text/markdown'] });
+					else properties.content = [{ html: sanitizePublishingHtml(marked.parse(doc.body, { async: false })) }];
+				}
 				const filter = url.searchParams.getAll('properties[]');
 				return json({ ...(!filter.length ? { type: [doc.type] } : {}), properties: filter.length ? Object.fromEntries(Object.entries(properties).filter(([key]) => filter.includes(key))) : properties }, 200, { ETag: `"${file.sha}"` });
 			}

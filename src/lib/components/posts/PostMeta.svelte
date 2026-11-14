@@ -4,6 +4,8 @@
 	import WebmentionCounts from '$lib/components/WebmentionCounts.svelte';
 	import { POST_TYPE_PLURALS } from '$lib/posts-types';
 	import { formatRelativeDate, formatAbsoluteDate } from '$lib/utils/formatDate';
+	import { onMount } from 'svelte';
+	import { ownerHint } from '$lib/owner';
 
 	interface Props {
 		type: string;
@@ -28,6 +30,11 @@
 	}
 
 	const categories = $derived(getCategories(category));
+
+	// Pages are static, so the owner's edit link appears only after hydration.
+	let owner = $state(false);
+	onMount(() => { owner = ownerHint(); });
+	const editHref = $derived(owner && /^\/\d{4}\/\d{2}\/\d{2}\/[^/]+\/$/.test(permalink) ? `${permalink}edit/` : undefined);
 	const activityTypes = $derived(indexActivities?.filter((activity, i, all) => all.findIndex(other => other.type === activity.type) === i));
 
 	function getTypePlural(t: string): string {
@@ -81,6 +88,7 @@
 		{#each categories as cat (cat)}
 			<Chip href="/tag/{cat.toLowerCase()}/" class="p-category" active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</Chip>
 		{/each}
+		{#if editHref}<Chip href={editHref} class="edit-post" rel="nofollow" title="Edit this post"><span aria-hidden="true">✎</span> Edit</Chip>{/if}
 	</div>
 	{#if showInteractions}
 		<div class="meta-group meta-secondary">
