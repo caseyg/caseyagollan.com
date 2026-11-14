@@ -107,11 +107,16 @@
 	.segment .trigger {
 		padding: var(--segment-padding, var(--space-1) var(--space-3));
 		border-radius: 0;
-		background: var(--accent-hover);
+		background: none;
 		font-size: inherit;
 		font-weight: inherit;
 		line-height: inherit;
 		letter-spacing: inherit;
+	}
+
+	.segment .trigger:hover,
+	.segment .trigger[aria-expanded='true'] {
+		background: var(--segment-hover);
 	}
 
 	.segment .trigger:focus-visible {
@@ -150,7 +155,7 @@
 		overflow-y: auto;
 		list-style: none;
 		border-radius: var(--radius-sm);
-		background: var(--accent);
+		background: var(--segment);
 		box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
 		scrollbar-width: thin;
 		/* Grow out of the trigger it belongs to. */
@@ -178,9 +183,13 @@
 		transition: background var(--duration) var(--ease);
 	}
 
-	.item:hover,
+	.item:hover {
+		background: var(--segment-hover);
+	}
+
+	/* The page being viewed takes the full accent, as it does in the trail. */
 	.item.active {
-		background: var(--accent-hover);
+		background: var(--segment-current);
 	}
 
 	.item:focus-visible {

@@ -39,7 +39,7 @@
 	}
 
 	/* Where the corner navigation would sit over the page's first row, start below it instead. */
-	@media (max-width: 1020px) {
+	@media (max-width: 1360px) {
 		:global(body:has(.site-nav)) .page {
 			padding-top: calc(var(--nav-lane) + var(--space-4));
 		}

@@ -88,10 +88,19 @@
 	/* A decisive ease-out for things that enter or respond to a press. */
 	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
-	/* Site navigation: square tiles pinned to the top-right corner, and the lane they occupy. */
+	/*
+	 * Button groups: site navigation, page trails and view switches. Segments rest on the lighter
+	 * blue so the one being viewed can take the full accent.
+	 */
+	--segment: var(--accent-hover);
+	--segment-hover: rgb(40 40 255);
+	--segment-current: var(--accent);
+	--segment-divider: rgb(255 255 255 / 0.3);
+
+	/* Site navigation: a button group pinned to the top-right corner, and the lane it occupies. */
 	--nav-inset: 5px;
-	--nav-tile: 3rem;
-	--nav-lane: calc(var(--nav-inset) + var(--nav-tile));
+	--nav-height: calc(var(--fs-sm) * var(--lh-normal) + 2 * var(--space-1));
+	--nav-lane: calc(var(--nav-inset) + var(--nav-height));
 
 	--focus-ring: 2px solid var(--text-primary);
 	--z-sticky: 10;
@@ -130,9 +139,10 @@ body {
 	outline-offset: 2px;
 }
 
+/* On a phone the navigation shows emoji alone, so its segments grow into comfortable touch targets. */
 @media (max-width: 600px) {
 	:root {
-		--nav-tile: 2.75rem;
+		--nav-height: 2.5rem;
 	}
 }
 

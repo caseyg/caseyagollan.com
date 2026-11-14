@@ -4,7 +4,7 @@ import Nav from './Nav.svelte';
 const meta = { title: 'Site/Nav', component: Nav, args: { currentPage: 'home' } } satisfies Meta<typeof Nav>;
 export default meta;
 type Story = StoryObj<typeof meta>;
-/** Every tile is always present; the section being viewed is marked. */
+/** Every segment is always present; the section being viewed takes the full accent. */
 export const Home: Story = {};
 export const Library: Story = { args: { currentPage: 'library' } };
 export const Posts: Story = { args: { currentPage: 'posts' } };

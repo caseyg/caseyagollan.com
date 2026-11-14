@@ -125,37 +125,56 @@
 		--pf-result-title-font-size: 22px;
 		--pf-result-excerpt-font-size: 16px;
 		display: flex;
-		flex: 0 0 var(--nav-tile);
-		width: var(--nav-tile);
-		height: var(--nav-tile);
 	}
 	/* The unupgraded modal's children must never participate in the nav layout. */
 	pagefind-modal:not(:defined) { display: none; }
 	pagefind-modal-trigger {
-		--pf-background: var(--accent);
-		--pf-border: var(--accent);
-		--pf-border-focus: var(--accent-hover);
-		width: var(--nav-tile);
-		height: var(--nav-tile);
-		flex: none;
+		--pf-background: var(--segment);
+		--pf-border: transparent;
+		--pf-border-focus: transparent;
+		display: flex;
 	}
-	pagefind-modal-trigger:hover { --pf-background: var(--accent-hover); }
-	/* Pagefind's generated styles have elevated specificity and some hardcoded radii. */
-	.site-search :global(.pf-trigger-btn) { justify-content: center !important; width: 100% !important; height: 100% !important; min-width: 0 !important; padding: 0 !important; transition: background-color var(--duration) var(--ease), transform 160ms var(--ease-out) !important; }
-	.site-search :global(.pf-trigger-btn:active) { transform: scale(0.96); }
+	pagefind-modal-trigger:hover { --pf-background: var(--segment-hover); }
+	/* Pagefind's generated styles have elevated specificity and some hardcoded radii. The trigger is the nav's first segment. */
+	.site-search :global(.pf-trigger-btn) {
+		display: flex !important;
+		align-items: center !important;
+		justify-content: center !important;
+		gap: var(--space-2) !important;
+		width: auto !important;
+		min-width: 0 !important;
+		height: var(--nav-height) !important;
+		padding: 0 var(--space-3) !important;
+		border: 0 !important;
+		border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+		color: var(--text-primary) !important;
+		font-family: inherit !important;
+		font-size: var(--fs-sm) !important;
+		font-weight: var(--fw-medium) !important;
+		line-height: var(--lh-normal) !important;
+		letter-spacing: 0.01em !important;
+		cursor: pointer;
+		transition: background-color var(--duration) var(--ease) !important;
+	}
+	.site-search :global(.pf-trigger-btn::after) { content: 'Search'; }
+	.site-search :global(.pf-trigger-btn > :not(.pf-trigger-icon)) { display: none !important; }
+	.site-search :global(.pf-trigger-btn:focus-visible) { outline: var(--focus-ring) !important; outline-offset: -2px !important; }
 	.site-search :global(.pf-trigger-icon) {
 		width: auto !important;
 		height: auto !important;
 		background: none !important;
 		mask-image: none !important;
 		-webkit-mask-image: none !important;
-		font-size: calc(var(--nav-tile) * 0.667) !important;
-		line-height: 1 !important;
+		font-size: inherit !important;
+		line-height: inherit !important;
+	}
+	@media (max-width: 600px) {
+		.site-search :global(.pf-trigger-btn) { font-size: var(--fs-lg) !important; }
+		.site-search :global(.pf-trigger-btn::after) { content: none; }
 	}
 	.site-search :global(.pf-trigger-icon::before) { content: '🔍'; }
 	.site-search :global(dialog),
-	.site-search :global(dialog *),
-	.site-search :global(.pf-trigger-btn) { border-radius: 0 !important; }
+	.site-search :global(dialog *) { border-radius: 0 !important; }
 	/* Structure stays quiet; blue is reserved for actions and selected states. */
 	.site-search :global(.pf-modal-header) { display: block !important; padding: 28px 32px 20px !important; position: relative; }
 	.search-heading { margin-bottom: 20px; color: var(--text-primary); }

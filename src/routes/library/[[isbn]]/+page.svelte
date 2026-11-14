@@ -2241,7 +2241,7 @@
 		padding: var(--space-1) var(--space-3);
 		border: none;
 		border-radius: var(--radius-sm);
-		background-color: var(--accent);
+		background-color: var(--segment);
 		color: var(--text-primary);
 		font: inherit;
 		font-size: var(--fs-sm);
@@ -2261,12 +2261,16 @@
 	.view-switch button:last-child {
 		border-top-left-radius: 0;
 		border-bottom-left-radius: 0;
-		box-shadow: inset 1px 0 0 rgb(255 255 255 / 0.3);
+		box-shadow: inset 1px 0 0 var(--segment-divider);
 	}
 
-	.controls button:hover,
+	.controls button:hover {
+		background-color: var(--segment-hover);
+	}
+
+	/* The view on screen takes the full accent, as the current segment does everywhere else. */
 	.controls button[aria-pressed='true'] {
-		background-color: var(--accent-hover);
+		background-color: var(--segment-current);
 	}
 
 	.controls button:focus-visible {

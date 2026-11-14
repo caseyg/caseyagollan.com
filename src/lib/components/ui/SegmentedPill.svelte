@@ -83,7 +83,25 @@
 	}
 
 	.segment + .segment {
-		box-shadow: inset 1px 0 0 rgb(255 255 255 / 0.3);
+		box-shadow: inset 1px 0 0 var(--segment-divider);
+	}
+
+	/* A trail is a button group: segments rest lighter and the page being viewed takes the full accent. */
+	.pill--md {
+		background: none;
+	}
+
+	.pill--md .segment {
+		background: var(--segment);
+	}
+
+	.pill--md .segment:hover {
+		background: var(--segment-hover);
+	}
+
+	.pill--md .segment.current,
+	.pill--md .segment--menu {
+		background: var(--segment-current);
 	}
 
 	.segment:hover,
