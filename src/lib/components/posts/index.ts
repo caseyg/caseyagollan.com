@@ -14,3 +14,5 @@ export { default as PostDetails } from './PostDetails.svelte';
 export { default as NoteCard } from './NoteCard.svelte';
 export { default as BookmarkTitle } from './BookmarkTitle.svelte';
 export { default as SocialCard } from './SocialCard.svelte';
+export { default as PostTypeFilter } from './PostTypeFilter.svelte';
+export { default as FilterablePostFeed } from './FilterablePostFeed.svelte';

@@ -1,17 +1,9 @@
 import { getAllPosts, getPostsByType, getPostsByDay, POST_TYPES, POST_TYPE_PLURALS } from '$lib/posts';
 import { error } from '@sveltejs/kit';
+import { TYPE_ICONS } from '$lib/posts-filter';
+import { feedTypeOptions } from '$lib/server/posts-feed';
 import type { PageServerLoad } from './$types';
 
-const TYPE_ICONS: Record<string, string> = {
-	like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
-	note: '📝',
-	article: '📄',
-	bookmark: '🔖',
-	photo: '📷',
-	video: '🎬',
-	reply: '💬',
-	media: '🎵'
-};
 
 export const load: PageServerLoad = async ({ params }) => {
 	const { type } = params;
@@ -38,17 +30,18 @@ export const load: PageServerLoad = async ({ params }) => {
 			label: capitalizeFirst(POST_TYPE_PLURALS[t]),
 			href: `/type/${POST_TYPE_PLURALS[t].toLowerCase()}/`,
 			count: typePosts.length,
-			icon: TYPE_ICONS[t] || '📌'
+			icon: TYPE_ICONS[t as keyof typeof TYPE_ICONS] || '📌'
 		};
 	}).filter((t) => t.count > 0);
 
 	return {
 		type: singularType,
-		typeIcon: TYPE_ICONS[singularType] || '📌',
+		typeIcon: TYPE_ICONS[singularType as keyof typeof TYPE_ICONS] || '📌',
 		typePlural: POST_TYPE_PLURALS[singularType],
 		postsByDay: postsByDayArray,
 		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),
-		allTypes
+		allTypes,
+		typeOptions: await feedTypeOptions()
 	};
 };
 
