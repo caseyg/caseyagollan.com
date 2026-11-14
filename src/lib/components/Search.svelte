@@ -135,7 +135,7 @@
 		display: flex;
 	}
 	pagefind-modal-trigger:hover { --pf-background: var(--segment-hover); }
-	/* Pagefind's generated styles have elevated specificity and some hardcoded radii. The trigger is the nav's first segment. */
+	/* Pagefind's generated styles have elevated specificity and some hardcoded radii. The trigger is the nav's last segment. */
 	.site-search :global(.pf-trigger-btn) {
 		display: flex !important;
 		align-items: center !important;
@@ -146,7 +146,8 @@
 		height: var(--nav-height) !important;
 		padding: 0 var(--space-3) !important;
 		border: 0 !important;
-		border-radius: var(--radius-sm) 0 0 var(--radius-sm) !important;
+		border-radius: 0 var(--radius-sm) var(--radius-sm) 0 !important;
+		box-shadow: inset 1px 0 0 var(--segment-divider) !important;
 		color: var(--text-primary) !important;
 		font-family: inherit !important;
 		font-size: var(--fs-sm) !important;

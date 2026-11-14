@@ -38,10 +38,26 @@
 		font-size: var(--fs-base);
 	}
 
-	/* Where the corner navigation would sit over the page's first row, start below it instead. */
+	/*
+	 * Where the pinned trail and navigation would sit over the reading column, the page starts below
+	 * them and a band of the ground colour keeps scrolling content from showing through their row.
+	 */
 	@media (max-width: 1360px) {
-		:global(body:has(.site-nav)) .page {
-			padding-top: calc(var(--nav-lane) + var(--space-4));
+		:global(body:has(.site-nav, .page-header)) {
+			--sticky-top: calc(var(--nav-lane) + var(--nav-inset));
+		}
+
+		:global(body:has(.site-nav, .page-header)) .page {
+			padding-top: calc(var(--nav-lane) + var(--space-5));
+		}
+
+		:global(body:has(.site-nav, .page-header)) .page::before {
+			content: '';
+			position: fixed;
+			inset: 0 0 auto;
+			z-index: calc(var(--z-sticky) + 1);
+			height: var(--sticky-top);
+			background: var(--bg-primary);
 		}
 	}
 

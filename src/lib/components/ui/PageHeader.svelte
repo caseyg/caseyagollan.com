@@ -19,8 +19,8 @@
 	let { trail, title, children, actions, description, tight = false }: Props = $props();
 </script>
 
-<header class="page-header" class:tight>
-	<div class="bar">
+<header class="page-header" class:tight class:bare={!actions && !children && !description}>
+	<div class="bar" class:solo={!actions}>
 		<nav class="trail" aria-label="Breadcrumb">
 			<SegmentedPill segments={trail} size="md" />
 		</nav>
@@ -68,6 +68,28 @@
 		display: flex;
 		justify-self: start;
 		align-self: start;
+	}
+
+	/*
+	 * Beyond a phone the trail leaves the page and is pinned to the top-left corner, opposite the
+	 * site navigation: where you are on the left, where you can go on the right.
+	 */
+	@media (min-width: 601px) {
+		.trail {
+			position: fixed;
+			top: var(--nav-inset);
+			left: var(--nav-inset);
+			z-index: var(--z-nav);
+		}
+
+		/* With the trail pinned away and no control beside it, the row takes up no space. */
+		.bar.solo {
+			display: contents;
+		}
+
+		.page-header.bare {
+			margin-bottom: 0;
+		}
 	}
 
 	.description {

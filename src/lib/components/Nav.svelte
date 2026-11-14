@@ -21,13 +21,14 @@
 </script>
 
 <nav class="site-nav" aria-label="Site">
-	<Search onResultClick={onSearchResultClick} />
 	{#each sections as section (section.id)}
 		<a href={section.href} class="segment" aria-label={section.label} aria-current={currentPage === section.id ? 'true' : undefined}>
 			<span aria-hidden="true">{section.icon}</span>
 			<span class="label" aria-hidden="true">{section.label}</span>
 		</a>
 	{/each}
+	<!-- Search is an action, not a place, so it closes the row in the corner itself. -->
+	<Search onResultClick={onSearchResultClick} />
 </nav>
 
 <style>
@@ -52,15 +53,18 @@
 		height: var(--nav-height);
 		padding: 0 var(--space-3);
 		background-color: var(--segment);
-		box-shadow: inset 1px 0 0 var(--segment-divider);
 		color: var(--text-primary);
 		text-decoration: none;
 		white-space: nowrap;
 		transition: background-color var(--duration) var(--ease);
 	}
 
-	.segment:last-child {
-		border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	.segment:first-child {
+		border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+	}
+
+	.segment + .segment {
+		box-shadow: inset 1px 0 0 var(--segment-divider);
 	}
 
 	/* You are here: the full accent. */
