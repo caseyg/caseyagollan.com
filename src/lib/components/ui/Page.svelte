@@ -38,6 +38,13 @@
 		font-size: var(--fs-base);
 	}
 
+	/* Where the corner navigation would sit over the page's first row, start below it instead. */
+	@media (max-width: 1020px) {
+		:global(body:has(.site-nav)) .page {
+			padding-top: calc(var(--nav-lane) + var(--space-4));
+		}
+	}
+
 	@media (max-width: 600px) {
 		.page {
 			padding: var(--space-5) var(--space-4) var(--space-6);

@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, SegmentedPill, TextField } from '.';
+	import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '.';
 	import PostFeed from '../posts/PostFeed.svelte';
 	import { note, article, bookmark } from '$lib/storybook/fixtures';
 
@@ -9,16 +9,17 @@
 
 <Story name="ReadingPage">
 	<Page>
-		<PageHeader backHref="/2026/" backText="2026">
-			<SegmentedPill size="lg" label="Date archive" segments={[{ label: '2026', href: '/2026/' }, { label: '01', href: '/2026/01/', current: true, count: 3 }]} />
-		</PageHeader>
+		<PageHeader
+			title="Posts from January 2026"
+			trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: '2026', href: '/2026/' }, { label: '01', href: '/2026/01/', current: true, count: 3 }]}
+		/>
 		<PostFeed postsByDay={[['2026-01-10', [note, { ...article, slug: 'a' }]], ['2026-01-08', [{ ...bookmark, slug: 'b' }]]]} />
 	</Page>
 </Story>
 
 <Story name="FormPage">
 	<Page as="main" width="wide">
-		<PageHeader backHref="/" backText="Casey Gollan" tight>
+		<PageHeader trail={[{ label: 'Casey Gollan', href: '/', icon: '👋' }]} tight>
 			<Heading level={1} size="display">Account</Heading>
 		</PageHeader>
 		<Notice>You are signed in.</Notice>

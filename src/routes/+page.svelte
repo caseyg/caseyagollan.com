@@ -694,6 +694,8 @@
 
     .pane-bio {
         padding: var(--spacing-md);
+        /* Start the bio beneath the corner navigation it shares this column with. */
+        padding-top: calc(var(--nav-lane) + var(--space-4));
         overflow-y: auto;
         transition: box-shadow 0.6s ease;
     }
@@ -895,6 +897,7 @@
 
         .pane-bio {
             max-height: 40vh;
+            padding-top: var(--spacing-md);
         }
 
         .scroll-hint {

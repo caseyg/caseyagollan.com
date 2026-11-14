@@ -1,7 +1,6 @@
 import { getAllPosts, getPostsByType, getPostsByDay, POST_TYPES, POST_TYPE_PLURALS } from '$lib/posts';
 import { error } from '@sveltejs/kit';
 import { TYPE_ICONS } from '$lib/posts-filter';
-import { feedTypeOptions } from '$lib/server/posts-feed';
 import type { PageServerLoad } from './$types';
 
 
@@ -40,8 +39,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		typePlural: POST_TYPE_PLURALS[singularType],
 		postsByDay: postsByDayArray,
 		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),
-		allTypes,
-		typeOptions: await feedTypeOptions()
+		allTypes
 	};
 };
 

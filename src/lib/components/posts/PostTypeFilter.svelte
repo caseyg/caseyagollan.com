@@ -76,30 +76,20 @@
 {/if}
 
 <style>
-	.type-filter {
-		margin-bottom: var(--space-4);
-	}
-
-	/* Clear the fixed corner navigation once it overlaps the reading column. */
-	@media (max-width: 1020px) {
-		.type-filter {
-			margin-top: var(--space-6);
-		}
-	}
-
+	/* Sits in a page header's row: the toggle at the end of the trail's line, the pills beneath both. */
 	summary {
 		display: flex;
 		align-items: center;
-		justify-content: center;
 		gap: var(--space-2);
 		width: fit-content;
-		margin: 0 auto;
+		margin-left: auto;
 		padding: var(--space-1) var(--space-3);
-		border-radius: var(--radius-full);
+		border-radius: var(--radius-sm);
 		color: var(--text-secondary);
-		font-size: var(--fs-xs);
+		font-size: var(--fs-sm);
 		font-weight: var(--fw-medium);
-		letter-spacing: 0.02em;
+		line-height: var(--lh-normal);
+		letter-spacing: 0.01em;
 		list-style: none;
 		cursor: pointer;
 		user-select: none;
@@ -110,10 +100,16 @@
 		display: none;
 	}
 
-	summary:hover,
 	.type-filter[open] summary {
 		background: var(--surface-1);
 		color: var(--text-primary);
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		summary:hover {
+			background: var(--surface-1);
+			color: var(--text-primary);
+		}
 	}
 
 	.icon {
@@ -130,7 +126,6 @@
 	ul {
 		display: flex;
 		flex-wrap: wrap;
-		justify-content: center;
 		gap: var(--space-2);
 		margin: var(--space-3) 0 0;
 		padding: 0;
@@ -152,7 +147,11 @@
 		text-decoration: none;
 		white-space: nowrap;
 		user-select: none;
-		transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease), opacity var(--duration) var(--ease);
+		transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease), transform 160ms var(--ease-out);
+	}
+
+	.pill:active {
+		transform: scale(0.97);
 	}
 
 	/* Hidden types: outlined and quiet. */

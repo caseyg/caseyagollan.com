@@ -16,11 +16,9 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<DropdownArchiveHeader
-		current="#{data.tag}"
-		options={data.allTags}
-		count={data.totalPosts}
-	/>
-
-	<FilterablePostFeed postsByDay={data.postsByDay} activeTag={data.tag} />
+	<FilterablePostFeed postsByDay={data.postsByDay} activeTag={data.tag}>
+		{#snippet header(filter)}
+			<DropdownArchiveHeader current="#{data.tag}" options={data.allTags} count={data.totalPosts} actions={filter} />
+		{/snippet}
+	</FilterablePostFeed>
 </PostsLayout>

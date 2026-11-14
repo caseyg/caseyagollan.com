@@ -2110,9 +2110,13 @@
 <div bind:this={graphContainer} class="graph-container" class:ready={sceneReady}></div>
 <Nav currentPage="library" onSearchResultClick={selectSearchResult} />
 <div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode()}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
+	<!-- Both views are always named, with the one on screen marked, like the segments of a page trail. -->
+	<div class="view-switch" role="group" aria-label="Library view">
+		<button id="graphMode" aria-pressed={!isGridModeActive} aria-label="Graph" title="Graph" onclick={() => { if (isGridModeActive) toggleMode(); }}><span aria-hidden="true">🕸️</span><span class="text">Graph</span></button>
+		<button id="shelfMode" aria-pressed={isGridModeActive} aria-label="Shelves" title="Shelves" onclick={() => { if (!isGridModeActive) toggleMode(); }}><span aria-hidden="true">📚</span><span class="text">Shelves</span></button>
+	</div>
 	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
-		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
+		><span aria-hidden="true">{sortIcons[sortIndex]}</span><span class="text">{sortLabels[sortIndex]}</span></button
 	>
 </div>
 
@@ -2219,31 +2223,61 @@
 
 	.controls {
 		position: fixed;
-		top: 5px;
-		left: 5px;
+		top: var(--nav-inset);
+		left: var(--nav-inset);
 		display: flex;
-		gap: 5px;
-		z-index: 1000;
+		gap: var(--nav-inset);
+		z-index: var(--z-nav);
+	}
+
+	.view-switch {
+		display: flex;
 	}
 
 	.controls button {
-		background-color: blue;
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-1) var(--space-3);
 		border: none;
-		color: white;
-		text-align: center;
-		text-decoration: none;
-		display: block;
-		width: auto;
-		font-size: 1rem;
-		height: auto;
-		border-radius: 5px;
+		border-radius: var(--radius-sm);
+		background-color: var(--accent);
+		color: var(--text-primary);
+		font: inherit;
+		font-size: var(--fs-sm);
+		font-weight: var(--fw-medium);
+		line-height: var(--lh-normal);
+		letter-spacing: 0.01em;
+		white-space: nowrap;
 		cursor: pointer;
-		padding: 0 10px;
-		line-height: 1.5;
+		transition: background-color var(--duration) var(--ease);
 	}
 
-	.controls button:hover {
-		background-color: rgb(73, 73, 255);
+	.view-switch button:first-child {
+		border-top-right-radius: 0;
+		border-bottom-right-radius: 0;
+	}
+
+	.view-switch button:last-child {
+		border-top-left-radius: 0;
+		border-bottom-left-radius: 0;
+		box-shadow: inset 1px 0 0 rgb(255 255 255 / 0.3);
+	}
+
+	.controls button:hover,
+	.controls button[aria-pressed='true'] {
+		background-color: var(--accent-hover);
+	}
+
+	.controls button:focus-visible {
+		outline-offset: -2px;
+	}
+
+	/* Beside the corner navigation on a phone there is only room for the emoji. */
+	@media (max-width: 600px) {
+		.controls .text {
+			display: none;
+		}
 	}
 
 	.controls button.hidden,

@@ -17,16 +17,22 @@
 		currentIcon?: string;
 		count?: number;
 		options: MenuOption[];
+		/** Render the trigger as the last segment of a `SegmentedPill`, taking its size from the pill. */
+		segment?: boolean;
 	}
 
-	let { current, currentIcon, count, options }: Props = $props();
+	let { current, currentIcon, count, options, segment = false }: Props = $props();
 
 	const menuId = $props.id();
 	let isOpen = $state(false);
 	let container: HTMLElement | undefined = $state();
 
+	let trigger: HTMLButtonElement | undefined = $state();
+
 	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Escape') isOpen = false;
+		if (event.key !== 'Escape' || !isOpen) return;
+		isOpen = false;
+		trigger?.focus();
 	}
 
 	function handleClickOutside(event: MouseEvent) {
@@ -36,15 +42,16 @@
 
 <svelte:window onkeydown={handleKeydown} onclick={handleClickOutside} />
 
-<div class="select-menu" bind:this={container}>
+<div class="select-menu" class:segment bind:this={container}>
 	<button
+		bind:this={trigger}
 		type="button"
 		class="trigger"
 		onclick={() => (isOpen = !isOpen)}
 		aria-expanded={isOpen}
 		aria-controls={menuId}
 	>
-		<span class="current">{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}{current}</span>
+		<span class="current" title={current}>{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}{current}</span>
 		{#if count !== undefined}<Count value={count} label="{count} posts" />{/if}
 		<span class="arrow" class:open={isOpen} aria-hidden="true">▾</span>
 	</button>
@@ -96,6 +103,28 @@
 		background: var(--accent-hover);
 	}
 
+	/* Inside a segmented pill the trigger is one more segment. */
+	.segment .trigger {
+		padding: var(--segment-padding, var(--space-1) var(--space-3));
+		border-radius: 0;
+		background: var(--accent-hover);
+		font-size: inherit;
+		font-weight: inherit;
+		line-height: inherit;
+		letter-spacing: inherit;
+	}
+
+	.segment .trigger:focus-visible {
+		outline-offset: -2px;
+	}
+
+	.current {
+		max-width: min(16rem, 40vw);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.arrow {
 		font-size: var(--fs-sm);
 		transition: transform var(--duration) var(--ease);
@@ -124,6 +153,16 @@
 		background: var(--accent);
 		box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
 		scrollbar-width: thin;
+		/* Grow out of the trigger it belongs to. */
+		transform-origin: top left;
+		transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
+	}
+
+	@starting-style {
+		.menu {
+			opacity: 0;
+			transform: scale(0.97);
+		}
 	}
 
 	.item {

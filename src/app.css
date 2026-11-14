@@ -85,6 +85,13 @@
 	/* Motion */
 	--duration: 0.15s;
 	--ease: ease;
+	/* A decisive ease-out for things that enter or respond to a press. */
+	--ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+	/* Site navigation: square tiles pinned to the top-right corner, and the lane they occupy. */
+	--nav-inset: 5px;
+	--nav-tile: 3rem;
+	--nav-lane: calc(var(--nav-inset) + var(--nav-tile));
 
 	--focus-ring: 2px solid var(--text-primary);
 	--z-sticky: 10;
@@ -121,6 +128,12 @@ body {
 :focus-visible {
 	outline: var(--focus-ring);
 	outline-offset: 2px;
+}
+
+@media (max-width: 600px) {
+	:root {
+		--nav-tile: 2.75rem;
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import PostFeed from './PostFeed.svelte';
@@ -12,9 +13,11 @@
 		posts?: Post[];
 		showType?: boolean;
 		activeTag?: string;
+		/** The page's header, given the filter to place in its `actions`. */
+		header: Snippet<[Snippet]>;
 	}
 
-	let { postsByDay, posts, showType = true, activeTag }: Props = $props();
+	let { postsByDay, posts, showType = true, activeTag, header }: Props = $props();
 
 	const entries = $derived(posts ?? postsByDay?.flatMap(([, day]) => day) ?? []);
 	const options = $derived(typeFilterOptions(entries.map(entryTypes)));
@@ -32,5 +35,9 @@
 	const visible = $derived(posts?.filter(keep));
 </script>
 
-<PostTypeFilter {options} {selected} href={(types) => localTypesHref(page.url.pathname, types, available)} />
+{#snippet filter()}
+	<PostTypeFilter {options} {selected} href={(types) => localTypesHref(page.url.pathname, types, available)} />
+{/snippet}
+
+{@render header(filter)}
 <PostFeed postsByDay={visibleByDay} posts={visible} {showType} {activeTag} />

@@ -51,7 +51,7 @@
 
 <Page as="main" class="compose-page">
 	{#if !data.signedIn || !initial}
-		<PageHeader backHref="../" backText="Original post" tight><Heading level={1} size="display">Edit post</Heading></PageHeader>
+		<PageHeader trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Original post', href: '../' }]} tight><Heading level={1} size="display">Edit post</Heading></PageHeader>
 		<OwnerSignIn message="Sign in to edit this post." />
 	{:else}
 		<ComposerBar>

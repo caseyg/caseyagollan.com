@@ -11,10 +11,12 @@
 	<meta name="description" content="Posts from {data.year} by Casey Gollan" />
 </svelte:head>
 
-<Nav currentPage="posts" showPostsLink={true} />
+<Nav currentPage="posts" />
 
 <PostsLayout>
-	<DateArchiveHeader year={data.year} count={data.totalPosts} />
-
-	<FilterablePostFeed postsByDay={data.postsByDay} />
+	<FilterablePostFeed postsByDay={data.postsByDay}>
+		{#snippet header(filter)}
+			<DateArchiveHeader year={data.year} count={data.totalPosts} actions={filter} />
+		{/snippet}
+	</FilterablePostFeed>
 </PostsLayout>

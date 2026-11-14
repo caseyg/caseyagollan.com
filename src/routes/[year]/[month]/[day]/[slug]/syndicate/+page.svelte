@@ -51,7 +51,7 @@
 <svelte:head><title>Syndicate post — Casey Gollan</title><meta name="robots" content="noindex,nofollow" /></svelte:head>
 
 <Page as="main" width="wide">
- <PageHeader backHref="../" backText="Original post" tight>
+ <PageHeader trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Original post', href: '../' }]} tight>
   <Heading level={1} size="display">Syndicate post</Heading>
  </PageHeader>
  {#if !data.signedIn}

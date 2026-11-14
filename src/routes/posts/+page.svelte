@@ -2,7 +2,8 @@
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import { PostFeed, PostsLayout, PostTypeFilter } from '$lib/components/posts';
-	import { Pagination } from '$lib/components/ui';
+	import { PageHeader, Pagination } from '$lib/components/ui';
+	import { POSTS_CRUMB } from '$lib/components/posts/trail';
 	import { typesHref } from '$lib/posts-filter';
 
 	let { data }: { data: PageData } = $props();
@@ -29,7 +30,11 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<PostTypeFilter options={data.typeOptions} selected={data.selectedTypes} href={(types) => typesHref(types, available)} />
+	<PageHeader trail={[{ ...POSTS_CRUMB, current: !filtered && data.page === 1 }]} title={filtered ? shownLabel : 'Posts'}>
+		{#snippet actions()}
+			<PostTypeFilter options={data.typeOptions} selected={data.selectedTypes} href={(types) => typesHref(types, available)} />
+		{/snippet}
+	</PageHeader>
 	{#if data.totalPosts === 0}
 		<p class="empty">No posts of these types yet.</p>
 	{/if}
