@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { toggleHref, typesHref, type PostType, type TypeFilterOption } from '$lib/posts-filter';
 
 	interface Props {
@@ -12,6 +13,27 @@
 	const available = $derived(options.map((option) => option.type));
 	const shown = $derived(new Set(selected));
 	const filtered = $derived(shown.size < available.length);
+
+	/** Two clicks on one pill within this window solo that type. */
+	const DOUBLE_CLICK_MS = 400;
+	let lastClick: { type: PostType; at: number } | undefined;
+
+	/** Show only this type, or everything again when it is already the only one shown. */
+	function soloHref(type: PostType): string {
+		const solo = shown.size === 1 && shown.has(type);
+		return typesHref(solo ? available : [type], available);
+	}
+
+	// Without JavaScript the pill is a plain toggle link. With it, the first click toggles
+	// at once and a quick second click on the same pill replaces that with a solo view.
+	function onclick(event: MouseEvent, type: PostType) {
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		const now = event.timeStamp;
+		const double = lastClick?.type === type && now - lastClick.at < DOUBLE_CLICK_MS;
+		lastClick = double ? undefined : { type, at: now };
+		goto(double ? soloHref(type) : toggleHref(type, shown, available), { noScroll: true, keepFocus: true });
+	}
 </script>
 
 {#if options.length > 1}
@@ -24,11 +46,9 @@
 						class="pill"
 						class:on
 						href={toggleHref(option.type, shown, available)}
-						title="{on ? 'Hide' : 'Show'} {option.label.toLowerCase()}"
-						data-sveltekit-noscroll
-						data-sveltekit-keepfocus
+						title="{on ? 'Hide' : 'Show'} {option.label.toLowerCase()} (double-click to show only {option.label.toLowerCase()})"
+						onclick={(event) => onclick(event, option.type)}
 					>
-						<span class="mark" aria-hidden="true">{on ? '✓' : '+'}</span>
 						{option.label}<span class="visually-hidden">, {on ? 'shown' : 'hidden'}</span>
 						<span class="count" aria-label="{option.count} posts">{option.count}</span>
 					</a>
@@ -58,6 +78,7 @@
 	ul {
 		display: flex;
 		flex-wrap: wrap;
+		justify-content: center;
 		gap: var(--space-2);
 		margin: 0;
 		padding: 0;
@@ -67,10 +88,10 @@
 	.pill,
 	.reset {
 		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
+		align-items: baseline;
+		gap: var(--space-2);
 		padding: var(--space-1) var(--space-3);
-		border: 1px solid var(--border);
+		border: 1px solid transparent;
 		border-radius: var(--radius-full);
 		font-size: var(--fs-xs);
 		font-weight: var(--fw-medium);
@@ -78,48 +99,45 @@
 		letter-spacing: 0.02em;
 		text-decoration: none;
 		white-space: nowrap;
+		user-select: none;
 		transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease);
 	}
 
+	/* Hidden types: outlined and quiet. */
 	.pill {
+		border-color: var(--border);
 		color: var(--text-muted);
 	}
 
 	.pill:hover {
-		background: var(--surface-2);
+		border-color: var(--border-strong);
 		color: var(--text-primary);
 	}
 
+	/* Shown types: filled gray. */
 	.pill.on {
-		border-color: var(--accent);
-		background: var(--accent);
+		border-color: transparent;
+		background: var(--surface-3);
 		color: var(--text-primary);
 	}
 
 	.pill.on:hover {
-		border-color: var(--accent-hover);
-		background: var(--accent-hover);
-	}
-
-	.mark {
-		width: 1ch;
-		text-align: center;
+		background: var(--surface-2);
 	}
 
 	.count {
-		font-variant-numeric: tabular-nums;
-		opacity: 0.75;
+		font-variant-numeric: lining-nums tabular-nums;
+		opacity: 0.7;
 	}
 
 	.reset {
-		border-color: transparent;
 		color: var(--text-primary);
 		text-decoration: underline;
 		text-underline-offset: var(--underline-offset);
 	}
 
 	.reset:hover {
-		background: var(--surface-2);
+		background: var(--surface-1);
 	}
 
 	.visually-hidden {
@@ -133,7 +151,7 @@
 
 	@media (forced-colors: active) {
 		.pill.on {
-			border-width: 2px;
+			border: 2px solid CanvasText;
 		}
 	}
 </style>
