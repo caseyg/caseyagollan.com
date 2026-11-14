@@ -82,6 +82,8 @@ export function readDocument(markdown: string): { properties: Properties; body: 
 	if (format !== undefined && format !== 'text' && format !== 'html' && format !== 'markdown') throw new Error('Unknown content format');
 	if (format === 'text' || format === 'markdown') properties.content = [body];
 	if (format === 'html') properties.content = [{ html: body }];
+	// Explicit Markdown is reported the way clients send it, so edits keep the format.
+	if (format === 'markdown' && !properties['p3k-content-type']) properties['p3k-content-type'] = ['text/markdown'];
 	return { properties, body, bodyFormat: format ?? 'markdown', type: typeof data._micropubType === 'string' ? data._micropubType : 'h-entry', channel: typeof data._micropubChannel === 'string' ? data._micropubChannel : undefined };
 }
 
