@@ -31,14 +31,17 @@ export const load: PageServerLoad = async ({ request, params, url, platform, set
 			throw cause;
 		}
 	}
+	let list: Awaited<ReturnType<NonNullable<typeof drafts>['list']>> = [], draftsError = '';
+	try { if (drafts) list = await drafts.list(); }
+	catch (cause) { draftsError = cause instanceof ProtocolError ? cause.message : 'Drafts could not be loaded.'; }
 	return {
-		signedIn: true as const, kind: params.kind, csrf: context.session.csrf, fields, draft,
+		signedIn: true as const, kind: params.kind, csrf: context.session.csrf, fields, draft, drafts: list, draftsError,
 		syndication: syndicationTargets(config), mediaEnabled: !!config.mediaEnabled, draftsEnabled: !!drafts, timeZone: config.timeZone
 	};
 };
 
 export const actions: Actions = {
-	default: async ({ request, params, platform }) => {
+	submit: async ({ request, params, platform }) => {
 		if (!isComposerKind(params.kind)) error(404, 'Unknown post type');
 		const kind = params.kind;
 		const context = await composerContext(request, platform?.env);
@@ -67,10 +70,26 @@ export const actions: Actions = {
 				try { await context.drafts.remove(existing.draft.id, existing.sha, existing.draft.title); }
 				catch { warning = ' The draft could not be removed from the drafts repository; discard it from the drafts list.'; }
 			}
-			redirect(303, `/new/?published=${encodeURIComponent(location)}${warning ? '&draft-kept=1' : ''}`);
+			redirect(303, `/new/${kind}/?published=${encodeURIComponent(location)}${warning ? '&draft-kept=1' : ''}`);
 		} catch (cause) {
 			if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, fields });
 			throw cause;
 		}
+	},
+	discard: async ({ request, params, platform }) => {
+		const kind = isComposerKind(params.kind) ? params.kind : 'note';
+		const context = await composerContext(request, platform?.env);
+		if (!context) return fail(401, { message: 'Sign in to manage drafts.' });
+		try {
+			const values = await readForm(request, 16 * 1024);
+			await validateEditorSubmission(request, context.session, values.get('csrf'));
+			if (!context.drafts) throw new ProtocolError(503, 'temporarily_unavailable', 'Drafts are not configured.');
+			const found = await context.drafts.read(values.get('id') ?? '');
+			if (found) await context.drafts.remove(found.draft.id, found.sha, found.draft.title);
+		} catch (cause) {
+			if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message });
+			throw cause;
+		}
+		redirect(303, `/new/${kind}/?discarded=1`);
 	}
 };

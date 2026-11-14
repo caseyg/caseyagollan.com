@@ -22,15 +22,16 @@ After the owner signs in with a passkey, dated posts show an Edit link that open
 
 ## Writing new posts on the site
 
-`/new/` is a Quill-style composer for the signed-in owner, linked from `/account`. It has an editor for each post type Quill offers and this endpoint accepts: note, article, reply, bookmark, like, repost, RSVP, photo, video, event, review, itinerary, food and drink. Publishing sends a Micropub `create` request to the site's own endpoint, authorized by the owner session the same way as the edit page, so the result is validated and stored exactly like a post from Quill.
+`/new/` opens a Quill-style composer for the signed-in owner, linked from `/account`. It starts on a note, like a social app's compose box, and a menu next to the close button switches to the editor for each post type Quill offers and this endpoint accepts: note, article, reply, bookmark, like, repost, RSVP, photo, video, event, review, itinerary, food and drink. Publishing sends a Micropub `create` request to the site's own endpoint, authorized by the owner session the same way as the edit page, so the result is validated and stored exactly like a post from Quill.
 
+- Only the fields a post type needs are shown. Optional fields (photos, photo by URL, reply-to on notes, location, tags, and slug/date/format) open from icons in the toolbar under the text, and stay open when they hold a value. Without JavaScript every field is shown.
 - Photos and videos upload to the media endpoint through `/new/media/`, with alt text per photo. Photos can also be added by URL.
 - Location takes a place name or the browser's current position (a `geo:` URI with accuracy).
 - Tags, slug, published date and time (in `PUBLISHING_TIMEZONE`), content type (text, Markdown or HTML, with the rich text editor for Markdown) and configured syndication targets are available on every type where they apply.
-- `/new/bookmark/?url=…&title=…&selection=…` prefills a bookmark, and `/new/` offers a bookmarklet that does this for the current page. `in-reply-to`, `like-of` and `repost-of` query parameters prefill the matching editors.
+- `/new/bookmark/?url=…&title=…&selection=…` prefills a bookmark, and the composer's footer offers a bookmarklet that does this for the current page. `in-reply-to`, `like-of` and `repost-of` query parameters prefill the matching editors.
 
 ### Drafts
 
-“Save draft” writes the form to `drafts/<id>.json` in a private GitHub repository (`PUBLISHING_DRAFTS_GITHUB_REPO`, default branch `main`, owner `PUBLISHING_GITHUB_OWNER`), not the public content repository. Each file holds the form fields and, when complete, the Micropub request the draft would publish. Drafts are listed on `/new/`, can be reopened, updated (stale saves are rejected), discarded, or published; publishing removes the draft file. If the drafts repository is not configured or is the content repository, the Save draft button is hidden.
+“Save draft” writes the form to `drafts/<id>.json` in a private GitHub repository (`PUBLISHING_DRAFTS_GITHUB_REPO`, default branch `main`, owner `PUBLISHING_GITHUB_OWNER`), not the public content repository. Each file holds the form fields and, when complete, the Micropub request the draft would publish. Drafts are listed in the composer's Drafts menu, and can be reopened, updated (stale saves are rejected), discarded, or published; publishing removes the draft file. If the drafts repository is not configured or is the content repository, the Save draft button is hidden.
 
 Micropub clients that send `post-status: draft` still write to the content repository as before.
