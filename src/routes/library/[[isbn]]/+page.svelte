@@ -2577,7 +2577,7 @@
 				segments={[{
 					label: sortLabels[sortIndex],
 					icon: sortIcons[sortIndex],
-					ariaLabel: `Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`,
+					ariaLabel: `Sorted by ${sortLabels[sortIndex].toLowerCase()}. Sort by ${sortLabels[(sortIndex + 1) % sortLabels.length].toLowerCase()}`,
 					title: sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex],
 					onclick: toggleSort
 				}]}

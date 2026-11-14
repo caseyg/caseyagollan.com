@@ -38,7 +38,7 @@ export const ButtonGroup: Story = {
 };
 /** A lone button segment, such as the library's sort control, which steps through its options. */
 export const SingleButton: Story = {
-	args: { size: 'md', label: undefined, segments: [{ label: 'Recently acquired', icon: '📅', ariaLabel: 'Sort shelves by publication year', onclick: () => {} }] }
+	args: { size: 'md', label: undefined, segments: [{ label: 'Recently acquired', icon: '📅', ariaLabel: 'Sorted by recently acquired. Sort by publication year', onclick: () => {} }] }
 };
 /** `compact` drops to emoji alone at phone width, as the site navigation does. Narrow the preview to see it. */
 export const Compact: Story = {
