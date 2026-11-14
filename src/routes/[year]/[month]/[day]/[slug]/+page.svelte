@@ -25,10 +25,10 @@
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />
 </svelte:head>
 
-<Nav currentPage="posts" showPostsLink={true} />
+<Nav currentPage="posts" />
 
 <PostsLayout>
-	<DateArchiveHeader year={data.year} month={data.month} day={data.day} />
+	<DateArchiveHeader year={data.year} month={data.month} day={data.day} parent />
 
 	<article class="{data.post.microformatType ?? 'h-entry'} post">
 		<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->

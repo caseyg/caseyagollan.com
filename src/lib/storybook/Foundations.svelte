@@ -5,7 +5,10 @@
 	const colors = [
 		['--bg-primary', 'Ground. The whole site sits on one flat gray.'],
 		['--accent', 'Actions, selection, and the current item.'],
-		['--accent-hover', 'Hover and pressed state of anything blue.'],
+		['--accent-hover', 'Hover and pressed state of a blue action.'],
+		['--segment', 'Resting segment of the pinned navigation: places you can go.'],
+		['--segment-hover', 'A navigation segment under the pointer.'],
+		['--segment-current', 'The segment for where you are, or the choice in effect.'],
 		['--text-primary', 'Body copy, titles, and anything interactive.'],
 		['--text-secondary', 'Summaries and supporting copy.'],
 		['--text-muted', 'Metadata, captions, hints.'],
@@ -41,7 +44,7 @@
 	const spaces = ['--space-1', '--space-2', '--space-3', '--space-4', '--space-5', '--space-6', '--space-7'];
 
 	const radii = [
-		['--radius-none', 'Site chrome: nav, search'],
+		['--radius-none', 'Edges where two controls join into one group'],
 		['--radius-sm', 'Pills, chips, buttons, inputs, media'],
 		['--radius-md', 'Images and previews inside cards'],
 		['--radius-lg', 'Cards'],
@@ -58,7 +61,7 @@
 
 <div class="foundations">
 	{#if section === 'color'}
-		<p class="intro">Three ideas: a gray ground, white ink at three strengths, and one blue reserved for things you can act on. Everything else is white or black at low opacity, so it stays in key with the ground.</p>
+		<p class="intro">Three ideas: a gray ground, white ink at three strengths, and one blue reserved for things you can act on. In the pinned navigation the lighter blue is somewhere you can go and the full blue is where you are; anything inside the page that only labels content stays gray. Everything else is white or black at low opacity, so it stays in key with the ground.</p>
 		<ul class="swatches">
 			{#each colors as [name, use] (name)}
 				<li>

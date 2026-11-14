@@ -6,4 +6,3 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 export const Photo: Story = {};
 export const Gallery: Story = { args: { photos: [{ url: '/sisu.gif', alt: 'Sisu' }, { url: '/author-avatar.webp', alt: 'Casey Gollan' }] } };
-export const Empty: Story = { args: { photos: [] } };

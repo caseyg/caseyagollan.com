@@ -18,14 +18,16 @@
 		currentIcon?: string;
 		count?: number;
 		options: MenuOption[];
+		/** Render the trigger as the last segment of a `SegmentedPill`, taking its size from the pill. */
+		segment?: boolean;
 	}
 
-	let { current, currentIcon, count, options }: Props = $props();
+	let { current, currentIcon, count, options, segment = false }: Props = $props();
 </script>
 
-<Popover class="select-menu" triggerClass="trigger" panelClass="menu">
+<Popover class="select-menu {segment ? 'segment' : ''}" triggerClass="trigger" panelClass="menu">
 	{#snippet trigger(open)}
-		<span class="current">{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}{current}</span>
+		<span class="current" title={current}>{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}{current}</span>
 		{#if count !== undefined}<Count value={count} label="{count} posts" />{/if}
 		<span class="arrow" class:open aria-hidden="true">▾</span>
 	{/snippet}
@@ -69,6 +71,33 @@
 		background: var(--accent-hover);
 	}
 
+	/* Inside a segmented pill the trigger is one more segment. */
+	:global(.select-menu.segment .trigger) {
+		padding: var(--segment-padding, var(--space-1) var(--space-3));
+		border-radius: 0;
+		background: none;
+		font-size: inherit;
+		font-weight: inherit;
+		line-height: inherit;
+		letter-spacing: inherit;
+	}
+
+	:global(.select-menu.segment .trigger:hover),
+	:global(.select-menu.segment .trigger[aria-expanded='true']) {
+		background: var(--segment-hover);
+	}
+
+	:global(.select-menu.segment .trigger:focus-visible) {
+		outline-offset: -2px;
+	}
+
+	.current {
+		max-width: min(16rem, 40vw);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.arrow {
 		font-size: var(--fs-sm);
 		transition: transform var(--duration) var(--ease);
@@ -90,9 +119,19 @@
 		overflow-y: auto;
 		list-style: none;
 		border-radius: var(--radius-sm);
-		background: var(--accent);
+		background: var(--segment);
 		box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
 		scrollbar-width: thin;
+		/* Grow out of the trigger it belongs to. */
+		transform-origin: top left;
+		transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out);
+	}
+
+	@starting-style {
+		:global(.select-menu .menu) {
+			opacity: 0;
+			transform: scale(0.97);
+		}
 	}
 
 	ul {
@@ -114,9 +153,13 @@
 		transition: background var(--duration) var(--ease);
 	}
 
-	.item:hover,
+	.item:hover {
+		background: var(--segment-hover);
+	}
+
+	/* The page being viewed takes the full accent, as it does in the trail. */
 	.item.active {
-		background: var(--accent-hover);
+		background: var(--segment-current);
 	}
 
 	.item:focus-visible {

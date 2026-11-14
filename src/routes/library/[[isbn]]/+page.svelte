@@ -5,7 +5,7 @@
 	import { pushState, replaceState } from '$app/navigation';
 	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
-	import { Chip } from '$lib/components/ui';
+	import { Chip, Corner, SegmentedPill } from '$lib/components/ui';
 	import { spineTextureSize } from '$lib/library/textures';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
@@ -2558,12 +2558,33 @@
 {/if}
 <div bind:this={graphContainer} class="graph-container" class:ready={sceneReady}></div>
 <Nav currentPage="library" onSearchResultClick={selectSearchResult} />
-<div class="controls" class:hidden={isLoading}>
-	<button id="modeToggle" aria-label={isGridModeActive ? 'Show graph' : 'Show shelves'} onclick={() => toggleMode(true, true)}>{isGridModeActive ? '🕸️ Graph' : '📚 Shelves'}</button>
-	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
-		>{sortIcons[sortIndex]} {sortLabels[sortIndex]}</button
-	>
-</div>
+{#if !isLoading}
+	<!-- Both views are always named, with the one on screen marked, like the segments of a page trail. -->
+	<Corner side="start">
+		<SegmentedPill
+			size="md"
+			compact
+			label="Library view"
+			segments={[
+				{ label: 'Graph', icon: '🕸️', pressed: !isGridModeActive, onclick: () => { if (isGridModeActive) toggleMode(true, true); } },
+				{ label: 'Shelves', icon: '📚', pressed: isGridModeActive, onclick: () => { if (!isGridModeActive) toggleMode(true, true); } }
+			]}
+		/>
+		{#if isGridModeActive}
+			<SegmentedPill
+				size="md"
+				compact
+				segments={[{
+					label: sortLabels[sortIndex],
+					icon: sortIcons[sortIndex],
+					ariaLabel: `Sorted by ${sortLabels[sortIndex].toLowerCase()}. Sort by ${sortLabels[(sortIndex + 1) % sortLabels.length].toLowerCase()}`,
+					title: sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex],
+					onclick: toggleSort
+				}]}
+			/>
+		{/if}
+	</Corner>
+{/if}
 
 {#if selectedBook}
 	<aside class="book-sidebar" aria-label="Book details">
@@ -2674,40 +2695,6 @@
 		transition: opacity 600ms ease;
 	}
 	.graph-container.ready { opacity: 1; }
-
-	.controls {
-		position: fixed;
-		top: 5px;
-		left: 5px;
-		display: flex;
-		gap: 5px;
-		z-index: 1000;
-	}
-
-	.controls button {
-		background-color: blue;
-		border: none;
-		color: white;
-		text-align: center;
-		text-decoration: none;
-		display: block;
-		width: auto;
-		font-size: 1rem;
-		height: auto;
-		border-radius: 5px;
-		cursor: pointer;
-		padding: 0 10px;
-		line-height: 1.5;
-	}
-
-	.controls button:hover {
-		background-color: rgb(73, 73, 255);
-	}
-
-	.controls button.hidden,
-	.controls.hidden {
-		display: none;
-	}
 
 	.loading-overlay {
 		position: fixed;

@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
     import Nav from "$lib/components/Nav.svelte";
+    import { Corner, SegmentedPill } from "$lib/components/ui";
     import SkillsGraph from "$lib/components/SkillsGraph.svelte";
     import PersistentDocument from "$lib/components/PersistentDocument.svelte";
     import InsightCard from "$lib/components/InsightCard.svelte";
@@ -534,6 +535,8 @@
 
 <!-- Full-viewport 3-pane interface -->
 <Nav currentPage="home" />
+<!-- The same top-left title every other page pins, so the corner reads alike across the site. -->
+<Corner side="start" phone="hidden"><SegmentedPill size="md" segments={[{ label: 'Casey Gollan', href: '/', icon: '👋', current: true }]} /></Corner>
 
 <section class="hero-container">
     <div class="three-pane">
@@ -694,6 +697,8 @@
 
     .pane-bio {
         padding: var(--spacing-md);
+        /* Start the bio beneath the corner navigation it shares this column with. */
+        padding-top: calc(var(--nav-lane) + var(--space-4));
         overflow-y: auto;
         transition: box-shadow 0.6s ease;
     }
@@ -895,6 +900,7 @@
 
         .pane-bio {
             max-height: 40vh;
+            padding-top: var(--spacing-md);
         }
 
         .scroll-hint {

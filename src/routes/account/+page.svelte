@@ -133,7 +133,7 @@
 <svelte:head><title>Account · Casey Gollan</title><meta name="robots" content="noindex, nofollow" /></svelte:head>
 
 <Page as="main" width="wide" aria-busy={busy}>
-	<PageHeader backHref="/" backText="Casey Gollan" tight>
+	<PageHeader trail={[{ label: 'Casey Gollan', href: '/', icon: '👋' }]} tight>
 		<Heading level={1} size="display">Account</Heading>
 	</PageHeader>
 	{#if error}<Notice tone="error">{error}</Notice>{/if}

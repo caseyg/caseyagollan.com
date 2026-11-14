@@ -1,19 +1,24 @@
 <script lang="ts">
-	import { PageHeader, SelectMenu, type MenuOption } from '$lib/components/ui';
+	import type { Snippet } from 'svelte';
+	import { PageHeader, type MenuOption } from '$lib/components/ui';
+	import { POSTS_CRUMB } from './trail';
 
 	interface Props {
 		current: string;
 		currentIcon?: string;
+		/** Sibling archives to switch to from the last segment. */
 		options: MenuOption[];
 		count?: number;
 		countDescription?: string;
-		backLink?: string;
-		backText?: string;
+		actions?: Snippet;
 	}
 
-	let { current, currentIcon, options, count, countDescription, backLink = '/posts/', backText = 'All Posts' }: Props = $props();
+	let { current, currentIcon, options, count, countDescription, actions }: Props = $props();
 </script>
 
-<PageHeader backHref={backLink} {backText} description={countDescription}>
-	<SelectMenu {current} {currentIcon} {count} {options} />
-</PageHeader>
+<PageHeader
+	trail={[POSTS_CRUMB, { label: current, href: '', icon: currentIcon, count, menu: options }]}
+	title={current}
+	description={countDescription}
+	{actions}
+/>

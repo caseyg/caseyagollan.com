@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostsLayout, DateArchiveHeader, PostFeed } from '$lib/components/posts';
+	import { PostsLayout, DateArchiveHeader, FilterablePostFeed } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 
@@ -17,10 +17,12 @@
 	<meta name="description" content="Posts from {fullDate} by Casey Gollan" />
 </svelte:head>
 
-<Nav currentPage="posts" showPostsLink={true} />
+<Nav currentPage="posts" />
 
 <PostsLayout>
-	<DateArchiveHeader year={data.year} month={data.month} day={data.day} count={data.totalPosts} />
-
-	<PostFeed posts={data.posts} />
+	<FilterablePostFeed posts={data.posts}>
+		{#snippet header(filter)}
+			<DateArchiveHeader year={data.year} month={data.month} day={data.day} count={data.totalPosts} actions={filter} />
+		{/snippet}
+	</FilterablePostFeed>
 </PostsLayout>

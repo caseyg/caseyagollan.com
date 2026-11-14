@@ -6,7 +6,7 @@
 </script>
 
 <!-- The shared menu primitive: closes on an outside click, on Escape, and when a link inside is followed. SelectMenu and the composer's menus build on it. -->
-<Story name="Menu">
+<Story asChild name="Menu">
 	<div class="row">
 		<Popover triggerClass="demo-trigger" panelClass="demo-panel">
 			{#snippet trigger(open)}Post type {open ? '▴' : '▾'}{/snippet}

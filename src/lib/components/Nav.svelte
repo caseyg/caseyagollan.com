@@ -1,57 +1,37 @@
 <script lang="ts">
 	import Search from './Search.svelte';
+	import { Corner, SegmentedPill } from '$lib/components/ui';
+
+	type Section = 'home' | 'library' | 'posts';
+
 	let {
-		currentPage = 'home',
-		showPostsLink = false,
+		currentPage,
 		onSearchResultClick
 	}: {
-		currentPage?: 'home' | 'library' | 'posts';
-		showPostsLink?: boolean;
+		/** The section being viewed; its segment is marked. Omit on pages outside all three. */
+		currentPage?: Section;
 		onSearchResultClick?: (url: URL) => boolean;
 	} = $props();
+
+	// The same segments in the same order on every page, so each one stays where it was last time.
+	const sections: { id: Section; href: string; label: string; icon: string }[] = [
+		{ id: 'home', href: '/', label: 'Home', icon: '👋' },
+		{ id: 'library', href: '/library/', label: 'Library', icon: '📚' },
+		{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡' }
+	];
+	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));
 </script>
 
-<nav class="nav-toggles" aria-label="Site">
-	<Search onResultClick={onSearchResultClick} />
-	{#if currentPage !== 'home'}
-		<a href="/" aria-label="Home" title="Home"><span aria-hidden="true">👋</span></a>
-	{/if}
-	{#if currentPage !== 'library'}
-		<a href="/library/" aria-label="Library" title="Library"><span aria-hidden="true">📚</span></a>
-	{/if}
-	{#if currentPage !== 'posts' || showPostsLink}
-		<a href="/posts/" aria-label="Posts" title="Posts"><span aria-hidden="true">📡</span></a>
-	{/if}
-</nav>
+<Corner as="nav" side="end" class="site-nav" aria-label="Site">
+	<div class="group">
+		<SegmentedPill {segments} size="md" compact attached />
+		<!-- Search is an action, not a place, so it closes the row in the corner itself. -->
+		<Search onResultClick={onSearchResultClick} />
+	</div>
+</Corner>
 
 <style>
-	.nav-toggles {
-		position: fixed;
-		top: 5px;
-		right: 5px;
+	.group {
 		display: flex;
-		gap: 5px;
-		z-index: var(--z-nav);
-	}
-
-	.nav-toggles a {
-		background-color: var(--accent);
-		border: none;
-		color: white;
-		text-align: center;
-		text-decoration: none;
-		display: block;
-		width: auto;
-		font-size: 2rem;
-		height: auto;
-		border-radius: 0;
-		cursor: pointer;
-		padding: 0 10px;
-		line-height: 1.5;
-		transition: background-color var(--duration) var(--ease);
-	}
-
-	.nav-toggles a:hover {
-		background-color: var(--accent-hover);
 	}
 </style>

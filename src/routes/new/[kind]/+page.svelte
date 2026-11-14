@@ -125,7 +125,7 @@
 
 <Page as="main" class="compose-page">
 	{#if !data.signedIn}
-		<PageHeader backHref="/" backText="Home" tight><Heading level={1} size="display">New post</Heading></PageHeader>
+		<PageHeader trail={[{ label: 'Casey Gollan', href: '/', icon: '👋' }]} tight><Heading level={1} size="display">New post</Heading></PageHeader>
 		<OwnerSignIn message="Sign in to post." />
 	{:else}
 		<ComposerBar>

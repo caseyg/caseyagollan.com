@@ -1,37 +1,34 @@
 <script lang="ts">
-	import { PageHeader, SegmentedPill, type Segment } from '$lib/components/ui';
+	import type { Snippet } from 'svelte';
+	import { PageHeader, type Segment } from '$lib/components/ui';
+	import { POSTS_CRUMB } from './trail';
 
 	interface Props {
 		year: string;
 		month?: string;
 		day?: string;
 		count?: number;
+		/** Set on a single post, where the trail leads to the page instead of naming it. */
+		parent?: boolean;
+		actions?: Snippet;
 	}
 
-	let { year, month, day, count }: Props = $props();
+	let { year, month, day, count, parent = false, actions }: Props = $props();
 
-	const backLink = $derived(day && month ? `/${year}/${month}/` : month ? `/${year}/` : '/posts/');
-
-	const backText = $derived.by(() => {
-		if (day && month) {
-			const date = new Date(`${year}-${month}-01`);
-			return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-		}
-		return month ? year : 'All Posts';
+	const title = $derived.by(() => {
+		if (!month) return `Posts from ${year}`;
+		const date = new Date(`${year}-${month}-${day ?? '01'}`);
+		return `Posts from ${date.toLocaleDateString('en-US', { month: 'long', day: day ? 'numeric' : undefined, year: 'numeric', timeZone: 'UTC' })}`;
 	});
 
-	// The deepest segment is the page being viewed and carries the count.
-	const segments = $derived.by(() => {
-		const list: Segment[] = [{ label: year, href: `/${year}/` }];
+	// Posts, then the date from year down. The deepest segment is the page being viewed and carries the count.
+	const trail = $derived.by(() => {
+		const list: Segment[] = [POSTS_CRUMB, { label: year, href: `/${year}/` }];
 		if (month) list.push({ label: month, href: `/${year}/${month}/` });
 		if (month && day) list.push({ label: day, href: `/${year}/${month}/${day}/` });
-		const last = list[list.length - 1];
-		last.current = true;
-		last.count = count;
+		if (!parent) list[list.length - 1] = { ...list[list.length - 1], current: true, count };
 		return list;
 	});
 </script>
 
-<PageHeader backHref={backLink} {backText}>
-	<SegmentedPill {segments} size="lg" label="Date archive" />
-</PageHeader>
+<PageHeader {trail} title={parent ? undefined : title} {actions} />

@@ -76,7 +76,7 @@
 
 <Page as="main" class="compose-page">
 	{#if !data.signedIn}
-		<PageHeader backHref={postHref} backText="Original post" tight><Heading level={1} size="display">Syndicate post</Heading></PageHeader>
+		<PageHeader trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Original post', href: postHref }]} tight><Heading level={1} size="display">Syndicate post</Heading></PageHeader>
 		<OwnerSignIn message="Sign in to syndicate this post." />
 	{:else}
 		<ComposerBar>

@@ -24,7 +24,8 @@
 <style>
 	.date-header {
 		position: sticky;
-		top: 0;
+		/* Below the pinned trail and navigation wherever they share the column's width. */
+		top: var(--sticky-top, 0);
 		z-index: var(--z-sticky);
 		display: flex;
 		margin: var(--space-5) 0 var(--space-3);
