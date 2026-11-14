@@ -81,23 +81,14 @@ export function localTypesHref(pathname: string, selected: Iterable<PostType>, a
 	return `${pathname}?types=${types.map((type) => POST_TYPE_PLURALS[type]).join(',')}`;
 }
 
-/** Turn one type on or off; switching off the last type shows everything again. */
+/**
+ * Pills start unselected, meaning everything is shown. Clicking one narrows the feed to that type;
+ * further clicks add or remove types, and removing the last type shows everything again.
+ */
 export function toggleTypes(type: PostType, selected: ReadonlySet<PostType>, available: readonly PostType[]): PostType[] {
+	if (available.every((t) => selected.has(t))) return [type];
 	const next = new Set(selected);
 	if (next.has(type)) next.delete(type);
 	else next.add(type);
 	return next.size ? available.filter((t) => next.has(t)) : [...available];
-}
-
-/** Show only this type, or everything again when it is already the only one shown. */
-export function soloTypes(type: PostType, selected: ReadonlySet<PostType>, available: readonly PostType[]): PostType[] {
-	return selected.size === 1 && selected.has(type) ? [...available] : [type];
-}
-
-/** The link a pill follows: the selection with that type switched on or off. */
-export function toggleHref(type: PostType, selected: ReadonlySet<PostType>, available: readonly PostType[]): string {
-	const next = new Set(selected);
-	if (next.has(type)) next.delete(type);
-	else next.add(type);
-	return typesHref(next, available);
 }

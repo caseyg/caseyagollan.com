@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { rollupIndexPosts, type Post } from '../src/lib/posts-types';
-import { entryTypes, localTypesHref, parseTypesParam, soloTypes, toggleHref, toggleTypes, typeFilterOptions, typesHref, type PostType } from '../src/lib/posts-filter';
+import { entryTypes, localTypesHref, parseTypesParam, toggleTypes, typeFilterOptions, typesHref, type PostType } from '../src/lib/posts-filter';
 
 const available: PostType[] = ['note', 'reply', 'like', 'repost'];
 const target = 'https://bsky.app/profile/did:plc:author/post/123';
@@ -33,18 +33,13 @@ test('hrefs are canonical and fall back to the static feed', () => {
 	expect(typesHref([], available)).toBe('/posts');
 });
 
-test('pills toggle one type, and switching off the last type shows everything', () => {
+test('pills start unselected and add types one at a time', () => {
 	const all = new Set(available);
-	expect(toggleHref('like', all, available)).toBe('/posts/filter?types=notes,replies,reposts');
-	expect(toggleHref('like', new Set<PostType>(['note']), available)).toBe('/posts/filter?types=notes,likes');
-	expect(toggleHref('note', new Set<PostType>(['note']), available)).toBe('/posts');
-});
-
-test('solo shows one type, and soloing it again shows everything', () => {
-	expect(soloTypes('like', new Set(available), available)).toEqual(['like']);
-	expect(soloTypes('like', new Set<PostType>(['like']), available)).toEqual(available);
+	expect(toggleTypes('like', all, available)).toEqual(['like']);
+	expect(toggleTypes('note', new Set<PostType>(['like']), available)).toEqual(['note', 'like']);
+	expect(toggleTypes('like', new Set<PostType>(['note', 'like']), available)).toEqual(['note']);
 	expect(toggleTypes('note', new Set<PostType>(['note']), available)).toEqual(available);
-	expect(toggleTypes('like', new Set<PostType>(['note']), available)).toEqual(['note', 'like']);
+	expect(typesHref(toggleTypes('like', all, available), available)).toBe('/posts/filter?types=likes');
 });
 
 test('archive pages filter in place with ?types=', () => {

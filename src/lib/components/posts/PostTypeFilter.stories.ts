@@ -14,6 +14,6 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 /** Collapsed behind the filter button until opened. */
 export const AllShown: Story = {};
-/** Opens automatically while a filter is active. */
-export const LikesAndRepostsHidden: Story = { args: { selected: ['note', 'article', 'bookmark', 'photo', 'reply'] } };
+/** Opens automatically while types are selected. */
+export const NotesAndPhotos: Story = { args: { selected: ['note', 'photo'] } };
 export const NotesOnly: Story = { args: { selected: ['note'] } };
