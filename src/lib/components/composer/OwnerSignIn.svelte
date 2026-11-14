@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import { passkeyError, signInWithPasskey } from '$lib/passkey-login';
-	import { rememberOwner } from '$lib/owner';
 	import { Button, Notice } from '$lib/components/ui';
 
 	let { message = 'Sign in to post.' }: { message?: string } = $props();
@@ -11,7 +10,8 @@
 	let signInError = $state('');
 	let passkeysSupported = $state(false);
 	let ready = $state(false);
-	onMount(() => { passkeysSupported = browserSupportsWebAuthn(); ready = true; rememberOwner(false); });
+	// The owner hint is not cleared here: an expired session should still show Edit links, which lead back to sign-in.
+	onMount(() => { passkeysSupported = browserSupportsWebAuthn(); ready = true; });
 	async function login() {
 		if (signingIn) return;
 		signingIn = true; signInError = '';

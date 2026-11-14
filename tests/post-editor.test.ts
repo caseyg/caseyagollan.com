@@ -12,14 +12,17 @@ const b64 = (value: string) => btoa(Array.from(new TextEncoder().encode(value), 
 const unb64 = (value: string) => new TextDecoder().decode(Uint8Array.from(atob(value), x => x.charCodeAt(0)));
 
 /** An in-memory content repository; token introspection is never reached. */
-function setup(path: string, content: string) {
+function setup(path: string, content: string, tree = true) {
 	const files = new Map([[path, { content, sha: 'revision-0' }]]);
+	const requests: string[] = [];
 	let writes = 0;
 	const dependencies = {
 		now: () => new Date('2026-11-14T17:00:00Z'),
 		fetcher: async (url: string, init: RequestInit) => {
 			if (url === config.introspectionEndpoint) throw new Error('The owner session must not call token introspection');
+			requests.push(url);
 			if (url.includes('/git/ref/')) return Response.json({ object: { sha: `head-${writes}` } });
+			if (url.includes('/git/trees/')) return tree ? Response.json({ truncated: false, tree: [...files.keys()].map(path => ({ path, type: 'blob' })) }) : new Response(null, { status: 404 });
 			if (url === 'https://api.github.com/graphql') {
 				const input = JSON.parse(init.body as string).variables.input;
 				if (input.expectedHeadOid !== `head-${writes}`) return Response.json({ errors: [{ type: 'STALE_DATA' }] });
@@ -31,7 +34,7 @@ function setup(path: string, content: string) {
 			return found ? Response.json({ type: 'file', path: file, sha: found.sha, encoding: 'base64', content: b64(found.content) }) : new Response(null, { status: 404 });
 		}
 	};
-	return { dependencies, read: () => files.get(path)!.content, writes: () => writes };
+	return { dependencies, read: () => files.get(path)!.content, writes: () => writes, requests };
 }
 const url = 'https://example.com/2026/11/06/post/';
 const legacy = '---\ndate: 2026-11-06T20:00:00-05:00\ntitle: Old title\ncategory: changelog\ndraft: false\n---\n\n## Heading\n\n* **Markdown** stays\n';
@@ -45,6 +48,16 @@ describe('on-site post editor', () => {
 		expect(source.fields).toEqual({ name: 'Old title', content: '\n## Heading\n\n* **Markdown** stays\n', format: 'markdown', status: 'published', properties: { category: ['changelog'] } });
 		expect(source.path).toBe('articles/2026-11-06-post.md');
 		expect(source.readOnly).toEqual([{ key: 'draft', values: [false] }]);
+	});
+
+	test('finds the post file with one tree request instead of probing every folder and date', async () => {
+		for (const tree of [true, false]) {
+			const app = setup('articles/2026-11-06-post.md', legacy, tree);
+			const source = await loadEditorSource(config, url, app.dependencies);
+			expect(source.path).toBe('articles/2026-11-06-post.md');
+			const reads = app.requests.filter(request => request.includes('/contents/')).length;
+			if (tree) expect(reads).toBe(1); else expect(reads).toBeGreaterThan(20);
+		}
 	});
 
 	test('saving an untouched form writes nothing', async () => {
