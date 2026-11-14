@@ -28,6 +28,8 @@
 	let locating = $state(false);
 	let locationError = $state('');
 	let submitting = $state(false);
+	// Disabling the buttons on submit drops the clicked button's name/value from the form data, so carry it in a hidden field.
+	let intent = $state('');
 	let photoUrl = $state('');
 
 	let Editor = $state<typeof import('$lib/components/MarkdownEditor.svelte').default>();
@@ -92,7 +94,8 @@
 	{:else}
 		{#if form?.message}<Notice tone="error">{form.message}</Notice>
 		{:else if page.url.searchParams.has('saved')}<Notice>Draft saved to the private drafts repository.</Notice>{/if}
-		<form method="POST" onsubmit={() => { submitting = true; }}>
+		<form method="POST" onsubmit={event => { intent = (event.submitter as HTMLButtonElement | null)?.value ?? 'publish'; submitting = true; }}>
+			{#if intent}<input type="hidden" name="intent" value={intent} />{/if}
 			<input type="hidden" name="csrf" value={data.csrf} />
 			{#if data.draft}
 				<input type="hidden" name="draft-id" value={data.draft.id} />
