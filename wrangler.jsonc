@@ -31,6 +31,8 @@
 		"PUBLISHING_GITHUB_OWNER": "caseyg",
 		"PUBLISHING_GITHUB_REPO": "caseyagollan-content",
 		"PUBLISHING_GITHUB_BRANCH": "main",
+		"PUBLISHING_DRAFTS_GITHUB_REPO": "caseyagollan-drafts",
+		"PUBLISHING_DRAFTS_GITHUB_BRANCH": "main",
 		"PUBLISHING_TIMEZONE": "America/New_York",
 		"PUBLISHING_MASTODON_INSTANCE": "https://social.coop",
 		"PUBLISHING_BLUESKY_SERVICE": "https://bsky.social",

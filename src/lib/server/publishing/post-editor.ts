@@ -22,9 +22,9 @@ const tags = (value: string) => [...new Set(value.split(',').map(tag => tag.trim
  * Send one Micropub request as the signed-in owner. The session stands in for a
  * client token: a credential minted for this call is accepted by this handler only.
  */
-function ownerMicropub(config: PublishingConfig, dependencies: Dependencies) {
+export function ownerMicropub(config: PublishingConfig, dependencies: Dependencies, scope = 'update draft create') {
 	const token = crypto.randomUUID().replaceAll('-', '');
-	const handler = createMicropubHandler({ ...config, introspect: async value => value === token ? { active: true, me: config.me, scope: 'update draft create' } : { active: false } }, dependencies);
+	const handler = createMicropubHandler({ ...config, introspect: async value => value === token ? { active: true, me: config.me, scope } : { active: false } }, dependencies);
 	return async (query: string, init: RequestInit = {}) => {
 		const response = await handler(new Request(new URL(`/micropub${query}`, config.me), { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } }));
 		if (response.ok) return response;

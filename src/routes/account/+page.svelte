@@ -170,6 +170,7 @@
 		</Section>
 	{/if}
 	{#if session?.authenticated}
+		<p><a href="/new/">Write a new post →</a></p>
 		<p><a href="/readwise">Review Readwise bookmarks →</a></p>
 		<Section title="Passkeys">
 			<p>Keep a second passkey so you can sign in if a device is unavailable.</p>
