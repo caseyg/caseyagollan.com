@@ -8,7 +8,7 @@ import { createGitHubStore } from './github';
 import { updateDocument, readDocument } from './document';
 import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from './public-fetch';
 import { sendWebmention } from './webmention';
-import { syndicate, type SyndicationConfig } from './syndication';
+import { syndicate, syndicationKey, type SyndicationConfig } from './syndication';
 
 type Service = 'mastodon' | 'bluesky';
 const services = ['mastodon', 'bluesky'] as const;
@@ -135,7 +135,9 @@ export async function recordSyndicationResults(config: PublishingConfig, event: 
  const post = parsePost(file.content, folder, name);
  if (!visible(post) || await publicationRevision(post) !== event.revision) return false;
  const existing = readDocument(file.content).properties.syndication ?? [];
- const missing = urls.filter(url => !existing.includes(url));
+ // A post already linked under another form of the same URL (Bluesky DID vs handle) is not added twice.
+ const known = new Set(existing.map(value => syndicationKey(String(value))));
+ const missing = urls.filter(url => !known.has(syndicationKey(url)));
  if (!missing.length) return true;
  await store.write(file.path, updateDocument(file.content, { add: { syndication: missing } }), { sha: file.sha, expectedHead: head, message: 'Record syndication links' });
  return true;

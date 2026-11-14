@@ -6,7 +6,7 @@ import { ProtocolError } from './auth';
 import type { PublishingConfig } from './micropub';
 import { publicationForPost } from './publication';
 import { readSyndicationReceipt, recordSyndicationResults, syndicationOnce } from './delivery';
-import { syndicationText } from './syndication';
+import { syndicationKey, syndicationText } from './syndication';
 import { safePublicFetch, type PublicFetcher } from './public-fetch';
 import type { DeliveryEvent, DeliveryProgress } from './outbox';
 
@@ -16,6 +16,8 @@ const names = { bluesky: 'Bluesky', mastodon: 'Mastodon' };
 export interface Destination {
  service: Service; name: string; links: string[]; draft: string; limit: number;
  available: boolean; pending: boolean;
+ /** A send recorded here whose link is not yet saved on the post. */
+ unrecorded: boolean;
 }
 
 /** Use the same owner session as /account, without minting an access token. */
@@ -40,20 +42,26 @@ export function assertSyndicatable(post: Post): void {
 }
 export function recordedLinks(post: Post, service: Service, config: PublishingConfig): string[] {
  const origin = service === 'bluesky' ? 'https://bsky.app' : new URL(config.syndication?.mastodon?.instance ?? 'https://social.coop').origin;
- return [...new Set((Array.isArray(post.syndication) ? post.syndication : []).filter(value => {
-  try { const link = new URL(value); return link.protocol === 'https:' && link.origin === origin && !link.username && !link.password; }
-  catch { return false; }
- }))];
+ const links = new Map<string, string>();
+ for (const value of Array.isArray(post.syndication) ? post.syndication : []) {
+  try { const link = new URL(value); if (link.protocol !== 'https:' || link.origin !== origin || link.username || link.password) continue; }
+  catch { continue; }
+  // The first form of a link wins, so a saved handle URL hides the DID URL of the same post.
+  if (!links.has(syndicationKey(value))) links.set(syndicationKey(value), value);
+ }
+ return [...links.values()];
 }
 export async function editorDestinations(config: PublishingConfig, post: Post): Promise<Destination[]> {
  assertSyndicatable(post);
  const publication = await publicationForPost(post, config.me);
  return Promise.all(services.map(async service => {
   const receipt = config.state ? await readSyndicationReceipt(config.state, publication.url, service) : undefined;
-  const links = recordedLinks(post, service, config);
-  if (receipt?.url) links.push(...recordedLinks({ ...post, syndication: [receipt.url] }, service, config));
+  const saved = recordedLinks(post, service, config);
+  const sent = receipt?.url ? recordedLinks({ ...post, syndication: [receipt.url] }, service, config) : [];
+  // The receipt keeps the URL as sent; the post may store another form of it (Bluesky DID vs handle).
+  const links = recordedLinks({ ...post, syndication: [...saved, ...sent] }, service, config);
   const limit = service === 'bluesky' ? 300 : 500;
-  return { service, name: names[service], links: [...new Set(links)], available: !!config.state && !!config.syndication?.[service],
+  return { service, name: names[service], links, unrecorded: links.length > saved.length, available: !!config.state && !!config.syndication?.[service],
    pending: receipt?.status === 'sending', limit,
    draft: receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity) };
  }));
