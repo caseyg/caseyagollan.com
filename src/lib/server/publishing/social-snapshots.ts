@@ -7,6 +7,7 @@ import { publicBluesky, blueUrl } from './pesos/providers';
 import { socialSnapshots, MAX_QUOTE_DEPTH, type SocialSnapshot } from '../../social-snapshots';
 import type { SocialImageStore } from './social-media';
 import { safePublicFetch, publicUrl, type PublicFetcher } from './public-fetch';
+import { blueskyHtml } from './bluesky-richtext';
 
 const key = '_micropubSocialSnapshots';
 export class SocialSnapshotUnavailable extends Error {}
@@ -20,30 +21,6 @@ export function formatSnapshotScalars(node:any):void {
 
 const MAX_IMAGE_BYTES = 1024 * 1024;
 const MAX_SAVED_IMAGE_BYTES = 5 * 1024 * 1024;
-const escape = (v: string) => v.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-/** AT Protocol facet offsets count UTF-8 bytes, not JavaScript characters. */
-function blueskyHtml(text: string, facets: unknown): string {
- const bytes = new TextEncoder().encode(text);
- const decoder = new TextDecoder('utf-8', {fatal:true});
- let end = 0, html = '';
- if(Array.isArray(facets)) for(const facet of [...facets].sort((a,b)=>(a?.index?.byteStart ?? 0)-(b?.index?.byteStart ?? 0))) {
-  const start = facet?.index?.byteStart, stop = facet?.index?.byteEnd;
-  if(!Number.isInteger(start) || !Number.isInteger(stop) || start < end || stop <= start || stop > bytes.length) continue;
-  const feature = facet.features?.find((f:any)=>['app.bsky.richtext.facet#link','app.bsky.richtext.facet#mention','app.bsky.richtext.facet#tag'].includes(f?.$type));
-  let href: string;
-  try {
-   if(feature?.$type === 'app.bsky.richtext.facet#link') href = publicUrl(feature.uri).href;
-   else if(feature?.$type === 'app.bsky.richtext.facet#mention' && typeof feature.did === 'string') href = `https://bsky.app/profile/${encodeURI(feature.did)}`;
-   else if(feature?.$type === 'app.bsky.richtext.facet#tag' && typeof feature.tag === 'string') href = `https://bsky.app/hashtag/${encodeURIComponent(feature.tag)}`;
-   else continue;
-   const gap = decoder.decode(bytes.slice(end,start));
-   const label = decoder.decode(bytes.slice(start,stop));
-   html += escape(gap) + `<a href="${escape(href)}">${escape(label)}</a>`;
-   end = stop;
-  } catch { /* Ignore malformed facets, preserving the source text. */ }
- }
- return `<p>${(html+escape(decoder.decode(bytes.slice(end)))).replace(/\n/g,'<br>')}</p>`;
-}
 function cleanHtml(html: string): string {
  const tree = fromHtml(sanitizePublishingHtml(html), { fragment: true });
  function strip(node: Root | Element) {

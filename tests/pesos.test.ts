@@ -69,10 +69,28 @@ test('Mastodon filters non-public originals and boosts, sanitizes HTML, and pres
 test('Bluesky reads distinct post/like/repost records and preserves facets, replies, and media',()=>{
  const record = {uri:`at://${did}/app.bsky.feed.post/abc123`,value:{createdAt:activity.published,text:'a link',facets:[{features:[{$type:'app.bsky.richtext.facet#link',uri:'https://example.com/full-link'}]}],reply:{parent:{uri:`at://${did}/app.bsky.feed.post/parent`}},embed:{$type:'app.bsky.embed.images',images:[{alt:'Alt',image:{ref:{$link:'cid'}}}]}}};
  const post = blueskyActivity(record,'post')!;
- expect(post.properties.content).toEqual(['a link\n\nhttps://example.com/full-link']);
+ expect(post.properties.content).toEqual([{html:'<p>a link</p><p><a href="https://example.com/full-link">https://example.com/full-link</a></p>'}]);
  expect(post.properties['in-reply-to']).toEqual([`https://bsky.app/profile/${did}/post/parent`]);
  expect(post.properties.photo?.[0]).toMatchObject({alt:'Alt'});
  expect(blueskyActivity({uri:activity.id,value:{createdAt:activity.published,subject:{uri:record.uri}}},'like')!.target).toBe(url);
+});
+// The post at https://caseyagollan.com/2026/11/14/3n2cde25cgc2m/, as listRecords returns it.
+const linkCardPost = {"uri": "at://did:plc:s3fw2giksymfvruno3tvem4k/app.bsky.feed.post/3n2cde25cgc2m", "value": {"$type": "app.bsky.feed.post", "createdAt": "2026-11-14T20:24:13.765Z", "embed": {"$type": "app.bsky.embed.external", "external": {"description": "Words in Space is the work of Shannon Mattern.", "thumb": {"$type": "blob", "ref": {"$link": "bafkreib2k675zsf3mxoo2yi3i3mylwq3m7jknze7id6hilsszt3c3tamg4"}, "mimeType": "image/jpeg", "size": 567763}, "title": "It Just Keeps Happening", "uri": "https://wordsinspace.net/2026/11/13/it-just-keeps-happening/"}}, "facets": [{"$type": "app.bsky.richtext.facet", "features": [{"$type": "app.bsky.richtext.facet#mention", "did": "did:plc:jtzxnbwxwbywld23yvnyokzf"}], "index": {"byteEnd": 49, "byteStart": 22}}, {"features": [{"$type": "app.bsky.richtext.facet#link", "uri": "https://wordsinspace.net/2026/11/13/it-just-keeps-happening/"}], "index": {"byteEnd": 273, "byteStart": 241}}], "langs": ["en"], "text": "Happy belated bday to @shannonmattern.bsky.social 🎈 and thank you for being a beacon of light (and carrier of the \"small, weird, local, public, and principled\") as \"so many systems fail and bodies break and lives dissipate\" 🫶 god damn wordsinspace.net/2026/11/13/i..."}};
+test('Bluesky posts apply facets to shortened links and mentions and keep the external embed as a card',()=>{
+ const post = blueskyActivity(linkCardPost,'post')!;
+ const html = (post.properties.content![0] as {html:string}).html;
+ expect(html).toContain('<a href="https://bsky.app/profile/did:plc:jtzxnbwxwbywld23yvnyokzf">@shannonmattern.bsky.social</a> 🎈');
+ expect(html).toContain('god damn <a href="https://wordsinspace.net/2026/11/13/it-just-keeps-happening/">wordsinspace.net/2026/11/13/i...</a></p>');
+ // The full URL is not repeated after the text.
+ expect(html.split('wordsinspace.net').length).toBe(3);
+ expect(post.properties._micropubLinkPreviews).toEqual([{url:'https://wordsinspace.net/2026/11/13/it-just-keeps-happening/',title:'It Just Keeps Happening',description:'Words in Space is the work of Shannon Mattern.',
+  image:'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:s3fw2giksymfvruno3tvem4k/bafkreib2k675zsf3mxoo2yi3i3mylwq3m7jknze7id6hilsszt3c3tamg4@jpeg'}]);
+});
+test('Bluesky external embeds without a facet in the text become a card, not an appended URL',()=>{
+ const record = {uri:`at://${did}/app.bsky.feed.post/abc123`,value:{createdAt:activity.published,text:'Read this\n\ntwice',embed:{$type:'app.bsky.embed.external',external:{uri:'https://example.com/a',title:'A',description:''}}}};
+ const post = blueskyActivity(record,'post')!;
+ expect(post.properties.content).toEqual([{html:'<p>Read this</p><p>twice</p>'}]);
+ expect(post.properties._micropubLinkPreviews).toEqual([{url:'https://example.com/a',title:'A',description:''}]);
 });
 test('pagination keeps opaque Mastodon favourite IDs and traverses pages containing only non-public posts',async()=>{
  const get = async()=>({data:[{...mastodon,visibility:'private'}],link:'<https://social.coop/api/v1/favourites?max_id=999>; rel="next"'});
@@ -464,4 +482,12 @@ test('Bluesky syndication uses verified current handles and preserves stable sou
   const invalid = blueskySyndicationUrls(async()=>({data:profile}));
   await expect(invalid({...post})).rejects.toThrow('Unable to resolve');
  }
+});
+test('Bluesky quote posts keep the quoted post in quotation-of rather than repeating its URL in the text',async()=>{
+ const quoted = `at://${did}/app.bsky.feed.post/quoted`;
+ const post = blueskyActivity({uri:`at://${did}/app.bsky.feed.post/abc123`,value:{createdAt:activity.published,text:'a beautiful page',embed:{$type:'app.bsky.embed.record',record:{uri:quoted}}}},'post')!;
+ expect(post.properties.content).toEqual([{html:'<p>a beautiful page</p>'}]);
+ expect(post.properties['quotation-of']).toEqual([`https://bsky.app/profile/${did}/post/quoted`]);
+ const {renderPostQuotations} = await import('../src/lib/utils/post-details');
+ expect(renderPostQuotations({properties:post.properties} as any)).toContain(`<a class="u-quotation-of" href="https://bsky.app/profile/${did}/post/quoted">`);
 });

@@ -397,3 +397,25 @@ test('saved social MP4s use immutable storage and can be served by the media rou
  const response=await serveMedia(new Request(url,{method:'HEAD'}),path.replace('publishing/',''),{head:async()=>({size:bytes.length,httpEtag:'"clip"',httpMetadata:{contentType:'video/mp4'}})} as unknown as R2Bucket);
  expect(response.status).toBe(200);expect(response.headers.get('Content-Type')).toBe('video/mp4');
 });
+
+test('own posts render saved link cards and drop unsaved thumbnails', async () => {
+ const {archiveLinkPreviewProperties}=await import('../src/lib/server/publishing/social-media');
+ const {renderLinkPreviews}=await import('../src/lib/utils/post-details');
+ const card={url:'https://wordsinspace.net/2026/11/13/it-just-keeps-happening/',title:'It Just Keeps Happening',description:'Words in Space is the work of Shannon Mattern.',image:'https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:abc/cid@jpeg'};
+ const saved=await archiveLinkPreviewProperties({_micropubLinkPreviews:[card]},async()=>imageUrl,async()=>new Response(png,{headers:{'content-type':'image/png'}}));
+ expect(saved._micropubLinkPreviews).toEqual([{...card,image:imageUrl}]);
+ const failed=await archiveLinkPreviewProperties({_micropubLinkPreviews:[card]},async()=>imageUrl,async()=>new Response('no',{status:404}));
+ const {image:_,...text}=card;
+ expect(failed._micropubLinkPreviews).toEqual([text]);
+ expect((await archiveLinkPreviewProperties({_micropubLinkPreviews:[card]},undefined))._micropubLinkPreviews).toEqual([text]);
+ const markdown=`---\ndate: 2026-11-14T15:24:13-05:00\n_micropubContentFormat: html\n_micropubLinkPreviews:\n  - url: ${card.url}\n    title: ${card.title}\n    description: ${card.description}\n    image: ${imageUrl}\n  - url: javascript:alert(1)\n    title: Bad\n    description: ''\n---\n<p>god damn <a href="${card.url}">wordsinspace.net/2026/11/13/i...</a></p>`;
+ const post=parsePost(markdown,'notes','2026-11-14-3n2cde25cgc2m.md');
+ expect(post.linkPreviews).toHaveLength(1);
+ const html=renderLinkPreviews(post);
+ expect(html).toContain(`<a class="social-link-preview" href="${card.url}">`);
+ expect(html).toContain(`<img src="${imageUrl}"`);
+ expect(html).toContain('<strong>It Just Keeps Happening</strong>');
+ // Notes show the card inside their own card; other post types get it from the shared details.
+ expect(renderPostDetails({...post,type:'photo'})).toContain('social-link-preview');
+ expect(renderPostDetails(post,{omitLinkPreviews:true})).not.toContain('social-link-preview');
+});

@@ -38,3 +38,9 @@ test('imported records never automatically POSSE even with stale destination met
  const native={...post,properties:{}};
  expect((await publicationForPost(native)).syndicateTo).toEqual(['mastodon','bluesky']);
 });
+test('Bluesky shortened link labels compare by their full destination',()=>{
+ const url = 'https://wordsinspace.net/2026/11/13/it-just-keeps-happening/';
+ const bluesky = {properties:{content:[{html:`<p>${text} <a href="${url}">wordsinspace.net/2026/11/13/i...</a></p>`}],published:['2025-08-04T23:59:00Z'],'pesos-source':['at://did:plc:casey/app.bsky.feed.post/abc']}};
+ expect(duplicateOriginal({...activity,properties:{content:[{html:`<p>${text} <a href="${url}"><span class="invisible">https://</span>wordsinspace.net/2026/11/13/it-just-keeps-happening/</a></p>`}]}},[bluesky])).toBe(bluesky);
+ expect(duplicateOriginal({...activity,properties:{content:[{html:`<p>${text} <a href="https://other.example/">wordsinspace.net/2026/11/13/i...</a></p>`}]}},[bluesky])).toBeUndefined();
+});

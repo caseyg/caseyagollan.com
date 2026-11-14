@@ -12,7 +12,10 @@ function body(properties: Properties): string {
    // Preserve link destinations, including Mastodon's visually shortened links.
    if (node.tagName === 'a' && typeof node.properties?.href === 'string') {
     const href = node.properties.href;
-    return /^(https?:\/\/|www\.)/.test(children.trim()) || href.includes(children.trim()) ? href : `${children} ${href}`;
+    const label = children.trim();
+    // Bluesky shortens labels to "host/path..." while the facet keeps the full URL.
+    const shortened = /(\.\.\.|…)$/.test(label) && href.replace(/^https?:\/\/(www\.)?/,'').startsWith(label.replace(/(\.\.\.|…)$/,'').replace(/^www\./,''));
+    return /^(https?:\/\/|www\.)/.test(label) || href.includes(label) || shortened ? href : `${children} ${href}`;
    }
    return ['p','div','br','li'].includes(node.tagName) ? ` ${children} ` : children;
   };

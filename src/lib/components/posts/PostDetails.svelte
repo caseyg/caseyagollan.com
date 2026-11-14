@@ -4,7 +4,7 @@
  import { renderPostDetails } from '$lib/utils/post-details';
  // The meta line already says what was liked, reposted or replied to, so only the saved post is shown here.
  let { post }: { post: Post } = $props();
- const details = $derived(renderPostDetails(post,{omitQuotations:post.type==='note'||post.type==='reply',omitReply:post.type==='note'||post.type==='reply',omitReactionLabel:true}));
+ const details = $derived(renderPostDetails(post,{omitQuotations:post.type==='note'||post.type==='reply',omitReply:post.type==='note'||post.type==='reply',omitLinkPreviews:post.type==='note'||post.type==='reply',omitReactionLabel:true}));
 </script>
 
 {#if details}

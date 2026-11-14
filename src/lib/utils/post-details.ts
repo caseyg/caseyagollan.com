@@ -1,5 +1,5 @@
 import type { Post } from '../posts-types';
-import { renderSocialSnapshot } from '../social-snapshots';
+import { renderLinkPreview, renderSocialSnapshot } from '../social-snapshots';
 import { sanitizePublishingHtml } from './sanitizeHtml';
 import { renderContentSync } from './renderContent';
 
@@ -95,7 +95,11 @@ export function getPostAction(post: Post): PostAction | undefined {
 }
 /** Shared semantic HTML for archive cards, permalinks, feeds and delivery text. */
 export function renderPostQuotations(post: Post): string {
- return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):'';}).join('');
+ return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):typeof value==='string'?`<p>Quoting ${link(value,replyUsername(value)===value?value:`${replyUsername(value)}’s post`,'u-quotation-of')}</p>`:'';}).join('');
+}
+/** Cards for links the post itself shares; the link stays in the text, the card shows what it is. */
+export function renderLinkPreviews(post: Post): string {
+ return sanitizePublishingHtml((post.linkPreviews ?? []).map(renderLinkPreview).join(''));
 }
 export function renderReplyLabel(post: Post): string {
  const reply = post.inReplyTo || text(post.properties ?? {}, 'in-reply-to');
@@ -111,7 +115,7 @@ export function renderReplyContext(post: Post, options: {omitLabel?: boolean; om
  if (options.omitLabel && !snapshot) return '';
  return sanitizePublishingHtml(`<div class="social-reply-context">${options.omitLabel ? '' : renderReplyLabel(post)}${snapshot ? renderSocialSnapshot(snapshot, {omitSource: options.omitSource}) : ''}</div>`);
 }
-export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean;omitReactionLabel?:boolean}={}): string {
+export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean;omitReactionLabel?:boolean;omitLinkPreviews?:boolean}={}): string {
  const p = post.properties ?? {};
  let html = '';
  const reactions = new Map<string, {labels: string[]; classes: string[]}>();
@@ -148,6 +152,7 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;o
   html += `<section class="p-itinerary h-leg"><p>${['transit-type','operator','number'].map(key => text(leg,key) ? `<span class="p-${key}">${escape(text(leg,key))}</span>` : '').filter(Boolean).join(' ')} · <span class="p-origin">${escape(text(leg,'origin'))}</span> → <span class="p-destination">${escape(text(leg,'destination'))}</span></p><p>${time(text(leg,'departure'),'departure')} – ${time(text(leg,'arrival'),'arrival')}</p></section>`;
  }
  for (const [key,label] of [['ate','Ate'],['drank','Drank']]) for (const value of p[key] ?? []) html += `<p>${label}: <span class="p-${key} h-food"><span class="p-name">${escape(text(properties(value),'name'))}</span></span></p>`;
+ if(!options.omitLinkPreviews)html+=(post.linkPreviews ?? []).map(renderLinkPreview).join('');
  if(!options.omitQuotations)html+=renderPostQuotations(post);
  return sanitizePublishingHtml(html);
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
- import { renderPostQuotations, renderReplyContext } from '$lib/utils/post-details';
+ import { renderLinkPreviews, renderPostQuotations, renderReplyContext } from '$lib/utils/post-details';
  import type { Post } from '$lib/posts-types';
  import { getPostPermalink } from '$lib/posts-types';
  import { siteAuthor, socialSource } from '$lib/social-card';
@@ -13,12 +13,14 @@
  // Links out to this post's copies sit in its own card header, where saved posts show theirs.
  const sources=$derived((post.syndication ?? []).map(link => socialSource(link, 'u-syndication')));
  const quotes=$derived(renderPostQuotations(post));
+ const cards=$derived(renderLinkPreviews(post));
 </script>
 
 <SocialCard contextHtml={replyContext} author={author} {sources} published={post.date} url={getPostPermalink(post)}>
  {#if post.summary}<p class="p-summary">{post.summary}</p>{/if}
  <PostMedia photos={post.photo} videos={post.video} />
  <PostContent content={post.content} format={post.contentFormat} />
+ {#if cards}{@html cards}{/if}
  {#if quotes}<div class="social-quoted-post">{@html quotes}</div>{/if}
 </SocialCard>
 

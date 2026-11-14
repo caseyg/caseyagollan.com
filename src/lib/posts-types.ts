@@ -1,4 +1,4 @@
-import type { SocialSnapshot } from './social-snapshots';
+import type { LinkPreview, SocialSnapshot } from './social-snapshots';
 // Client-safe post types and constants (no Node.js imports)
 
 export interface MediaItem {
@@ -30,6 +30,8 @@ export interface Post {
 	microformatType?: string;
 	channel?: string;
 	socialSnapshots?: SocialSnapshot[];
+	/** Link cards for the post's own shared links, e.g. a Bluesky external embed. */
+	linkPreviews?: LinkPreview[];
 	properties?: Record<string, unknown[]>;
 	indexActivities?: { type: 'like' | 'repost'; date: string; permalink: string; target?: string; network?: string; author?: string; dateSource?: string }[];
 	/** Presentation-only conversation members; original records remain intact. */

@@ -23,23 +23,41 @@ export function socialImageStore(bucket: R2Bucket | undefined, me: string, media
  };
 }
 
+const savedPath=/\/(?:publishing|media)\/social\/[a-f0-9]{64}\./;
+/** Fetch a public raster image, check its bytes match its type, and save it. */
+async function archiveImage(url:string, store:SocialImageStore, fetcher:PublicFetcher):Promise<string> {
+ publicUrl(url);const response=await fetcher(url,{headers:{accept:'image/png,image/jpeg,image/webp,image/gif'},signal:AbortSignal.timeout(30_000)});
+ if(!response.ok)throw new Error('Image unavailable');
+ const type=response.headers.get('content-type')?.split(';')[0].trim().toLowerCase()??'';
+ const bytes=new Uint8Array(await response.arrayBuffer());
+ const starts=(...magic:number[])=>magic.every((v,i)=>bytes[i]===v);
+ const ascii=(a:number,b:number)=>String.fromCharCode(...bytes.slice(a,b));
+ const valid=type==='image/png'&&starts(137,80,78,71,13,10,26,10)||type==='image/jpeg'&&starts(255,216,255)||type==='image/gif'&&['GIF87a','GIF89a'].includes(ascii(0,6))||type==='image/webp'&&ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP';
+ if(!valid||!bytes.length||bytes.length>10*1024*1024)throw new Error('Invalid image');
+ return store(bytes,type);
+}
+/** Save link card thumbnails; a card whose image cannot be saved keeps its text and drops the image. */
+export async function archiveLinkPreviewProperties(properties:Properties, store:SocialImageStore|undefined, fetcher:PublicFetcher=safePublicImageFetch):Promise<Properties> {
+ const previews=properties._micropubLinkPreviews;
+ if(!previews?.length)return properties;
+ const saved=[];
+ for(const preview of previews){
+  if(!preview||typeof preview!=='object'||Array.isArray(preview)){saved.push(preview);continue;}
+  const {image,...rest}=preview;
+  if(typeof image!=='string'||savedPath.test(image)){saved.push(preview);continue;}
+  try{saved.push(store?{...rest,image:await archiveImage(image,store,fetcher)}:rest);}catch{saved.push(rest);}
+ }
+ return {...properties,_micropubLinkPreviews:saved};
+}
 /** Preserve full-resolution imported photos, alt text and unrelated properties. */
 export async function archivePhotoProperties(properties:Properties, store:SocialImageStore|undefined, fetcher:PublicFetcher=safePublicImageFetch):Promise<Properties> {
  if(!store||!properties.photo?.length)return properties;
  const photos=[];
  for(const photo of properties.photo){
   const url=typeof photo==='string'?photo:photo&&typeof photo==='object'&&!Array.isArray(photo)?photo.url:undefined;
-  if(typeof url!=='string'||/\/(?:publishing|media)\/social\/[a-f0-9]{64}\./.test(url)){photos.push(photo);continue;}
+  if(typeof url!=='string'||savedPath.test(url)){photos.push(photo);continue;}
   try{
-   publicUrl(url);const response=await fetcher(url,{headers:{accept:'image/png,image/jpeg,image/webp,image/gif'},signal:AbortSignal.timeout(30_000)});
-   if(!response.ok)throw new Error('Photo unavailable');
-   const type=response.headers.get('content-type')?.split(';')[0].trim().toLowerCase()??'';
-   const bytes=new Uint8Array(await response.arrayBuffer());
-   const starts=(...magic:number[])=>magic.every((v,i)=>bytes[i]===v);
-   const ascii=(a:number,b:number)=>String.fromCharCode(...bytes.slice(a,b));
-   const valid=type==='image/png'&&starts(137,80,78,71,13,10,26,10)||type==='image/jpeg'&&starts(255,216,255)||type==='image/gif'&&['GIF87a','GIF89a'].includes(ascii(0,6))||type==='image/webp'&&ascii(0,4)==='RIFF'&&ascii(8,12)==='WEBP';
-   if(!valid||!bytes.length||bytes.length>10*1024*1024)throw new Error('Invalid photo');
-   const saved=await store(bytes,type);photos.push(typeof photo==='string'?saved:{...photo as object,url:saved});
+   const saved=await archiveImage(url,store,fetcher);photos.push(typeof photo==='string'?saved:{...photo as object,url:saved});
   }catch{photos.push(photo);}
  }
  return {...properties,photo:photos as Properties['photo']};
