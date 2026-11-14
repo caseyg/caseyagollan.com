@@ -9,6 +9,7 @@ export { default as Notice } from './Notice.svelte';
 export { default as Page } from './Page.svelte';
 export { default as PageHeader } from './PageHeader.svelte';
 export { default as Pagination } from './Pagination.svelte';
+export { default as Popover } from './Popover.svelte';
 export { default as Prose } from './Prose.svelte';
 export { default as Section } from './Section.svelte';
 export { default as SegmentedPill } from './SegmentedPill.svelte';
