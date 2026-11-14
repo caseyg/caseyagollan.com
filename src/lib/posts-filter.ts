@@ -10,8 +10,27 @@ export const FILTER_PATH = '/posts/filter';
 export interface TypeFilterOption {
 	type: PostType;
 	label: string;
+	icon: string;
 	count: number;
 }
+
+/** Shared with the type archive pages so each type keeps one emoji everywhere. */
+export const TYPE_ICONS: Record<PostType, string> = {
+	note: '📝',
+	article: '📄',
+	bookmark: '🔖',
+	photo: '📷',
+	video: '🎬',
+	reply: '💬',
+	media: '🎵',
+	like: '♥',
+	repost: '🔁',
+	event: '📅',
+	review: '⭐',
+	itinerary: '✈',
+	food: '🍽',
+	drink: '☕'
+};
 
 /** Every type a feed entry stands for: rolled-up reactions and threads carry their members' types. */
 export function entryTypes(post: Post): PostType[] {
@@ -28,6 +47,7 @@ export function typeFilterOptions(entries: PostType[][]): TypeFilterOption[] {
 	return POST_TYPES.filter((type) => counts.has(type)).map((type) => ({
 		type,
 		label: POST_TYPE_PLURALS[type].charAt(0).toUpperCase() + POST_TYPE_PLURALS[type].slice(1),
+		icon: TYPE_ICONS[type],
 		count: counts.get(type)!
 	}));
 }
@@ -51,6 +71,27 @@ export function typesHref(selected: Iterable<PostType>, available: readonly Post
 	if (page > 1) params.set('page', String(page));
 	// Commas read better in a shared link than %2C.
 	return `${FILTER_PATH}?${params.toString().replaceAll('%2C', ',')}`;
+}
+
+/** For archive pages that list every post at once: filter in place with `?types=`. */
+export function localTypesHref(pathname: string, selected: Iterable<PostType>, available: readonly PostType[]): string {
+	const chosen = new Set(selected);
+	const types = available.filter((type) => chosen.has(type));
+	if (types.length === 0 || types.length === available.length) return pathname;
+	return `${pathname}?types=${types.map((type) => POST_TYPE_PLURALS[type]).join(',')}`;
+}
+
+/** Turn one type on or off; switching off the last type shows everything again. */
+export function toggleTypes(type: PostType, selected: ReadonlySet<PostType>, available: readonly PostType[]): PostType[] {
+	const next = new Set(selected);
+	if (next.has(type)) next.delete(type);
+	else next.add(type);
+	return next.size ? available.filter((t) => next.has(t)) : [...available];
+}
+
+/** Show only this type, or everything again when it is already the only one shown. */
+export function soloTypes(type: PostType, selected: ReadonlySet<PostType>, available: readonly PostType[]): PostType[] {
+	return selected.size === 1 && selected.has(type) ? [...available] : [type];
 }
 
 /** The link a pill follows: the selection with that type switched on or off. */

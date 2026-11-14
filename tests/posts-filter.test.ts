@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
 import { rollupIndexPosts, type Post } from '../src/lib/posts-types';
-import { entryTypes, parseTypesParam, toggleHref, typeFilterOptions, typesHref, type PostType } from '../src/lib/posts-filter';
+import { entryTypes, localTypesHref, parseTypesParam, soloTypes, toggleHref, toggleTypes, typeFilterOptions, typesHref, type PostType } from '../src/lib/posts-filter';
 
 const available: PostType[] = ['note', 'reply', 'like', 'repost'];
 const target = 'https://bsky.app/profile/did:plc:author/post/123';
@@ -12,9 +12,9 @@ test('rolled-up entries stand for every member type', () => {
 	const entries = rollupIndexPosts([repost, like, note]);
 	expect(entries.map(entryTypes)).toEqual([['like', 'repost'], ['note']]);
 	expect(typeFilterOptions(entries.map(entryTypes))).toEqual([
-		{ type: 'note', label: 'Notes', count: 1 },
-		{ type: 'like', label: 'Likes', count: 1 },
-		{ type: 'repost', label: 'Reposts', count: 1 }
+		{ type: 'note', label: 'Notes', icon: '📝', count: 1 },
+		{ type: 'like', label: 'Likes', icon: '♥', count: 1 },
+		{ type: 'repost', label: 'Reposts', icon: '🔁', count: 1 }
 	]);
 });
 
@@ -38,4 +38,16 @@ test('pills toggle one type, and switching off the last type shows everything', 
 	expect(toggleHref('like', all, available)).toBe('/posts/filter?types=notes,replies,reposts');
 	expect(toggleHref('like', new Set<PostType>(['note']), available)).toBe('/posts/filter?types=notes,likes');
 	expect(toggleHref('note', new Set<PostType>(['note']), available)).toBe('/posts');
+});
+
+test('solo shows one type, and soloing it again shows everything', () => {
+	expect(soloTypes('like', new Set(available), available)).toEqual(['like']);
+	expect(soloTypes('like', new Set<PostType>(['like']), available)).toEqual(available);
+	expect(toggleTypes('note', new Set<PostType>(['note']), available)).toEqual(available);
+	expect(toggleTypes('like', new Set<PostType>(['note']), available)).toEqual(['note', 'like']);
+});
+
+test('archive pages filter in place with ?types=', () => {
+	expect(localTypesHref('/2026/11', ['reply', 'note'], available)).toBe('/2026/11?types=notes,replies');
+	expect(localTypesHref('/2026/11', available, available)).toBe('/2026/11');
 });

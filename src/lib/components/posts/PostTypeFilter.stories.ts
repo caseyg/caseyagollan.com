@@ -1,23 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/sveltekit';
 import PostTypeFilter from './PostTypeFilter.svelte';
-import type { TypeFilterOption } from '$lib/posts-filter';
+import { localTypesHref, typeFilterOptions, type PostType } from '$lib/posts-filter';
 
-const options: TypeFilterOption[] = [
-	{ type: 'note', label: 'Notes', count: 73 },
-	{ type: 'article', label: 'Articles', count: 4 },
-	{ type: 'bookmark', label: 'Bookmarks', count: 11 },
-	{ type: 'photo', label: 'Photos', count: 37 },
-	{ type: 'reply', label: 'Replies', count: 62 },
-	{ type: 'like', label: 'Likes', count: 772 },
-	{ type: 'repost', label: 'Reposts', count: 155 }
-];
+const counts: [PostType, number][] = [['note', 73], ['article', 4], ['bookmark', 11], ['photo', 37], ['reply', 62], ['like', 772], ['repost', 155]];
+const options = typeFilterOptions(counts.flatMap(([type, count]) => Array.from({ length: count }, () => [type])));
+const available = options.map((option) => option.type);
 const meta = {
 	title: 'Posts/PostTypeFilter',
 	component: PostTypeFilter,
-	args: { options, selected: options.map((option) => option.type) }
+	args: { options, selected: available, href: (types: PostType[]) => localTypesHref('/posts', types, available) }
 } satisfies Meta<typeof PostTypeFilter>;
 export default meta;
 type Story = StoryObj<typeof meta>;
+/** Collapsed behind the filter button until opened. */
 export const AllShown: Story = {};
+/** Opens automatically while a filter is active. */
 export const LikesAndRepostsHidden: Story = { args: { selected: ['note', 'article', 'bookmark', 'photo', 'reply'] } };
 export const NotesOnly: Story = { args: { selected: ['note'] } };

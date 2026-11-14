@@ -29,7 +29,7 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<PostTypeFilter options={data.typeOptions} selected={data.selectedTypes} />
+	<PostTypeFilter options={data.typeOptions} selected={data.selectedTypes} href={(types) => typesHref(types, available)} />
 	{#if data.totalPosts === 0}
 		<p class="empty">No posts of these types yet.</p>
 	{/if}
