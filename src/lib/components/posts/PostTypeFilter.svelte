@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { soloTypes, toggleTypes, type PostType, type TypeFilterOption } from '$lib/posts-filter';
+	import { toggleTypes, type PostType, type TypeFilterOption } from '$lib/posts-filter';
 
 	interface Props {
 		options: TypeFilterOption[];
@@ -24,19 +24,11 @@
 		if (filtered) open = true;
 	});
 
-	/** Two clicks on one pill within this window solo that type. */
-	const DOUBLE_CLICK_MS = 400;
-	let lastClick: { type: PostType; at: number } | undefined;
-
-	// Without JavaScript each pill is a plain toggle link. With it, the first click toggles
-	// at once and a quick second click on the same pill replaces that with a solo view.
+	// Without JavaScript each pill is a plain link; with it, keep the scroll position and focus.
 	function onclick(event: MouseEvent, type: PostType) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		event.preventDefault();
-		const double = lastClick?.type === type && event.timeStamp - lastClick.at < DOUBLE_CLICK_MS;
-		lastClick = double ? undefined : { type, at: event.timeStamp };
-		const next = double ? soloTypes(type, shown, available) : toggleTypes(type, shown, available);
-		goto(href(next), { noScroll: true, keepFocus: true });
+		goto(href(toggleTypes(type, shown, available)), { noScroll: true, keepFocus: true });
 	}
 </script>
 
@@ -47,28 +39,28 @@
 				<path d="M2 3h12l-4.5 5.5V13l-3 1.5v-6z" />
 			</svg>
 			<span>Filter</span>
-			{#if filtered}<span class="status">{shownCount} of {available.length} types</span>{/if}
+			{#if filtered}<span class="status">{shownCount} selected</span>{/if}
 		</summary>
 		<ul aria-label="Post types">
 			{#each options as option (option.type)}
-				{@const on = shown.has(option.type)}
+				{@const on = filtered && shown.has(option.type)}
 				<li>
 					<a
 						class="pill"
 						class:on
 						href={href(toggleTypes(option.type, shown, available))}
-						title="{on ? 'Hide' : 'Show'} {option.label.toLowerCase()} (double-click to show only {option.label.toLowerCase()})"
+						title="{on ? 'Remove' : 'Show'} {option.label.toLowerCase()}{on || !filtered ? '' : ' too'}"
 						onclick={(event) => onclick(event, option.type)}
 					>
 						<span class="emoji" aria-hidden="true">{option.icon}</span>
-						{option.label}<span class="visually-hidden">, {on ? 'shown' : 'hidden'}</span>
+						{option.label}<span class="visually-hidden">{on ? ', selected' : ''}</span>
 						<span class="count" aria-label="{option.count} posts">{option.count}</span>
 					</a>
 				</li>
 			{/each}
 			{#if filtered}
 				<li>
-					<a class="reset" href={href([...available])} data-sveltekit-noscroll data-sveltekit-keepfocus>Show all</a>
+					<a class="reset" href={href([...available])} data-sveltekit-noscroll data-sveltekit-keepfocus>Clear</a>
 				</li>
 			{/if}
 		</ul>
@@ -155,15 +147,10 @@
 		transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease), opacity var(--duration) var(--ease);
 	}
 
-	/* Hidden types: outlined and quiet. */
+	/* Unselected: outlined. With nothing selected, every type is shown. */
 	.pill {
 		border-color: var(--border);
-		color: var(--text-muted);
-	}
-
-	.pill:not(.on) .emoji {
-		opacity: 0.55;
-		filter: grayscale(1);
+		color: var(--text-secondary);
 	}
 
 	.pill:hover {
@@ -171,9 +158,9 @@
 		color: var(--text-primary);
 	}
 
-	/* Shown types: filled gray. */
+	/* Selected: filled gray. */
 	.pill.on {
-		border-color: transparent;
+		border-color: var(--border-strong);
 		background: var(--surface-3);
 		color: var(--text-primary);
 	}
