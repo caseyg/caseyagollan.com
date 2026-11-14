@@ -5,16 +5,23 @@
 	import { PostsLayout, DateArchiveHeader, PostMeta, PostTitle, PostContent, PostMedia, PostDetails, NoteCard } from '$lib/components/posts';
 
 	import { getPostAction } from '$lib/utils/post-details';
+	import { renderContentSync } from '$lib/utils/renderContent';
 
 	let { data }: { data: PageData } = $props();
 
 	const permalink = `/${data.year}/${data.month}/${data.day}/${data.post.slug}/`;
+	// The description is the post's visible text, not its Markdown or HTML source.
+	const entities: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', nbsp: ' ' };
+	const plain = (html: string) => html.replace(/<[^>]*>/g, ' ')
+		.replace(/&#x([0-9a-f]+);|&#(\d+);|&(amp|lt|gt|quot|nbsp);/gi, (match, hex: string, dec: string, name: string) => hex || dec ? String.fromCodePoint(parseInt(hex ?? dec, hex ? 16 : 10)) : entities[name.toLowerCase()] ?? match)
+		.replace(/\s+/g, ' ').trim();
+	const description = $derived(data.post.summary || plain(renderContentSync(data.post.content, data.post.contentFormat)).slice(0, 160));
 </script>
 
 <svelte:head>
 	<meta name="publishing-revision" content={data.revision} />
 	<title>{data.post.title || data.post.type} - Casey Gollan</title>
-	<meta name="description" content={data.post.summary || data.post.content.slice(0, 160)} />
+	<meta name="description" content={description} />
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />
 </svelte:head>
 

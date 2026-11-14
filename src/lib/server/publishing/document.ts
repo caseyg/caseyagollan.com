@@ -125,6 +125,8 @@ export function updateDocument(markdown: string, operations: UpdateOperations): 
 	for (const key of new Set([...Object.keys(original.properties), ...Object.keys(properties), ...(deleteLegacyContent ? ['content'] : [])])) {
 		if (!(key === 'content' && deleteLegacyContent) && equal(original.properties[key] ?? [], properties[key] ?? [])) continue;
 		const values = properties[key];
+		// The content type is recorded by the format key, not repeated as frontmatter.
+		if (key === 'p3k-content-type') { yaml.delete(key); continue; }
 		if (key === 'content') {
 			if (!values) { body = ''; yaml.delete(formatKey); continue; }
 			if (values.length !== 1) throw new Error('Content must have exactly one value');

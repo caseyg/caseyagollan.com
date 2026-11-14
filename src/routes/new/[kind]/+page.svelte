@@ -6,6 +6,9 @@
 	import { formatAbsoluteDate } from '$lib/utils/formatDate';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
 	import Icon, { type IconName } from '$lib/components/composer/ComposerIcon.svelte';
+	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
+	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
+	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
 	import { Heading, Notice, Page, PageHeader } from '$lib/components/ui';
 	import type { ActionData, PageData } from './$types';
 
@@ -124,8 +127,8 @@
 		<PageHeader backHref="/" backText="Home" tight><Heading level={1} size="display">New post</Heading></PageHeader>
 		<OwnerSignIn message="Sign in to post." />
 	{:else}
-		<header class="bar">
-			<a class="icon-button" href="/account" aria-label="Close" title="Close"><Icon name="close" /></a>
+		<ComposerBar>
+			<ComposerButton variant="icon" icon="close" label="Close" href="/account" />
 			<details class="menu kinds">
 				<summary aria-label="Post type: {info.label}"><Icon name={KIND_ICONS[kind]} size={18} /> {info.label} <Icon name="chevron" size={16} /></summary>
 				<ul class="popover kind-list">
@@ -134,7 +137,7 @@
 					{/each}
 				</ul>
 			</details>
-			<span class="spacer"></span>
+			{#snippet actions()}
 			{#if data.draftsEnabled}
 				<details class="menu drafts">
 					<summary aria-label="Drafts ({data.drafts.length})" title="Drafts"><Icon name="drafts" size={18} /><span class="count-badge">{data.drafts.length}</span></summary>
@@ -149,7 +152,7 @@
 										<form method="POST" action="?/discard">
 											<input type="hidden" name="csrf" value={data.csrf} />
 											<input type="hidden" name="id" value={draft.id} />
-											<button class="icon-button small" type="submit" aria-label="Discard {draft.title}" title="Discard"><Icon name="close" size={16} /></button>
+											<ComposerButton variant="icon" size="sm" icon="close" type="submit" label="Discard {draft.title}" />
 										</form>
 									</li>
 								{/each}
@@ -157,10 +160,11 @@
 						{/if}
 					</div>
 				</details>
-				<button class="text-button" type="submit" form="composer" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</button>
+				<ComposerButton type="submit" form="composer" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</ComposerButton>
 			{/if}
-			<button class="publish" type="submit" form="composer" name="intent" value="publish" disabled={submitting || uploading > 0}>{submitting && intent === 'publish' ? 'Posting…' : 'Publish'}</button>
-		</header>
+			<ComposerButton variant="primary" type="submit" form="composer" name="intent" value="publish" disabled={submitting || uploading > 0}>{submitting && intent === 'publish' ? 'Posting…' : 'Publish'}</ComposerButton>
+			{/snippet}
+		</ComposerBar>
 
 		{#if form?.message}<Notice tone="error">{form.message}</Notice>
 		{:else if published}<Notice>Posted. <a href={published}>It will appear here</a> after the site rebuilds, usually within a few minutes.{#if page.url.searchParams.has('draft-kept')} The draft could not be removed; discard it from Drafts.{/if}</Notice>
@@ -241,10 +245,10 @@
 							<label class="mini">Departs<input name="leg-departure" type="datetime-local" bind:value={leg.departure} required /></label>
 							<label class="mini">Arrives<input name="leg-arrival" type="datetime-local" bind:value={leg.arrival} required /></label>
 						</div>
-						{#if legs.length > 1}<button class="icon-button small remove-leg" type="button" aria-label="Remove leg {index + 1}" onclick={() => legs.splice(index, 1)}><Icon name="close" size={16} /></button>{/if}
+						{#if legs.length > 1}<span class="remove-leg"><ComposerButton variant="icon" size="sm" icon="close" label="Remove leg {index + 1}" onclick={() => legs.splice(index, 1)} /></span>{/if}
 					</fieldset>
 				{/each}
-				<button class="text-button add" type="button" onclick={() => legs.push(emptyLeg())}><Icon name="plus" size={16} /> Add leg</button>
+				<span class="add"><ComposerButton icon="plus" onclick={() => legs.push(emptyLeg())}>Add leg</ComposerButton></span>
 			{/if}
 
 			{#if hasContent}
@@ -284,13 +288,13 @@
 			{#if hasPhotos}
 				<div class="panel row" hidden={!open.photoUrl}>
 					<label class="target grow"><Icon name="link" size={18} /><span class="visually-hidden">Photo URL</span><input id="field-photo-url" type="url" bind:value={photoUrl} placeholder="Add a photo by URL" autocomplete="off" spellcheck="false" /></label>
-					<button class="text-button" type="button" disabled={!photoUrl} onclick={() => { photos.push({ url: photoUrl, alt: '' }); photoUrl = ''; open.photoUrl = false; }}>Add</button>
+					<ComposerButton disabled={!photoUrl} onclick={() => { photos.push({ url: photoUrl, alt: '' }); photoUrl = ''; open.photoUrl = false; }}>Add</ComposerButton>
 				</div>
 			{/if}
 			{#if hasLocation}
 				<div class="panel row" hidden={!open.location}>
 					<label class="target grow"><Icon name="pin" size={18} /><span class="visually-hidden">Location</span><input id="field-location" name="location" bind:value={location} placeholder="Add a place" autocomplete="off" /></label>
-					<button class="icon-button" type="button" disabled={locating} onclick={locate} aria-label="Use current location" title="Use current location"><Icon name="locate" size={18} /></button>
+					<ComposerButton variant="icon" icon="locate" label="Use current location" disabled={locating} onclick={locate} />
 				</div>
 				{#if locationError}<p class="hint">{locationError}</p>{/if}
 			{/if}
@@ -309,21 +313,21 @@
 				{/if}
 			</div>
 
-			<div class="toolbar" role="toolbar" aria-label="Add to post">
+			<ComposerToolbar>
 				{#if hasPhotos}
-					<button class="icon-button" type="button" onclick={() => photoInput?.click()} aria-label="Add photos" title="Add photos"><Icon name="image" /></button>
+					<ComposerButton variant="icon" icon="image" label="Add photos" onclick={() => photoInput?.click()} />
 					<input bind:this={photoInput} class="visually-hidden" tabindex="-1" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" multiple onchange={event => { void upload(event.currentTarget.files, 'photo'); event.currentTarget.value = ''; }} />
-					<button class="icon-button" type="button" aria-pressed={open.photoUrl} onclick={() => reveal('photoUrl', 'field-photo-url')} aria-label="Add a photo by URL" title="Photo by URL"><Icon name="link" /></button>
+					<ComposerButton variant="icon" icon="link" label="Add a photo by URL" pressed={open.photoUrl} onclick={() => reveal('photoUrl', 'field-photo-url')} />
 				{/if}
 				{#if kind === 'video' && data.mediaEnabled}
-					<button class="icon-button" type="button" onclick={() => videoInput?.click()} aria-label="Add a video" title="Add a video"><Icon name="video" /></button>
+					<ComposerButton variant="icon" icon="video" label="Add a video" onclick={() => videoInput?.click()} />
 					<input bind:this={videoInput} class="visually-hidden" tabindex="-1" type="file" accept="video/mp4,video/quicktime,video/webm" onchange={event => { void upload(event.currentTarget.files, 'video'); event.currentTarget.value = ''; }} />
 				{/if}
-				{#if kind === 'note'}<button class="icon-button" type="button" aria-pressed={open.reply || !!replyTo} onclick={() => reveal('reply', 'field-reply')} aria-label="Reply to a URL" title="Reply to a URL"><Icon name="reply" /></button>{/if}
-				{#if hasLocation}<button class="icon-button" type="button" aria-pressed={open.location || !!location} onclick={() => reveal('location', 'field-location')} aria-label="Add location" title="Location"><Icon name="pin" /></button>{/if}
-				<button class="icon-button" type="button" aria-pressed={open.tags || !!category} onclick={() => reveal('tags', 'field-tags')} aria-label="Add tags" title="Tags"><Icon name="hash" /></button>
-				<button class="icon-button" type="button" aria-pressed={open.options} onclick={() => reveal('options', 'field-slug')} aria-label="More options" title="Slug, date and format"><Icon name="sliders" /></button>
-				<span class="spacer"></span>
+				{#if kind === 'note'}<ComposerButton variant="icon" icon="reply" label="Reply to a URL" pressed={open.reply || !!replyTo} onclick={() => reveal('reply', 'field-reply')} />{/if}
+				{#if hasLocation}<ComposerButton variant="icon" icon="pin" label="Add location" pressed={open.location || !!location} onclick={() => reveal('location', 'field-location')} />{/if}
+				<ComposerButton variant="icon" icon="hash" label="Add tags" pressed={open.tags || !!category} onclick={() => reveal('tags', 'field-tags')} />
+				<ComposerButton variant="icon" icon="sliders" label="Slug, date and format" pressed={open.options} onclick={() => reveal('options', 'field-slug')} />
+				{#snippet end()}
 				{#if data.syndication.length && kind !== 'like' && kind !== 'repost'}
 					<span class="share" role="group" aria-label="Also post to">
 						{#each data.syndication as destination (destination.uid)}
@@ -332,7 +336,8 @@
 					</span>
 				{/if}
 				{#if hasContent && kind !== 'article'}<span class="count" class:over={limit && content.length > limit} aria-live="polite">{limit ? `${content.length}/${limit}` : content.length || ''}</span>{/if}
-			</div>
+				{/snippet}
+			</ComposerToolbar>
 		</form>
 		<p class="hint footer">
 			{#if data.draftsEnabled}Drafts stay in your private drafts repository and never reach the public site.{#if data.draft} Publishing removes this draft.{/if}{:else}Drafts are not configured, so posts can only be published.{/if}
@@ -345,21 +350,8 @@
 	:global(.compose-page) { max-width: 40rem; }
 	.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 	[hidden] { display: none !important; }
-	.spacer { flex: 1; }
 	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
 
-	.bar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--space-2); margin: calc(-1 * var(--space-4)) 0 var(--space-3); padding: var(--space-3) 0; background: var(--bg-primary); }
-	.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--text-secondary); cursor: pointer; }
-	.icon-button.small { width: 1.75rem; height: 1.75rem; }
-	.icon-button:hover:not(:disabled), .icon-button:focus-visible { background: var(--surface-2); color: var(--text-primary); }
-	.icon-button[aria-pressed='true'] { color: var(--text-primary); background: var(--surface-1); }
-	.icon-button:disabled { opacity: 0.5; cursor: default; }
-	.text-button { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-3); border: 0; border-radius: 999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
-	.text-button:hover:not(:disabled), .text-button:focus-visible { background: var(--surface-2); color: var(--text-primary); }
-	.text-button:disabled { opacity: 0.5; }
-	.publish { white-space: nowrap; padding: var(--space-2) var(--space-4); border: 0; border-radius: 999px; background: var(--accent); color: var(--text-primary); font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-semibold); cursor: pointer; }
-	.publish:hover:not(:disabled) { background: var(--accent-hover); }
-	.publish:disabled { opacity: 0.6; cursor: default; }
 
 	.menu { position: relative; }
 	.menu summary { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border-radius: 999px; color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); list-style: none; cursor: pointer; }
@@ -429,12 +421,11 @@
 	.alt { box-sizing: border-box; width: 100%; padding: var(--space-1) var(--space-2); border: 0; border-top: 1px solid var(--border-subtle); background: transparent; font-size: var(--fs-xs); outline: none; }
 	.remove { position: absolute; top: var(--space-1); right: var(--space-1); display: flex; padding: var(--space-1); border: 0; border-radius: 999px; background: rgb(0 0 0 / 0.6); color: white; cursor: pointer; }
 
-	.toolbar { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-top: var(--space-2); padding: var(--space-2) 0; border-top: 1px solid var(--border-subtle); background: var(--bg-primary); }
 	.share { display: inline-flex; gap: var(--space-1); }
 	.count { min-width: 2.5rem; color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
 	.count.over { color: var(--text-primary); text-decoration: underline wavy; font-weight: var(--fw-semibold); }
 	.hint { margin: var(--space-1) 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
 	.footer { margin-top: var(--space-4); font-size: var(--fs-xs); }
 	.footer a { margin-left: var(--space-2); }
-	@media (max-width: 30rem) { .bar { gap: 0; } .menu summary { padding-left: var(--space-2); } }
+	@media (max-width: 30rem) { .menu summary { padding-left: var(--space-2); } }
 </style>

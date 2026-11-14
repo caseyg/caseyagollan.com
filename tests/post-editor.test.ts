@@ -42,7 +42,9 @@ describe('on-site post editor', () => {
 		const source = await loadEditorSource(config, url, app.dependencies);
 		expect(source.revision).toBe('"revision-0"');
 		expect(source.published).toBe('2026-11-06T20:00:00-05:00');
-		expect(source.fields).toEqual({ urls: {}, name: 'Old title', summary: undefined, content: '\n## Heading\n\n* **Markdown** stays\n', format: 'markdown', category: 'changelog', status: 'published' });
+		expect(source.fields).toEqual({ name: 'Old title', content: '\n## Heading\n\n* **Markdown** stays\n', format: 'markdown', status: 'published', properties: { category: ['changelog'] } });
+		expect(source.path).toBe('articles/2026-11-06-post.md');
+		expect(source.readOnly).toEqual([{ key: 'draft', values: [false] }]);
 	});
 
 	test('saving an untouched form writes nothing', async () => {
@@ -57,7 +59,7 @@ describe('on-site post editor', () => {
 	test('metadata edits leave the Markdown body byte-for-byte intact', async () => {
 		const app = setup('articles/2026-11-06-post.md', legacy);
 		const source = await loadEditorSource(config, url, app.dependencies);
-		expect(await saveEditorPost(config, url, source.revision, { ...source.fields, name: 'New title', category: 'changelog, #site, site' }, app.dependencies)).toBe(true);
+		expect(await saveEditorPost(config, url, source.revision, { ...source.fields, name: 'New title', properties: { category: ['changelog', '#site', 'site'] } }, app.dependencies)).toBe(true);
 		const saved = app.read();
 		expect(saved.endsWith('---\n\n## Heading\n\n* **Markdown** stays\n')).toBe(true);
 		const doc = readDocument(saved);
@@ -82,7 +84,7 @@ describe('on-site post editor', () => {
 	test('switches content type and clears fields', async () => {
 		const app = setup('notes/2026-11-06-post.md', '---\n_micropubContentFormat: markdown\ndate: 2026-11-06T20:00:00-05:00\nsummary: Short\ncategory:\n  - one\n---\n*literal*');
 		const source = await loadEditorSource(config, url, app.dependencies);
-		await saveEditorPost(config, url, source.revision, { ...source.fields, format: 'text', summary: '', category: '' }, app.dependencies);
+		await saveEditorPost(config, url, source.revision, { ...source.fields, format: 'text', properties: { summary: [''] } }, app.dependencies);
 		const doc = readDocument(app.read());
 		expect(doc.bodyFormat).toBe('text');
 		expect(doc.body).toBe('*literal*');
@@ -93,20 +95,21 @@ describe('on-site post editor', () => {
 	test('edits reaction targets, sanitizes HTML, and moves posts to draft and back', async () => {
 		const app = setup('likes/2026-11-06-post.md', '---\ndate: 2026-11-06T20:00:00-05:00\nlike-of:\n  - https://other.example/a\n---\n');
 		let source = await loadEditorSource(config, url, app.dependencies);
-		expect(source.fields.urls).toEqual({ 'like-of': 'https://other.example/a' });
-		await saveEditorPost(config, url, source.revision, { ...source.fields, urls: { 'like-of': 'https://other.example/b' }, content: '<p>Hi<script>alert(1)</script></p>', format: 'html', status: 'draft' }, app.dependencies);
+		expect(source.fields.properties).toEqual({ 'like-of': ['https://other.example/a'] });
+		await saveEditorPost(config, url, source.revision, { ...source.fields, properties: { 'like-of': ['https://other.example/b'] }, content: '<p>Hi<script>alert(1)</script></p>', format: 'html', status: 'draft' }, app.dependencies);
 		let doc = readDocument(app.read());
 		expect(doc.properties['like-of']).toEqual(['https://other.example/b']);
 		expect(doc.properties['post-status']).toEqual(['draft']);
 		expect(doc.body).toContain('<p>Hi');
 		expect(doc.body).not.toContain('script');
 		source = await loadEditorSource(config, url, app.dependencies);
-		expect(source.fields).toMatchObject({ format: 'html', status: 'draft' });
+		expect(source.fields).toMatchObject({ format: 'markdown', content: 'Hi', status: 'draft' });
+		expect(source.convertedFromHtml).toBe(true);
 		await saveEditorPost(config, url, source.revision, { ...source.fields, status: 'published' }, app.dependencies);
 		expect(readDocument(app.read()).properties['post-status']).toEqual(['published']);
 		source = await loadEditorSource(config, url, app.dependencies);
-		await expect(saveEditorPost(config, url, source.revision, { ...source.fields, urls: { 'like-of': ' ' } }, app.dependencies)).rejects.toMatchObject({ status: 422 });
-		await expect(saveEditorPost(config, url, source.revision, { ...source.fields, urls: { 'like-of': 'javascript:alert(1)' } }, app.dependencies)).rejects.toMatchObject({ status: 400 });
+		await expect(saveEditorPost(config, url, source.revision, { ...source.fields, properties: { 'like-of': [' '] } }, app.dependencies)).rejects.toMatchObject({ status: 422 });
+		await expect(saveEditorPost(config, url, source.revision, { ...source.fields, properties: { 'like-of': ['javascript:alert(1)'] } }, app.dependencies)).rejects.toMatchObject({ status: 400 });
 	});
 
 	test('rejects stale forms, missing posts and deleted posts', async () => {
@@ -122,7 +125,29 @@ describe('on-site post editor', () => {
 
 	test('fields the form did not show are left alone', () => {
 		const properties = { name: ['Title'], summary: ['Short'], content: ['Body'], published: ['2026-11-06T20:00:00-05:00'] };
-		expect(editorOperations(properties, { urls: {}, content: 'Body', format: 'text', category: '', status: 'published' })).toEqual({});
+		expect(editorOperations(properties, { content: 'Body', format: 'text', status: 'published' })).toEqual({});
+	});
+
+	test('frontmatter properties can be added, changed and removed, but structured ones stay put', () => {
+		const properties = { content: ['Body'], published: ['2026-11-06T20:00:00-05:00'], syndication: ['https://a.example/1'], photo: [{ value: 'https://a.example/p.jpg', alt: '' }] };
+		const fields = { content: 'Body', format: 'text' as const, status: 'published' as const };
+		expect(editorOperations(properties, { ...fields, properties: { syndication: ['https://a.example/1', 'https://b.example/2'], 'pesos-source': ['x'] } })).toEqual({ replace: { syndication: ['https://a.example/1', 'https://b.example/2'], 'pesos-source': ['x'] } });
+		expect(editorOperations(properties, { ...fields, properties: {} })).toEqual({ delete: ['syndication'] });
+		for (const key of ['photo', 'published', 'content', 'draft', '_micropubType', 'Bad Key']) {
+			expect(() => editorOperations(properties, { ...fields, properties: { syndication: ['https://a.example/1'], [key]: ['x'] } })).toThrow();
+		}
+	});
+
+	test('HTML posts open as Markdown and are stored as Markdown when saved', async () => {
+		const app = setup('notes/2026-11-06-post.md', '---\n_micropubContentFormat: html\ndate: 2026-11-06T20:00:00-05:00\n---\n<p>Hi <a href="https://bsky.app/profile/did:plc:abc">@a.bsky.social</a> &quot;quoted&quot;</p>');
+		const source = await loadEditorSource(config, url, app.dependencies);
+		expect(source.convertedFromHtml).toBe(true);
+		expect(source.fields).toMatchObject({ format: 'markdown', content: 'Hi [@a.bsky.social](https://bsky.app/profile/did:plc:abc) "quoted"' });
+		expect(await saveEditorPost(config, url, source.revision, source.fields, app.dependencies)).toBe(true);
+		const doc = readDocument(app.read());
+		expect(doc.bodyFormat).toBe('markdown');
+		expect(doc.body).toBe('Hi [@a.bsky.social](https://bsky.app/profile/did:plc:abc) "quoted"');
+		expect(app.read()).not.toContain('p3k-content-type');
 	});
 });
 

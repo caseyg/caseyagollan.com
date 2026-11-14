@@ -93,10 +93,11 @@ await Promise.all(Array.from({length:concurrency},async()=>{
    if(!activity||before.slice(match[0].length).trim()!==legacyBlueskyText(record.value).trim()){unavailable++;done++;continue;}
    const properties=await archiveLinkPreviewProperties(activity.properties,storeImage,network.fetcher);
    // Edit only the format key and body so saved snapshots keep their exact YAML.
-   const doc=parseDocument(match[1]);doc.set('_micropubContentFormat','html');
+   const content=properties.content![0];
+   const doc=parseDocument(match[1]);doc.set('_micropubContentFormat',typeof content==='string'?'markdown':'html');
    if(properties._micropubLinkPreviews){doc.set('_micropubLinkPreviews',doc.createNode(properties._micropubLinkPreviews));formatSnapshotScalars(doc.get('_micropubLinkPreviews',true));}
-   const html=(properties.content![0] as {html:string}).html;
-   after=`---\n${doc.toString({lineWidth:0,doubleQuotedAsJSON:true})}---\n${html}`;
+   const body=typeof content==='string'?`${content}\n`:(content as {html:string}).html;
+   after=`---\n${doc.toString({lineWidth:0,doubleQuotedAsJSON:true})}---\n${body}`;
   }else if(ownImages){
    const match=before.match(/^---\r?\n([\s\S]*?)\r?\n---/)!;const doc=parseDocument(match[1]);const data=doc.toJS();const source=data['pesos-source'][0];
    const get=async(url:string)=>{const r=await network.fetcher(url,{headers:{accept:'application/json'}});if(!r.ok)throw Object.assign(new Error('Public lookup failed'),{status:r.status});return {data:await r.json()};};

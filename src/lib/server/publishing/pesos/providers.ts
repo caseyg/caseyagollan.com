@@ -2,6 +2,8 @@ import { sanitizePublishingHtml } from '../../../utils/sanitizeHtml';
 import type { Properties } from '../document';
 import { publicUrl } from '../public-fetch';
 import { blueskyFacetLinks, blueskyRichText, webHref } from '../bluesky-richtext';
+import { htmlToMarkdown } from '../../../utils/htmlToMarkdown';
+import { sameRendering } from '../../../utils/sameRendering';
 
 export interface Activity {
  id: string;
@@ -15,6 +17,14 @@ export interface Activity {
 }
 export interface Page { activities: Activity[]; ids: string[]; cursor?: string }
 export type GetJson = (url: string, headers?: Record<string,string>) => Promise<{data: any; link?: string}>;
+/**
+ * Imported posts are stored as Markdown, like posts written on the site. HTML is kept
+ * only when Markdown would render the post differently (embeds, tables, unusual markup).
+ */
+export function importedContent(html: string): Properties {
+ const markdown = htmlToMarkdown(html);
+ return markdown !== undefined && sameRendering(html, markdown) === true ? {content:[markdown],'p3k-content-type':['text/markdown']} : {content:[{html}]};
+}
 const iso = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 
 export function mastodonActivity(status: any, kind: Activity['kind'], now: string): Activity | undefined {
@@ -27,7 +37,7 @@ export function mastodonActivity(status: any, kind: Activity['kind'], now: strin
  if (!iso(published) || typeof status.id !== 'string') return;
  const properties: Properties = {};
  if (action === 'post') {
-  properties.content = [{ html: sanitizePublishingHtml(String(status.content ?? '')) }];
+  Object.assign(properties, importedContent(sanitizePublishingHtml(String(status.content ?? ''))));
   if (status.in_reply_to_id && status.in_reply_to_account_id) {
    // This local status URL is resolvable even when the replied-to author is remote.
    properties['in-reply-to'] = [new URL(`/web/statuses/${status.in_reply_to_id}`, status.url).href];
@@ -86,7 +96,7 @@ export function blueskyActivity(record: any, kind: Activity['kind']): Activity |
   // Quoted posts are shown as their saved card (or a link to them) from quotation-of.
   if (quote) properties['quotation-of']=[blueUrl(quote)];
   const missing = [...new Set(links)].filter(link=>!rich.links.includes(link) && !value.text.includes(link));
-  properties.content = [{html: rich.html + missing.map(link=>`<p>${linkHtml(link)}</p>`).join('')}];
+  Object.assign(properties, importedContent(rich.html + missing.map(link=>`<p>${linkHtml(link)}</p>`).join('')));
   if (embed?.video?.ref?.$link) properties.video = [{url:`https://bsky.social/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(actor)}&cid=${encodeURIComponent(embed.video.ref.$link)}`,alt:String(embed.alt ?? '')}];
  }
  const target = kind === 'post' ? undefined : blueUrl(value.subject.uri);

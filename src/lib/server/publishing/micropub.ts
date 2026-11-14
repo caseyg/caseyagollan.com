@@ -165,7 +165,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 					else properties.content = [{ html: sanitizePublishingHtml(marked.parse(doc.body, { async: false })) }];
 				}
 				const filter = url.searchParams.getAll('properties[]');
-				return json({ ...(!filter.length ? { type: [doc.type] } : {}), properties: filter.length ? Object.fromEntries(Object.entries(properties).filter(([key]) => filter.includes(key))) : properties }, 200, { ETag: `"${file.sha}"` });
+				return json({ ...(!filter.length ? { type: [doc.type] } : {}), properties: filter.length ? Object.fromEntries(Object.entries(properties).filter(([key]) => filter.includes(key))) : properties }, 200, { ETag: `"${file.sha}"`, 'X-Content-Path': file.path });
 			}
 
 			if (action === 'create') {
