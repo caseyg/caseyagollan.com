@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Search from './Search.svelte';
+	import { Corner, SegmentedPill } from '$lib/components/ui';
 
 	type Section = 'home' | 'library' | 'posts';
 
@@ -18,78 +19,19 @@
 		{ id: 'library', href: '/library/', label: 'Library', icon: '📚' },
 		{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡' }
 	];
+	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));
 </script>
 
-<nav class="site-nav" aria-label="Site">
-	{#each sections as section (section.id)}
-		<a href={section.href} class="segment" aria-label={section.label} aria-current={currentPage === section.id ? 'true' : undefined}>
-			<span aria-hidden="true">{section.icon}</span>
-			<span class="label" aria-hidden="true">{section.label}</span>
-		</a>
-	{/each}
-	<!-- Search is an action, not a place, so it closes the row in the corner itself. -->
-	<Search onResultClick={onSearchResultClick} />
-</nav>
+<Corner as="nav" side="end" class="site-nav" aria-label="Site">
+	<div class="group">
+		<SegmentedPill {segments} size="md" compact attached />
+		<!-- Search is an action, not a place, so it closes the row in the corner itself. -->
+		<Search onResultClick={onSearchResultClick} />
+	</div>
+</Corner>
 
 <style>
-	/* One button group in the corner, the same size and shape as a page's trail. */
-	.site-nav {
-		position: fixed;
-		top: var(--nav-inset);
-		right: var(--nav-inset);
-		z-index: var(--z-nav);
+	.group {
 		display: flex;
-		border-radius: var(--radius-sm);
-		font-size: var(--fs-sm);
-		font-weight: var(--fw-medium);
-		line-height: var(--lh-normal);
-		letter-spacing: 0.01em;
-	}
-
-	.segment {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		height: var(--nav-height);
-		padding: 0 var(--space-3);
-		background-color: var(--segment);
-		color: var(--text-primary);
-		text-decoration: none;
-		white-space: nowrap;
-		transition: background-color var(--duration) var(--ease);
-	}
-
-	.segment:first-child {
-		border-radius: var(--radius-sm) 0 0 var(--radius-sm);
-	}
-
-	.segment + .segment {
-		box-shadow: inset 1px 0 0 var(--segment-divider);
-	}
-
-	/* You are here: the full accent. */
-	.segment[aria-current] {
-		background-color: var(--segment-current);
-	}
-
-	.segment:focus-visible {
-		outline-offset: -2px;
-	}
-
-	@media (hover: hover) and (pointer: fine) {
-		.segment:not([aria-current]):hover {
-			background-color: var(--segment-hover);
-		}
-	}
-
-	/* On a phone the emoji stand alone, leaving the row to the page. */
-	@media (max-width: 600px) {
-		.site-nav {
-			font-size: var(--fs-lg);
-		}
-
-		.label {
-			display: none;
-		}
 	}
 </style>

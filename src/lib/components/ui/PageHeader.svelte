@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Corner from './Corner.svelte';
 	import SegmentedPill, { type Segment } from './SegmentedPill.svelte';
 
 	interface Props {
@@ -21,9 +22,10 @@
 
 <header class="page-header" class:tight class:bare={!actions && !children && !description}>
 	<div class="bar" class:solo={!actions}>
-		<nav class="trail" aria-label="Breadcrumb">
+		<!-- Pinned top-left, opposite the site navigation. On a phone it returns to the page beneath the nav. -->
+		<Corner as="nav" side="start" phone="inline" class="trail" aria-label="Breadcrumb">
 			<SegmentedPill segments={trail} size="md" />
-		</nav>
+		</Corner>
 		{#if actions}<div class="actions">{@render actions()}</div>{/if}
 	</div>
 	{#if children}
@@ -56,29 +58,20 @@
 		display: grid;
 	}
 
-	.trail,
-	.actions {
+	.bar > :global(*) {
 		grid-area: 1 / 1;
 		min-width: 0;
 	}
 
-	.trail {
-		/* Above the feed's sticky date pills, so a segment's menu opens over them. */
+	/* Above the feed's sticky date pills, so a segment's menu opens over them. */
+	.bar > :global(.trail) {
 		z-index: var(--z-menu);
-		display: flex;
 		justify-self: start;
 		align-self: start;
 	}
 
-	/*
-	 * Beyond a phone the trail leaves the page and is pinned to the top-left corner, opposite the
-	 * site navigation: where you are on the left, where you can go on the right.
-	 */
 	@media (min-width: 601px) {
-		.trail {
-			position: fixed;
-			top: var(--nav-inset);
-			left: var(--nav-inset);
+		.bar > :global(.trail) {
 			z-index: var(--z-nav);
 		}
 

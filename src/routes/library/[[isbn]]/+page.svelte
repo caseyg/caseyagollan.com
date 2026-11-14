@@ -5,7 +5,7 @@
 	import { pushState, replaceState } from '$app/navigation';
 	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
-	import { Chip } from '$lib/components/ui';
+	import { Chip, Corner, SegmentedPill } from '$lib/components/ui';
 	import { spineTextureSize } from '$lib/library/textures';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
@@ -2558,16 +2558,33 @@
 {/if}
 <div bind:this={graphContainer} class="graph-container" class:ready={sceneReady}></div>
 <Nav currentPage="library" onSearchResultClick={selectSearchResult} />
-<div class="controls" class:hidden={isLoading}>
+{#if !isLoading}
 	<!-- Both views are always named, with the one on screen marked, like the segments of a page trail. -->
-	<div class="view-switch" role="group" aria-label="Library view">
-		<button id="graphMode" aria-pressed={!isGridModeActive} aria-label="Graph" title="Graph" onclick={() => { if (isGridModeActive) toggleMode(true, true); }}><span aria-hidden="true">🕸️</span><span class="text">Graph</span></button>
-		<button id="shelfMode" aria-pressed={isGridModeActive} aria-label="Shelves" title="Shelves" onclick={() => { if (!isGridModeActive) toggleMode(true, true); }}><span aria-hidden="true">📚</span><span class="text">Shelves</span></button>
-	</div>
-	<button id="sortToggle" aria-label={`Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`} title={sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex]} onclick={toggleSort} class:hidden={!isGridModeActive}
-		><span aria-hidden="true">{sortIcons[sortIndex]}</span><span class="text">{sortLabels[sortIndex]}</span></button
-	>
-</div>
+	<Corner side="start">
+		<SegmentedPill
+			size="md"
+			compact
+			label="Library view"
+			segments={[
+				{ label: 'Graph', icon: '🕸️', pressed: !isGridModeActive, onclick: () => { if (isGridModeActive) toggleMode(true, true); } },
+				{ label: 'Shelves', icon: '📚', pressed: isGridModeActive, onclick: () => { if (!isGridModeActive) toggleMode(true, true); } }
+			]}
+		/>
+		{#if isGridModeActive}
+			<SegmentedPill
+				size="md"
+				compact
+				segments={[{
+					label: sortLabels[sortIndex],
+					icon: sortIcons[sortIndex],
+					ariaLabel: `Sort shelves by ${sortModes[(sortIndex + 1) % sortModes.length]}`,
+					title: sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex],
+					onclick: toggleSort
+				}]}
+			/>
+		{/if}
+	</Corner>
+{/if}
 
 {#if selectedBook}
 	<aside class="book-sidebar" aria-label="Book details">
@@ -2678,74 +2695,6 @@
 		transition: opacity 600ms ease;
 	}
 	.graph-container.ready { opacity: 1; }
-
-	.controls {
-		position: fixed;
-		top: var(--nav-inset);
-		left: var(--nav-inset);
-		display: flex;
-		gap: var(--nav-inset);
-		z-index: var(--z-nav);
-	}
-
-	.view-switch {
-		display: flex;
-	}
-
-	.controls button {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		padding: var(--space-1) var(--space-3);
-		border: none;
-		border-radius: var(--radius-sm);
-		background-color: var(--segment);
-		color: var(--text-primary);
-		font: inherit;
-		font-size: var(--fs-sm);
-		font-weight: var(--fw-medium);
-		line-height: var(--lh-normal);
-		letter-spacing: 0.01em;
-		white-space: nowrap;
-		cursor: pointer;
-		transition: background-color var(--duration) var(--ease);
-	}
-
-	.view-switch button:first-child {
-		border-top-right-radius: 0;
-		border-bottom-right-radius: 0;
-	}
-
-	.view-switch button:last-child {
-		border-top-left-radius: 0;
-		border-bottom-left-radius: 0;
-		box-shadow: inset 1px 0 0 var(--segment-divider);
-	}
-
-	.controls button:hover {
-		background-color: var(--segment-hover);
-	}
-
-	/* The view on screen takes the full accent, as the current segment does everywhere else. */
-	.controls button[aria-pressed='true'] {
-		background-color: var(--segment-current);
-	}
-
-	.controls button:focus-visible {
-		outline-offset: -2px;
-	}
-
-	/* Beside the corner navigation on a phone there is only room for the emoji. */
-	@media (max-width: 600px) {
-		.controls .text {
-			display: none;
-		}
-	}
-
-	.controls button.hidden,
-	.controls.hidden {
-		display: none;
-	}
 
 	.loading-overlay {
 		position: fixed;

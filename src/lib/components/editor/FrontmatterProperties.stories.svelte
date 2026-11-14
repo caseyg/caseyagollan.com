@@ -16,15 +16,15 @@
 	let status = $state<'published' | 'draft'>('published');
 </script>
 
-<Story name="Imported note">
+<Story asChild name="Imported note">
 	<FrontmatterProperties bind:properties={note} bind:status published="2026-11-14T15:24:13-05:00"
 		readOnly={[{ key: 'photo', values: [{ value: 'https://files.caseyagollan.com/example.jpg', alt: 'A photo' }] }, { key: 'draft', values: [false] }]} />
 </Story>
 
-<Story name="Reply">
+<Story asChild name="Reply">
 	<FrontmatterProperties bind:properties={reply} bind:status published="2026-11-06T20:00:00-05:00" updated="2026-11-07T09:12:00-05:00" />
 </Story>
 
-<Story name="Empty">
+<Story asChild name="Empty">
 	<FrontmatterProperties bind:properties={empty} status="draft" />
 </Story>

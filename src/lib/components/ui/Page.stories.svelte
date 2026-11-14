@@ -1,13 +1,13 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '.';
+	import { Button, Checkbox, Chip, Heading, Notice, Page, PageHeader, Section, TextField } from '.';
 	import PostFeed from '../posts/PostFeed.svelte';
 	import { note, article, bookmark } from '$lib/storybook/fixtures';
 
 	const { Story } = defineMeta({ title: 'Primitives/Page', component: Page, parameters: { layout: 'fullscreen' }, tags: ['!autodocs'] });
 </script>
 
-<Story name="ReadingPage">
+<Story asChild name="ReadingPage">
 	<Page>
 		<PageHeader
 			title="Posts from January 2026"
@@ -17,7 +17,19 @@
 	</Page>
 </Story>
 
-<Story name="FormPage">
+<!-- A control for the whole page sits in the header row, clear of the pinned trail. -->
+<Story asChild name="HeaderWithActions">
+	<Page>
+		<PageHeader title="Posts" trail={[{ label: 'Posts', href: '/posts/', icon: '📡', current: true, count: 128 }]}>
+			{#snippet actions()}
+				<Chip href="/posts/" variant="ghost">Filter by type</Chip>
+			{/snippet}
+		</PageHeader>
+		<PostFeed postsByDay={[['2026-01-10', [note, { ...article, slug: 'a' }]]]} />
+	</Page>
+</Story>
+
+<Story asChild name="FormPage">
 	<Page as="main" width="wide">
 		<PageHeader trail={[{ label: 'Casey Gollan', href: '/', icon: '👋' }]} tight>
 			<Heading level={1} size="display">Account</Heading>

@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
     import Nav from "$lib/components/Nav.svelte";
-    import { SegmentedPill } from "$lib/components/ui";
+    import { Corner, SegmentedPill } from "$lib/components/ui";
     import SkillsGraph from "$lib/components/SkillsGraph.svelte";
     import PersistentDocument from "$lib/components/PersistentDocument.svelte";
     import InsightCard from "$lib/components/InsightCard.svelte";
@@ -536,7 +536,7 @@
 <!-- Full-viewport 3-pane interface -->
 <Nav currentPage="home" />
 <!-- The same top-left title every other page pins, so the corner reads alike across the site. -->
-<div class="home-title"><SegmentedPill size="md" label="Casey Gollan" segments={[{ label: 'Casey Gollan', href: '/', icon: '👋', current: true }]} /></div>
+<Corner side="start" phone="hidden"><SegmentedPill size="md" segments={[{ label: 'Casey Gollan', href: '/', icon: '👋', current: true }]} /></Corner>
 
 <section class="hero-container">
     <div class="three-pane">
@@ -671,23 +671,6 @@
     /* ==========================================
        HERO - Full viewport 3-pane interface
        ========================================== */
-    .home-title {
-        position: fixed;
-        top: var(--nav-inset);
-        left: var(--nav-inset);
-        z-index: var(--z-nav);
-        display: flex;
-        font-size: 1rem;
-        font-weight: var(--fw-regular);
-        line-height: 1;
-    }
-
-    @media (max-width: 600px) {
-        .home-title {
-            display: none;
-        }
-    }
-
     .hero-container {
         position: relative;
         height: 100vh;

@@ -25,6 +25,34 @@ export const TrailWithMenu: Story = {
 		]
 	}
 };
+/** Segments can be buttons that change the page in place. The choice in effect is pressed. */
+export const ButtonGroup: Story = {
+	args: {
+		size: 'md',
+		label: 'Library view',
+		segments: [
+			{ label: 'Graph', icon: '🕸️', pressed: true, onclick: () => {} },
+			{ label: 'Shelves', icon: '📚', pressed: false, onclick: () => {} }
+		]
+	}
+};
+/** A lone button segment, such as the library's sort control, which steps through its options. */
+export const SingleButton: Story = {
+	args: { size: 'md', label: undefined, segments: [{ label: 'Recently acquired', icon: '📅', ariaLabel: 'Sort shelves by publication year', onclick: () => {} }] }
+};
+/** `compact` drops to emoji alone at phone width, as the site navigation does. Narrow the preview to see it. */
+export const Compact: Story = {
+	args: {
+		size: 'md',
+		label: 'Site',
+		compact: true,
+		segments: [
+			{ label: 'Home', href: '/', icon: '👋', current: true },
+			{ label: 'Library', href: '/library/', icon: '📚' },
+			{ label: 'Posts', href: '/posts/', icon: '📡' }
+		]
+	}
+};
 export const LargeWithCurrent: Story = {
 	args: { size: 'lg', segments: [segments[0], { ...segments[1], current: true, count: 42 }] }
 };

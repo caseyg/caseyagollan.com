@@ -1,8 +1,8 @@
 export { default as Avatar } from './Avatar.svelte';
-export { default as BackLink } from './BackLink.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as Chip } from './Chip.svelte';
+export { default as Corner } from './Corner.svelte';
 export { default as Count } from './Count.svelte';
 export { default as Heading } from './Heading.svelte';
 export { default as Notice } from './Notice.svelte';

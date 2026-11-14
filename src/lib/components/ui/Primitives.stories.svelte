@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { Avatar, BackLink, Button, Checkbox, Chip, Count, Heading, Notice, Pagination, Prose, Section, TextField } from '.';
+	import { Avatar, Button, Checkbox, Chip, Count, Heading, Notice, Pagination, Prose, Section, TextField } from '.';
 
 	const noop = () => undefined;
 	const { Story } = defineMeta({ title: 'Primitives/Overview', tags: ['!autodocs'] });
@@ -56,10 +56,6 @@
 		<Avatar name="Example reader" />
 		<Avatar name="Example reader" size="sm" />
 	</div>
-</Story>
-
-<Story name="BackLink">
-	<BackLink href="/posts/">All Posts</BackLink>
 </Story>
 
 <Story name="Notice">

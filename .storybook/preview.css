@@ -2,3 +2,5 @@
 body { font-size: var(--fs-md); font-weight: var(--fw-regular); line-height: 1.6; }
 #storybook-root { min-height: 300px; }
 .docs-story { background: gray; color: white; }
+/* Pinned corners (site nav, page trails) stay inside their own preview on a docs page instead of pinning to the whole page. */
+.docs-story { min-height: 5rem; transform: translateZ(0); }
