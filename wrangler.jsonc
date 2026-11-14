@@ -48,6 +48,34 @@
 	 */
 	"preview_urls": true,
 	/**
+	 * Worker Previews (`wrangler preview`) for non-production branches.
+	 * Version URLs from `wrangler versions upload` are not generated for Workers
+	 * that implement a Durable Object, so branch builds use Previews instead.
+	 * Previews inherit nothing from the settings above except assets and
+	 * compatibility settings, and each Preview gets its own AUTH_STORE namespace.
+	 * Sign-in, publishing, and imports stay off: passkeys are bound to the
+	 * production hostname, and previews must not write content or post socially.
+	 * Media, screenshots, and the insight cache are read from production.
+	 */
+	"previews": {
+		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }] },
+		"vars": {
+			"AUTH_ENABLED": "false",
+			"PUBLISHING_ENABLED": "false",
+			"PESOS_ENABLED": "false",
+			"PUBLISHING_DELIVERY_ENABLED": "false",
+			"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
+			"PUBLISHING_ME": "https://caseyagollan.com/",
+			"PUBLISHING_TIMEZONE": "America/New_York"
+		},
+		"kv_namespaces": [{ "binding": "INSIGHT_CACHE", "id": "9eca3bf2742740d78191c5be95a5be97" }],
+		"r2_buckets": [
+			{ "binding": "PUBLISHING_STATE", "bucket_name": "caseyagollan-publishing-state-preview" },
+			{ "binding": "PUBLISHING_MEDIA", "bucket_name": "caseyagollan-content" },
+			{ "binding": "SCREENSHOTS", "bucket_name": "caseyagollan-content" }
+		]
+	},
+	/**
 	 * Custom domain routing
 	 */
 	"routes": [
