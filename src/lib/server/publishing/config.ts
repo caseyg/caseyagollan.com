@@ -23,6 +23,24 @@ export interface PublishingEnvironment extends IndieAuthEnvironment {
 	PUBLISHING_GITHUB_BRANCH?: string;
 	PUBLISHING_GITHUB_TOKEN?: string;
 	PUBLISHING_TIMEZONE?: string;
+	PUBLISHING_DRAFTS_GITHUB_OWNER?: string;
+	PUBLISHING_DRAFTS_GITHUB_REPO?: string;
+	PUBLISHING_DRAFTS_GITHUB_BRANCH?: string;
+	PUBLISHING_DRAFTS_GITHUB_TOKEN?: string;
+}
+
+/**
+ * The private repository that holds composer drafts. It is separate from the public
+ * content repository, so unpublished writing is never visible there.
+ */
+export function draftsConfig(env: PublishingEnvironment = {}): { owner: string; repo: string; branch: string; token: string } | undefined {
+	if (env.PUBLISHING_ENABLED !== 'true') return;
+	const config = {
+		owner: env.PUBLISHING_DRAFTS_GITHUB_OWNER ?? env.PUBLISHING_GITHUB_OWNER ?? '', repo: env.PUBLISHING_DRAFTS_GITHUB_REPO ?? '',
+		branch: env.PUBLISHING_DRAFTS_GITHUB_BRANCH ?? 'main', token: env.PUBLISHING_DRAFTS_GITHUB_TOKEN ?? env.PUBLISHING_GITHUB_TOKEN ?? ''
+	};
+	if (Object.values(config).some(value => !value.trim()) || (config.owner === env.PUBLISHING_GITHUB_OWNER && config.repo === env.PUBLISHING_GITHUB_REPO)) return;
+	return config;
 }
 
 export function publishingConfig(env: PublishingEnvironment = {}): PublishingConfig | undefined {

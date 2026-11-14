@@ -40,6 +40,7 @@ The preview Worker now uses its own passkey-based IndieAuth server and native Du
 The preview Worker has these secrets configured:
 
 - `PUBLISHING_GITHUB_TOKEN`: Contents read/write and GraphQL access to the content repository.
+- `PUBLISHING_DRAFTS_GITHUB_TOKEN` (optional): Contents read/write on the private `caseyagollan-drafts` repository used by the composer. Without it, `PUBLISHING_GITHUB_TOKEN` is used, so that token then needs access to the drafts repository too.
 - `PUBLISHING_MASTODON_TOKEN`: migrated securely from IndieKit's `MASTODON_ACCESS_TOKEN`.
 - `PUBLISHING_BLUESKY_PASSWORD`: migrated securely from IndieKit's `BLUESKY_PASSWORD`.
 
