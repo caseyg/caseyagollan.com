@@ -40,8 +40,8 @@
 		size?: 'sm' | 'md' | 'lg';
 		/** Accessible name for the group, e.g. "Date archive". */
 		label?: string;
-		/** On a phone, show emoji alone. A segment with no `icon` keeps its label. */
-		compact?: boolean;
+		/** On a phone, show emoji alone; `always` does so at every width, for a narrow panel. A segment with no `icon` keeps its label. */
+		compact?: boolean | 'always';
 		/** `accent` is the blue of the site navigation; `quiet` is the ground colour with a gray outline, for a page's trail. */
 		tone?: 'accent' | 'quiet';
 		/** Square the trailing corners so a control placed right after the pill completes the group. */
@@ -53,8 +53,10 @@
 
 	let { segments, size = 'sm', label, compact = false, tone = 'accent', attached = false, value = $bindable(), onValueChange }: Props = $props();
 
-	const classes = $derived(`segmented-pill segmented-pill--${size} segmented-pill--${tone} ${compact ? 'compact' : ''} ${attached ? 'attached' : ''}`);
+	const classes = $derived(`segmented-pill segmented-pill--${size} segmented-pill--${tone} ${compact ? 'compact' : ''} ${compact === 'always' ? 'compact-always' : ''} ${attached ? 'attached' : ''}`);
 	const name = (segment: Segment) => segment.ariaLabel ?? (compact && segment.icon ? segment.label : undefined);
+	// Emoji alone need their label on hover.
+	const hint = (segment: Segment) => segment.title ?? (compact === 'always' && segment.icon ? segment.label : undefined);
 </script>
 
 {#snippet content(segment: Segment)}
@@ -67,7 +69,7 @@
 	<SegmentedControl class={classes} aria-label={label} {value} onValueChange={(next) => { if (next === null) return; value = next as string; onValueChange?.(value); }}>
 		<SegmentedControlIndicator class="indicator" />
 		{#each segments as segment (segment.value)}
-			<SegmentedControlItem class="segment" value={segment.value ?? segment.label} aria-label={name(segment)} title={segment.title}>
+			<SegmentedControlItem class="segment" value={segment.value ?? segment.label} aria-label={name(segment)} title={hint(segment)}>
 				{@render content(segment)}
 			</SegmentedControlItem>
 		{/each}
@@ -80,9 +82,9 @@
 					<SelectMenu variant="segment" current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} badge={segment.menuBadge} align={segment.menuAlign} />
 				</span>
 			{:else if segment.onclick}
-				<Button class="segment" aria-label={name(segment)} title={segment.title} onclick={segment.onclick}>{@render content(segment)}</Button>
+				<Button class="segment" aria-label={name(segment)} title={hint(segment)} onclick={segment.onclick}>{@render content(segment)}</Button>
 			{:else}
-				<a href={segment.href} class="segment" class:current={segment.current} aria-current={segment.current ? 'page' : undefined} aria-label={name(segment)} title={segment.title}>{@render content(segment)}</a>
+				<a href={segment.href} class="segment" class:current={segment.current} aria-current={segment.current ? 'page' : undefined} aria-label={name(segment)} title={hint(segment)}>{@render content(segment)}</a>
 			{/if}
 		{/each}
 	</span>
@@ -260,6 +262,24 @@
 		:global(.segmented-pill .indicator) {
 			transition: none;
 		}
+	}
+
+	/* A group compact `always` shows emoji alone at every width; a segment with no emoji keeps its label. */
+	:global(.segmented-pill.compact-always) {
+		--segment-padding: 0 var(--space-2);
+	}
+
+	:global(.segmented-pill.compact-always .segment > .icon) {
+		font-size: var(--fs-lg);
+	}
+
+	:global(.segmented-pill.compact-always .segment:has(> .icon)) {
+		padding-inline: 0.625rem;
+	}
+
+	:global(.segmented-pill.compact-always .segment:has(> .icon) .text),
+	:global(.segmented-pill.compact-always .segment > .count) {
+		display: none;
 	}
 
 	/* On a phone a compact group shows emoji alone. A segment with no emoji keeps its label, set tighter. */

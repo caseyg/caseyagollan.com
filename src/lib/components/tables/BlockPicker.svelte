@@ -137,7 +137,7 @@
 	{:else}
 	<div class="controls">
 		<TextField label="Search posts, books, wiki and Are.na" type="search" bind:value={query} placeholder="Search" autocomplete="off" />
-		<SegmentedPill segments={filters} size="sm" label="Show" value={filter} onValueChange={(value) => (filter = value as SourceFilter)} />
+		<SegmentedPill segments={filters} size="sm" label="Show" compact={owner ? 'always' : false} value={filter} onValueChange={(value) => (filter = value as SourceFilter)} />
 	</div>
 
 	<p class="hint">Drag onto the table, or click to add.</p>

@@ -113,6 +113,23 @@ export const Compact: Story = {
 		]
 	}
 };
+/** `compact: 'always'` shows emoji alone at every width, for a narrow panel such as the tables Add menu; hovering shows each label. */
+export const CompactAlways: Story = {
+	args: {
+		size: 'sm',
+		label: 'Show',
+		compact: 'always',
+		value: 'arena',
+		segments: [
+			{ label: 'All', value: 'all' },
+			{ label: 'Posts', value: 'post', icon: '📡' },
+			{ label: 'Books', value: 'book', icon: '📚' },
+			{ label: 'Wiki', value: 'wiki', icon: '🌱' },
+			{ label: 'Are.na', value: 'arena', icon: '✳️' },
+			{ label: 'Raindrop', value: 'raindrop', icon: '💧' }
+		]
+	}
+};
 export const LargeWithCurrent: Story = {
 	args: { size: 'lg', segments: [segments[0], { ...segments[1], current: true, count: 42 }] }
 };
