@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Search from './Search.svelte';
+	import SitePalette from './SitePalette.svelte';
 	import { Corner, SegmentedPill } from '$lib/components/ui';
 
 	type Section = 'home' | 'library' | 'posts';
@@ -19,6 +20,7 @@
 		{ id: 'library', href: '/library/', label: 'Library', icon: '📚' },
 		{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡' }
 	];
+	let search: Search | undefined = $state();
 	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));
 </script>
 
@@ -26,9 +28,11 @@
 	<div class="group">
 		<SegmentedPill {segments} size="md" compact attached />
 		<!-- Search is an action, not a place, so it closes the row in the corner itself. -->
-		<Search onResultClick={onSearchResultClick} />
+		<Search bind:this={search} onResultClick={onSearchResultClick} />
 	</div>
 </Corner>
+
+<SitePalette onSearch={(query) => search?.openWith(query)} />
 
 <style>
 	.group {

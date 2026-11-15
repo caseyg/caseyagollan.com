@@ -43,6 +43,20 @@
 
 	let { onResultClick }: { onResultClick?: (url: URL) => boolean } = $props();
 
+	/** Opens search, with `query` already typed, as the command palette does. */
+	export function openWith(query = '') {
+		const modal = document.querySelector('pagefind-modal') as (HTMLElement & { open(): void }) | null;
+		if (!modal?.open) return;
+		modal.open();
+		if (!query) return;
+		requestAnimationFrame(() => {
+			const input = modal.querySelector<HTMLInputElement>('pagefind-input input');
+			if (!input) return;
+			input.value = query;
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+	}
+
 	function handleResultClick(event: MouseEvent) {
 		if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.search-result a') : null;
@@ -69,7 +83,8 @@
 
 <div class="site-search">
 	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
-	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts, books, and wiki">
+	<!-- ⌘K is the command palette; / opens search directly. -->
+	<pagefind-modal-trigger compact hide-shortcut shortcut="/" placeholder="Search posts, books, and wiki">
 		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->
 		<button class="pf-trigger-btn" type="button" aria-label="Search posts, books, and wiki" aria-haspopup="dialog" aria-expanded="false">
 			<span class="pf-trigger-icon" aria-hidden="true"></span>
