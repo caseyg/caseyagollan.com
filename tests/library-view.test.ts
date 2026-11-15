@@ -5,7 +5,7 @@ test('library view links round-trip every sort in both views', () => {
 	for (const shelves of [false, true]) {
 		for (const sort of librarySortModes) {
 			const url = writeLibraryView(new URL('https://example.com/library/123?other=keep#book'), shelves, sort);
-			expect(readLibraryView(url)).toEqual({ shelves, sort });
+			expect(readLibraryView(url)).toEqual({ shelves, sort, category: null });
 			expect(url.pathname).toBe('/library/123');
 			expect(url.searchParams.get('other')).toBe('keep');
 			expect(url.hash).toBe('#book');
@@ -16,13 +16,21 @@ test('library view links round-trip every sort in both views', () => {
 test('missing or invalid view options fall back to graph and acquisition order', () => {
 	for (const query of ['', '?view=invalid&sort=invalid']) {
 		expect(readLibraryView(new URL(`https://example.com/library${query}`)))
-			.toEqual({ shelves: false, sort: 'dateacquired' });
+			.toEqual({ shelves: false, sort: 'dateacquired', category: null });
 	}
 });
 
 test('returning to default options removes their query parameters', () => {
 	const url = writeLibraryView(new URL('https://example.com/library?view=shelves&sort=ddc'), false, 'dateacquired');
 	expect(url.search).toBe('');
+});
+
+test('a category filter round-trips and clears with the other options', () => {
+	const url = writeLibraryView(new URL('https://example.com/library/?view=shelves'), true, 'ddc', 'Arts & recreation');
+	expect(url.searchParams.get('category')).toBe('Arts & recreation');
+	expect(readLibraryView(url)).toEqual({ shelves: true, sort: 'ddc', category: 'Arts & recreation' });
+	expect(writeLibraryView(url, false, 'dateacquired', null).search).toBe('');
+	expect(readLibraryView(new URL('https://example.com/library/?category=%20')).category).toBeNull();
 });
 
 test('year headings use acquisition calendar year or publication year with unknown fallback', async () => {

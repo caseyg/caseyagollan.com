@@ -23,12 +23,12 @@ export const load: PageServerLoad = async ({ params }) => {
 		.map(([tagName, count]) => ({
 			value: tagName,
 			label: `#${tagName}`,
-			href: `/tag/${tagName.toLowerCase()}/`,
+			href: `/tags/${tagName.toLowerCase()}/`,
 			count
 		}));
 
 	return {
-		postsMenu: await getPostsMenu(),
+		postsMenu: await getPostsMenu({ tags: [tag] }),
 		tag,
 		postsByDay: postsByDayArray,
 		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),

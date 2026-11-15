@@ -19,6 +19,42 @@
         recommendedTopics?: string[];
     }
 
+    // The top-left chip names the section in view and jumps between them.
+    const sections = [
+        { value: 'top', label: 'Casey Gollan', href: '#top', icon: '👋' },
+        { value: 'currently', label: 'Currently', href: '#currently', icon: '📍' },
+        { value: 'exploring', label: 'Exploring', href: '#exploring', icon: '🧭' }
+    ];
+    let section = $state(sections[0]);
+
+    onMount(() => {
+        let frame = 0;
+        // The section in view is the last one whose top has passed a third of the way down the window,
+        // or the last of all at the end of the page. Sections that sit side by side pass together:
+        // the one just chosen from the menu wins, otherwise the first.
+        const update = () => {
+            frame = 0;
+            const line = window.innerHeight / 3;
+            const atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+            const tops = sections.map((item) => document.getElementById(item.value)?.getBoundingClientRect().top ?? Infinity);
+            let found = atEnd ? sections.length - 1 : 0;
+            if (!atEnd) tops.forEach((top, i) => { if (top <= line) found = i; });
+            const row = sections.filter((_, i) => Math.abs(tops[i] - tops[found]) < 8);
+            section = row.find((item) => item.href === location.hash) ?? row[0];
+        };
+        const onScroll = () => { frame ||= requestAnimationFrame(update); };
+        update();
+        window.addEventListener('scroll', onScroll, { passive: true, capture: true });
+        window.addEventListener('resize', onScroll);
+        window.addEventListener('hashchange', onScroll);
+        return () => {
+            cancelAnimationFrame(frame);
+            window.removeEventListener('scroll', onScroll, { capture: true });
+            window.removeEventListener('resize', onScroll);
+            window.removeEventListener('hashchange', onScroll);
+        };
+    });
+
     let textContainer: HTMLElement;
     let documentContent: string = $state(
         "Casey is a Senior Manager of Engineering in IBM's Product Excellence Office, leading a team that builds AI productivity platforms for hundreds of product teams across one of the largest and oldest technology companies.\n\nPreviously, he co-founded the School for Poetic Computation and led operations at NYU's AI Now Institute. He serves on the ResearchOps Community board and is a member of ChaCha Club.",
@@ -537,11 +573,7 @@
 <Nav currentPage="home" />
 <!-- The same top-left title every other page pins, so the corner reads alike across the site. -->
 <Corner as="nav" side="start" aria-label="On this page">
-    <SegmentedPill size="md" tone="quiet" compact segments={[{ label: 'Casey Gollan', href: '#top', icon: '👋', current: true, menu: [
-        { value: 'top', label: 'Casey Gollan', href: '#top', icon: '👋' },
-        { value: 'currently', label: 'Currently', href: '#currently', icon: '📍' },
-        { value: 'exploring', label: 'Exploring', href: '#exploring', icon: '🧭' }
-    ] }]} />
+    <SegmentedPill size="md" tone="quiet" compact segments={[{ label: section.label, href: '#top', icon: section.icon, current: true, menu: sections, menuActive: section.value }]} />
 </Corner>
 
 <section class="hero-container" id="top">

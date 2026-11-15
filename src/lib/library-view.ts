@@ -4,11 +4,15 @@ export type LibrarySort = typeof librarySortModes[number];
 export function readLibraryView(url: URL) {
 	const requestedSort = url.searchParams.get('sort');
 	const sort = librarySortModes.find((mode) => mode === requestedSort) ?? librarySortModes[0];
-	return { shelves: url.searchParams.get('view') === 'shelves', sort };
+	const category = url.searchParams.get('category')?.trim() || null;
+	return { shelves: url.searchParams.get('view') === 'shelves', sort, category };
 }
 
-export function writeLibraryView(url: URL, shelves: boolean, sort: LibrarySort) {
+/** `category` narrows the graph or shelves to one subject or tag; null shows every book. */
+export function writeLibraryView(url: URL, shelves: boolean, sort: LibrarySort, category: string | null = null) {
 	const next = new URL(url);
+	if (category) next.searchParams.set('category', category);
+	else next.searchParams.delete('category');
 	if (shelves) next.searchParams.set('view', 'shelves');
 	else next.searchParams.delete('view');
 	if (sort !== librarySortModes[0]) next.searchParams.set('sort', sort);

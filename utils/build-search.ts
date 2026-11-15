@@ -48,8 +48,10 @@ try {
 	for (const page of wiki) {
 		await add(page.url, page.title, 'wiki', { author: 'Casey Gollan', tags: page.tags.join(', '), year: page.year[0] ?? '' }, `<h1>${escape(page.title)}</h1>${page.html}`, { Tag: page.tags, Author: ['Casey Gollan'], Year: page.year });
 	}
-	await rm('static/pagefind', { recursive: true, force: true });
-	assertSuccess(await index.writeFiles({ outputPath: 'static/pagefind' }));
+	// The full build writes elsewhere so it can run beside `vite build`, which copies static/.
+	const outputPath = process.env.PAGEFIND_OUTPUT || 'static/pagefind';
+	await rm(outputPath, { recursive: true, force: true });
+	assertSuccess(await index.writeFiles({ outputPath }));
 	console.log(`Pagefind indexed ${count} posts, books, and wiki pages (${wiki.length} wiki pages).`);
 } finally {
 	await pagefind.close();

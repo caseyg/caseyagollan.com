@@ -1,14 +1,15 @@
-import type { MenuOption } from '$lib/components/ui';
 import { getAllPosts, rollupIndexPosts, type Post } from '$lib/posts';
-import { entryTypes, FEED_CHUNK_SIZE, typeFilterOptions, type PostType } from '$lib/posts-filter';
+import { entryFacets, FEED_CHUNK_SIZE, postTags, type FacetEntry, type PostType } from '$lib/posts-filter';
 
 /** The prerendered summary the filtered feed reads instead of parsing every post at request time. */
 export interface FeedIndex {
-	/** Types of each feed entry, in feed order (newest first). */
+	/** Types, lower-case tags and year of each feed entry, in feed order (newest first). */
 	entries: PostType[][];
+	tags: string[][];
+	years: string[];
+	/** Each tag as it is written, by its lower-case form. */
+	tagNames: Record<string, string>;
 	chunkSize: number;
-	/** The Posts menu of types and years, carried here so the on-demand filtered feed can show it. */
-	menu?: MenuOption[];
 }
 
 const rolled = new WeakMap<Post[], Post[]>();
@@ -24,8 +25,28 @@ export async function getFeedEntries(): Promise<Post[]> {
 	return entries;
 }
 
-export function buildFeedIndex(entries: Post[], menu?: MenuOption[]): FeedIndex {
-	return { entries: entries.map(entryTypes), chunkSize: FEED_CHUNK_SIZE, menu };
+const indexes = new WeakMap<Post[], FeedIndex>();
+
+export function buildFeedIndex(entries: Post[]): FeedIndex {
+	let index = indexes.get(entries);
+	if (!index) {
+		const facets = entries.map(entryFacets);
+		const tagNames: Record<string, string> = {};
+		for (const post of entries) for (const tag of postTags(post)) tagNames[tag.toLowerCase()] ??= tag;
+		index = {
+			entries: facets.map((entry) => entry.types),
+			tags: facets.map((entry) => entry.tags),
+			years: facets.map((entry) => entry.year),
+			tagNames,
+			chunkSize: FEED_CHUNK_SIZE
+		};
+		indexes.set(entries, index);
+	}
+	return index;
+}
+
+export function indexFacetEntries(index: FeedIndex): FacetEntry[] {
+	return index.entries.map((types, i) => ({ types, tags: index.tags[i], year: index.years[i] }));
 }
 
 export function feedChunkCount(entries: { length: number }): number {
@@ -34,8 +55,4 @@ export function feedChunkCount(entries: { length: number }): number {
 
 export function feedChunk(entries: Post[], chunk: number): Post[] {
 	return entries.slice(chunk * FEED_CHUNK_SIZE, (chunk + 1) * FEED_CHUNK_SIZE);
-}
-
-export async function feedTypeOptions() {
-	return typeFilterOptions((await getFeedEntries()).map(entryTypes));
 }

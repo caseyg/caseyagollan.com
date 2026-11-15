@@ -48,28 +48,30 @@ export function formatShortRelativeDate(dateStr: string, now: Date = new Date())
 /**
  * Format a date as an absolute string for tooltip/title
  */
+// Reused formatters: toLocaleString builds a new one on every call, which dominates feed renders.
+const absoluteDate = new Intl.DateTimeFormat('en-US', {
+	weekday: 'long',
+	month: 'long',
+	day: 'numeric',
+	year: 'numeric',
+	hour: 'numeric',
+	minute: '2-digit'
+});
+const postDate = new Intl.DateTimeFormat('en-US', {
+	month: 'short',
+	day: 'numeric',
+	year: 'numeric',
+	hour: 'numeric',
+	minute: '2-digit'
+});
+
 export function formatAbsoluteDate(dateStr: string): string {
-	const date = new Date(dateStr);
-	return date.toLocaleString('en-US', {
-		weekday: 'long',
-		month: 'long',
-		day: 'numeric',
-		year: 'numeric',
-		hour: 'numeric',
-		minute: '2-digit'
-	});
+	return absoluteDate.format(new Date(dateStr));
 }
 
 /**
  * Format a date for display in post metadata (shorter format)
  */
 export function formatPostDate(dateStr: string): string {
-	const date = new Date(dateStr);
-	return date.toLocaleString('en-US', {
-		month: 'short',
-		day: 'numeric',
-		year: 'numeric',
-		hour: 'numeric',
-		minute: '2-digit'
-	});
+	return postDate.format(new Date(dateStr));
 }

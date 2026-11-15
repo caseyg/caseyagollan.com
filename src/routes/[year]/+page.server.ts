@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	);
 
 	return {
-		postsMenu: await getPostsMenu(),
+		postsMenu: await getPostsMenu({ years: [year] }),
 		year,
 		postsByDay: postsByDayArray,
 		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)
