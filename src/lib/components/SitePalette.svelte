@@ -4,7 +4,7 @@
 	import { ownerHint } from '$lib/owner';
 	import { pageCommands } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
-	import { CommandPalette, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
+	import { CommandPalette, PullDown, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
 
 	interface Props {
 		/** Opens the site search, with the text typed so far. */
@@ -78,8 +78,10 @@
 			.catch(() => (menuRequested = false));
 	});
 	const toCommand = (option: MenuOption): CommandOption => ({ value: `go:${option.href}`, label: option.label, icon: option.icon, count: option.count });
-	const postTypes = $derived(postsMenu.filter((option) => option.group === 'By type').map(toCommand));
-	const years = $derived(postsMenu.filter((option) => option.group === 'By year').map(toCommand));
+	// The posts menu has named its groups both ways.
+	const inGroup = (...names: string[]) => postsMenu.filter((option) => option.group && names.includes(option.group)).map(toCommand);
+	const postTypes = $derived(inGroup('Type', 'By type'));
+	const years = $derived(inGroup('Year', 'By year'));
 
 	// Typing also searches posts, books and the wiki, for the few best matches.
 	let pagefind: Promise<Pagefind> | undefined;
@@ -153,4 +155,6 @@
 	}
 </script>
 
+<!-- On a phone, with no keyboard shortcut, pulling down from the top of the page opens it. -->
+<PullDown onPull={() => (open = true)} disabled={open} />
 <CommandPalette {sections} {onAction} bind:open bind:query status={searching && term.length >= 2 && !results.length ? 'Searching…' : ''} />
