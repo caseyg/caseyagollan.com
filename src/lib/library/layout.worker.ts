@@ -14,18 +14,21 @@ export interface LayoutRequest {
 	/** Looser spacing for a small set of books, so whole covers fit side by side. */
 	linkDistance?: number;
 	charge?: number;
+	/** Echoed back on each tick, so a reused worker's answers can be told apart. */
+	id?: number;
 }
 
 export interface LayoutTick {
 	tick: number;
 	positions: Float32Array;
 	done: boolean;
+	id?: number;
 }
 
 type LayoutNode = { id: string; x?: number; y?: number; z?: number };
 
 self.onmessage = (event: MessageEvent<LayoutRequest>) => {
-	const { ids, links, ticks, positions: start, finalOnly = false, linkDistance = 30, charge = -60 } = event.data;
+	const { ids, links, ticks, positions: start, finalOnly = false, linkDistance = 30, charge = -60, id } = event.data;
 	const nodes: LayoutNode[] = ids.map((id, index) => start
 		? { id, x: start[index * 3], y: start[index * 3 + 1], z: start[index * 3 + 2] }
 		: { id });
@@ -48,7 +51,7 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
 			positions[index * 3 + 1] = node.y ?? 0;
 			positions[index * 3 + 2] = node.z ?? 0;
 		});
-		const message: LayoutTick = { tick, positions, done };
+		const message: LayoutTick = { tick, positions, done, id };
 		(self as unknown as Worker).postMessage(message, [positions.buffer]);
 	}
 };
