@@ -44,7 +44,9 @@
 		void import('@pagefind/component-ui');
 		// Pagefind moves its modal outside the navigation markup.
 		document.addEventListener('click', handleResultClick);
+		document.addEventListener('click', keepOpenForNewTab, true);
 		return () => {
+			document.removeEventListener('click', keepOpenForNewTab, true);
 			filterObserver.disconnect();
 			triggerObserver.disconnect();
 			document.removeEventListener('click', handleResultClick);
@@ -65,6 +67,16 @@
 			input.value = query;
 			input.dispatchEvent(new Event('input', { bubbles: true }));
 		});
+	}
+
+	/**
+	 * Pagefind closes its modal on any click on a result. A ⌘/Ctrl- or Shift-click opens the result in
+	 * another tab, so search stays open to try the next one. Only the modal's own handler is skipped:
+	 * the browser still follows the link.
+	 */
+	function keepOpenForNewTab(event: MouseEvent) {
+		if (!(event.metaKey || event.ctrlKey || event.shiftKey)) return;
+		if (event.target instanceof Element && event.target.closest('pagefind-modal pagefind-results a')) event.stopPropagation();
 	}
 
 	function handleResultClick(event: MouseEvent) {
