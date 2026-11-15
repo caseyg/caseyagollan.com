@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { blockKey, blockUrl, cleanBlock, isPublished, cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, BLOCK_SHAPE, type Table } from '../src/lib/tables';
 import { blockFromSearch } from '../src/lib/table-sources';
-import { passageUrl, piecesPath, quoteSize } from '../src/lib/table-pieces';
+import { passageUrl, piecesPath, quoteSize, remotePiecesUrl } from '../src/lib/table-pieces';
+import { piecesFromHtml } from '../src/lib/server/table-pieces';
 import { connectorPath, tableLayout, tableWireframe } from '../src/lib/table-wireframe';
 import { listPublishedTables, listTables, readTable, writeTable } from '../src/lib/server/tables';
 import { renderContent } from '../src/lib/utils/renderContent';
@@ -187,5 +188,29 @@ describe('table pictures', () => {
 		const svg = tableWireframe(doc([block('shape:a', 0, 0)]))!;
 		expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
 		expect(svg).not.toMatch(/<text|<image|<foreignObject|<script|href/);
+	});
+});
+
+describe('pieces of other sites', () => {
+	test('links, Raindrop and Are.na blocks read their page; this site and other kinds do not', () => {
+		expect(remotePiecesUrl({ kind: 'link', url: 'https://example.com/a#b' })).toBe('https://example.com/a');
+		expect(remotePiecesUrl({ kind: 'raindrop', url: 'https://example.com/a' })).toBe('https://example.com/a');
+		expect(remotePiecesUrl({ kind: 'quote', url: 'https://example.com/a#:~:text=x' })).toBe('https://example.com/a');
+		expect(remotePiecesUrl({ kind: 'link', url: '/library' })).toBeNull();
+		expect(remotePiecesUrl({ kind: 'link', url: 'https://caseyagollan.com/x' })).toBeNull();
+		expect(remotePiecesUrl({ kind: 'book', url: 'https://example.com/a' })).toBeNull();
+		expect(remotePiecesUrl({ kind: 'link', url: 'javascript:alert(1)' })).toBeNull();
+	});
+
+	test('defuddle keeps the article: its paragraphs and pictures, with whole addresses', () => {
+		const html = `<html><head><title>An essay</title></head><body><nav><p>Home · About · Subscribe to the newsletter for more</p></nav><article><h1>An essay</h1>
+			<p>The first paragraph of the essay is long enough to be a piece of its own on a table.</p>
+			<figure><img src="/img/one.jpg" width="800" alt=""><figcaption>A caption for the picture</figcaption></figure>
+			<p>A second paragraph, also long enough to stand by itself next to the first.</p></article></body></html>`;
+		const pieces = piecesFromHtml(html, 'https://example.com/essay#top');
+		expect(pieces.map((p) => p.kind)).toEqual(['quote', 'image', 'quote']);
+		expect(pieces[0]).toMatchObject({ title: 'An essay', url: expect.stringMatching(/^https:\/\/example\.com\/essay#:~:text=The%20first/) });
+		expect(pieces[1]).toMatchObject({ image: 'https://example.com/img/one.jpg', title: 'A caption for the picture' });
+		expect(pieces.some((p) => p.excerpt?.includes('Subscribe'))).toBe(false);
 	});
 });

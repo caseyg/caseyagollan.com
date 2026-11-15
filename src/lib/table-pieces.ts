@@ -2,7 +2,8 @@ import { blockKey, type Block } from './tables';
 
 /*
  * Pieces of a page to set out on a table on their own: its pictures, the social posts it shows,
- * and its paragraphs. They come from the page as the site renders it, read in the browser.
+ * and its paragraphs. This site's pages are read in the browser as the site renders them; other
+ * sites' pages are read on the server, through defuddle, which keeps an article's main text.
  */
 
 const MAX_PIECES = 80;
@@ -17,7 +18,21 @@ export function piecesPath(block: Pick<Block, 'kind' | 'url'>, wikiHref: (url: s
 	return null;
 }
 
-const squash = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
+/** The web page a link's pieces come from: links, Raindrop and Are.na blocks, and pieces taken from them. */
+export function remotePiecesUrl(block: Pick<Block, 'kind' | 'url'>): string | null {
+	if (!['link', 'raindrop', 'arena', 'image', 'quote'].includes(block.kind)) return null;
+	try {
+		const url = new URL(block.url);
+		if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+		if (url.hostname === 'caseyagollan.com' || url.hostname === 'www.caseyagollan.com') return null;
+		url.hash = '';
+		return url.href;
+	} catch {
+		return null;
+	}
+}
+
+const squash = (text: string | null | undefined) => (text ?? '').replace(/\u00ad/g, '').replace(/\s+/g, ' ').trim();
 
 /** A link to a page that scrolls to and highlights a passage, by its first few words. */
 export function passageUrl(path: string, text: string): string {
@@ -31,11 +46,11 @@ export function quoteSize(excerpt: string): { w: number; h: number } {
 	return { w: 300, h: Math.min(460, Math.max(140, 64 + lines * 25)) };
 }
 
-/** A picture's address as a block keeps it: this site's own pictures as site paths. */
-function pictureUrl(src: string, origin: string): string | undefined {
+/** A picture's address as a block keeps it: this site's own pictures as site paths, others' whole. */
+function pictureUrl(src: string, origin: string, local = true): string | undefined {
 	try {
 		const url = new URL(src, origin);
-		if (url.origin === origin) return url.pathname + url.search;
+		if (local && url.origin === origin) return url.pathname + url.search;
 		return url.protocol === 'https:' ? url.href : undefined;
 	} catch {
 		return undefined;
@@ -47,12 +62,20 @@ const SOURCE_ICON: [RegExp, string][] = [
 	[/mastodon|social\.|\/@/, '🐘']
 ];
 
-/** Reads the pieces out of a rendered page. */
+/** Reads the pieces out of a rendered page of this site. */
 export function piecesFrom(document: Document, path: string, origin: string): Block[] {
 	const title = squash(document.querySelector('h1')?.textContent) || squash(document.title.split(' - ')[0]) || path;
 	const root = document.querySelector('.e-content, .wiki-body') ?? document.querySelector('article');
 	const scope = root?.closest('article') ?? root;
 	if (!root || !scope) return [];
+	return piecesIn(root, scope, { path, origin, title });
+}
+
+/**
+ * The pieces inside `root` (and social posts anywhere in `scope`). `path` is where a piece opens;
+ * another site's pieces keep whole addresses (`local` false).
+ */
+export function piecesIn(root: Element, scope: Element, { path, origin, title, local = true }: { path: string; origin: string; title: string; local?: boolean }): Block[] {
 	const from = `From ${title}`;
 	const pieces: Block[] = [];
 	const seen = new Set<string>();
@@ -63,7 +86,7 @@ export function piecesFrom(document: Document, path: string, origin: string): Bl
 		pieces.push(block);
 	};
 
-	for (const element of scope.querySelectorAll<HTMLElement>('article.social-post, img, p, blockquote, li')) {
+	for (const element of Array.from(scope.querySelectorAll<HTMLElement>('article.social-post, img, p, blockquote, li'))) {
 		const card = element.closest('article.social-post');
 		if (card && card !== element) continue;
 		if (element.matches('article.social-post')) {
@@ -81,7 +104,7 @@ export function piecesFrom(document: Document, path: string, origin: string): Bl
 		}
 		if (!root.contains(element)) continue;
 		if (element.matches('img')) {
-			const image = pictureUrl(element.getAttribute('src') ?? '', origin);
+			const image = pictureUrl(element.getAttribute('src') ?? '', origin, local);
 			const size = Number(element.getAttribute('width')) || Infinity;
 			if (!image || size < 48 || element.closest('.avatar')) continue;
 			const caption = squash(element.closest('figure')?.querySelector('figcaption')?.textContent) || squash(element.getAttribute('alt'));
@@ -107,7 +130,7 @@ const cache = new Map<string, Promise<Block[]>>();
  */
 export function pagePieces(block: Pick<Block, 'kind' | 'url'>, wikiHref: (url: string) => string | null): Promise<Block[]> {
 	const path = piecesPath(block, wikiHref);
-	if (!path) return Promise.resolve([]);
+	if (!path) return remotePieces(block);
 	let found = cache.get(path);
 	if (!found) {
 		found = fetch(path, { credentials: 'same-origin', headers: { accept: 'text/html' } })
@@ -116,6 +139,22 @@ export function pagePieces(block: Pick<Block, 'kind' | 'url'>, wikiHref: (url: s
 			.catch(() => []);
 		found.then((pieces) => pieces.length || cache.delete(path));
 		cache.set(path, found);
+	}
+	return found;
+}
+
+/** Another site's page, read on the server; empty when it can't be read. */
+function remotePieces(block: Pick<Block, 'kind' | 'url'>): Promise<Block[]> {
+	const url = remotePiecesUrl(block);
+	if (!url) return Promise.resolve([]);
+	let found = cache.get(url);
+	if (!found) {
+		found = fetch(`/api/tables/pieces?url=${encodeURIComponent(url)}`, { credentials: 'same-origin' })
+			.then((response): Promise<{ pieces?: Block[] }> | object => (response.ok ? response.json() : {}))
+			.then((data: { pieces?: Block[] }) => (Array.isArray(data.pieces) ? data.pieces : []))
+			.catch(() => []);
+		found.then((pieces) => pieces.length || cache.delete(url));
+		cache.set(url, found);
 	}
 	return found;
 }
