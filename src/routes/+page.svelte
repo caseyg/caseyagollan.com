@@ -6,6 +6,10 @@
     import SkillsGraph from "$lib/components/SkillsGraph.svelte";
     import PersistentDocument from "$lib/components/PersistentDocument.svelte";
     import InsightCard from "$lib/components/InsightCard.svelte";
+    import GraphNodeMenu from "$lib/components/GraphNodeMenu.svelte";
+    import { applyAction, curateInsights, emptyCuration, isPinned, parseCuration, type CurationAction, type GraphCuration } from "$lib/graph-curation";
+    import { ownerHint } from "$lib/owner";
+    import type { Node as GraphNode } from "$lib/data/graph-data";
 
     import type { InsightResponse } from "$lib/insight-types";
 
@@ -46,6 +50,83 @@
     let activeInsightTopic: string | null = $state('Casey');
     let graphFocusNodeId: string | null = $state('Casey');
     let clickedTopics: Set<string> = $state(new Set());
+
+    // Owner choices of which sources the graph shows. Everyone sees them; only the owner changes them.
+    let curation: GraphCuration = $state(emptyCuration());
+    let curationCsrf: string | null = null;
+    // "demo" lets the menu be tried where sign-in is off, such as branch previews; nothing is saved.
+    let curationMode: "off" | "owner" | "demo" = $state("off");
+    let graphMenu: GraphNodeMenu | undefined = $state();
+    let graphInsights = $derived(curateInsights(insightsByTopic, curation));
+
+    async function loadCuration() {
+        const owner = ownerHint();
+        try {
+            const response = await fetch(owner ? "/api/graph-curation?owner" : "/api/graph-curation", { credentials: "same-origin" });
+            if (response.ok) {
+                const data = (await response.json()) as { curation?: unknown; owner?: boolean; csrf?: string };
+                curation = parseCuration(data.curation);
+                if (data.owner && data.csrf) {
+                    curationCsrf = data.csrf;
+                    curationMode = "owner";
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load graph curation:", error);
+        }
+        if (curationMode === "off" && location.hostname !== "caseyagollan.com" && new URLSearchParams(location.search).get("owner") === "demo") {
+            curationMode = "demo";
+        }
+    }
+
+    async function curate(action: CurationAction) {
+        if (curationMode === "demo") {
+            curation = applyAction(curation, action.action === "attach"
+                ? { action: "pin", topic: action.topic, source: { url: action.url, title: new URL(action.url).hostname, page_age: null, cited_text: null } }
+                : action);
+            return;
+        }
+        const response = await fetch("/api/graph-curation", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "x-csrf-token": curationCsrf ?? "" },
+            body: JSON.stringify(action),
+        });
+        const data = (await response.json().catch(() => ({}))) as { curation?: unknown; error?: string };
+        if (!response.ok) throw new Error(data.error ?? "That change wasn’t saved.");
+        curation = parseCuration(data.curation);
+    }
+
+    function sourceFor(topic: string, url: string) {
+        return graphInsights.get(topic)?.sources?.find((source) => source.url === url);
+    }
+
+    function handleNodeContextMenu(node: GraphNode, event: MouseEvent) {
+        const at = { x: event.clientX, y: event.clientY };
+        if (node.type === "citation" && node.url && node.parent) {
+            graphMenu?.open({ kind: "url", topic: node.parent, url: node.url, title: node.title, pinned: isPinned(node.parent, node.url, curation) }, at);
+        } else if (node.type !== "loading" && node.type !== "citation") {
+            graphMenu?.open({ kind: "topic", topic: node.id }, at);
+        }
+    }
+
+    const graphMenuHandlers = {
+        onPin: (topic: string, url: string) => {
+            const found = sourceFor(topic, url);
+            const source = { url, title: found?.title || new URL(url).hostname, page_age: found?.page_age ?? null, cited_text: found?.cited_text ?? null };
+            return curate({ action: "pin", topic, source });
+        },
+        onUnpin: (topic: string, url: string) => curate({ action: "unpin", topic, url }),
+        onBlockUrl: (url: string) => curate({ action: "block-url", url }),
+        onBlockDomain: (url: string) => curate({ action: "block-domain", url }),
+        onAttach: async (topic: string, url: string) => {
+            await curate({ action: "attach", topic, url });
+            if (graphFocusNodeId !== topic) {
+                graphFocusNodeId = topic;
+                void handleTopicClick(topic);
+            }
+        },
+    };
 
     // Derive loading topics from insights that are currently streaming
     let loadingTopics: string[] = $derived(
@@ -314,6 +395,7 @@
 
     onMount(() => {
         if (browser) {
+            void loadCuration();
             // Load telescopic text library as a script
             const script = document.createElement("script");
             script.src = "https://unpkg.com/telescopic-text@1.2.4/lib/index.js";
@@ -551,10 +633,14 @@
             <SkillsGraph
                 onTopicClick={handleTopicClick}
                 bind:focusNodeId={graphFocusNodeId}
-                insightsData={insightsByTopic}
+                insightsData={graphInsights}
                 {loadingTopics}
+                onNodeContextMenu={curationMode === "off" ? undefined : handleNodeContextMenu}
             />
         </div>
+        {#if curationMode !== "off"}
+            <GraphNodeMenu bind:this={graphMenu} {...graphMenuHandlers} note={curationMode === "demo" ? "Preview only: not saved." : undefined} />
+        {/if}
 
         <!-- Right: Bio -->
         <div class="pane-bio" class:updating={isDocumentUpdating}>
