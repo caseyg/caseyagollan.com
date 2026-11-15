@@ -16,6 +16,7 @@
 	// The owner's Add menu also finds private Are.na blocks.
 	const ownerSearch = withPrivateArena();
 	let name = $state('');
+	let published = $state(true);
 	let document: unknown = $state.raw(null);
 	let seed: Block[] | undefined;
 	/** Whether the table has a picture for the browse page yet; tables saved before pictures don't. */
@@ -38,6 +39,7 @@
 	);
 
 	name = data.table?.name ?? '';
+	published = data.table?.published !== false;
 	document = data.table?.document ?? null;
 
 	onMount(() => {
@@ -50,6 +52,7 @@
 					return;
 				}
 				name = local.name;
+				published = local.published !== false;
 				document = local.document;
 				seed = local.seed;
 				hasThumbnail = !!local.thumb;
@@ -140,6 +143,18 @@
 		return () => window.removeEventListener('pointerdown', close, true);
 	});
 
+	async function publish(next: boolean) {
+		if (!session) return;
+		published = next;
+		try {
+			published = (await saveTable(session, data.id, { published: next })).published !== false;
+		} catch (error) {
+			console.error(error);
+			published = !next;
+			status = 'failed';
+		}
+	}
+
 	function openRename() {
 		renameAnchor = window.document.querySelector<HTMLElement>('.page-header .trail button.segment');
 		renaming = true;
@@ -183,6 +198,8 @@
 				canRedo={view.canRedo}
 				{adding}
 				status={statusText}
+				{published}
+				onpublish={publish}
 				ontool={(tool) => api?.setTool(tool)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}

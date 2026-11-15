@@ -15,12 +15,14 @@
 		document: unknown;
 		/** The owner arranges the table; everyone else pans, zooms and opens blocks. */
 		editable?: boolean;
+		/** Framed in a post: the page keeps the scroll wheel, and dragging pans. */
+		embedded?: boolean;
 		onchange?: (document: unknown) => void;
 		onready?: (api: TableApi) => void;
 		class?: string;
 	}
 
-	let { document, editable = false, onchange, onready, class: className = '' }: Props = $props();
+	let { document, editable = false, embedded = false, onchange, onready, class: className = '' }: Props = $props();
 
 	let host: HTMLDivElement;
 	let api: TableApi | undefined;
@@ -42,6 +44,7 @@
 						// tldraw freezes what it is given, which a Svelte state proxy refuses.
 						document: $state.snapshot(document),
 						editable,
+						embedded,
 						licenseKey: TLDRAW_LICENSE_KEY,
 						onChange: (next: unknown) => onchange?.(next),
 						onReady: (ready: TableApi) => {

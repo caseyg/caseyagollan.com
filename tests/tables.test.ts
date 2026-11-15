@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { blockKey, blockUrl, cleanBlock, cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, BLOCK_SHAPE } from '../src/lib/tables';
+import { blockKey, blockUrl, cleanBlock, isPublished, cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, BLOCK_SHAPE, type Table } from '../src/lib/tables';
 import { blockFromSearch } from '../src/lib/table-sources';
 import { passageUrl, piecesPath, quoteSize } from '../src/lib/table-pieces';
-import { listTables, readTable, writeTable } from '../src/lib/server/tables';
+import { listPublishedTables, listTables, readTable, writeTable } from '../src/lib/server/tables';
+import { renderContent } from '../src/lib/utils/renderContent';
 
 /** An in-memory stand-in for the R2 bucket's get and put. */
 function bucket() {
@@ -101,6 +102,30 @@ describe('tables', () => {
 		expect((await readTable(store, 'aaaa1111'))?.name).toBe('Renamed');
 		expect(await readTable(store, '../x')).toBeNull();
 		expect(await listTables(undefined)).toEqual([]);
+	});
+
+	test('new tables are drafts that only the owner lists; older tables stay public', async () => {
+		const store = bucket();
+		const draft = emptyTable('Draft', 'cccc3333', '2026-11-01T00:00:00.000Z');
+		const { published: _published, ...older } = emptyTable('Older', 'dddd4444', '2026-11-02T00:00:00.000Z');
+		const shown = { ...emptyTable('Shown', 'eeee5555', '2026-11-03T00:00:00.000Z'), published: true };
+		expect(isPublished(draft)).toBe(false);
+		expect(isPublished(older as Table)).toBe(true);
+		for (const table of [draft, older as Table, shown]) await writeTable(store, table);
+		expect((await listPublishedTables(store)).map((table) => table.name)).toEqual(['Shown', 'Older']);
+		expect((await listTables(store)).map((table) => table.name)).toEqual(['Shown', 'Older', 'Draft']);
+	});
+
+	test('a bare table link in a post becomes a framed table, with its link kept', () => {
+		const html = renderContent('Look:\n\nhttps://caseyagollan.com/tables/abcd1234\n\n[a table](https://caseyagollan.com/tables/abcd1234)');
+		expect(html).toContain('<iframe src="https://caseyagollan.com/tables/abcd1234/embed"');
+		expect(html).toContain('<a href="https://caseyagollan.com/tables/abcd1234">Open the table</a>');
+		// A labelled link stays a link.
+		expect(html).toContain('>a table</a>');
+		expect(html.match(/<iframe/g)).toHaveLength(1);
+		// Frames from elsewhere on the site, or other hosts, are dropped.
+		expect(renderContent('<iframe src="https://caseyagollan.com/account"></iframe>', 'html')).not.toContain('iframe');
+		expect(renderContent('<iframe src="https://evil.example/tables/abcd1234/embed"></iframe>', 'html')).not.toContain('iframe');
 	});
 });
 

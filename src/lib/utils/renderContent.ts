@@ -35,6 +35,14 @@ const OEMBED_PATTERNS: Array<{
 			return `<div class="embed embed-video"><iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
 		}
 	},
+	// A table on this site, drawn read-only; the link stays for readers that drop frames.
+	{
+		pattern: /^https:\/\/(?:www\.)?caseyagollan\.com\/tables\/([a-z0-9-]{4,40})\/?$/g,
+		getEmbed: (match) => {
+			const href = `https://caseyagollan.com/tables/${match[1]}`;
+			return `<div class="embed embed-table"><iframe src="${href}/embed" title="A table by Casey Gollan" loading="lazy"></iframe><p class="embed-caption"><a href="${href}">Open the table</a></p></div>`;
+		}
+	},
 	// Vimeo
 	{
 		pattern: /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)(?:\S*)?/g,

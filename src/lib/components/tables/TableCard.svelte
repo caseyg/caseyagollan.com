@@ -1,9 +1,11 @@
 <script lang="ts">
 	import type { TableSummary } from '$lib/tables';
+	import { isPublished } from '$lib/tables';
+	import Chip from '../ui/Chip.svelte';
 	import BlockCard from './BlockCard.svelte';
 
 	interface Props {
-		table: Pick<TableSummary, 'name' | 'count' | 'updated' | 'preview'>;
+		table: Pick<TableSummary, 'name' | 'count' | 'updated' | 'preview' | 'published'>;
 		href: string;
 		/** A picture of the whole table as it is laid out. Without one, the first blocks stand in. */
 		thumbnail?: string;
@@ -30,7 +32,7 @@
 		</div>
 	{/if}
 	<h2 class="name">{table.name}</h2>
-	<p class="meta">{count} · {updated}</p>
+	<p class="meta">{#if !isPublished(table)}<Chip variant="soft" title="Only you can see this table">Draft</Chip>{/if}<span>{count} · {updated}</span></p>
 </a>
 
 <style>
@@ -105,6 +107,9 @@
 	}
 
 	.meta {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 		margin: 0;
 		color: var(--text-muted);
 		font-size: var(--fs-xs);

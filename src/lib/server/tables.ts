@@ -1,4 +1,4 @@
-import { byUpdated, toSummary, validId, type Table, type TableSummary } from '../tables';
+import { byUpdated, isPublished, toSummary, validId, type Table, type TableSummary } from '../tables';
 
 /*
  * Tables live in the publishing-state bucket beside the graph curation: one object per table, and
@@ -9,6 +9,12 @@ const tableKey = (id: string) => `tables/${id}.json`;
 const thumbnailKey = (id: string) => `tables/${id}.svg`;
 const JSON_TYPE = { httpMetadata: { contentType: 'application/json' } };
 
+/** Published tables, for visitors. */
+export async function listPublishedTables(bucket: R2Bucket | undefined): Promise<TableSummary[]> {
+	return (await listTables(bucket)).filter(isPublished);
+}
+
+/** Every table, drafts included: the owner's view, and what writes keep the index of. */
 export async function listTables(bucket: R2Bucket | undefined): Promise<TableSummary[]> {
 	if (!bucket) return [];
 	try {
