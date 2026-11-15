@@ -16,7 +16,7 @@
 <PostsLayout>
 	<FilterablePostFeed postsByDay={data.postsByDay}>
 		{#snippet header(filter)}
-			<DateArchiveHeader year={data.year} count={data.totalPosts} actions={filter} />
+			<DateArchiveHeader year={data.year} count={data.totalPosts} {filter} />
 		{/snippet}
 	</FilterablePostFeed>
 </PostsLayout>

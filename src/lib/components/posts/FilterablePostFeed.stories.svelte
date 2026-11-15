@@ -17,7 +17,7 @@
 	<PostsLayout>
 		<FilterablePostFeed {postsByDay}>
 			{#snippet header(filter)}
-				<DateArchiveHeader year="2026" month="01" count={4} actions={filter} />
+				<DateArchiveHeader year="2026" month="01" count={4} {filter} />
 			{/snippet}
 		</FilterablePostFeed>
 	</PostsLayout>

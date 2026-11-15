@@ -22,7 +22,7 @@
 <PostsLayout>
 	<FilterablePostFeed posts={data.posts}>
 		{#snippet header(filter)}
-			<DateArchiveHeader year={data.year} month={data.month} day={data.day} count={data.totalPosts} actions={filter} />
+			<DateArchiveHeader year={data.year} month={data.month} day={data.day} count={data.totalPosts} {filter} />
 		{/snippet}
 	</FilterablePostFeed>
 </PostsLayout>

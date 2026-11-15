@@ -1,8 +1,29 @@
-import { getAllPosts, getPostsByType, POST_TYPES, POST_TYPE_PLURALS } from '$lib/posts';
+import { getAllPosts, getAllTags, getPostsByType, POST_TYPES, POST_TYPE_PLURALS, type Post } from '$lib/posts';
 import { TYPE_ICONS } from '$lib/posts-filter';
 import type { MenuOption } from '$lib/components/ui';
 
-/** The Posts menu shown at the start of every trail in the posts section: the feed, each type, then each year. */
+/** Tags shown in the Posts menu before it hands over to the page of all tags. */
+const MENU_TAGS = 6;
+
+export interface TagCount {
+	name: string;
+	href: string;
+	count: number;
+}
+
+/** Every tag with its post count, most used first. Tags that differ only by case share a page, so they are one entry. */
+export function getTagCounts(posts: Post[]): TagCount[] {
+	const tags = new Map<string, TagCount>();
+	for (const [name, count] of getAllTags(posts)) {
+		const key = name.toLowerCase();
+		const entry = tags.get(key);
+		if (entry) entry.count += count;
+		else tags.set(key, { name, href: `/tag/${key}/`, count });
+	}
+	return [...tags.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
+
+/** The Posts menu shown at the start of every trail in the posts section: the feed, each type, the most used tags, then each year. */
 export async function getPostsMenu(): Promise<MenuOption[]> {
 	const posts = await getAllPosts();
 	const types = POST_TYPES.map((type) => {
@@ -26,5 +47,11 @@ export async function getPostsMenu(): Promise<MenuOption[]> {
 		.sort((a, b) => b[0].localeCompare(a[0]))
 		.map(([year, count]) => ({ value: year, label: year, href: `/${year}/`, count, group: 'By year' }));
 
-	return [{ value: 'all', label: 'All posts', href: '/posts/', icon: '📡' }, ...types, ...years];
+	const allTags = getTagCounts(posts);
+	const tags: MenuOption[] = allTags
+		.slice(0, MENU_TAGS)
+		.map((tag) => ({ value: `tag:${tag.name.toLowerCase()}`, label: `#${tag.name}`, href: tag.href, count: tag.count, group: 'By tag' }));
+	if (allTags.length) tags.push({ value: 'tags', label: 'All tags', href: '/tag/', count: allTags.length, icon: '🏷️', group: 'By tag' });
+
+	return [{ value: 'all', label: 'All posts', href: '/posts/', icon: '📡' }, ...types, ...tags, ...years];
 }

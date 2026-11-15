@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostFeed, PostsLayout, PostTypeFilter } from '$lib/components/posts';
+	import { PostFeed, PostsLayout } from '$lib/components/posts';
 	import { PageHeader, Pagination } from '$lib/components/ui';
 	import { postsCrumb } from '$lib/components/posts/trail';
 	import { typesHref } from '$lib/posts-filter';
@@ -30,11 +30,10 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<PageHeader trail={[{ ...postsCrumb('all'), current: true }]} title={filtered ? shownLabel : 'Posts'}>
-		{#snippet actions()}
-			<PostTypeFilter options={data.typeOptions} selected={data.selectedTypes} href={(types) => typesHref(types, available)} />
-		{/snippet}
-	</PageHeader>
+	<PageHeader
+		trail={[{ ...postsCrumb('all', { options: data.typeOptions, selected: data.selectedTypes, href: (types) => typesHref(types, available) }), current: true }]}
+		title={filtered ? shownLabel : 'Posts'}
+	/>
 	{#if data.totalPosts === 0}
 		<p class="empty">No posts of these types yet.</p>
 	{/if}

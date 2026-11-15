@@ -6,7 +6,7 @@ const segments = [
 	{ label: '01', href: '/2026/01/' },
 	{ label: '10', href: '/2026/01/10/' }
 ];
-const meta = { title: 'Primitives/SegmentedPill', component: SegmentedPill, args: { segments, label: 'Date archive' }, parameters: { docs: { story: { height: '260px' } } } } satisfies Meta<typeof SegmentedPill>;
+const meta = { title: 'Primitives/SegmentedPill', component: SegmentedPill, args: { segments, label: 'Date archive' }, parameters: { docs: { story: { height: '420px' } } } } satisfies Meta<typeof SegmentedPill>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Small: Story = {};
@@ -32,6 +32,30 @@ export const TrailWithMenu: Story = {
 			{ label: 'Posts', href: '/posts/', icon: '📡', menu: postsMenu, menuActive: 'note' },
 			{ label: 'Notes', href: '', icon: '📝', count: 73, current: true }
 		]
+	}
+};
+/**
+ * On a page that lists posts of several types, the types in the menu are check boxes that narrow the page
+ * and can be combined. The menu stays open between choices, and `menuBadge` says what is in effect.
+ */
+export const TrailWithFilter: Story = {
+	args: {
+		size: 'md',
+		tone: 'quiet',
+		compact: true,
+		label: undefined,
+		segments: [{
+			label: 'Posts', href: '/posts/', icon: '📡', current: true, menuBadge: 'Notes',
+			menu: [
+				postsMenu[0],
+				{ value: 'note', label: 'Notes', href: '?types=notes', count: 73, icon: '📝', group: 'Filter by type', checked: true },
+				{ value: 'article', label: 'Articles', href: '?types=notes,articles', count: 4, icon: '📄', group: 'Filter by type', checked: false },
+				{ value: 'every-type', label: 'Show all types', href: '?', group: 'Filter by type' },
+				{ value: 'tag:design', label: '#design', href: '/tag/design/', count: 42, group: 'By tag' },
+				{ value: 'tags', label: 'All tags', href: '/tag/', count: 58, icon: '🏷️', group: 'By tag' },
+				...postsMenu.slice(3)
+			]
+		}]
 	}
 };
 /** The homepage's trail jumps to sections of the page. */

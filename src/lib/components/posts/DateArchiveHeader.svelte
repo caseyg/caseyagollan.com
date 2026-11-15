@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { PageHeader, type Segment } from '$lib/components/ui';
-	import { postsCrumb } from './trail';
+	import { postsCrumb, type TrailFilter } from './trail';
 
 	interface Props {
 		year: string;
@@ -10,10 +10,12 @@
 		count?: number;
 		/** Set on a single post, where the trail leads to the page instead of naming it. */
 		parent?: boolean;
+		/** Lets the Posts menu narrow this page by post type. */
+		filter?: TrailFilter;
 		actions?: Snippet;
 	}
 
-	let { year, month, day, count, parent = false, actions }: Props = $props();
+	let { year, month, day, count, parent = false, filter, actions }: Props = $props();
 
 	const title = $derived.by(() => {
 		if (!month) return `Posts from ${year}`;
@@ -23,7 +25,7 @@
 
 	// Posts, then the date from year down. The deepest segment is the page being viewed and carries the count.
 	const trail = $derived.by(() => {
-		const list: Segment[] = [postsCrumb(year), { label: year, href: `/${year}/` }];
+		const list: Segment[] = [postsCrumb(year, filter), { label: year, href: `/${year}/` }];
 		if (month) list.push({ label: month, href: `/${year}/${month}/` });
 		if (month && day) list.push({ label: day, href: `/${year}/${month}/${day}/` });
 		if (!parent) list[list.length - 1] = { ...list[list.length - 1], current: true, count };

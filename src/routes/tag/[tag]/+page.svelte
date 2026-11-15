@@ -18,7 +18,7 @@
 <PostsLayout>
 	<FilterablePostFeed postsByDay={data.postsByDay} activeTag={data.tag}>
 		{#snippet header(filter)}
-			<DropdownArchiveHeader current="#{data.tag}" options={data.allTags} count={data.totalPosts} actions={filter} />
+			<DropdownArchiveHeader current="#{data.tag}" options={data.allTags} count={data.totalPosts} {filter} />
 		{/snippet}
 	</FilterablePostFeed>
 </PostsLayout>

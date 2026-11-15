@@ -24,7 +24,8 @@
 	let container: HTMLElement | undefined = $state();
 	let button: HTMLButtonElement | undefined = $state();
 
-	// Every popover closes on an outside click, on Escape, and when one of its links is followed.
+	// Every popover closes on an outside click, on Escape, and when one of its links is followed,
+	// except a link marked `data-keep-open`, which changes the page in place.
 	function onWindowClick(event: MouseEvent) {
 		if (open && container && !container.contains(event.target as Node)) open = false;
 	}
@@ -32,7 +33,7 @@
 		if (open && event.key === 'Escape') { open = false; button?.focus(); }
 	}
 	function onPanelClick(event: MouseEvent) {
-		if ((event.target as Element).closest('a[href]')) open = false;
+		if ((event.target as Element).closest('a[href]:not([data-keep-open])')) open = false;
 	}
 </script>
 

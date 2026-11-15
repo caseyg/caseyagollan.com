@@ -14,6 +14,8 @@
 		menu?: MenuOption[];
 		/** Value of the menu entry for the page being viewed, when it is not the one labelled like the segment. */
 		menuActive?: string;
+		/** A short note after a menu segment's label, e.g. the filter in effect. */
+		menuBadge?: string;
 		/** Makes the segment a button. */
 		onclick?: () => void;
 		/** For a button that is one of several choices: whether it is the one in effect. */
@@ -49,7 +51,7 @@
 	{#each segments as segment (segment.href || segment.label)}
 		{#if segment.menu}
 			<span class="segment segment--menu" class:current={segment.current}>
-				<SelectMenu segment current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} />
+				<SelectMenu segment current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} badge={segment.menuBadge} />
 			</span>
 		{:else if segment.onclick}
 			<button type="button" class="segment" class:current={segment.pressed} aria-pressed={segment.pressed} aria-label={segment.ariaLabel ?? (compact ? segment.label : undefined)} title={segment.title} onclick={segment.onclick}>

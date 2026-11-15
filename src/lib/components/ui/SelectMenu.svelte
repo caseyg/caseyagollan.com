@@ -7,10 +7,19 @@
 		icon?: string;
 		/** Options that share a group sit together under it as a heading. */
 		group?: string;
+		/**
+		 * Makes the option a filter that can be combined with others: it shows a check box, its link
+		 * changes the page in place, and the menu stays open for the next choice.
+		 */
+		checked?: boolean;
 	}
+
+	// A filter can lead to another route, which builds a new menu; that one opens where this one was.
+	let reopen = false;
 </script>
 
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import Count from './Count.svelte';
 	import Popover from './Popover.svelte';
 
@@ -22,18 +31,32 @@
 		options: MenuOption[];
 		/** Value of the option for the page being viewed. Defaults to the option labelled like `current`. */
 		active?: string;
+		/** A short note after the label, e.g. the filter in effect. */
+		badge?: string;
 		/** Render the trigger as a segment of a `SegmentedPill`, taking its size and colours from the pill. */
 		segment?: boolean;
 	}
 
-	let { current, currentIcon, count, options, active, segment = false }: Props = $props();
+	let { current, currentIcon, count, options, active, badge, segment = false }: Props = $props();
+
+	let open = $state(reopen);
+	reopen = false;
+
+	// Without JavaScript a filter is a plain link; with it, keep the scroll position and the menu.
+	function onFilterClick(event: MouseEvent, option: MenuOption) {
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		reopen = true;
+		void goto(option.href, { noScroll: true, keepFocus: true }).finally(() => setTimeout(() => (reopen = false)));
+	}
 
 	const isActive = (option: MenuOption) => (active === undefined ? option.label === current : option.value === active);
 </script>
 
-<Popover class="select-menu {segment ? 'segment' : ''}" triggerClass="trigger" panelClass="menu">
+<Popover bind:open class="select-menu {segment ? 'segment' : ''}" triggerClass="trigger" panelClass="menu">
 	{#snippet trigger(open)}
 		<span class="current" class:has-icon={currentIcon} title={current}>{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}<span class="text">{current}</span></span>
+		{#if badge}<span class="badge">{badge}</span>{/if}
 		{#if count !== undefined}<span class="count"><Count value={count} label="{count} posts" /></span>{/if}
 		<span class="arrow" class:open aria-hidden="true">▾</span>
 	{/snippet}
@@ -41,6 +64,12 @@
 		{#each options as option, i (option.value)}
 			{#if option.group && option.group !== options[i - 1]?.group}<li class="group" role="presentation">{option.group}</li>{/if}
 			<li>
+				{#if option.checked !== undefined}
+					<a href={option.href} class="item" data-keep-open data-sveltekit-noscroll onclick={(event) => onFilterClick(event, option)}>
+						<span><span class="check" class:on={option.checked} aria-hidden="true">{option.checked ? '✓' : ''}</span>{#if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}{option.label}<span class="visually-hidden">{option.checked ? ', selected' : ''}</span></span>
+						{#if option.count !== undefined}<Count value={option.count} />{/if}
+					</a>
+				{:else}
 				<a
 					href={option.href}
 					class="item"
@@ -50,6 +79,7 @@
 					<span>{#if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}{option.label}</span>
 					{#if option.count !== undefined}<Count value={option.count} />{/if}
 				</a>
+				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -119,6 +149,40 @@
 
 	.count {
 		display: inline-flex;
+	}
+
+	.badge {
+		color: var(--text-secondary);
+		font-weight: var(--fw-regular);
+		white-space: nowrap;
+	}
+
+	.check {
+		display: inline-grid;
+		place-items: center;
+		width: 1.1em;
+		height: 1.1em;
+		margin-right: var(--space-3);
+		border: 1px solid var(--border-strong);
+		border-radius: 3px;
+		font-size: var(--fs-xs);
+		line-height: 1;
+		vertical-align: -0.1em;
+	}
+
+	.check.on {
+		border-color: var(--text-primary);
+		background: var(--text-primary);
+		color: var(--bg-primary);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
 	}
 
 	.arrow {

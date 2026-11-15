@@ -3,8 +3,8 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import PostFeed from './PostFeed.svelte';
-	import PostTypeFilter from './PostTypeFilter.svelte';
-	import { entryTypes, localTypesHref, parseTypesParam, typeFilterOptions } from '$lib/posts-filter';
+	import type { TrailFilter } from './trail';
+	import { entryTypes, localTypesHref, parseTypesParam, typeFilterOptions, type PostType } from '$lib/posts-filter';
 	import type { Post } from '$lib/posts-types';
 
 	interface Props {
@@ -13,8 +13,8 @@
 		posts?: Post[];
 		showType?: boolean;
 		activeTag?: string;
-		/** The page's header, given the filter to place in its `actions`. */
-		header: Snippet<[Snippet]>;
+		/** The page's header, given the type filter for its Posts menu. */
+		header: Snippet<[TrailFilter]>;
 	}
 
 	let { postsByDay, posts, showType = true, activeTag, header }: Props = $props();
@@ -25,7 +25,7 @@
 	// Archive pages are prerendered, so `?types=` is only readable once the page runs in the browser.
 	const selected = $derived.by(() => {
 		const chosen = browser ? parseTypesParam(page.url.searchParams.get('types'), available) : new Set();
-		return chosen.size ? available.filter((type) => chosen.has(type)) : available;
+		return (chosen.size ? available.filter((type) => chosen.has(type)) : available) as PostType[];
 	});
 	const shown = $derived(new Set(selected));
 	const keep = (post: Post) => entryTypes(post).some((type) => shown.has(type));
@@ -35,9 +35,5 @@
 	const visible = $derived(posts?.filter(keep));
 </script>
 
-{#snippet filter()}
-	<PostTypeFilter {options} {selected} href={(types) => localTypesHref(page.url.pathname, types, available)} />
-{/snippet}
-
-{@render header(filter)}
+{@render header({ options, selected, href: (types) => localTypesHref(page.url.pathname, types, available) })}
 <PostFeed postsByDay={visibleByDay} posts={visible} {showType} {activeTag} />
