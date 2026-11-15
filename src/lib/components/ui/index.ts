@@ -27,3 +27,4 @@ export type { IconName } from './Icon.svelte';
 export type { Segment } from './SegmentedPill.svelte';
 export type { MenuOption } from './SelectMenu.svelte';
 export type { CommandOption, CommandSection } from './CommandPalette.svelte';
+export { default as MermaidDiagram } from './MermaidDiagram.svelte';

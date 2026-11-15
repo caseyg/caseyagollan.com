@@ -74,6 +74,7 @@
 		"lexical": "0.40.0",
 		"marked": "^16.4.1",
 		"openai": "^4.77.0",
+		"pele": "1.13.0",
 		"react": "19.2.1",
 		"react-dom": "19.2.1",
 		"svelte-lexical": "0.6.5",

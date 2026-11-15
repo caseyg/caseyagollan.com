@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { mermaidBlocks } from './mermaidBlocks';
 
 	interface Props {
 		/** Extra classes, e.g. microformats such as `e-content`. */
@@ -10,7 +11,8 @@
 	let { class: className = '', children }: Props = $props();
 </script>
 
-<div class="prose {className}">
+<!-- Mermaid code blocks are drawn as diagrams once the page is up. -->
+<div class="prose {className}" {@attach mermaidBlocks}>
 	{@render children()}
 </div>
 
@@ -89,6 +91,17 @@
 		background: var(--surface-sunken);
 		font-size: var(--fs-sm);
 		line-height: var(--lh-normal);
+	}
+
+	/* A code block that now holds its diagram, which brings its own spacing. */
+	.prose :global(pre.mermaid-block) {
+		margin: 0;
+		padding: 0;
+		overflow: visible;
+		background: none;
+		font-size: inherit;
+		line-height: inherit;
+		white-space: normal;
 	}
 
 	.prose :global(pre code) {
