@@ -2,10 +2,12 @@
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import { Page, PageHeader, Section } from '$lib/components/ui';
-	import { WikiArticle, WikiGraph, WikiPageList } from '$lib/components/wiki';
+	import { WikiArticle, WikiGraph, WikiPageList, WikiStack } from '$lib/components/wiki';
+	import { wikiStackState } from '$lib/components/wiki/stack-state.svelte';
 	import { wikiCrumb } from '$lib/components/wiki/trail';
 
 	let { data }: { data: PageData } = $props();
+	const stack = wikiStackState();
 </script>
 
 <svelte:head>
@@ -17,7 +19,7 @@
 
 <Nav currentPage="wiki" />
 
-<Page>
+{#snippet content()}
 	<PageHeader trail={[{ ...wikiCrumb('', true), count: data.pages.length }]} title="Wiki" />
 	{#if data.home}<WikiArticle page={data.home} showTitle={false} />{/if}
 	<div id="graph">
@@ -28,4 +30,9 @@
 	<Section title="All pages">
 		<WikiPageList pages={data.pages} />
 	</Section>
-</Page>
+{/snippet}
+
+<WikiStack root={data.home?.slug ?? ''} title="Wiki" stack={stack.stack} onchange={stack.change}>
+	<Page>{@render content()}</Page>
+	{#snippet rootPane()}{@render content()}{/snippet}
+</WikiStack>

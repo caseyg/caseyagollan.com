@@ -2,6 +2,7 @@ import { buildWiki, neighborhood, previewHtml, summarize } from '$lib/wiki/build
 import { layoutGraph } from '$lib/wiki/graph-layout';
 import type { WikiSourcePage, WikiVault } from '$lib/wiki/types';
 import type { WikiPreview } from '$lib/wiki/preview';
+import type { WikiPaneData } from '$lib/wiki/stack';
 
 const page = (title: string, markdown: string, extra: Partial<WikiSourcePage> = {}): WikiSourcePage => ({
 	path: `${title}.md`,
@@ -48,3 +49,11 @@ export const sampleLocalGraph = layoutGraph(neighborhood(sampleWiki.graph, 'art-
 export const samplePreviews: Record<string, WikiPreview> = Object.fromEntries(
 	sampleWiki.pages.map((wikiPage) => [wikiPage.slug, { slug: wikiPage.slug, title: wikiPage.title, tags: wikiPage.tags, html: previewHtml(wikiPage.html) }])
 );
+
+/** Sample pages as stacked panes load them, by slug. */
+export async function samplePane(slug: string): Promise<WikiPaneData | null> {
+	const found = sampleWiki.bySlug.get(slug);
+	if (!found) return null;
+	const { title, url, tags, year, fields, html } = found;
+	return { slug, title, url, tags, year, fields, html, backlinks: found.backlinks.map((other) => summarize(sampleWiki.bySlug.get(other)!)) };
+}

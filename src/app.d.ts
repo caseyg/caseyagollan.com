@@ -14,7 +14,10 @@ declare global {
 		// interface Error {}
 		// interface Locals {}
 		// interface PageData {}
-		// interface PageState {}
+		interface PageState {
+			/** Wiki pages open as panes beside the one being read; see `WikiStack`. */
+			wikiStack?: string[];
+		}
 		interface Platform {
 			env?: PublishingEnvironment & {
 				INSIGHT_CACHE: KVNamespace;

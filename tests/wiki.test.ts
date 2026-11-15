@@ -109,3 +109,23 @@ test('links off the site open in a new tab and are marked', () => {
 	expect(page.html).toMatch(/<a href="https:\/\/www\.nngroup\.com[^"]*" target="_blank" rel="noopener noreferrer" class="external">/);
 	expect(buildWiki(sampleVault).bySlug.get('art-under-risk')!.html).not.toContain('external');
 });
+
+test('link addresses with spaces stay one link, as Obsidian allows, and titles still work', () => {
+	const wiki = buildWiki(vault([page('Contact', 'Email: [me](mailto:me@example.org?subject=Making contact from cag.wiki)\n\nSee [site](https://example.org "Example") and `[a](b c)`.')]));
+	const html = wiki.pages[0].html;
+	expect(html).toContain('href="mailto:me@example.org?subject=Making%20contact%20from%20cag.wiki"');
+	expect(html).not.toContain('Making contact from cag.wiki)');
+	expect(html).toContain('title="Example"');
+	expect(html).toContain('<code>[a](b c)</code>');
+});
+
+test('following a link from a pane closes the panes after it, and an open page is shown where it is', async () => {
+	const { openInStack, stackFromUrl, urlWithStack } = await import('../src/lib/wiki/stack');
+	expect(openInStack('a', [], 0, 'b')).toEqual({ stack: ['b'], focus: 1 });
+	expect(openInStack('a', ['b', 'c', 'd'], 1, 'x')).toEqual({ stack: ['b', 'x'], focus: 2 });
+	expect(openInStack('a', ['b', 'c'], 1, 'c')).toEqual({ stack: ['b', 'c'], focus: 2 });
+	expect(openInStack('a', ['b', 'c'], 2, 'a')).toEqual({ stack: ['b', 'c'], focus: 0 });
+	const url = urlWithStack(new URL('https://example.org/wiki/a?x=1'), ['b', 'c']);
+	expect(url.search).toBe('?x=1&stack=b&stack=c');
+	expect(stackFromUrl(url)).toEqual(['b', 'c']);
+});
