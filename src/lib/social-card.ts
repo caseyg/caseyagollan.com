@@ -26,8 +26,11 @@ export function renderSocialCardHeader(author: SocialCardAuthor, source?: Social
  const sources = (Array.isArray(source) ? source : source ? [source] : []).map(s => `<a class="social-platform${s.className ? ` ${escape(s.className)}` : ''}" href="${escape(s.url)}" aria-label="${escape(s.title)}" title="${escape(s.title)}">${escape(s.label)}</a>`).join('');
  return `<header><a class="social-author" href="${escape(author.url)}">${avatar}<span class="social-author-details"><strong class="social-author-name">${escape(author.name)}</strong>${author.handle ? `<span class="social-author-handle">${escape(author.handle)}</span>` : ''}</span></a>${sources ? `<span class="social-platforms">${sources}</span>` : ''}</header>`;
 }
+// Building a formatter is far slower than using one, and feeds render thousands of footers.
+const footerDate = new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'America/New_York'});
+const footerClock = new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'});
 export function renderSocialCardFooter(published: string, url: string): string {
- const date = new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric',timeZone:'America/New_York'}).format(new Date(published));
- const clock = new Intl.DateTimeFormat('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/New_York',timeZoneName:'short'}).format(new Date(published));
+ const date = footerDate.format(new Date(published));
+ const clock = footerClock.format(new Date(published));
  return `<footer><a href="${escape(url)}"><time datetime="${escape(published)}">${escape(clock)} · ${escape(date)}</time></a></footer>`;
 }

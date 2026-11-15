@@ -6,6 +6,8 @@ export default defineConfig({
 	// Canonical discovery; preview builds can override both endpoint values.
 	define: { __MICROPUB_ENDPOINT__: JSON.stringify(process.env.PUBLIC_MICROPUB_ENDPOINT || 'https://caseyagollan.com/micropub'), __INDIEAUTH_ISSUER__: JSON.stringify(process.env.PUBLIC_INDIEAUTH_ISSUER || 'https://caseyagollan.com/') },
 	build: {
-		chunkSizeWarningLimit: 1000 // Increase limit for Three.js (3D library visualization)
+		chunkSizeWarningLimit: 1000, // Increase limit for Three.js (3D library visualization)
+		// Skip gzipping every chunk just to print its size in the build log.
+		reportCompressedSize: false
 	}
 });
