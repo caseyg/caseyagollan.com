@@ -20,6 +20,7 @@
 <Story name="Liked thread" args={{post:{...base,indexThreadPosts:[base,next]}}} />
 <Story name="Reply and like" args={{post:{...base,indexThreadPosts:[base,{...base,type:'reply',slug:'reply',filePath:'replies/reply.md',content:'My reply',properties:{'in-reply-to':['https://bsky.app/profile/example.com/post/first']}}]}}} />
 <Story name="Reply thread" args={{post:{...anneHi,indexThreadPosts:[hi,anneHi]}}} />
+<Story name="Liked and reposted" args={{post:{...base,indexThreadPosts:[base,{...next,type:'repost',properties:{'repost-of':[second]}}]}}} />
 <Story name="Reply thread with a like" args={{post:{...anneHi,indexThreadPosts:[hi,liked,anneHi]}}} />
 <Story name="Long reply" args={{post:{...long,indexThreadPosts:[hi,anneHi,long]}}} />
 <Story name="Parent not saved" args={{post:{...unsaved,indexThreadPosts:[unsaved]}}} />

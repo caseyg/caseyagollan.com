@@ -1,5 +1,5 @@
 import type { Post } from '../posts-types';
-import { renderLinkPreview, renderSocialSnapshot } from '../social-snapshots';
+import { renderLinkPreview, renderSocialSnapshot, type SocialSnapshot } from '../social-snapshots';
 import { sanitizePublishingHtml } from './sanitizeHtml';
 import { renderContentSync } from './renderContent';
 
@@ -115,7 +115,16 @@ export function renderReplyContext(post: Post, options: {omitLabel?: boolean; om
  if (options.omitLabel && !snapshot) return '';
  return sanitizePublishingHtml(`<div class="social-reply-context">${options.omitLabel ? '' : renderReplyLabel(post)}${snapshot ? renderSocialSnapshot(snapshot, {omitSource: options.omitSource}) : ''}</div>`);
 }
-export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean;omitReactionLabel?:boolean;omitLinkPreviews?:boolean}={}): string {
+/** The saved posts renderPostDetails shows (what was liked, reposted or replied to), for pages that draw them as components. */
+export function postDetailSnapshots(post: Post): SocialSnapshot[] {
+ const p = post.properties ?? {};
+ const urls = post.indexActivities ? [post.socialSnapshots?.[0]?.url] : [...new Set([...(p['like-of'] ?? []), ...(p['repost-of'] ?? [])])];
+ const reply = post.inReplyTo || text(p, 'in-reply-to');
+ const found = [...urls, reply].map(url => typeof url === 'string' && url ? post.socialSnapshots?.find(s => s.url === url) : undefined).filter((s): s is SocialSnapshot => !!s);
+ return [...new Set(found)];
+}
+/** `omitSnapshots` leaves out the saved posts that postDetailSnapshots returns, and the reply label when its post is among them. */
+export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;omitReply?:boolean;omitReactionLabel?:boolean;omitLinkPreviews?:boolean;omitSnapshots?:boolean}={}): string {
  const p = post.properties ?? {};
  let html = '';
  const reactions = new Map<string, {labels: string[]; classes: string[]}>();
@@ -131,14 +140,15 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;o
   const label = kinds.has('like') ? kinds.has('repost') ? 'Liked and reposted' : 'Liked' : 'Reposted';
   const classes = [...reactions.keys()].length === 1 ? [...reactions.values()][0].classes.join(' ') : '';
   if (!options.omitReactionLabel) html += `<p>${label} ${link(target,snapshot ? 'post' : target,classes)}</p>`;
-  if (snapshot) html += renderSocialSnapshot(snapshot);
+  if (snapshot && !options.omitSnapshots) html += renderSocialSnapshot(snapshot);
  } else for (const [value,reaction] of reactions) {
   const snapshot = post.socialSnapshots?.find(snapshot => snapshot.url === value);
   const label = reaction.labels.join(' and ').replace('and Reposted','and reposted');
   if (!options.omitReactionLabel) html += `<p>${label} ${link(value, snapshot ? 'post' : value, reaction.classes.join(' '))}</p>`;
-  if (snapshot) html += renderSocialSnapshot(snapshot);
+  if (snapshot && !options.omitSnapshots) html += renderSocialSnapshot(snapshot);
  }
- if (!options.omitReply) html += renderReplyContext(post);
+ if (!options.omitReply && !options.omitSnapshots) html += renderReplyContext(post);
+ else if (!options.omitReply && !post.socialSnapshots?.some(s => s.url === (post.inReplyTo || text(p, 'in-reply-to')))) html += renderReplyLabel(post);
  if (p.rsvp) html += `<p>RSVP: <span class="p-rsvp">${escape(text(p, 'rsvp'))}</span></p>`;
  if (post.type === 'event' || post.microformatType === 'h-event') html += event(p);
  else for (const value of p.location ?? []) html += `<p>${location(value)}</p>`;

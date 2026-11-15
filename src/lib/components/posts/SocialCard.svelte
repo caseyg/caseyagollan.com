@@ -1,24 +1,16 @@
 <script lang="ts">
  import type { Snippet } from 'svelte';
- import { renderSocialCardHeader, renderSocialCardFooter, siteAuthor, type SocialCardAuthor, type SocialCardSource } from '$lib/social-card';
  import './social-card.css';
- // Saved snapshots already contain sanitized card markup; native posts supply a snippet.
- let { author = siteAuthor, published = '', url = '', children, html, contextHtml = '', sources = [], variant = 'post' }: {
-  variant?: 'post' | 'thread'; author?: SocialCardAuthor; published?: string; url?: string; children?: Snippet; html?: string; contextHtml?: string; sources?: SocialCardSource[];
- } = $props();
+ /**
+  * The card shell for social posts. Put one SocialPost inside for a single post, or several
+  * (with `connected` on all but the last) for a reply and its parent, or a whole thread.
+  */
+ let { children, label }: { children: Snippet; /** Accessible name, e.g. "Conversation". */ label?: string } = $props();
 </script>
 
-<div class="social-card-scope">
- {#if html !== undefined}
-  {@html html}
- {:else if children && variant === 'thread'}
- <div class="social-snapshot social-thread">{@render children()}</div>
- {:else if children}
- <div class="social-snapshot">
-  {#if contextHtml}<div class="social-card-context">{@html contextHtml}</div>{/if}
-  {@html renderSocialCardHeader(author, sources)}
-  {@render children()}
-  {@html renderSocialCardFooter(published, url)}
- </div>
- {/if}
-</div>
+<div class="social-card social-card-scope" role={label ? 'group' : undefined} aria-label={label}>{@render children()}</div>
+
+<style>
+ .social-card { margin: var(--space-3) 0; padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+ @media (max-width: 480px) { .social-card { padding: var(--space-3); } }
+</style>
