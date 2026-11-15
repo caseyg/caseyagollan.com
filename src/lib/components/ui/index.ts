@@ -10,6 +10,7 @@ export { default as Count } from './Count.svelte';
 export { default as Heading } from './Heading.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as Notice } from './Notice.svelte';
+export { default as MasonryGrid } from './MasonryGrid.svelte';
 export { default as Page } from './Page.svelte';
 export { default as PageHeader } from './PageHeader.svelte';
 export { default as Pagination } from './Pagination.svelte';

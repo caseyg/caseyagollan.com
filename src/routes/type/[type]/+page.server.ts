@@ -19,6 +19,13 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const allPosts = await getAllPosts();
 	const posts = getPostsByType(allPosts, singularType);
+
+	// Photos render as a gallery, which needs only each post's photos, date and address.
+	const photos =
+		singularType === 'photo'
+			? posts.filter((post) => post.photo?.length).map(({ slug, date, photo }) => ({ slug, date, photo }))
+			: undefined;
+
 	const postsByDay = getPostsByDay(posts);
 	const postsByDayArray = Array.from(postsByDay.entries()).sort((a, b) => b[0].localeCompare(a[0]));
 
@@ -27,7 +34,8 @@ export const load: PageServerLoad = async ({ params }) => {
 		type: singularType,
 		typeIcon: TYPE_ICONS[singularType as keyof typeof TYPE_ICONS] || '📌',
 		typePlural: POST_TYPE_PLURALS[singularType],
-		postsByDay: postsByDayArray,
-		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)
+		postsByDay: photos ? [] : postsByDayArray,
+		photos,
+		totalPosts: photos ? photos.length : postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)
 	};
 };
