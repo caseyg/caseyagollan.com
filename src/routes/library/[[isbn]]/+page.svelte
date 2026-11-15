@@ -3271,16 +3271,18 @@
 	}
 
 	/* Book Detail Sidebar - Liquid Glass Effect */
+	/* A panel beneath the site navigation, inset like it, so the nav stays whole while a book is open. */
 	.book-sidebar {
 		position: fixed;
-		top: 0;
-		right: 0;
+		top: calc(var(--nav-lane) + var(--nav-inset));
+		right: var(--nav-inset);
+		bottom: var(--nav-inset);
 		width: 320px;
-		height: 100vh;
 		background: rgba(128, 128, 128, 0.6);
 		backdrop-filter: blur(20px);
 		-webkit-backdrop-filter: blur(20px);
-		border-left: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: var(--radius-sm);
 		z-index: 1500;
 		padding: 20px;
 		box-sizing: border-box;
@@ -3409,9 +3411,10 @@
 			height: auto;
 			max-height: 50vh;
 			top: auto;
+			right: 0;
 			bottom: 0;
 			border-radius: 12px 12px 0 0;
-			border-left: none;
+			border: none;
 			border-top: 1px solid rgba(255, 255, 255, 0.2);
 		}
 

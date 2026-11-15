@@ -2,8 +2,7 @@
 	import Search from './Search.svelte';
 	import SitePalette from './SitePalette.svelte';
 	import { Corner, SegmentedPill } from '$lib/components/ui';
-
-	type Section = 'home' | 'library' | 'posts' | 'wiki' | 'tables';
+	import { SECTIONS as sections, type Section } from '$lib/site-sections';
 
 	let {
 		currentPage,
@@ -17,14 +16,6 @@
 		condensed?: boolean;
 	} = $props();
 
-	// The same segments in the same order on every page, so each one stays where it was last time.
-	const sections: { id: Section; href: string; label: string; icon: string }[] = [
-		{ id: 'home', href: '/', label: 'Home', icon: '👋' },
-		{ id: 'library', href: '/library/', label: 'Library', icon: '📚' },
-		{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡' },
-		{ id: 'wiki', href: '/wiki/', label: 'Wiki', icon: '📓' },
-		{ id: 'tables', href: '/tables/', label: 'Tables', icon: '🗂️' }
-	];
 	let search: Search | undefined = $state();
 	// Set by the corner when the full row would leave a page's trail too little room, as on a phone.
 	let crowded = $state(false);
