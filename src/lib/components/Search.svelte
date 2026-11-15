@@ -6,7 +6,16 @@
 
 	// Register browser-only custom elements after Svelte has hydrated the markup.
 	let filterPane: HTMLElement;
+	let root: HTMLElement;
 	onMount(() => {
+		// On a phone the overlay's close button takes the search button's place, so it needs its width.
+		const sizeClose = () => {
+			const trigger = root.querySelector<HTMLElement>('.pf-trigger-btn');
+			if (trigger?.offsetWidth) root.style.setProperty('--search-button-width', `${trigger.offsetWidth}px`);
+		};
+		const triggerObserver = new ResizeObserver(sizeClose);
+		triggerObserver.observe(root);
+		sizeClose();
 		// Keep the mobile pane compact while preserving the same visible filter groups.
 		filterPane.setAttribute('open', window.matchMedia('(max-width: 640px)').matches ? '' : 'Type');
 		// Pagefind owns result DOM; mount the site's real metadata component into each result.
@@ -37,6 +46,7 @@
 		document.addEventListener('click', handleResultClick);
 		return () => {
 			filterObserver.disconnect();
+			triggerObserver.disconnect();
 			document.removeEventListener('click', handleResultClick);
 		};
 	});
@@ -81,7 +91,7 @@
 	<\/script>`;
 </script>
 
-<div class="site-search">
+<div class="site-search" bind:this={root}>
 	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
 	<!-- ⌘K is the command palette; / opens search directly. -->
 	<pagefind-modal-trigger compact hide-shortcut shortcut="/" placeholder="Search posts, books, and wiki">
@@ -203,7 +213,7 @@
 	.site-search :global(.pf-input:hover),
 	.site-search :global(.pf-input:focus) { border-color: var(--text-primary) !important; box-shadow: none !important; outline: none !important; }
 	/* Close and clear are quiet outlined buttons, like the page trail. */
-	.site-search :global(.pf-modal-close) { width: var(--nav-height) !important; height: var(--nav-height) !important; border: 1px solid var(--border-strong) !important; border-radius: var(--radius-sm) !important; background: transparent !important; color: var(--text-primary) !important; }
+	.site-search :global(.pf-modal-close) { width: var(--nav-height) !important; height: var(--nav-height) !important; border: 1px solid var(--border) !important; border-radius: var(--radius-sm) !important; background: transparent !important; color: var(--text-primary) !important; }
 	.site-search :global(.pf-modal-close:hover) { background: var(--surface-2) !important; }
 	.site-search :global(.pf-modal-close:focus-visible) { outline: var(--focus-ring) !important; outline-offset: 2px !important; box-shadow: none !important; }
 	.site-search :global(.pf-keyboard-key),
@@ -241,8 +251,9 @@
 	.site-search :global(.search-result mark) { background: transparent; color: white; font-weight: 600; text-decoration: underline; text-underline-offset: .15em; text-decoration-color: rgb(255 255 255 / 45%); }
 	@media (max-width: 640px) {
 		.site-search :global(dialog.pf-modal) { border: 0 !important; border-radius: 0 !important; }
-		.site-search :global(.pf-modal-header) { padding: var(--space-4) !important; }
-		.site-search :global(.pf-modal-close) { position: absolute !important; top: var(--space-4) !important; right: var(--space-4) !important; }
+		/* Full screen, the overlay keeps the top bar's row: its close button sits exactly where the search button was. */
+		.site-search :global(.pf-modal-header) { padding: var(--nav-inset) var(--space-4) var(--space-4) !important; }
+		.site-search :global(.pf-modal-close) { position: absolute !important; top: var(--nav-inset) !important; right: var(--nav-inset) !important; width: var(--search-button-width, var(--nav-height)) !important; }
 		.search-heading { display: flex; align-items: center; min-height: var(--nav-height); margin-bottom: var(--space-3); padding-right: calc(var(--nav-height) + var(--space-3)); }
 		.site-search :global(.pf-modal-body) { padding: 0 var(--space-4) !important; }
 		.site-search :global(.pf-modal-footer) { padding: var(--space-3) var(--space-4) !important; }

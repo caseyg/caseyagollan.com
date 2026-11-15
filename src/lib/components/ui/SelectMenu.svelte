@@ -22,7 +22,38 @@
 	 * that here and, for a full load, in the session for a few seconds.
 	 */
 	const STICKY_KEY = 'select-menu-open';
+	const SCROLL_KEY = 'select-menu-scroll';
 	let sticky = false;
+
+	const openMenu = () => document.querySelector<HTMLElement>('.select-menu[data-open]');
+
+	/** How far the open menu is scrolled, kept so the menu that replaces it opens at the same place. */
+	function saveScroll() {
+		try {
+			sessionStorage.setItem(SCROLL_KEY, String(openMenu()?.scrollTop ?? 0));
+		} catch {
+			// Without storage the new menu opens at its top.
+		}
+	}
+
+	/** Puts the reopened menu where the last one was, without replaying its entrance. */
+	function restoreScroll() {
+		let top = 0;
+		try {
+			top = Number(sessionStorage.getItem(SCROLL_KEY) ?? 0);
+		} catch {
+			return;
+		}
+		const root = document.documentElement;
+		root.setAttribute('data-menu-instant', '');
+		const place = (tries: number) => {
+			const menu = openMenu();
+			if (menu) menu.scrollTop = top;
+			if (tries > 0 && (!menu || menu.scrollTop !== top)) requestAnimationFrame(() => place(tries - 1));
+			else setTimeout(() => root.removeAttribute('data-menu-instant'), 200);
+		};
+		place(10);
+	}
 
 	function setSticky(value: boolean) {
 		sticky = value;
@@ -88,6 +119,7 @@
 		if (filters && wasSticky()) {
 			sticky = true;
 			open = true;
+			restoreScroll();
 		}
 	});
 	// Closing the menu, by any means, ends it.
@@ -100,6 +132,7 @@
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		event.preventDefault();
 		setSticky(true);
+		saveScroll();
 		void goto(option.href, { noScroll: true, keepFocus: true });
 	}
 
@@ -143,6 +176,8 @@
 <!-- Collision padding stays inside the corner inset, so a menu pinned to a corner lines up with its trigger. -->
 <Menu bind:open>
 	<MenuTrigger class="select-menu-trigger select-menu-trigger--{variant}" aria-label={label}>
+		<!-- Shown in place of the emoji and arrow where a pill asks for it: the menu that leads a compact trail on a phone. -->
+		<span class="burger" aria-hidden="true"></span>
 		<span class="current" class:has-icon={currentIcon || icon} title={current}>
 			{#if icon && selected}{@render icon(selected)}{:else if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}
 			<span class="text">{current}</span>
@@ -166,6 +201,10 @@
 </Menu>
 
 <style>
+	:global(:root[data-menu-instant] .select-menu) {
+		transition: none !important;
+	}
+
 	:global(.select-menu-trigger) {
 		display: inline-flex;
 		align-items: center;
@@ -225,6 +264,44 @@
 	:global(.select-menu-trigger--quiet:hover),
 	:global(.select-menu-trigger--quiet[data-open]) {
 		background: var(--surface-2);
+	}
+
+	/* Three lines, drawn rather than typed so they match the text colour and weight everywhere. */
+	.burger {
+		display: none;
+		width: 1.125rem;
+		height: 0.875rem;
+		background: linear-gradient(currentColor, currentColor) top / 100% 2px no-repeat,
+			linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+			linear-gradient(currentColor, currentColor) bottom / 100% 2px no-repeat;
+	}
+
+	@media (max-width: 600px) {
+		:global(.segmented-pill.compact > .segment--menu:first-child) .burger {
+			display: block;
+		}
+
+		/* The label stays for screen readers as the button's name. */
+		:global(.segmented-pill.compact > .segment--menu:first-child) .current.has-icon {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+
+		:global(.segmented-pill.compact > .segment--menu:first-child) .current.has-icon ~ .arrow {
+			display: none;
+		}
+
+		:global(.segmented-pill.compact > .segment--menu:first-child:has(.current.has-icon) .select-menu-trigger) {
+			padding-inline: 0.75rem;
+		}
+
+		:global(.segmented-pill.compact > .segment--menu:first-child:not(:has(.current.has-icon))) .burger {
+			display: none;
+		}
 	}
 
 	.current {
@@ -299,7 +376,9 @@
 		}
 	}
 
+	/* Fixed from the start, so the menu never takes part in its segment's layout while it is being placed. */
 	:global(.select-menu) {
+		position: fixed;
 		box-sizing: border-box;
 		min-width: max(12rem, var(--anchor-width));
 		max-height: min(75vh, var(--available-height));
