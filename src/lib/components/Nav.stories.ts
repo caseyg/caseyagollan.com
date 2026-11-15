@@ -10,3 +10,4 @@ export const Library: Story = { args: { currentPage: 'library' } };
 export const Posts: Story = { args: { currentPage: 'posts' } };
 /** Pages outside the three sections, such as an error page, mark none. */
 export const Elsewhere: Story = { args: { currentPage: undefined } };
+export const Wiki: Story = { args: { currentPage: 'wiki' } };

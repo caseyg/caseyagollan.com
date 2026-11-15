@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { wikiPages, wikiSearchContent, loadWikiDocuments } from '../utils/wiki-search';
+import { wikiPages, wikiDocuments, loadWikiDocuments } from '../utils/wiki-search';
 
 test('only sitemap-listed Markdown pages use canonical URLs and metadata', () => {
  const pages = wikiPages({
@@ -13,16 +13,18 @@ test('only sitemap-listed Markdown pages use canonical URLs and metadata', () =>
  expect(pages[0]).toMatchObject({title: 'Art Under Risk', tags: ['art'], year: ['2024'], aliases: ['AUR']});
 });
 
-test('searchable prose removes frontmatter, comments, and attachment names and keeps wikilink labels', () => {
- const html = wikiSearchContent('---\npublish: true\npermalink: hidden-slug\n---\nGovernance [[Topic|Visible label]] ![[image.png]] %%private comment%%', ['AUR']);
- expect(html).toContain('Governance Visible label');
- expect(html).toContain('AUR');
- for (const text of ['hidden-slug', 'publish:', 'image.png', 'private comment', '[[']) expect(html).not.toContain(text);
+test('search documents use the wiki browser address, keep the cag.wiki one, and drop hidden text', () => {
+ const [page] = wikiDocuments({ fetchedAt: '', attachments: [], pages: [{ path: 'Art Under Risk.md', url: 'https://cag.wiki/art-under-risk', title: 'Art Under Risk', tags: [], aliases: ['AUR'], year: [], markdown: '---\npublish: true\npermalink: hidden-slug\n---\nGovernance [[Topic|Visible label]] ![[image.png]] %%private comment%%' }] });
+ expect(page).toMatchObject({ url: '/wiki/art-under-risk', source: 'https://cag.wiki/art-under-risk' });
+ expect(page.html).toContain('Governance');
+ expect(page.html).toContain('Visible label');
+ expect(page.html).toContain('AUR');
+ for (const text of ['hidden-slug', 'publish:', 'image.png', 'private comment', '[[']) expect(page.html).not.toContain(text);
 });
 
 test('failed remote reads fail indexing', async () => {
  const fetcher = (async () => new Response('Unavailable', {status: 503}));
- await expect(loadWikiDocuments(fetcher, {retryDelayMs: 0})).rejects.toThrow('Wiki indexing: 503');
+ await expect(loadWikiDocuments(fetcher, {retryDelayMs: 0})).rejects.toThrow('Wiki: 503');
 });
 
 test('sitemap URLs that encode spaces as + still match their pages', () => {
@@ -40,12 +42,13 @@ test('transient fetch failures are retried', async () => {
  };
  const documents = await loadWikiDocuments(fetcher, {retryDelayMs: 0});
  expect(calls).toBe(2);
- expect(documents.map(page => page.url)).toEqual(['https://cag.wiki/Now']);
+ expect(documents.map(page => [page.url, page.source])).toEqual([['/wiki/now', 'https://cag.wiki/Now']]);
 });
 
 test('client errors are not retried', async () => {
  let calls = 0;
  const fetcher = async () => { calls++; return new Response('Missing', {status: 404}); };
- await expect(loadWikiDocuments(fetcher, {retryDelayMs: 0})).rejects.toThrow('Wiki indexing: 404');
- expect(calls).toBe(2);
+ await expect(loadWikiDocuments(fetcher, {retryDelayMs: 0})).rejects.toThrow('Wiki: 404');
+ // The page list, the sitemap and the site options are each asked for once.
+ expect(calls).toBe(3);
 });

@@ -70,7 +70,7 @@
 					<Chip href={activity.permalink} class="post-type" title={formatAbsoluteDate(activity.date)}><span aria-hidden="true">{getTypeIcon(activity.type)}</span> {activity.type === 'like' ? 'liked' : 'reposted'}</Chip>
 				{/each}
 			{:else}
-				<Chip href={type === 'wiki' ? 'https://cag.wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type"><span aria-hidden="true">{getTypeIcon(type)}</span> {action?.verb ?? type}</Chip>
+				<Chip href={type === 'wiki' ? '/wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type"><span aria-hidden="true">{getTypeIcon(type)}</span> {action?.verb ?? type}</Chip>
 			{/if}
 		{/if}
 		{#each action?.targets ?? [] as target (target.url)}

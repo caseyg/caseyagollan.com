@@ -21,6 +21,11 @@
 	<LinkPreviewCard {href} {title} {excerpt} image={{ src: shot }} interactive={false} />
 </Story>
 
+<!-- A cag.wiki page shows its cag.wiki address, and opens in the wiki browser in this tab. -->
+<Story asChild name="Opens on this site">
+	<LinkPreviewCard {href} {title} {excerpt} image={{ src: shot }} localHref="/wiki/art-under-risk-reading-list" />
+</Story>
+
 <Story asChild name="Loading screenshot">
 	<LinkPreviewCard {href} {title} image="loading" />
 </Story>

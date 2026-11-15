@@ -3,13 +3,13 @@
 	import SitePalette from './SitePalette.svelte';
 	import { Corner, SegmentedPill } from '$lib/components/ui';
 
-	type Section = 'home' | 'library' | 'posts';
+	type Section = 'home' | 'library' | 'posts' | 'wiki';
 
 	let {
 		currentPage,
 		onSearchResultClick
 	}: {
-		/** The section being viewed; its segment is marked. Omit on pages outside all three. */
+		/** The section being viewed; its segment is marked. Omit on pages outside all of them. */
 		currentPage?: Section;
 		onSearchResultClick?: (url: URL) => boolean;
 	} = $props();
@@ -18,7 +18,8 @@
 	const sections: { id: Section; href: string; label: string; icon: string }[] = [
 		{ id: 'home', href: '/', label: 'Home', icon: '👋' },
 		{ id: 'library', href: '/library/', label: 'Library', icon: '📚' },
-		{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡' }
+		{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡' },
+		{ id: 'wiki', href: '/wiki/', label: 'Wiki', icon: '📓' }
 	];
 	let search: Search | undefined = $state();
 	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));

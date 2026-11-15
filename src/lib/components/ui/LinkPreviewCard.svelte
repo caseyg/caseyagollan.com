@@ -31,6 +31,8 @@
 		image?: LinkPreviewImage;
 		/** A line quoted from the page. */
 		excerpt?: string;
+		/** Where the card opens instead, in this tab, when the page is also on this site (a cag.wiki page in the wiki browser). */
+		localHref?: string;
 		/**
 		 * `true` when the card is something to press (a touch preview, held open);
 		 * `false` when it only follows a mouse pointer and can't be reached.
@@ -44,7 +46,7 @@
 		element?: HTMLAnchorElement;
 	}
 
-	let { href, title, image, excerpt, interactive = true, onopen, class: className = '', style, element = $bindable() }: Props = $props();
+	let { href, title, image, excerpt, localHref, interactive = true, onopen, class: className = '', style, element = $bindable() }: Props = $props();
 
 	const site = $derived(displayUrl(href));
 	const favicon = $derived(faviconUrl(href));
@@ -54,10 +56,10 @@
 	bind:this={element}
 	class="link-preview-card {className}"
 	class:interactive
-	{href}
+	href={localHref ?? href}
 	{style}
-	target="_blank"
-	rel="noopener noreferrer"
+	target={localHref ? undefined : '_blank'}
+	rel={localHref ? undefined : 'noopener noreferrer'}
 	tabindex={interactive ? undefined : -1}
 	aria-hidden={interactive ? undefined : 'true'}
 	onclick={() => onopen?.()}

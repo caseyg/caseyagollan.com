@@ -10,6 +10,8 @@
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
 	import { urlKey } from '$lib/graph-curation';
 	import { usePageCommands } from '$lib/page-commands.svelte';
+	import { goto } from '$app/navigation';
+	import { wikiHref } from '$lib/wiki/links';
 	import LinkPreviewCard, { faviconUrl, type LinkPreviewImage } from '$lib/components/ui/LinkPreviewCard.svelte';
 
 	let {
@@ -41,7 +43,7 @@
 				value: `graph:${node.id}`,
 				label: node.type === 'citation' ? node.title || node.url || node.id : node.id,
 				icon: NODE_ICONS[node.type],
-				external: node.type === 'citation',
+				external: node.type === 'citation' && !(node.url && wikiHref(node.url)),
 				keywords: ['graph', 'topic']
 			})),
 		run: (value) => {
@@ -49,7 +51,7 @@
 			const node = shownNodes.find((shown) => shown.id === id);
 			if (node?.type === 'citation') {
 				preview = null;
-				if (node.url) window.open(node.url, '_blank');
+				if (node.url) openSource(node.url);
 				return;
 			}
 			applyFocusMode(id);
@@ -57,6 +59,13 @@
 			onTopicClick?.(id);
 		}
 	}]);
+	/** Casey's own wiki pages open in the wiki browser here; other sources open in a new tab. */
+	function openSource(url: string) {
+		const local = wikiHref(url);
+		if (local) goto(local);
+		else window.open(url, '_blank');
+	}
+
 	let svg: any;
 	let simulation: any;
 	let nodeSelection: any;
@@ -824,7 +833,7 @@
 						return;
 					}
 					preview = null;
-					window.open(d.url, '_blank');
+					openSource(d.url);
 					return;
 				}
 
@@ -998,6 +1007,7 @@
 		<LinkPreviewCard
 			bind:element={previewCard}
 			href={preview.node.url}
+			localHref={wikiHref(preview.node.url) ?? undefined}
 			title={preview.node.title || undefined}
 			excerpt={preview.node.cited_text || undefined}
 			image={previewImage}

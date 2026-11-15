@@ -19,7 +19,8 @@ export function blockFromSearch(data: PagefindData): Block {
 		return { kind: 'book', url, title, meta: [data.meta.author, data.meta.year].filter(Boolean).join(' · ') || undefined, image };
 	}
 	if (type === 'wiki') {
-		return { kind: 'wiki', url: new URL(url, 'https://cag.wiki/').href, title, meta: 'cag.wiki', excerpt };
+		// The cag.wiki address, as saved tables keep it; opening the block goes to the wiki browser.
+		return { kind: 'wiki', url: data.meta.source ?? new URL(url, 'https://cag.wiki/').href, title, meta: 'cag.wiki', excerpt };
 	}
 	const date = data.meta.date?.slice(0, 10);
 	return { kind: 'post', url, title, meta: [type, date].filter(Boolean).join(' · ') || undefined, excerpt, image, icon: POST_ICON[type] };

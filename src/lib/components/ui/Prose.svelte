@@ -212,6 +212,42 @@
 		text-align: left;
 	}
 
+	.prose :global(mark) {
+		padding: 0 0.15em;
+		border-radius: 2px;
+		background: var(--accent);
+		color: var(--text-primary);
+	}
+
+	/* Numbered footnotes: a small raised link in the text, the notes in a quieter list at the end. */
+	.prose :global(sup.footnote-ref) {
+		line-height: 0;
+	}
+
+	.prose :global(sup.footnote-ref a) {
+		padding: 0 0.1em;
+		text-decoration: none;
+		font-size: 0.8em;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.prose :global(.footnotes) {
+		margin-top: 2.5em;
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--border-subtle);
+		color: var(--text-secondary);
+		font-size: var(--fs-sm);
+		line-height: var(--lh-normal);
+	}
+
+	.prose :global(.footnotes li:target) {
+		color: var(--text-primary);
+	}
+
+	.prose :global(.footnote-back) {
+		text-decoration: none;
+	}
+
 	/* oEmbed video containers */
 	.prose :global(.embed) {
 		margin: 1.5em 0;

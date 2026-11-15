@@ -5,6 +5,7 @@
  import { getPostPermalink, type Post } from '$lib/posts-types';
  import { siteAuthor, socialSource } from '$lib/social-card';
  import { renderLinkPreviews, renderPostQuotations } from '$lib/utils/post-details';
+ import { localizeLinks } from '$lib/wiki/links';
  import './social-card.css';
  /** One of the site's own notes or replies, drawn as a SocialPost with its syndicated copies as source links. */
  let { post, connected = false, hEntry = false, editHref, replyTo }: { post: Post; connected?: boolean; hEntry?: boolean; editHref?: string; /** Who this replies to, when that post is not shown above it. */ replyTo?: { url: string; label: string } } = $props();
@@ -21,8 +22,8 @@
   {#if post.summary}<p class="p-summary">{post.summary}</p>{/if}
   <PostMedia photos={post.photo} videos={post.video} />
   <PostContent content={post.content} format={post.contentFormat} />
-  {#if cards}{@html cards}{/if}
-  {#if quotes}<div class="social-quoted-post">{@html quotes}</div>{/if}
+  {#if cards}{@html localizeLinks(cards)}{/if}
+  {#if quotes}<div class="social-quoted-post">{@html localizeLinks(quotes)}</div>{/if}
  </div>
 </SocialPost>
 

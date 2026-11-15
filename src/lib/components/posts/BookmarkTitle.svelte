@@ -1,8 +1,11 @@
 <script lang="ts">
+	import { wikiHref } from '$lib/wiki/links';
+
 	let { url, title }: { url: string; title?: string } = $props();
 </script>
 
-<a href={url} class="u-bookmark-of"><span class="icon" aria-hidden="true">🔗</span>{title || url.replace(/^https?:\/\//, '')}</a>
+<!-- A bookmarked cag.wiki page opens in the wiki browser. -->
+<a href={wikiHref(url) ?? url} class="u-bookmark-of"><span class="icon" aria-hidden="true">🔗</span>{title || url.replace(/^https?:\/\//, '')}</a>
 
 <style>
 	a {

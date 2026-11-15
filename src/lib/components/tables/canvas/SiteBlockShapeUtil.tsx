@@ -3,6 +3,7 @@ import { mount, unmount } from 'svelte';
 import { BaseBoxShapeUtil, HTMLContainer, T, type RecordProps, type TLShape } from 'tldraw';
 import BlockCard from '../BlockCard.svelte';
 import { BLOCK_SHAPE, blockHref, isBlockKind, type Block } from '$lib/tables';
+import { wikiHref } from '$lib/wiki/links';
 
 /** A block's props: the `Block` it shows, with '' for anything it lacks, and its size. */
 export interface SiteBlockProps {
@@ -37,9 +38,10 @@ export function blockOf(props: SiteBlockProps): Block {
 	};
 }
 
-/** Opens what a block shows in a new tab, so the table stays as it was. */
+/** Opens what a block shows in a new tab, so the table stays as it was. A cag.wiki page opens in the wiki browser. */
 export function openBlock(shape: SiteBlockShape) {
-	window.open(blockHref(blockOf(shape.props), location.origin), '_blank', 'noopener');
+	const block = blockOf(shape.props);
+	window.open(new URL(wikiHref(block.url) ?? blockHref(block, location.origin), location.origin).href, '_blank', 'noopener');
 }
 
 /** The size a block starts at: covers are portrait, pictures landscape, text square. */

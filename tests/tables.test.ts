@@ -70,6 +70,8 @@ describe('tables', () => {
 			meta: 'cag.wiki',
 			excerpt: 'Architects dressed up'
 		});
+		// Wiki pages are indexed at their wiki browser address, with the cag.wiki one kept as `source`.
+		expect(blockFromSearch({ url: '/wiki/aesthetic-crisis', excerpt: 'Architects', meta: { title: 'Aesthetic Crisis', type: 'wiki', source: 'https://cag.wiki/aesthetic-crisis' } })).toMatchObject({ kind: 'wiki', url: 'https://cag.wiki/aesthetic-crisis' });
 		expect(blockFromSearch({ url: '/library/1', excerpt: '', meta: { title: 'Book', type: 'book', author: 'Hyde, Lewis', year: '2010', image: '/library/img/1.jpg' } })).toMatchObject({ kind: 'book', meta: 'Hyde, Lewis · 2010', image: '/library/img/1.jpg' });
 		expect(blockFromSearch({ url: '/2026/11/14/x/', excerpt: 'Hello', meta: { title: 'Note', type: 'note', date: '2026-11-14T12:00:00Z' } })).toMatchObject({ kind: 'post', meta: 'note · 2026-11-14', icon: '📝' });
 	});
