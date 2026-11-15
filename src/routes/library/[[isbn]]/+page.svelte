@@ -120,11 +120,22 @@
 	let categoryFilter = $state<string | null>(null);
 	const phone = new MediaQuery('max-width: 600px', false);
 	let categoryMembers: Set<string> | null = null;
+	// What the graph shows: the category, or an open book with its subjects and their books.
+	let graphMembers: Set<string> | null = null;
+	// Whichever was chosen last, a book or a category, decides what the graph shows.
+	let focusOnBook = false;
 	// How much of each graph object shows, from 0 to 1, as the filter shrinks it away or grows it back.
 	const filterVisibility = new WeakMap<object, number>();
 	let filterFrame: number | null = null;
 	// Where the camera was before filtering, so leaving the filter returns there.
 	let unfilteredCamera: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null = null;
+	type Point = { x: number; y: number; z: number };
+	// Where every node stood before the filter rearranged the graph; they return here after.
+	let homePositions: Map<Node, Point> | null = null;
+	let categoryLayoutRequest = 0;
+	let moveFrame: number | null = null;
+	// Coming back from the shelves, the category is arranged once the graph settles.
+	let arrangeWhenSettled = false;
 	let originalGraphData: GraphData;
 	let shelfFramePending = false;
 	let shelfLayoutDirty = true;
@@ -262,7 +273,7 @@
 		// The layout has settled; stop ticking physics instead of running it to the 15 s cooldown.
 		if (!isGridModeActive) Graph.d3AlphaMin(0.001);
 		// Switching to the shelves also ends the layout; only the graph frames the category.
-		scheduleFrame(() => { if (categoryMembers && !selectedBook && !isGridModeActive) frameCategory(); });
+		scheduleFrame(() => { if (!isGridModeActive) refreshGraph(); });
 		if (settle) {
 			// One more tick moves the meshes to the final positions, then the engine stops.
 			Graph.d3AlphaDecay(1);
@@ -291,7 +302,7 @@
 		let count = 0;
 		for (const link of links) {
 			if (typeof link.source !== 'object' || typeof link.target !== 'object') continue;
-			if (categoryMembers && !(categoryMembers.has(link.source.id) && categoryMembers.has(link.target.id))) continue;
+			if (graphMembers && !(graphMembers.has(link.source.id) && graphMembers.has(link.target.id))) continue;
 			array[count * 6] = link.source.x || 0;
 			array[count * 6 + 1] = link.source.y || 0;
 			array[count * 6 + 2] = link.source.z || 0;
@@ -1085,8 +1096,14 @@
 			replaceState(url, {});
 		}
 
+		if (Graph && !isGridModeActive && !graphMembers && !savedForces) {
+			unfilteredCamera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } };
+		}
+		focusOnBook = true;
 		if (Graph && focus) focusGraphBook(node);
 		else if (Graph) showHighResolutionCover(node);
+		// The graph gathers the book's subjects and their books around it.
+		if (Graph && !isGridModeActive) refreshGraph(false);
 	}
 
 	function catalogDetailsFor(node: Node): BookDetails {
@@ -1341,7 +1358,7 @@
 		}
 
 		const graphData = Graph.graphData();
-		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book' && (!categoryMembers || categoryMembers.has(n.id)));
+		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book' && (!graphMembers || graphMembers.has(n.id)));
 
 		if (books.length === 0) return;
 		if (isGridModeActive) {
@@ -1504,8 +1521,6 @@
 				Graph.controls().maxDistance = saved.maxDistance;
 				animateShelfCamera(saved.position, saved.target);
 			} else if (isGridModeActive) frameShelves();
-			else if (categoryMembers) frameCategory(1000);
-			else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 
 		}
 
@@ -1520,6 +1535,8 @@
 		selectedBook = null;
 		bookDetails = null;
 		lastClickedNode = null;
+		focusOnBook = false;
+		if (Graph && !isGridModeActive) refreshGraph();
 	}
 
 	// Expand minified data if needed
@@ -1703,6 +1720,11 @@
 					return true;
 				})
 				.linkVisibility(false)
+				.onEngineStop(() => {
+					if (!arrangeWhenSettled || isGridModeActive) return;
+					arrangeWhenSettled = false;
+					refreshGraph(!selectedBook);
+				})
 				.onEngineTick(() => {
 					syncLinkLines();
 					if (isGridModeActive && shelfFramePending) {
@@ -1748,8 +1770,8 @@
 							if (selectedBook.id === node.id) {
 								deselectBook();
 							} else {
-								// Tapping a different book - deselect first, then select new one
-								if (!isGridModeActive) deselectBook();
+								// Tapping a different book moves the focus; the graph rearranges once.
+								if (!isGridModeActive) stopOrbit();
 								selectBook(node);
 							}
 						} else {
@@ -2015,7 +2037,7 @@
 		if (categoryChanged) useCategory(view.category);
 		if (isGridModeActive !== view.shelves) toggleMode(false, isLoading);
 		else if (isGridModeActive && (sortChanged || categoryChanged)) applyShelfSort();
-		else if (categoryChanged) showCategoryInGraph();
+		else if (categoryChanged) refreshGraph();
 	}
 
 	function useCategory(name: string | null) {
@@ -2035,36 +2057,179 @@
 	function setCategoryFilter(name: string | null, { frame = true } = {}) {
 		if (!Graph || name === categoryFilter) return;
 		useCategory(name);
+		if (name) focusOnBook = false;
 		updateLibraryUrl();
 		const leaving = selectedBook && categoryMembers && !categoryMembers.has(selectedBook.id);
 		// Closing the book frames what is left, so the camera moves once.
 		if (leaving) deselectBook();
 		if (isGridModeActive) applyShelfSort();
-		else showCategoryInGraph(frame && !leaving);
+		else if (!leaving) refreshGraph(frame);
 	}
 
-	function showCategoryInGraph(frame = true) {
+	// A book's neighborhood: the book, the subjects it is shelved under, and their books.
+	function bookNeighborhood(book: Node): Set<string> {
+		// The shelves drop the links, so read them from the full graph.
+		const links = originalGraphData.links;
+		const end = (value: string | Node) => (typeof value === 'object' ? value.id : value);
+		const subjects = new Set(links.filter((link) => end(link.source) === book.id).map((link) => end(link.target)));
+		const members = new Set([book.id, ...subjects]);
+		for (const link of links) if (subjects.has(end(link.target))) members.add(end(link.source));
+		return members;
+	}
+
+	function currentGraphMembers() {
+		return selectedBook && (focusOnBook || !categoryMembers) ? bookNeighborhood(selectedBook) : categoryMembers;
+	}
+
+	// Show and arrange what the graph should hold now.
+	function refreshGraph(frame = true) {
+		if (!Graph || isGridModeActive) return;
+		graphMembers = currentGraphMembers();
 		fadeFilteredGraph();
-		const saved = unfilteredCamera;
-		if (!categoryMembers) unfilteredCamera = null;
-		// The opening layout frames the category when it settles; an open book keeps its orbit.
-		if (!frame || savedForces || selectedBook) return;
-		if (categoryMembers) frameCategory();
-		else {
-			// A link that opened filtered returns to the graph's opening view.
-			const distance = Math.cbrt(Graph.graphData().nodes.length) * 170;
-			const view = saved ?? { position: { x: 0, y: 0, z: distance }, target: { x: 0, y: 0, z: 0 } };
-			Graph.cameraPosition(view.position, view.target, 1000);
+		// The opening layout arranges the graph once it settles.
+		if (!savedForces) void arrangeCategory(frame);
+	}
+
+	const position = (node: Node): Point => ({ x: node.x || 0, y: node.y || 0, z: node.z || 0 });
+
+	// Lay out just these nodes in the worker, starting from where they stood, so
+	// they gather into their own small constellation. The settled layout is then
+	// shifted so an open book, or else the category's subject, stays where it is.
+	function layoutCategory(members: Node[], anchor: Node | undefined): Promise<Map<Node, Point>> {
+		const ids = new Set(members.map((node) => node.id));
+		const start = new Float32Array(members.length * 3);
+		members.forEach((node, index) => {
+			const from = homePositions?.get(node) ?? position(node);
+			start.set([from.x, from.y, from.z], index * 3);
+		});
+		const links: [string, string][] = [];
+		for (const link of Graph.graphData().links as Link[]) {
+			const source = typeof link.source === 'object' ? link.source.id : link.source;
+			const target = typeof link.target === 'object' ? link.target.id : link.target;
+			if (ids.has(source) && ids.has(target)) links.push([source, target]);
 		}
+		const request: LayoutRequest = {
+			ids: members.map((node) => node.id), links, ticks: 200, positions: start, finalOnly: true,
+			// Wider than the full graph's spacing: with fewer books, each cover gets room.
+			linkDistance: 80, charge: -250,
+		};
+		const anchorIndex = anchor ? members.indexOf(anchor) : -1;
+		return new Promise((resolve, reject) => {
+			const worker = new Worker(new URL('$lib/library/layout.worker.ts', import.meta.url), { type: 'module' });
+			worker.onmessage = (event: MessageEvent<LayoutTick>) => {
+				if (!event.data.done) return;
+				worker.terminate();
+				const result = event.data.positions;
+				const shift = anchorIndex < 0 ? { x: 0, y: 0, z: 0 } : {
+					x: (anchor!.x || 0) - result[anchorIndex * 3],
+					y: (anchor!.y || 0) - result[anchorIndex * 3 + 1],
+					z: (anchor!.z || 0) - result[anchorIndex * 3 + 2]
+				};
+				resolve(new Map(members.map((node, index) => [node, {
+					x: result[index * 3] + shift.x, y: result[index * 3 + 1] + shift.y, z: result[index * 3 + 2] + shift.z
+				}])));
+			};
+			worker.onerror = (error) => { worker.terminate(); reject(error); };
+			worker.postMessage(request, [start.buffer]);
+		});
+	}
+
+	async function arrangeCategory(frame = true) {
+		if (!Graph || isGridModeActive) return;
+		const request = ++categoryLayoutRequest;
+		const nodes = Graph.graphData().nodes as Node[];
+		if (graphMembers) {
+			homePositions ??= new Map(nodes.map((node) => [node, position(node)]));
+			const members = nodes.filter((node) => graphMembers!.has(node.id));
+			const selected = members.find((node) => node.id === selectedBook?.id);
+			const anchor = selected ?? members.find((node) => node.group === 'ddc' && node.id === categoryFilter);
+			let targets: Map<Node, Point>;
+			try {
+				targets = await layoutCategory(members, anchor);
+			} catch (error) {
+				console.error('Category layout failed', error);
+				targets = new Map();
+			}
+			if (request !== categoryLayoutRequest || isDestroyed || isGridModeActive) return;
+			// Books from a previous filter go back to where they were.
+			for (const [node, home] of homePositions) if (!targets.has(node)) targets.set(node, home);
+			moveNodes(targets);
+			if (frame && !selectedBook) frameCategory(1000, targets);
+			return;
+		}
+		const saved = unfilteredCamera;
+		unfilteredCamera = null;
+		// Nothing was filtered, so there is nothing to undo.
+		if (!homePositions && !saved) return;
+		if (homePositions) {
+			// An open book stays put; the whole graph returns around it.
+			const home = homePositions.get(selectedBook as Node);
+			const offset = home && selectedBook ? { x: (selectedBook.x || 0) - home.x, y: (selectedBook.y || 0) - home.y, z: (selectedBook.z || 0) - home.z } : { x: 0, y: 0, z: 0 };
+			const targets = new Map([...homePositions].map(([node, at]) => [node, { x: at.x + offset.x, y: at.y + offset.y, z: at.z + offset.z }]));
+			homePositions = null;
+			moveNodes(targets, true);
+		}
+		if (!frame || selectedBook) return;
+		// A link that opened filtered returns to the graph's opening view.
+		const distance = Math.cbrt(nodes.length) * 170;
+		const view = saved ?? { position: { x: 0, y: 0, z: distance }, target: { x: 0, y: 0, z: 0 } };
+		Graph.cameraPosition(view.position, view.target, 1000);
+	}
+
+	function stopMovingNodes() {
+		if (moveFrame === null) return;
+		cancelAnimationFrame(moveFrame);
+		animationFrameIds.delete(moveFrame);
+		moveFrame = null;
+	}
+
+	// Glide nodes to new positions. Every node is pinned while it moves so the
+	// physics, if it is still ticking, does not pull against the glide; release
+	// unpins them again once the graph is back in its own layout.
+	function moveNodes(targets: Map<Node, Point>, release = false, duration = 900) {
+		stopMovingNodes();
+		const nodes = Graph.graphData().nodes as Node[];
+		const moves = [...targets].filter(([node]) => node.__threeObj).map(([node, to]) => ({ node, from: position(node), to }));
+		for (const node of nodes) Object.assign(node, { fx: node.x, fy: node.y, fz: node.z, vx: 0, vy: 0, vz: 0 });
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
+		const started = performance.now();
+		const step = (now: number) => {
+			const p = duration ? Math.min((now - started) / duration, 1) : 1;
+			// Ease in and out, like something with weight starting and coming to rest.
+			const t = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+			for (const { node, from, to } of moves) {
+				node.x = node.fx = from.x + (to.x - from.x) * t;
+				node.y = node.fy = from.y + (to.y - from.y) * t;
+				node.z = node.fz = from.z + (to.z - from.z) * t;
+				node.__threeObj!.position.set(node.x, node.y, node.z);
+			}
+			syncLinkLines();
+			if (p < 1) {
+				moveFrame = scheduleFrame(step);
+				return;
+			}
+			moveFrame = null;
+			if (release) for (const node of nodes) { delete node.fx; delete node.fy; delete node.fz; }
+		};
+		step(started);
 	}
 
 	function filteredObject<T extends Three.Object3D>(node: Node, object: T): T {
-		if (categoryMembers && !isGridModeActive && !categoryMembers.has(node.id)) {
-			filterVisibility.set(object, 0);
-			object.scale.setScalar(0.001);
-			object.visible = false;
+		const scale = filteredScale(node);
+		if (scale !== 1 && !isGridModeActive) {
+			filterVisibility.set(object, scale);
+			object.scale.setScalar(Math.max(scale, 0.001));
+			object.visible = scale > 0;
 		}
 		return object;
+	}
+
+	// How large each graph object shows: hidden when filtered out, and subject
+	// labels, sized by popularity for the whole library, set to one even size.
+	function filteredScale(node: Node) {
+		if (!graphMembers) return 1;
+		if (!graphMembers.has(node.id)) return 0;
+		return node.group === 'ddc' ? 8 / Math.max((node.points || 1) / 2, 3) : 1;
 	}
 
 	// Shrink away what the filter leaves out and grow back what it keeps.
@@ -2081,7 +2246,7 @@
 			const object = node.__threeObj as Three.Object3D | undefined;
 			if (!object) continue;
 			const from = filterVisibility.get(object) ?? 1;
-			const to = !categoryMembers || categoryMembers.has(node.id) ? 1 : 0;
+			const to = filteredScale(node);
 			if (from !== to) fades.push({ object, from, to });
 		}
 		syncLinkLines();
@@ -2102,18 +2267,19 @@
 	}
 
 	// Fit the category's subject and books in view, from the side the reader is looking.
-	function frameCategory(duration = 900) {
-		if (!Graph || !categoryMembers || isGridModeActive) return;
-		const members = (Graph.graphData().nodes as Node[]).filter((node) => categoryMembers!.has(node.id));
+	function frameCategory(duration = 900, targets?: Map<Node, Point>) {
+		if (!Graph || !graphMembers || isGridModeActive) return;
+		const members = (Graph.graphData().nodes as Node[]).filter((node) => graphMembers!.has(node.id));
 		if (!members.length) return;
-		const hub = members.find((node) => node.group === 'ddc');
-		const center = hub ? { x: hub.x || 0, y: hub.y || 0, z: hub.z || 0 } : {
-			x: members.reduce((sum, node) => sum + (node.x || 0), 0) / members.length,
-			y: members.reduce((sum, node) => sum + (node.y || 0), 0) / members.length,
-			z: members.reduce((sum, node) => sum + (node.z || 0), 0) / members.length
+		const at = (node: Node) => targets?.get(node) ?? position(node);
+		const hub = members.find((node) => node.group === 'ddc' && node.id === categoryFilter);
+		const center = hub ? at(hub) : {
+			x: members.reduce((sum, node) => sum + at(node).x, 0) / members.length,
+			y: members.reduce((sum, node) => sum + at(node).y, 0) / members.length,
+			z: members.reduce((sum, node) => sum + at(node).z, 0) / members.length
 		};
 		// Fit most of the books; a stray one far from the rest should not shrink them all.
-		const distances = members.map((node) => Math.hypot((node.x || 0) - center.x, (node.y || 0) - center.y, (node.z || 0) - center.z))
+		const distances = members.map((node) => Math.hypot(at(node).x - center.x, at(node).y - center.y, at(node).z - center.z))
 			.sort((a, b) => a - b);
 		const radius = Math.max(30, distances[Math.floor((distances.length - 1) * 0.9)] + 15);
 		const camera = Graph.camera();
@@ -2252,12 +2418,19 @@
 		if (!Graph) return;
 
 		finishWorkerLayout();
+		// Each view lays itself out; a filtered graph is arranged again once it settles.
+		categoryLayoutRequest++;
+		stopMovingNodes();
+		homePositions = null;
+		arrangeWhenSettled = isGridModeActive;
 		beginShelfLayoutTransition();
 		if (!preserveSelection) deselectBook();
 		else stopOrbit();
 		shelfDraggedPositions.clear();
 		clearShelfPresentations();
 		isGridModeActive = !isGridModeActive;
+		// Objects recreated for the graph start hidden when the filter leaves them out.
+		if (!isGridModeActive) graphMembers = currentGraphMembers();
 		// Shelf motions are sampled on physics ticks, so shelves keep ticking to the cooldown.
 		Graph.d3AlphaMin(isGridModeActive ? 0 : 0.001);
 
