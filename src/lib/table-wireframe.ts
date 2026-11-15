@@ -121,8 +121,29 @@ export function connectorPath({ from, to }: Connector): string {
 	return `M${round(a.at.x)} ${round(a.at.y)}C${round(c1.x)} ${round(c1.y)} ${round(c2.x)} ${round(c2.y)} ${round(b.at.x)} ${round(b.at.y)}`;
 }
 
-/** The picture as an SVG document, or null when the table has nothing on it. */
-export function tableWireframe(document: unknown): string | null {
+/** Where the line from a box's centre toward a point leaves the box; a point is its own end. */
+function edge(end: Point | Box, toward: Point): Point {
+	if (!isBox(end)) return end;
+	const c = centre(end);
+	const dx = toward.x - c.x;
+	const dy = toward.y - c.y;
+	const t = Math.min(dx ? end.w / 2 / Math.abs(dx) : Infinity, dy ? end.h / 2 / Math.abs(dy) : Infinity, 1);
+	return { x: c.x + dx * t, y: c.y + dy * t };
+}
+
+/** A connector as tldraw draws an unbent arrow: straight, from edge to edge along the line between centres. */
+export function straightPath({ from, to }: Connector): string {
+	const a = edge(from, centre(to));
+	const b = edge(to, centre(from));
+	return `M${round(a.x)} ${round(a.y)}L${round(b.x)} ${round(b.y)}`;
+}
+
+/**
+ * The picture as an SVG document, or null when the table has nothing on it. `tight` drops the margin,
+ * so the picture's edges are the table's, and draws arrows straight, as the canvas does: a stand-in
+ * drawn where the canvas will zoom to fit.
+ */
+export function tableWireframe(document: unknown, { tight = false }: { tight?: boolean } = {}): string | null {
 	const { boxes, connectors } = tableLayout(document);
 	if (!boxes.length && !connectors.length) return null;
 	const points = [...boxes.flatMap((b) => [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y + b.h }]), ...connectors.flatMap((c) => [c.from, c.to].filter((end) => !isBox(end)) as Point[])];
@@ -132,14 +153,14 @@ export function tableWireframe(document: unknown): string | null {
 	const maxY = Math.max(...points.map((p) => p.y));
 	// Line widths and corners stay the same on screen, whatever the table's size: the card is ~300px wide.
 	const unit = Math.max(maxX - minX, (maxY - minY) * (4 / 3), 400) / 300;
-	const pad = 12 * unit;
+	const pad = tight ? 0 : 12 * unit;
 	const view = [minX - pad, minY - pad, maxX - minX + 2 * pad, maxY - minY + 2 * pad].map(round).join(' ');
 	const rect = (b: Box) =>
 		`<rect x="${round(b.x)}" y="${round(b.y)}" width="${round(b.w)}" height="${round(b.h)}" rx="${round(5 * unit)}" ${b.frame ? `fill="none" stroke="rgba(255,255,255,0.22)" stroke-dasharray="${round(4 * unit)} ${round(3 * unit)}"` : 'fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.2)"'} stroke-width="${round(unit)}"/>`;
 	return [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${view}" preserveAspectRatio="xMidYMid meet">`,
 		...boxes.filter((b) => b.frame).map(rect),
-		`<g fill="none" stroke="rgba(255,255,255,0.72)" stroke-width="${round(2.5 * unit)}" stroke-linecap="round">${connectors.map((c) => `<path d="${connectorPath(c)}"/>`).join('')}</g>`,
+		`<g fill="none" stroke="rgba(255,255,255,0.72)" stroke-width="${round(2.5 * unit)}" stroke-linecap="round">${connectors.map((c) => `<path d="${(tight ? straightPath : connectorPath)(c)}"/>`).join('')}</g>`,
 		...boxes.filter((b) => !b.frame).map(rect),
 		'</svg>'
 	].join('');

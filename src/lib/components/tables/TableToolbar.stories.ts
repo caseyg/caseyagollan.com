@@ -7,6 +7,9 @@ type Story = StoryObj<typeof meta>;
 export const Owner: Story = { args: { published: true, onpublish: () => {} } };
 /** A new table is a draft until it's published; only the owner sees it. */
 export const Draft: Story = { args: { published: false, onpublish: () => {} } };
+/** Blocks selected: Details shows or hides their source line and kind tile, for everyone. */
+export const BlocksSelected: Story = { args: { published: true, onpublish: () => {}, details: 'shown', ondetails: () => {} } };
+export const DetailsHidden: Story = { args: { published: true, onpublish: () => {}, details: 'hidden', ondetails: () => {} } };
 export const PickerOpen: Story = { args: { adding: true, tool: 'note' } };
 export const Saving: Story = { args: { status: 'Saving…', tool: 'draw' } };
 export const SaveFailed: Story = { args: { status: 'Couldn’t save' } };

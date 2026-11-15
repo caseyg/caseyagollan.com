@@ -3,7 +3,7 @@ import { blockKey, blockUrl, cleanBlock, isPublished, cleanName, emptyTable, lin
 import { blockFromSearch } from '../src/lib/table-sources';
 import { passageUrl, piecesPath, quoteSize, remotePiecesUrl } from '../src/lib/table-pieces';
 import { piecesFromHtml } from '../src/lib/server/table-pieces';
-import { connectorPath, tableLayout, tableWireframe } from '../src/lib/table-wireframe';
+import { connectorPath, straightPath, tableLayout, tableWireframe } from '../src/lib/table-wireframe';
 import { listPublishedTables, listTables, readTable, writeTable } from '../src/lib/server/tables';
 import { renderContent } from '../src/lib/utils/renderContent';
 
@@ -150,6 +150,10 @@ describe('table pieces', () => {
 		expect(quoteSize('x'.repeat(2000)).h).toBe(460);
 	});
 
+	test('sizes quotes in whole steps of the dot grid', () => {
+		for (let length = 1; length < 800; length += 37) expect(quoteSize('x'.repeat(length)).h % 20).toBe(0);
+	});
+
 	test('tells pictures from the same page apart', () => {
 		expect(blockKey({ url: '/a', image: '/1.jpg' })).not.toBe(blockKey({ url: '/a', image: '/2.jpg' }));
 		expect(blockKey({ url: '/a' })).toBe('/a');
@@ -180,6 +184,13 @@ describe('table pictures', () => {
 		]));
 		expect(layout.connectors).toHaveLength(1);
 		expect(connectorPath(layout.connectors[0])).toMatch(/^M240 120C.* 600 120$/);
+		// As the loading stand-in draws it, the way tldraw does: straight between the facing edges.
+		expect(straightPath(layout.connectors[0])).toBe('M240 120L600 120');
+	});
+
+	test('a tight picture is framed by the table itself, for the loading stand-in', () => {
+		const svg = tableWireframe(doc([block('shape:a', 0, 0), block('shape:b', 600, 400)]), { tight: true })!;
+		expect(svg).toContain('viewBox="0 0 840 640"');
 	});
 
 	test('draws nothing for an empty table, and an inert SVG otherwise', () => {

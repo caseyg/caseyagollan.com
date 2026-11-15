@@ -7,6 +7,7 @@ export { default as TableCard } from './TableCard.svelte';
 export { default as TableGrid } from './TableGrid.svelte';
 export { default as RenameTable } from './RenameTable.svelte';
 export { default as TableToolbar } from './TableToolbar.svelte';
+export { default as TableWireframe } from './TableWireframe.svelte';
 export type { TableApi, TableState } from './canvas/TableEditor';
 
 /** The first segment of every trail in the tables section. */

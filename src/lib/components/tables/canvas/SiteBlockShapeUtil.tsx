@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { mount, unmount } from 'svelte';
-import { BaseBoxShapeUtil, HTMLContainer, T, type RecordProps, type TLShape } from 'tldraw';
+import { BaseBoxShapeUtil, HTMLContainer, T, createShapePropsMigrationIds, createShapePropsMigrationSequence, type RecordProps, type TLShape } from 'tldraw';
 import BlockCard from '../BlockCard.svelte';
 import { BLOCK_SHAPE, blockHref, isBlockKind, type Block } from '$lib/tables';
 import { wikiHref } from '$lib/wiki/links';
@@ -17,6 +17,8 @@ export interface SiteBlockProps {
 	excerpt: string;
 	image: string;
 	icon: string;
+	/** Hides the block's details (its source line and kind tile), chosen by the owner for everyone. */
+	hideMeta: boolean;
 }
 
 declare module 'tldraw' {
@@ -54,26 +56,44 @@ export function blockSize(block: Block): { w: number; h: number } {
 }
 
 export function blockProps(block: Block): SiteBlockProps {
-	return { ...blockSize(block), kind: block.kind, url: block.url, title: block.title, meta: block.meta ?? '', excerpt: block.excerpt ?? '', image: block.image ?? '', icon: block.icon ?? '' };
+	return { ...blockSize(block), kind: block.kind, url: block.url, title: block.title, meta: block.meta ?? '', excerpt: block.excerpt ?? '', image: block.image ?? '', icon: block.icon ?? '', hideMeta: false };
 }
+
+const versions = createShapePropsMigrationIds(BLOCK_SHAPE, { AddHideMeta: 1 });
+
+/** Blocks saved before details could be hidden show them. */
+export const siteBlockMigrations = createShapePropsMigrationSequence({
+	sequence: [
+		{
+			id: versions.AddHideMeta,
+			up(props: Record<string, unknown>) {
+				props.hideMeta = false;
+			},
+			down(props: Record<string, unknown>) {
+				delete props.hideMeta;
+			}
+		}
+	]
+});
 
 /** Renders the design system's `BlockCard` (Svelte) inside the canvas, so a block looks the same everywhere. */
 function BlockCardView({ props }: { props: SiteBlockProps }) {
 	const target = useRef<HTMLDivElement>(null);
-	const { kind, url, title, meta, excerpt, image, icon } = props;
+	const { kind, url, title, meta, excerpt, image, icon, hideMeta } = props;
 	useEffect(() => {
 		if (!target.current) return;
-		const component = mount(BlockCard, { target: target.current, props: { block: blockOf({ ...props }) } });
+		const component = mount(BlockCard, { target: target.current, props: { block: blockOf({ ...props }), details: !hideMeta } });
 		return () => {
 			void unmount(component);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [kind, url, title, meta, excerpt, image, icon]);
+	}, [kind, url, title, meta, excerpt, image, icon, hideMeta]);
 	return <div ref={target} className="site-block" />;
 }
 
 export class SiteBlockShapeUtil extends BaseBoxShapeUtil<SiteBlockShape> {
 	static override type = BLOCK_SHAPE;
+	static override migrations = siteBlockMigrations;
 	static override props: RecordProps<SiteBlockShape> = {
 		w: T.nonZeroNumber,
 		h: T.nonZeroNumber,
@@ -83,11 +103,12 @@ export class SiteBlockShapeUtil extends BaseBoxShapeUtil<SiteBlockShape> {
 		meta: T.string,
 		excerpt: T.string,
 		image: T.string,
-		icon: T.string
+		icon: T.string,
+		hideMeta: T.boolean
 	};
 
 	override getDefaultProps(): SiteBlockProps {
-		return { w: 240, h: 240, kind: 'link', url: '/', title: 'Untitled', meta: '', excerpt: '', image: '', icon: '' };
+		return { w: 240, h: 240, kind: 'link', url: '/', title: 'Untitled', meta: '', excerpt: '', image: '', icon: '', hideMeta: false };
 	}
 
 	override canEdit() {

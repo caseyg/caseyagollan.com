@@ -37,9 +37,12 @@
 		/** Whether visitors can see the table. With `onpublish`, the owner gets Publish or Unpublish. */
 		published?: boolean;
 		onpublish?: (published: boolean) => void;
+		/** Whether the selected blocks show their details; with `ondetails`, the owner gets a Details toggle while blocks are selected. */
+		details?: 'shown' | 'hidden' | 'mixed';
+		ondetails?: (shown: boolean) => void;
 	}
 
-	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish }: Props = $props();
+	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -55,6 +58,10 @@
 		<span class="divider" aria-hidden="true"></span>
 		<Button variant="icon" icon="undo" label="Undo" disabled={!canUndo} onclick={onundo} />
 		<Button variant="icon" icon="redo" label="Redo" disabled={!canRedo} onclick={onredo} />
+		{#if details && ondetails}
+			<span class="divider" aria-hidden="true"></span>
+			<Button variant="quiet" size="sm" icon="properties" pressed={details === 'shown'} onclick={() => ondetails(details !== 'shown')} title={details === 'shown' ? 'Hide the selected blocks’ source line and kind tile' : 'Show the selected blocks’ source line and kind tile'}>Details</Button>
+		{/if}
 	{/if}
 	<Button variant="icon" icon="fit" label="Fit to screen" onclick={onfit} />
 	{#if status}<span class="status" role="status">{status}</span>{/if}

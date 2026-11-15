@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
+	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TableWireframe, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
 	import { PageHeader } from '$lib/components/ui';
 	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
@@ -173,6 +173,10 @@
 <PageHeader trail={[{ ...TABLES_CRUMB, href: listHref }, nameSegment]} title={name || 'Table'} />
 
 <main class="stage">
+	{#if !session && !missing}
+		<!-- Sent with the page, so the table's outline is there from the first paint. -->
+		<TableWireframe {document} />
+	{/if}
 	{#if missing}
 		<p class="missing">There’s no table at this address. <a href={listHref}>See all tables</a>.</p>
 	{:else if session}
@@ -187,6 +191,8 @@
 				status={statusText}
 				{published}
 				onpublish={publish}
+				details={view.details}
+				ondetails={(shown) => api?.setDetails(shown)}
 				ontool={(tool) => api?.setTool(tool)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}

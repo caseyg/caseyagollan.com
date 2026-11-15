@@ -27,6 +27,16 @@
 	</div>
 </Story>
 
+<!-- With details hidden, as the owner can choose per block: no source line and no kind tile. -->
+<Story asChild name="Details hidden">
+	<div class="tiles">
+		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.wiki} details={false} /></div>
+		<div class="tile" style="width: 180px; height: 300px"><BlockCard block={blocks.book} details={false} /></div>
+		<div class="tile" style="width: 280px; height: 240px"><BlockCard block={blocks.image} details={false} /></div>
+		<div class="tile" style="width: 300px; height: 180px"><BlockCard block={blocks.quote} details={false} /></div>
+	</div>
+</Story>
+
 <!-- Casey's Are.na: channels, and blocks of each type, which open on Are.na. -->
 <Story asChild name="Are.na">
 	<div class="tiles">
