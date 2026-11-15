@@ -64,6 +64,16 @@ export function renderLinkPreview(preview: LinkPreview): string {
 export function renderSocialSnapshot(snapshot: SocialSnapshot, options: { omitSource?: boolean } = {}): string {
  const s = socialSnapshots([snapshot])[0];
  if (!s) return '';
+ return `<blockquote class="social-snapshot">${renderSocialCardHeader(s.author, options.omitSource ? undefined : snapshotSource(s))}${snapshotBody(s)}${renderSocialCardFooter(s.published, s.url)}</blockquote>`;
+}
+
+/** A saved post's text and attachments without its author header or date footer, for thread views that show those themselves. */
+export function renderSocialSnapshotBody(snapshot: SocialSnapshot): string {
+ const s = socialSnapshots([snapshot])[0];
+ return s ? snapshotBody(s) : '';
+}
+
+function snapshotBody(s: SocialSnapshot): string {
  const body = sanitizePublishingHtml(s.html).replace(/<(?:img|iframe|video|audio|source)\b[^>]*>(?:<\/(?:iframe|video|audio)>)?/gi,'');
  const images = s.images.map(i=>`<a class="social-image-link" href="${escape(i.src)}"><img class="social-attachment" src="${escape(i.src)}" alt="${escape(i.alt)}" loading="lazy"></a>`).join('');
  const gallery = images ? `<div class="social-images social-images-${s.images.length}">${images}</div>` : '';
@@ -71,8 +81,11 @@ export function renderSocialSnapshot(snapshot: SocialSnapshot, options: { omitSo
  const card = s.preview ? renderLinkPreview(s.preview) : '';
  const quote = s.quote ? `<div class="social-quoted-post">${renderSocialSnapshot(s.quote)}</div>` : '';
  const content = `<div class="social-post-content">${body}</div>${gallery}${video}${card}${quote}`;
- return `<blockquote class="social-snapshot">${renderSocialCardHeader(s.author, options.omitSource ? undefined : snapshotSource(s))}${s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content}${renderSocialCardFooter(s.published, s.url)}</blockquote>`;
+ return s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content;
 }
+
+/** Where a saved post lives on its network, as a source link. */
+export function socialSnapshotSource(s: SocialSnapshot): SocialCardSource { return snapshotSource(s); }
 
 function snapshotSource(s: SocialSnapshot): SocialCardSource {
  return s.platform === 'bluesky' ? { url: s.sourceUrl ?? s.url, label: '🦋', title: 'View on Bluesky' } : { url: s.sourceUrl ?? s.url, label: '🐘', title: 'View on Mastodon' };
