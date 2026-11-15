@@ -10,6 +10,11 @@
 		count?: number;
 		/** More words that find the command, such as synonyms. */
 		keywords?: string[];
+		/**
+		 * The page this command goes to. A plain click still runs `onAction`; ⌘/Ctrl-click, Shift-click,
+		 * a middle click or ⌘/Ctrl-Enter opens it in a new tab and leaves the palette open.
+		 */
+		href?: string;
 		/** Leaves the site; marked ↗. */
 		external?: boolean;
 		/** Shown whatever is typed, such as search results that were matched elsewhere. */
@@ -63,10 +68,34 @@
 		return Math.max(fuzzyScore(item.label, text), ...(item.keywords ?? []).map((word) => fuzzyScore(word, text) * 0.9));
 	}
 
-	async function run(value: string) {
+	const links = $derived(new Map(sections.flatMap((section) => section.items.flatMap((item) => [item, ...(item.items ?? [])])).filter((item) => item.href).map((item) => [item.value, item.href!])));
+
+	/** A click or key press that asks for a new tab rather than this one. */
+	const wantsNewTab = (event?: Event) => (event instanceof MouseEvent || event instanceof KeyboardEvent) && (event.metaKey || event.ctrlKey || event.shiftKey);
+
+	async function run(value: string, details?: { event?: Event }) {
 		if (pages.some((page) => page.value === value)) return;
+		const href = links.get(value);
+		// ⌘/Ctrl-Enter on a link. (Clicks on one go to its own anchor, which the browser opens itself.)
+		if (href && wantsNewTab(details?.event)) {
+			window.open(href, '_blank', 'noopener');
+			return;
+		}
 		await onAction(value);
 		open = false;
+	}
+
+	/**
+	 * A link command covers itself with a real anchor, so the browser does what it does for any link:
+	 * ⌘-click opens a background tab, a middle click too, and the context menu offers to copy it.
+	 * A plain click becomes the command's own action, which closes the palette.
+	 */
+	function linkClick(event: MouseEvent) {
+		if (event.button !== 0 || wantsNewTab(event) || event.altKey) {
+			event.stopPropagation();
+			return;
+		}
+		event.preventDefault();
 	}
 
 	// The dialog hides the page's overflow, but iOS still scrolls the page under a finger.
@@ -109,6 +138,7 @@
 		</span>
 		{#if item.count !== undefined}<Count value={item.count} />{/if}
 		{#if item.items?.length}<span class="command-item-more" aria-hidden="true">›</span>{/if}
+		{#if item.href}<a class="command-item-link" href={item.href} tabindex="-1" aria-hidden="true" onclick={linkClick} onauxclick={(event) => event.stopPropagation()}></a>{/if}
 	</CommandItem>
 {/snippet}
 
@@ -269,6 +299,7 @@
 	}
 
 	:global(.command-item) {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
@@ -278,6 +309,13 @@
 		line-height: var(--lh-snug);
 		cursor: pointer;
 		transition: background var(--duration) var(--ease);
+	}
+
+	/* Covers the whole command, so every part of it is the link. */
+	.command-item-link {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
 	}
 
 	:global(.command-item[data-highlighted]) {
