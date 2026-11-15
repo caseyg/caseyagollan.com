@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
-import { cleanName, isPublished, summarizeDocument, validDocument, validThumbnail, type Table } from '$lib/tables';
-import { readTable, writeTable, writeThumbnail } from '$lib/server/tables';
+import { cleanName, isPublished, summarizeDocument, validDocument, type Table } from '$lib/tables';
+import { readTable, writeTable } from '$lib/server/tables';
 import { isOwner, ownerBucket, PRIVATE } from '$lib/server/tables-api';
 
 export const prerender = false;
@@ -14,8 +14,8 @@ export const GET: RequestHandler = async ({ params, platform, request }) => {
 };
 
 /**
- * Saves a rename (`name`), a canvas (`document`), its picture (`thumbnail`, SVG), publishing or
- * unpublishing (`published`), or any of them together.
+ * Saves a rename (`name`), a canvas (`document`), publishing or unpublishing (`published`), or
+ * any of them together.
  */
 export const PUT: RequestHandler = async ({ params, request, platform }) => {
 	const bucket = await ownerBucket(request, platform?.env);
@@ -23,7 +23,7 @@ export const PUT: RequestHandler = async ({ params, request, platform }) => {
 	const table = await readTable(bucket, params.id);
 	if (!table) return Response.json({ error: 'No such table.' }, { status: 404, headers: PRIVATE });
 
-	const body = (await request.json().catch(() => null)) as { name?: unknown; document?: unknown; thumbnail?: unknown; published?: unknown } | null;
+	const body = (await request.json().catch(() => null)) as { name?: unknown; document?: unknown; published?: unknown } | null;
 	const next: Table = { ...table };
 	if (body?.name !== undefined) {
 		const name = cleanName(body.name);
@@ -40,11 +40,6 @@ export const PUT: RequestHandler = async ({ params, request, platform }) => {
 		Object.assign(next, summarizeDocument(body.document));
 	}
 	next.updated = new Date().toISOString();
-	if (body?.thumbnail !== undefined) {
-		if (!validThumbnail(body.thumbnail)) return Response.json({ error: 'That picture can’t be saved.' }, { status: 400, headers: PRIVATE });
-		await writeThumbnail(bucket, next.id, body.thumbnail);
-		next.thumb = next.updated;
-	}
 	await writeTable(bucket, next);
 	const { document: _document, ...summary } = next;
 	return Response.json({ table: summary }, { headers: PRIVATE });

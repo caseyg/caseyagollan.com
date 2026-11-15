@@ -19,8 +19,6 @@
 	let published = $state(true);
 	let document: unknown = $state.raw(null);
 	let seed: Block[] | undefined;
-	/** Whether the table has a picture for the browse page yet; tables saved before pictures don't. */
-	let hasThumbnail = !!data.table?.thumb;
 	let missing = $state(false);
 
 	let api = $state<TableApi>();
@@ -55,7 +53,6 @@
 				published = local.published !== false;
 				document = local.document;
 				seed = local.seed;
-				hasThumbnail = !!local.thumb;
 			}
 		})();
 
@@ -74,14 +71,6 @@
 			ready.addBlocks(seed, undefined, { columns: 4, select: false });
 			ready.zoomToFit();
 			seed = undefined;
-		}
-		// A table without a picture gets one once its blocks' images have had a moment to load.
-		if (editable && !hasThumbnail && !view.empty) {
-			setTimeout(async () => {
-				const thumbnail = await ready.thumbnail().catch(() => null);
-				if (thumbnail && session) await saveTable(session, data.id, { thumbnail }).catch(console.error);
-				hasThumbnail = true;
-			}, 1500);
 		}
 	}
 
@@ -106,9 +95,7 @@
 		const next = pending;
 		pending = undefined;
 		status = 'saving';
-		// The browse page's picture is drawn from the canvas as it is now, alongside the document.
-		const thumbnail = (await api?.thumbnail().catch(() => null)) ?? undefined;
-		saving = saveTable(session, data.id, { document: next, thumbnail })
+		saving = saveTable(session, data.id, { document: next })
 			.then(() => {
 				if (pending === undefined) status = 'saved';
 			})
