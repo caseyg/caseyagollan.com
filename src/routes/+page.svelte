@@ -9,9 +9,10 @@
     import GraphNodeMenu from "$lib/components/GraphNodeMenu.svelte";
     import { applyAction, curateInsights, emptyCuration, isPinned, parseCuration, type CurationAction, type GraphCuration } from "$lib/graph-curation";
     import { ownerHint } from "$lib/owner";
+    import { wikiSourcesFor } from "$lib/wiki-sources";
     import type { Node as GraphNode } from "$lib/data/graph-data";
 
-    import type { InsightResponse } from "$lib/insight-types";
+    import type { InsightResponse, InsightSource } from "$lib/insight-types";
 
     interface Insight {
         topic: string;
@@ -57,7 +58,18 @@
     // "demo" lets the menu be tried where sign-in is off, such as branch previews; nothing is saved.
     let curationMode: "off" | "owner" | "demo" = $state("off");
     let graphMenu: GraphNodeMenu | undefined = $state();
-    let graphInsights = $derived(curateInsights(insightsByTopic, curation));
+    // Casey's own wiki pages that the site search finds for a topic always show, ahead of web results.
+    let wikiByTopic: Map<string, InsightSource[]> = $state(new Map());
+    let graphInsights = $derived(curateInsights(insightsByTopic, curation, wikiByTopic));
+
+    $effect(() => {
+        const topic = graphFocusNodeId;
+        // Every wiki page is about Casey, so the center node would match them all.
+        if (!browser || !topic || topic === "Casey" || wikiByTopic.has(topic)) return;
+        void wikiSourcesFor(topic).then((pages) => {
+            if (pages.length) wikiByTopic = new Map(wikiByTopic).set(topic, pages);
+        });
+    });
 
     async function loadCuration() {
         const owner = ownerHint();

@@ -51,6 +51,15 @@ describe('graph curation', () => {
 		expect((insights.get('Research')?.sources?.[0] as { pinned?: boolean }).pinned).toBeUndefined();
 	});
 
+	test('leading sources (wiki pages) go after pins and before search results, and obey blocks', () => {
+		let curation = applyAction(emptyCuration(), { action: 'pin', topic: 'Design', source: source('https://pinned.org/') });
+		curation = applyAction(curation, { action: 'block-url', url: 'https://cag.wiki/Hidden' });
+		const leading = new Map([['Design', [source('https://cag.wiki/Design'), source('https://cag.wiki/Hidden')]], ['Sociocracy', [source('https://cag.wiki/Sociocracy')]]]);
+		const result = curateInsights(new Map([['Design', { sources: [source('https://kagi.example/'), source('https://cag.wiki/Design')] }]]), curation, leading);
+		expect(result.get('Design')?.sources?.map((s) => s.url)).toEqual(['https://pinned.org/', 'https://cag.wiki/Design', 'https://kagi.example/']);
+		expect(result.get('Sociocracy')?.sources?.map((s) => s.url)).toEqual(['https://cag.wiki/Sociocracy']);
+	});
+
 	test('parseCuration drops malformed data', () => {
 		const curation = parseCuration({ pinned: { Research: [{ url: 'javascript:alert(1)' }, { url: 'https://ok.org/' }], '': [{ url: 'https://x.org' }] }, blockedUrls: ['nope', 'https://b.org/'], blockedDomains: ['WWW.Bad.com', '<script>'] });
 		expect(curation.pinned).toEqual({ Research: [{ url: 'https://ok.org/', title: 'ok.org', page_age: null, cited_text: null }] });

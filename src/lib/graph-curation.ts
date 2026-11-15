@@ -71,12 +71,23 @@ export function curateSources(topic: string, sources: InsightSource[] = [], cura
 	return result;
 }
 
-/** Every topic's sources as the graph shows them, including topics that only have pinned sources so far. */
-export function curateInsights<T extends { sources?: InsightSource[] }>(insights: Map<string, T>, curation: GraphCuration): Map<string, T | { sources: InsightSource[] }> {
+/**
+ * Every topic's sources as the graph shows them: pinned, then `leading` (such as Casey's own wiki
+ * pages), then the topic's search results. Includes topics that only have pinned or leading sources.
+ */
+export function curateInsights<T extends { sources?: InsightSource[] }>(
+	insights: Map<string, T>,
+	curation: GraphCuration,
+	leading: Map<string, InsightSource[]> = new Map()
+): Map<string, T | { sources: InsightSource[] }> {
 	const result = new Map<string, T | { sources: InsightSource[] }>();
-	for (const [topic, insight] of insights) result.set(topic, { ...insight, sources: curateSources(topic, insight.sources, curation) });
-	for (const topic of Object.keys(curation.pinned)) {
-		if (!result.has(topic)) result.set(topic, { sources: curateSources(topic, [], curation) });
+	const sources = (topic: string, rest: InsightSource[] = []) => curateSources(topic, [...(leading.get(topic) ?? []), ...rest], curation);
+	for (const [topic, insight] of insights) result.set(topic, { ...insight, sources: sources(topic, insight.sources) });
+	for (const topic of [...Object.keys(curation.pinned), ...leading.keys()]) {
+		if (!result.has(topic)) {
+			const list = sources(topic);
+			if (list.length) result.set(topic, { sources: list });
+		}
 	}
 	return result;
 }
