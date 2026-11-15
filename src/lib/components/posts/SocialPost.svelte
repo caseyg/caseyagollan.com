@@ -193,4 +193,56 @@
 	.body :global(p:last-child) {
 		margin-bottom: 0;
 	}
+
+	/* On phones the post uses the full width: a small avatar beside the name row, then the text and media below both,
+	   as Bluesky and Mastodon do. The thread line becomes a short stroke between posts, under the avatars. */
+	@media (max-width: 480px) {
+		.social-post {
+			position: relative;
+			grid-template-columns: 2rem minmax(0, 1fr);
+			column-gap: var(--space-2);
+		}
+
+		.main {
+			display: contents;
+		}
+
+		.rail :global(.avatar) {
+			width: 2rem;
+			height: 2rem;
+		}
+
+		.meta {
+			grid-column: 2;
+			align-self: center;
+		}
+
+		.context,
+		.body {
+			grid-column: 1 / -1;
+		}
+
+		.body {
+			margin-top: var(--space-2);
+		}
+
+		.connected {
+			padding-bottom: var(--space-5);
+		}
+
+		.connected .rail::after {
+			display: none;
+		}
+
+		.connected::after {
+			content: '';
+			position: absolute;
+			bottom: var(--space-1);
+			left: calc(1rem - 1px);
+			width: 2px;
+			height: calc(var(--space-5) - 2 * var(--space-1));
+			border-radius: 1px;
+			background: var(--border);
+		}
+	}
 </style>

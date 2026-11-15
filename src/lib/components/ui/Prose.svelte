@@ -118,13 +118,13 @@
 		color: var(--text-muted);
 	}
 
-	/* Section breaks read as three centered dots rather than a rule. */
+	/* Section breaks read as three centered dots rather than a rule. Keep in step with Divider.svelte. */
 	.prose :global(hr) {
 		margin: 2em 0;
 		border: 0;
 		overflow: visible;
 		height: auto;
-		color: var(--text-muted);
+		color: var(--border);
 		text-align: center;
 		line-height: 1;
 	}

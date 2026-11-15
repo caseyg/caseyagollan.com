@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { Avatar, Button, Checkbox, Chip, Count, Heading, Notice, Pagination, Prose, Section, TextField } from '.';
+	import { Avatar, Button, Checkbox, Chip, Count, Divider, Heading, Notice, Pagination, Prose, Section, TextField } from '.';
 
 	const noop = () => undefined;
 	const { Story } = defineMeta({ title: 'Primitives/Overview', tags: ['!autodocs'] });
@@ -27,8 +27,16 @@
 		<div class="row">
 			<Button size="sm" variant="primary">Import selected · 3</Button>
 			<Button size="sm">Dismiss</Button>
-			<Button size="sm" variant="quiet" href="/posts/">Read more →</Button>
+			<Button size="sm" href="/posts/">Read more →</Button>
 		</div>
+	</div>
+</Story>
+
+<Story name="Divider">
+	<div class="stack">
+		<p>The end of one post in a feed.</p>
+		<Divider />
+		<p>The start of the next.</p>
 	</div>
 </Story>
 

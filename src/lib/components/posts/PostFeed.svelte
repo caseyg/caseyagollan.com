@@ -2,6 +2,7 @@
 	import DateHeader from './DateHeader.svelte';
 	import PostCard from './PostCard.svelte';
 	import ThreadGroup from './ThreadGroup.svelte';
+	import { Divider } from '$lib/components/ui';
 	import type { Post } from '$lib/posts-types';
 
 	interface Props {
@@ -20,13 +21,15 @@
 	{#if postsByDay}
 		{#each postsByDay as [dateKey, postsForDay] (dateKey)}
 			<DateHeader {dateKey} />
-			{#each postsForDay as post (post.slug)}
+			{#each postsForDay as post, i (post.slug)}
+				{#if i > 0}<Divider />{/if}
 				{#if post.indexThreadPosts}<ThreadGroup {post} {showType} {activeTag} />{:else}<PostCard {post} {showType} {activeTag} />{/if}
 			{/each}
 		{/each}
 	{/if}
 	{#if posts}
-		{#each posts as post (post.slug)}
+		{#each posts as post, i (post.slug)}
+			{#if i > 0}<Divider />{/if}
 			{#if post.indexThreadPosts}<ThreadGroup {post} {showType} {activeTag} />{:else}<PostCard {post} {showType} {activeTag} />{/if}
 		{/each}
 	{/if}
