@@ -1,6 +1,7 @@
 import { flattenSocialSnapshots } from '../src/lib/social-snapshots';
 import { Glob } from 'bun';
 import { libraryMetadata } from '../src/lib/library-metadata';
+import { arenaDocuments } from './arena';
 import { wikiDocuments } from './wiki-search';
 import { loadWikiVault } from './wiki-vault';
 import { readFile, rm } from 'node:fs/promises';
@@ -16,6 +17,8 @@ function assertSuccess(result: { errors: string[] }) {
 // Start on the wiki now; posts and books are indexed while it arrives.
 const wikiVault = loadWikiVault();
 wikiVault.catch(() => {});
+const arena = arenaDocuments();
+arena.catch(() => {});
 const { index, errors } = await pagefind.createIndex();
 if (!index) throw new Error(errors.join('\n'));
 let count = 0;
@@ -53,11 +56,17 @@ try {
 		// `source` keeps the cag.wiki address, which the homepage graph's pins and blocks are keyed by.
 		await add(page.url, page.title, 'wiki', { author: 'Casey Gollan', tags: page.tags.join(', '), year: page.year[0] ?? '', source: page.source }, `<h1>${escape(page.title)}</h1>${page.html}`, { Tag: page.tags, Author: ['Casey Gollan'], Year: page.year });
 	}
+	// Casey's public Are.na channels and blocks, at their Are.na addresses.
+	const arenaItems = await arena;
+	for (const item of arenaItems) {
+		const year = item.date.slice(0, 4);
+		await add(item.url, item.title, 'arena', { ...(item.image ? { image: item.image, image_alt: item.imageAlt ?? '' } : {}), date: item.date, author: 'Casey Gollan', kind: item.kind, detail: item.detail }, item.html, { Author: ['Casey Gollan'], Year: year ? [year] : [] });
+	}
 	// The full build writes elsewhere so it can run beside `vite build`, which copies static/.
 	const outputPath = process.env.PAGEFIND_OUTPUT || 'static/pagefind';
 	await rm(outputPath, { recursive: true, force: true });
 	assertSuccess(await index.writeFiles({ outputPath }));
-	console.log(`Pagefind indexed ${count} posts, books, and wiki pages (${wiki.length} wiki pages).`);
+	console.log(`Pagefind indexed ${count} posts, books, wiki pages and Are.na blocks (${wiki.length} wiki pages, ${arenaItems.length} from Are.na).`);
 } finally {
 	await pagefind.close();
 }

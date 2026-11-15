@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { COMPOSER_KINDS, type ComposerKind } from '$lib/composer-kinds';
 	import { ownerHint } from '$lib/owner';
+	import { searchPrivateArena } from '$lib/arena-client';
 	import { pageCommands } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
 	import { CommandPalette, PullDown, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
@@ -23,7 +24,7 @@
 
 	// A variable, so Vite leaves the index's own script alone.
 	const PAGEFIND = '/pagefind/pagefind.js';
-	const RESULT_ICONS: Record<string, string> = { ...TYPE_ICONS, book: '📚', wiki: '📓' };
+	const RESULT_ICONS: Record<string, string> = { ...TYPE_ICONS, book: '📚', wiki: '📓', arena: '✳️' };
 
 	/** The index stores titles and excerpts as HTML. */
 	const plainText = (html = '') => new DOMParser().parseFromString(html, 'text/html').body.textContent?.trim() ?? '';
@@ -84,7 +85,7 @@
 	const postTypes = $derived(inGroup('Type', 'By type'));
 	const years = $derived(inGroup('Year', 'By year'));
 
-	// Typing also searches posts, books and the wiki, for the few best matches.
+	// Typing also searches posts, books, the wiki and Are.na, for the few best matches.
 	let pagefind: Promise<Pagefind> | undefined;
 	let results = $state<CommandOption[]>([]);
 	let searching = $state(false);
@@ -126,8 +127,28 @@
 		};
 	});
 
+	// For the signed-in owner, Casey's private Are.na blocks too, which the public index never holds.
+	let privateResults = $state<CommandOption[]>([]);
+	$effect(() => {
+		const typed = query.trim();
+		if (!owner || typed.length < 2) {
+			privateResults = [];
+			return;
+		}
+		const controller = new AbortController();
+		const timer = setTimeout(async () => {
+			const blocks = await searchPrivateArena(typed, 5, controller.signal);
+			if (controller.signal.aborted) return;
+			privateResults = blocks.map((block) => ({ value: `open:${block.url}`, label: block.title, hint: block.meta, icon: '🔒', external: true, always: true }));
+		}, 200);
+		return () => {
+			clearTimeout(timer);
+			controller.abort();
+		};
+	});
+
 	const term = $derived(query.trim());
-	const search: CommandOption = $derived({ value: 'search', label: 'Search posts, books, and wiki', hint: term ? `For “${term}”` : undefined, icon: '🔍', keywords: ['find'], always: !!term });
+	const search: CommandOption = $derived({ value: 'search', label: 'Search posts, books, wiki, and Are.na', hint: term ? `For “${term}”` : undefined, icon: '🔍', keywords: ['find'], always: !!term });
 	// The page's own commands come first, then places, then what the search index found.
 	const forPage = $derived(pageCommands());
 	const sections: CommandSection[] = $derived([
@@ -137,7 +158,7 @@
 		{ label: 'Post types', items: postTypes },
 		{ label: 'Write', items: owner ? [write] : [] },
 		{ label: 'Years', items: years },
-		...(term ? [{ label: 'Posts, books, and wiki', items: results }, { items: [search] }] : [])
+		...(term ? [{ label: 'Posts, books, wiki, and Are.na', items: results }, { label: 'Private on Are.na', items: privateResults }, { items: [search] }] : [])
 	]);
 
 	function onAction(value: string) {

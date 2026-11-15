@@ -78,12 +78,13 @@ function writeDemo(store: Record<string, DemoTable>) {
 	}
 }
 
-/** A first table for the demo, set with real posts, books and wiki pages from the search index. */
+/** A first table for the demo, set with real posts, books, wiki pages and Are.na blocks from the search index. */
 async function sampleTable(): Promise<DemoTable> {
-	const [posts, books, wiki] = await Promise.all([searchBlocks('changelog', 'post', 2), searchBlocks('', 'book', 40), searchBlocks('', 'wiki', 2)]);
+	const [posts, books, wiki, arena] = await Promise.all([searchBlocks('changelog', 'post', 2), searchBlocks('', 'book', 40), searchBlocks('', 'wiki', 2), searchBlocks('', 'arena', 40)]);
 	const covers = (books ?? []).filter((book) => book.image).slice(0, 3);
+	const pictures = (arena ?? []).filter((block) => block.image).slice(0, 2);
 	const link = linkBlock('https://tabletop.grantcuster.com');
-	const seed = [...(posts ?? []), ...covers, ...(wiki ?? []), ...(link ? [link] : [])];
+	const seed = [...(posts ?? []), ...covers, ...(wiki ?? []), ...pictures, ...(link ? [link] : [])];
 	return { ...emptyTable('Sample table'), seed };
 }
 

@@ -73,6 +73,16 @@ describe('tables', () => {
 		});
 		// Wiki pages are indexed at their wiki browser address, with the cag.wiki one kept as `source`.
 		expect(blockFromSearch({ url: '/wiki/aesthetic-crisis', excerpt: 'Architects', meta: { title: 'Aesthetic Crisis', type: 'wiki', source: 'https://cag.wiki/aesthetic-crisis' } })).toMatchObject({ kind: 'wiki', url: 'https://cag.wiki/aesthetic-crisis' });
+		expect(blockFromSearch({ url: '/https://www.are.na/block/2092617', excerpt: 'Light Phone 2. A phone', meta: { title: 'Light Phone 2', type: 'arena', kind: 'image', detail: 'Image · indiegogo.com', image: 'https://images.are.na/a.jpg' } })).toEqual({
+			kind: 'arena',
+			url: 'https://www.are.na/block/2092617',
+			title: 'Light Phone 2',
+			meta: 'Image · indiegogo.com',
+			excerpt: 'A phone',
+			image: 'https://images.are.na/a.jpg',
+			icon: '🖼️'
+		});
+		expect(cleanBlock({ kind: 'arena', url: 'https://www.are.na/block/1', title: 'x' })).toMatchObject({ kind: 'arena' });
 		expect(blockFromSearch({ url: '/library/1', excerpt: '', meta: { title: 'Book', type: 'book', author: 'Hyde, Lewis', year: '2010', image: '/library/img/1.jpg' } })).toMatchObject({ kind: 'book', meta: 'Hyde, Lewis · 2010', image: '/library/img/1.jpg' });
 		expect(blockFromSearch({ url: '/2026/11/14/x/', excerpt: 'Hello', meta: { title: 'Note', type: 'note', date: '2026-11-14T12:00:00Z' } })).toMatchObject({ kind: 'post', meta: 'note · 2026-11-14', icon: '📝' });
 	});

@@ -94,16 +94,16 @@
 <div class="site-search" bind:this={root}>
 	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
 	<!-- ⌘K is the command palette; / opens search directly. -->
-	<pagefind-modal-trigger compact hide-shortcut shortcut="/" placeholder="Search posts, books, and wiki">
+	<pagefind-modal-trigger compact hide-shortcut shortcut="/" placeholder="Search posts, books, wiki, and Are.na">
 		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->
-		<button class="pf-trigger-btn" type="button" aria-label="Search posts, books, and wiki" aria-haspopup="dialog" aria-expanded="false">
+		<button class="pf-trigger-btn" type="button" aria-label="Search posts, books, wiki, and Are.na" aria-haspopup="dialog" aria-expanded="false">
 			<span class="pf-trigger-icon" aria-hidden="true"></span>
 		</button>
 	</pagefind-modal-trigger>
 	<pagefind-modal>
 		<pagefind-modal-header>
 			<h2 class="search-heading">Search</h2>
-			<pagefind-input placeholder="Search posts, books, and wiki…"></pagefind-input>
+			<pagefind-input placeholder="Search posts, books, wiki, and Are.na…"></pagefind-input>
 		</pagefind-modal-header>
 		<pagefind-modal-body>
 			<div class="search-layout">

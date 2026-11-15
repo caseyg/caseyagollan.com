@@ -38,7 +38,7 @@
 
 <svelte:head>
 	<title>Tables - Casey Gollan</title>
-	<meta name="description" content="Tables by Casey Gollan: posts, books, wiki pages and links set out on a canvas" />
+	<meta name="description" content="Tables by Casey Gollan: posts, books, wiki pages, Are.na blocks and links set out on a canvas" />
 	<meta property="og:title" content="Tables - Casey Gollan" />
 	<meta property="og:type" content="website" />
 </svelte:head>
@@ -46,7 +46,7 @@
 <Nav currentPage="tables" />
 
 <Page as="main" width="wide" class="tables-page">
-	<PageHeader trail={[{ ...TABLES_CRUMB, current: true }]} title="Tables" description="Posts, books, wiki pages and links, set out on tables to see side by side.">
+	<PageHeader trail={[{ ...TABLES_CRUMB, current: true }]} title="Tables" description="Posts, books, wiki pages, Are.na blocks and links, set out on tables to see side by side.">
 		{#snippet actions()}
 			{#if editable}
 				<div class="actions">

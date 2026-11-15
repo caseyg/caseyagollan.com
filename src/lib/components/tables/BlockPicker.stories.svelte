@@ -27,6 +27,10 @@
 	<div class="dock"><BlockPicker {search} onadd={add} onclose={() => {}} filter="book" /></div>
 </Story>
 
+<Story asChild name="Are.na, browsing">
+	<div class="dock"><BlockPicker {search} onadd={add} onclose={() => {}} filter="arena" /></div>
+</Story>
+
 <Story asChild name="Empty query">
 	<div class="dock"><BlockPicker {search} onadd={add} /></div>
 </Story>

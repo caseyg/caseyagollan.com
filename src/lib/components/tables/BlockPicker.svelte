@@ -63,7 +63,8 @@
 		{ label: 'All', value: 'all' },
 		{ label: 'Posts', value: 'post', icon: '📡' },
 		{ label: 'Books', value: 'book', icon: '📚' },
-		{ label: 'Wiki', value: 'wiki', icon: '🌱' }
+		{ label: 'Wiki', value: 'wiki', icon: '🌱' },
+		{ label: 'Are.na', value: 'arena', icon: '✳️' }
 	];
 
 	// Each keystroke starts a search; only the latest one's results are shown.
@@ -101,7 +102,7 @@
 	}
 
 	const emptyMessage = $derived(
-		phase === 'unavailable' ? 'Search isn’t available here. Links still work.' : !query.trim() && filter === 'all' ? 'Search, or pick Books or Wiki to browse them all.' : 'Nothing matches.'
+		phase === 'unavailable' ? 'Search isn’t available here. Links still work.' : !query.trim() && filter === 'all' ? 'Search, or pick Books, Wiki or Are.na to browse them all.' : 'Nothing matches.'
 	);
 </script>
 
@@ -132,7 +133,7 @@
 		</ul>
 	{:else}
 	<div class="controls">
-		<TextField label="Search posts, books and wiki" type="search" bind:value={query} placeholder="Search" autocomplete="off" />
+		<TextField label="Search posts, books, wiki and Are.na" type="search" bind:value={query} placeholder="Search" autocomplete="off" />
 		<SegmentedPill segments={filters} size="sm" label="Show" value={filter} onValueChange={(value) => (filter = value as SourceFilter)} />
 	</div>
 
