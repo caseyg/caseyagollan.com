@@ -118,10 +118,22 @@
 		color: var(--text-muted);
 	}
 
+	/* Section breaks read as three centered dots rather than a rule. */
 	.prose :global(hr) {
 		margin: 2em 0;
 		border: 0;
-		border-top: 1px solid var(--border);
+		overflow: visible;
+		height: auto;
+		color: var(--text-muted);
+		text-align: center;
+		line-height: 1;
+	}
+
+	.prose :global(hr::after) {
+		content: '\2022\2022\2022';
+		letter-spacing: 0.75em;
+		/* Letter spacing trails the last dot, so pull it back to stay centered. */
+		margin-right: -0.75em;
 	}
 
 	.prose :global(img) {
