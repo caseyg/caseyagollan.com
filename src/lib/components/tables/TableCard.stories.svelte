@@ -3,20 +3,26 @@
 	import { blocks, tableSummary } from '$lib/storybook/fixtures';
 	import TableCard from './TableCard.svelte';
 	import TableGrid from './TableGrid.svelte';
+	import { tableWireframe } from '$lib/table-wireframe';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCard', component: TableCard, tags: ['!autodocs'] });
 
-	/** A table's picture as the canvas exports it: blocks where they sit, and an arrow between them. */
-	const picture = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400"><rect x="24" y="24" width="240" height="160" rx="4" fill="gray" stroke="blue" stroke-width="2"/><rect x="380" y="60" width="180" height="300" rx="4" fill="#333"/><rect x="60" y="230" width="240" height="140" rx="4" fill="gray" stroke="blue" stroke-width="2"/><path d="M264 110 C320 110 330 160 378 170" fill="none" stroke="white" stroke-width="3"/></svg>'
-	)}`;
+	/** A table's picture as the server draws it: blocks as boxes where they sit, arrows as curves. */
+	const shape = (id: string, x: number, y: number, w = 240, h = 160) => ({ id, typeName: 'shape', type: 'site-block', x, y, props: { w, h } });
+	const arrow = (id: string, from: string, to: string) => [
+		{ id, typeName: 'shape', type: 'arrow', x: 0, y: 0, props: {} },
+		{ id: `binding:${id}a`, typeName: 'binding', type: 'arrow', fromId: id, toId: from, props: { terminal: 'start' } },
+		{ id: `binding:${id}b`, typeName: 'binding', type: 'arrow', fromId: id, toId: to, props: { terminal: 'end' } }
+	];
+	const records = [shape('shape:a', 0, 200), shape('shape:b', 400, 0), shape('shape:c', 400, 220), shape('shape:d', 400, 440, 180, 300), ...arrow('shape:x', 'shape:a', 'shape:b'), ...arrow('shape:y', 'shape:a', 'shape:c'), ...arrow('shape:z', 'shape:a', 'shape:d')];
+	const picture = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(tableWireframe({ schema: {}, store: Object.fromEntries(records.map((r) => [r.id, r])) })!)}`;
 </script>
 
 <Story asChild name="Default">
 	<div class="one"><TableCard table={tableSummary} href="#table" /></div>
 </Story>
 
-<!-- With its picture: the table as it is laid out, arrows and all. -->
+<!-- With its picture: the table as it is laid out, arrows and all, in the manner of Obsidian's Canvas previews. -->
 <Story asChild name="With picture">
 	<div class="one"><TableCard table={tableSummary} href="#table" thumbnail={picture} /></div>
 </Story>

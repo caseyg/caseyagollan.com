@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { mount, unmount } from 'svelte';
 import { BaseBoxShapeUtil, HTMLContainer, T, type RecordProps, type TLShape } from 'tldraw';
 import BlockCard from '../BlockCard.svelte';
-import { BlockSvg, pictureData } from './block-svg';
 import { BLOCK_SHAPE, blockHref, isBlockKind, type Block } from '$lib/tables';
 import { wikiHref } from '$lib/wiki/links';
 import { quoteSize } from '$lib/table-pieces';
@@ -99,13 +98,6 @@ export class SiteBlockShapeUtil extends BaseBoxShapeUtil<SiteBlockShape> {
 	override onDoubleClick(shape: SiteBlockShape) {
 		openBlock(shape);
 		return { id: shape.id, type: shape.type };
-	}
-
-	/** How the block appears in exports, such as the table's picture on the browse page. */
-	override async toSvg(shape: SiteBlockShape) {
-		const block = blockOf(shape.props);
-		const picture = block.image ? await pictureData(block.image, Math.min(400, shape.props.w * 2)) : null;
-		return <BlockSvg block={block} w={shape.props.w} h={shape.props.h} picture={picture} />;
 	}
 
 	override getShapeName(shape: SiteBlockShape) {

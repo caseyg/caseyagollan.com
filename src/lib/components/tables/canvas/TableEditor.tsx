@@ -42,8 +42,6 @@ export interface TableApi {
 	zoomToFit(): void;
 	/** The canvas's document, as saved. */
 	document(): unknown;
-	/** A picture of the whole table as an SVG document, or null for an empty table. */
-	thumbnail(): Promise<string | null>;
 	subscribe(listener: (state: TableState) => void): () => void;
 }
 
@@ -124,13 +122,6 @@ function apiFor(editor: Editor): TableApi {
 		redo: () => editor.redo(),
 		zoomToFit: () => editor.zoomToFit({ animation: { duration: 220 } }),
 		document: () => getSnapshot(editor.store).document,
-		async thumbnail() {
-			const ids = [...editor.getCurrentPageShapeIds()];
-			if (!ids.length) return null;
-			const result = await editor.getSvgString(ids, { background: false, darkMode: true, padding: 24 });
-			// Embedded fonts would make the picture hundreds of kilobytes; it falls back to the system's.
-			return result ? result.svg.replace(/@font-face\s*\{[^}]*\}/g, '') : null;
-		},
 		subscribe(listener) {
 			return react('table state', () => {
 				const only = editor.getOnlySelectedShape();

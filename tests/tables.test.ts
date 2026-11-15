@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { blockKey, blockUrl, cleanBlock, isPublished, cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, BLOCK_SHAPE, type Table } from '../src/lib/tables';
 import { blockFromSearch } from '../src/lib/table-sources';
 import { passageUrl, piecesPath, quoteSize } from '../src/lib/table-pieces';
+import { connectorPath, tableLayout, tableWireframe } from '../src/lib/table-wireframe';
 import { listPublishedTables, listTables, readTable, writeTable } from '../src/lib/server/tables';
 import { renderContent } from '../src/lib/utils/renderContent';
 
@@ -152,5 +153,39 @@ describe('table pieces', () => {
 		expect(blockKey({ url: '/a', image: '/1.jpg' })).not.toBe(blockKey({ url: '/a', image: '/2.jpg' }));
 		expect(blockKey({ url: '/a' })).toBe('/a');
 		expect(cleanBlock({ kind: 'quote', url: '/a#:~:text=x', title: 'A', excerpt: 'Words' })).toMatchObject({ kind: 'quote' });
+	});
+});
+
+describe('table pictures', () => {
+	const doc = (records: Record<string, unknown>[]) => ({ schema: {}, store: Object.fromEntries(records.map((r) => [r.id as string, r])) });
+	const block = (id: string, x: number, y: number) => ({ id, typeName: 'shape', type: 'site-block', parentId: 'page:page', x, y, props: { w: 240, h: 240, kind: 'post', url: '/', title: 'A' } });
+
+	test('lays out blocks, notes and frames where they sit, with children inside frames', () => {
+		const { boxes } = tableLayout(doc([block('shape:a', 0, 0), { id: 'shape:f', typeName: 'shape', type: 'frame', x: 500, y: 0, props: { w: 400, h: 300 } }, { id: 'shape:n', typeName: 'shape', type: 'note', parentId: 'shape:f', x: 10, y: 20, props: { scale: 1 } }, { id: 'shape:d', typeName: 'shape', type: 'draw', x: 0, y: 0, props: {} }]));
+		expect(boxes.map((b) => [b.id, b.x, b.y, b.w, b.h, !!b.frame])).toEqual([
+			['shape:a', 0, 0, 240, 240, false],
+			['shape:f', 500, 0, 400, 300, true],
+			['shape:n', 510, 20, 200, 200, false]
+		]);
+	});
+
+	test('joins bound arrows from the facing sides of their boxes', () => {
+		const layout = tableLayout(doc([
+			block('shape:a', 0, 0),
+			block('shape:b', 600, 0),
+			{ id: 'shape:arrow', typeName: 'shape', type: 'arrow', x: 0, y: 0, props: { start: { x: 0, y: 0 }, end: { x: 10, y: 10 } } },
+			{ id: 'binding:1', typeName: 'binding', type: 'arrow', fromId: 'shape:arrow', toId: 'shape:a', props: { terminal: 'start' } },
+			{ id: 'binding:2', typeName: 'binding', type: 'arrow', fromId: 'shape:arrow', toId: 'shape:b', props: { terminal: 'end' } }
+		]));
+		expect(layout.connectors).toHaveLength(1);
+		expect(connectorPath(layout.connectors[0])).toMatch(/^M240 120C.* 600 120$/);
+	});
+
+	test('draws nothing for an empty table, and an inert SVG otherwise', () => {
+		expect(tableWireframe(null)).toBeNull();
+		expect(tableWireframe(doc([]))).toBeNull();
+		const svg = tableWireframe(doc([block('shape:a', 0, 0)]))!;
+		expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
+		expect(svg).not.toMatch(/<text|<image|<foreignObject|<script|href/);
 	});
 });

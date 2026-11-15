@@ -1,5 +1,6 @@
 import { ownerHint } from './owner';
 import { searchBlocks } from './table-sources';
+import { tableWireframe } from './table-wireframe';
 import { byUpdated, cleanName, emptyTable, linkBlock, summarizeDocument, toSummary, validId, type Block, type Table, type TableSummary } from './tables';
 
 /**
@@ -60,8 +61,6 @@ async function send<T>(session: TablesSession, method: string, path: string, bod
 interface DemoTable extends Table {
 	/** Blocks to set out when the sample table first opens. */
 	seed?: Block[];
-	/** The table's picture, kept with it in the demo. */
-	svg?: string;
 }
 
 function demoStore(): Record<string, DemoTable> {
@@ -97,7 +96,7 @@ export async function listDemoTables(): Promise<TableSummary[]> {
 		store[sample.id] = sample;
 		writeDemo(store);
 	}
-	return Object.values(store).map(({ seed: _seed, svg: _svg, ...table }) => toSummary(table)).sort(byUpdated);
+	return Object.values(store).map(({ seed: _seed, ...table }) => toSummary(table)).sort(byUpdated);
 }
 
 export function readDemoTable(id: string): DemoTable | null {
@@ -114,8 +113,8 @@ export async function createTable(session: TablesSession, name = 'Untitled table
 	return (await send<{ table: Table }>(session, 'POST', '/api/tables', { name })).table;
 }
 
-/** Saves a rename, a canvas, its picture, publishing, or several together, and returns the table's new summary. */
-export async function saveTable(session: TablesSession, id: string, change: { name?: string; document?: unknown; thumbnail?: string; published?: boolean }): Promise<TableSummary> {
+/** Saves a rename, a canvas, publishing, or several together, and returns the table's new summary. */
+export async function saveTable(session: TablesSession, id: string, change: { name?: string; document?: unknown; published?: boolean }): Promise<TableSummary> {
 	if (session.mode === 'demo') {
 		const store = demoStore();
 		const current = store[id] ?? emptyTable('Untitled table', id);
@@ -127,12 +126,8 @@ export async function saveTable(session: TablesSession, id: string, change: { na
 			delete next.seed;
 			Object.assign(next, summarizeDocument(change.document));
 		}
-		if (change.thumbnail !== undefined) {
-			next.svg = change.thumbnail;
-			next.thumb = next.updated;
-		}
 		writeDemo({ ...store, [id]: next });
-		const { seed: _seed, svg: _svg, ...table } = next;
+		const { seed: _seed, ...table } = next;
 		return toSummary(table);
 	}
 	return (await send<{ table: TableSummary }>(session, 'PUT', `/api/tables/${id}`, change)).table;
@@ -141,12 +136,11 @@ export async function saveTable(session: TablesSession, id: string, change: { na
 /** Keeps `?owner=demo` on links between tables in the demo, so a copied link works the same. */
 export const tableHref = (id: string, mode: TablesMode) => `/tables/${id}/${mode === 'demo' ? '?owner=demo' : ''}`;
 
-/** Where a table's picture comes from, or undefined when it has none yet. */
+/** Where a table's picture comes from: drawn by the server from the saved canvas, or here in the demo. */
 export function thumbnailUrl(table: TableSummary, mode: TablesMode): string | undefined {
-	if (!table.thumb) return undefined;
 	if (mode === 'demo') {
-		const svg = readDemoTable(table.id)?.svg;
+		const svg = tableWireframe(readDemoTable(table.id)?.document);
 		return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : undefined;
 	}
-	return `/api/tables/${table.id}/thumbnail?v=${encodeURIComponent(table.thumb)}`;
+	return `/api/tables/${table.id}/thumbnail?v=${encodeURIComponent(table.updated)}`;
 }

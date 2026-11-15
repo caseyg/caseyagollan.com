@@ -30,15 +30,13 @@ export interface TableSummary {
 	updated: string;
 	/** How many blocks are on it. */
 	count: number;
-	/** The first few blocks, for a card whose table has no picture yet. */
+	/** The first few blocks, for a card whose picture doesn't load. */
 	preview: Block[];
 	/**
 	 * Whether visitors can see it. New tables start as drafts (false), seen only by the owner; tables
 	 * from before drafts have no flag and stay public.
 	 */
 	published?: boolean;
-	/** When the table's picture (an SVG drawn from the canvas) was last saved; absent until it first is. */
-	thumb?: string;
 }
 
 /** A table with its canvas: a tldraw store snapshot's document (`{ store, schema }`). */
@@ -57,7 +55,6 @@ export const POST_ICON: Record<string, string> = { note: '📝', article: '📄'
 export const MAX_NAME = 120;
 export const MAX_TABLES = 500;
 export const MAX_DOCUMENT_BYTES = 2_000_000;
-export const MAX_THUMBNAIL_BYTES = 600_000;
 const MAX_TEXT = 600;
 const PREVIEW_COUNT = 4;
 
@@ -132,11 +129,6 @@ export function validDocument(value: unknown): boolean {
 	const { store, schema } = value as { store?: unknown; schema?: unknown };
 	if (!store || typeof store !== 'object' || !schema || typeof schema !== 'object') return false;
 	return JSON.stringify(value).length <= MAX_DOCUMENT_BYTES;
-}
-
-/** A table's picture must be a lone SVG document of a sensible size. It is only ever shown as an image. */
-export function validThumbnail(value: unknown): value is string {
-	return typeof value === 'string' && /^<svg[\s>]/.test(value.trimStart()) && value.length <= MAX_THUMBNAIL_BYTES;
 }
 
 export function emptyTable(name: string, id = newTableId(), now = new Date().toISOString()): Table {
