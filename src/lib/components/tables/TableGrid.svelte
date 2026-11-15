@@ -6,15 +6,17 @@
 		tables: TableSummary[];
 		/** Where each table opens. */
 		href: (id: string) => string;
+		/** Where each table's picture is, if it has one. */
+		thumbnail?: (table: TableSummary) => string | undefined;
 	}
 
-	let { tables, href }: Props = $props();
+	let { tables, href, thumbnail }: Props = $props();
 </script>
 
 {#if tables.length}
 	<ul class="table-grid">
 		{#each tables as table (table.id)}
-			<li><TableCard {table} href={href(table.id)} /></li>
+			<li><TableCard {table} href={href(table.id)} thumbnail={thumbnail?.(table)} /></li>
 		{/each}
 	</ul>
 {:else}

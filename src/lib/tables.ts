@@ -3,13 +3,15 @@
  * Shared by the browser and the server; the canvas itself is a tldraw document.
  */
 
-export type BlockKind = 'post' | 'book' | 'wiki' | 'link';
+/** `image` and `quote` are pieces taken out of a page: one of its pictures, or one of its paragraphs. */
+export type BlockKind = 'post' | 'book' | 'wiki' | 'link' | 'image' | 'quote';
 
 /** What a block shows, saved with it so a table reads the same if the source moves or changes. */
 export interface Block {
 	kind: BlockKind;
 	/** Opened on double-click. Site pages are root-relative; others are absolute. */
 	url: string;
+	/** A quote's title is the page it comes from; its words are the excerpt. */
 	title: string;
 	/** A short line under the title: post type and date, a book's author, a link's host. */
 	meta?: string;
@@ -28,8 +30,10 @@ export interface TableSummary {
 	updated: string;
 	/** How many blocks are on it. */
 	count: number;
-	/** The first few blocks, for the card's thumbnail. */
+	/** The first few blocks, for a card whose table has no picture yet. */
 	preview: Block[];
+	/** When the table's picture (an SVG drawn from the canvas) was last saved; absent until it first is. */
+	thumb?: string;
 }
 
 /** A table with its canvas: a tldraw store snapshot's document (`{ store, schema }`). */
@@ -38,18 +42,22 @@ export interface Table extends TableSummary {
 }
 
 export const BLOCK_SHAPE = 'site-block';
-export const KIND_ICON: Record<BlockKind, string> = { post: '📡', book: '📚', wiki: '🌱', link: '🔗' };
-export const KIND_LABEL: Record<BlockKind, string> = { post: 'Post', book: 'Book', wiki: 'Wiki', link: 'Link' };
+export const KIND_ICON: Record<BlockKind, string> = { post: '📡', book: '📚', wiki: '🌱', link: '🔗', image: '🖼️', quote: '✂️' };
+export const KIND_LABEL: Record<BlockKind, string> = { post: 'Post', book: 'Book', wiki: 'Wiki', link: 'Link', image: 'Image', quote: 'Excerpt' };
 /** Post types' emoji, as in the posts feed. */
 export const POST_ICON: Record<string, string> = { note: '📝', article: '📄', photo: '📷', video: '🎬', bookmark: '🔖', like: '⭐', repost: '🔁', reply: '💬', checkin: '📍', rsvp: '📅' };
 
 export const MAX_NAME = 120;
 export const MAX_TABLES = 500;
 export const MAX_DOCUMENT_BYTES = 2_000_000;
+export const MAX_THUMBNAIL_BYTES = 600_000;
 const MAX_TEXT = 600;
 const PREVIEW_COUNT = 4;
 
-export const isBlockKind = (value: unknown): value is BlockKind => value === 'post' || value === 'book' || value === 'wiki' || value === 'link';
+export const isBlockKind = (value: unknown): value is BlockKind => typeof value === 'string' && Object.hasOwn(KIND_ICON, value);
+
+/** What tells blocks apart: their address, and their picture for pictures taken from the same page. */
+export const blockKey = (block: Pick<Block, 'url' | 'image'>) => (block.image ? `${block.url} ${block.image}` : block.url);
 export const validId = (value: unknown): value is string => typeof value === 'string' && /^[a-z0-9-]{4,40}$/.test(value);
 
 export function newTableId(): string {
@@ -117,6 +125,11 @@ export function validDocument(value: unknown): boolean {
 	const { store, schema } = value as { store?: unknown; schema?: unknown };
 	if (!store || typeof store !== 'object' || !schema || typeof schema !== 'object') return false;
 	return JSON.stringify(value).length <= MAX_DOCUMENT_BYTES;
+}
+
+/** A table's picture must be a lone SVG document of a sensible size. It is only ever shown as an image. */
+export function validThumbnail(value: unknown): value is string {
+	return typeof value === 'string' && /^<svg[\s>]/.test(value.trimStart()) && value.length <= MAX_THUMBNAIL_BYTES;
 }
 
 export function emptyTable(name: string, id = newTableId(), now = new Date().toISOString()): Table {

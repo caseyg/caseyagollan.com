@@ -26,7 +26,7 @@ export function blockFromSearch(data: PagefindData): Block {
 	return { kind: 'post', url, title, meta: [type, date].filter(Boolean).join(' · ') || undefined, excerpt, image, icon: POST_ICON[type] };
 }
 
-export type SourceFilter = 'all' | Exclude<BlockKind, 'link'>;
+export type SourceFilter = 'all' | Extract<BlockKind, 'post' | 'book' | 'wiki'>;
 
 /**
  * Site content matching a query, best first: posts, books and wiki pages. An empty query lists a

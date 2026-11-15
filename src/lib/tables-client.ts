@@ -58,6 +58,8 @@ async function send<T>(session: TablesSession, method: string, path: string, bod
 interface DemoTable extends Table {
 	/** Blocks to set out when the sample table first opens. */
 	seed?: Block[];
+	/** The table's picture, kept with it in the demo. */
+	svg?: string;
 }
 
 function demoStore(): Record<string, DemoTable> {
@@ -92,7 +94,7 @@ export async function listDemoTables(): Promise<TableSummary[]> {
 		store[sample.id] = sample;
 		writeDemo(store);
 	}
-	return Object.values(store).map(({ seed: _seed, ...table }) => toSummary(table)).sort(byUpdated);
+	return Object.values(store).map(({ seed: _seed, svg: _svg, ...table }) => toSummary(table)).sort(byUpdated);
 }
 
 export function readDemoTable(id: string): DemoTable | null {
@@ -110,7 +112,7 @@ export async function createTable(session: TablesSession, name = 'Untitled table
 }
 
 /** Saves a rename, a canvas, or both, and returns the table's new summary. */
-export async function saveTable(session: TablesSession, id: string, change: { name?: string; document?: unknown }): Promise<TableSummary> {
+export async function saveTable(session: TablesSession, id: string, change: { name?: string; document?: unknown; thumbnail?: string }): Promise<TableSummary> {
 	if (session.mode === 'demo') {
 		const store = demoStore();
 		const current = store[id] ?? emptyTable('Untitled table', id);
@@ -121,8 +123,12 @@ export async function saveTable(session: TablesSession, id: string, change: { na
 			delete next.seed;
 			Object.assign(next, summarizeDocument(change.document));
 		}
+		if (change.thumbnail !== undefined) {
+			next.svg = change.thumbnail;
+			next.thumb = next.updated;
+		}
 		writeDemo({ ...store, [id]: next });
-		const { seed: _seed, ...table } = next;
+		const { seed: _seed, svg: _svg, ...table } = next;
 		return toSummary(table);
 	}
 	return (await send<{ table: TableSummary }>(session, 'PUT', `/api/tables/${id}`, change)).table;
@@ -130,3 +136,13 @@ export async function saveTable(session: TablesSession, id: string, change: { na
 
 /** Keeps `?owner=demo` on links between tables in the demo, so a copied link works the same. */
 export const tableHref = (id: string, mode: TablesMode) => `/tables/${id}/${mode === 'demo' ? '?owner=demo' : ''}`;
+
+/** Where a table's picture comes from, or undefined when it has none yet. */
+export function thumbnailUrl(table: TableSummary, mode: TablesMode): string | undefined {
+	if (!table.thumb) return undefined;
+	if (mode === 'demo') {
+		const svg = readDemoTable(table.id)?.svg;
+		return svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : undefined;
+	}
+	return `/api/tables/${table.id}/thumbnail?v=${encodeURIComponent(table.thumb)}`;
+}

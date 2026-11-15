@@ -5,7 +5,7 @@
 	import Nav from '$lib/components/Nav.svelte';
 	import { TableGrid, TABLES_CRUMB } from '$lib/components/tables';
 	import { Button, Notice, Page, PageHeader } from '$lib/components/ui';
-	import { createTable, listDemoTables, tableHref, tablesSession, type TablesSession } from '$lib/tables-client';
+	import { createTable, listDemoTables, tableHref, tablesSession, thumbnailUrl, type TablesSession } from '$lib/tables-client';
 	import type { TableSummary } from '$lib/tables';
 
 	let { data }: { data: PageData } = $props();
@@ -59,7 +59,7 @@
 	{#if session.mode === 'demo'}<Notice>Preview only: tables are saved in this browser.</Notice>{/if}
 	{#if failure}<Notice tone="error">{failure}</Notice>{/if}
 
-	<TableGrid {tables} href={(id) => tableHref(id, session.mode)} />
+	<TableGrid {tables} href={(id) => tableHref(id, session.mode)} thumbnail={(table) => thumbnailUrl(table, session.mode)} />
 </Page>
 
 <style>

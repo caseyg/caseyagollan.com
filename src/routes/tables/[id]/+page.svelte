@@ -6,6 +6,8 @@
 	import { PageHeader } from '$lib/components/ui';
 	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { searchBlocks } from '$lib/table-sources';
+	import { pagePieces } from '$lib/table-pieces';
+	import { wikiHref } from '$lib/wiki/links';
 	import type { Block } from '$lib/tables';
 
 	let { data }: { data: PageData } = $props();
@@ -14,11 +16,15 @@
 	let name = $state('');
 	let document: unknown = $state.raw(null);
 	let seed: Block[] | undefined;
+	/** Whether the table has a picture for the browse page yet; tables saved before pictures don't. */
+	let hasThumbnail = !!data.table?.thumb;
 	let missing = $state(false);
 
 	let api = $state<TableApi>();
-	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true });
+	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [] });
 	let adding = $state(false);
+	/** The block that was selected when Add opened; the picker offers its page's pieces. */
+	let source = $state<Block>();
 	let renaming = $state(false);
 	let renameAnchor = $state<HTMLElement | null>(null);
 	let status = $state<'saved' | 'unsaved' | 'saving' | 'failed'>('saved');
@@ -44,6 +50,7 @@
 				name = local.name;
 				document = local.document;
 				seed = local.seed;
+				hasThumbnail = !!local.thumb;
 			}
 		})();
 
@@ -62,6 +69,14 @@
 			ready.addBlocks(seed, undefined, { columns: 4, select: false });
 			ready.zoomToFit();
 			seed = undefined;
+		}
+		// A table without a picture gets one once its blocks' images have had a moment to load.
+		if (editable && !hasThumbnail && !view.empty) {
+			setTimeout(async () => {
+				const thumbnail = await ready.thumbnail().catch(() => null);
+				if (thumbnail && session) await saveTable(session, data.id, { thumbnail }).catch(console.error);
+				hasThumbnail = true;
+			}, 1500);
 		}
 	}
 
@@ -86,7 +101,9 @@
 		const next = pending;
 		pending = undefined;
 		status = 'saving';
-		saving = saveTable(session, data.id, { document: next })
+		// The browse page's picture is drawn from the canvas as it is now, alongside the document.
+		const thumbnail = (await api?.thumbnail().catch(() => null)) ?? undefined;
+		saving = saveTable(session, data.id, { document: next, thumbnail })
 			.then(() => {
 				if (pending === undefined) status = 'saved';
 			})
@@ -110,6 +127,16 @@
 			status = 'failed';
 		}
 	}
+
+	// Pressing anywhere outside the picker (and the toolbar that opens it) closes it.
+	$effect(() => {
+		if (!adding) return;
+		const close = (event: PointerEvent) => {
+			if (!(event.target as Element | null)?.closest('.dock--picker, .dock--toolbar')) adding = false;
+		};
+		window.addEventListener('pointerdown', close, true);
+		return () => window.removeEventListener('pointerdown', close, true);
+	});
 
 	function openRename() {
 		renameAnchor = window.document.querySelector<HTMLElement>('.page-header .trail button.segment');
@@ -158,12 +185,15 @@
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
-				onadd={() => (adding = !adding)}
+				onadd={() => {
+					source = view.selected;
+					adding = !adding;
+				}}
 			/>
 		</div>
 		{#if editable && adding}
 			<div class="dock dock--picker">
-				<BlockPicker search={searchBlocks} onadd={(blocks) => api?.addBlocks(blocks)} onclose={() => (adding = false)} />
+				<BlockPicker search={searchBlocks} placed={view.placed} {source} pieces={(block) => pagePieces(block, wikiHref)} onadd={(blocks) => api?.addBlocks(blocks, undefined, { near: source })} onclose={() => (adding = false)} />
 			</div>
 		{/if}
 	{/if}
