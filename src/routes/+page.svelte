@@ -7,6 +7,8 @@
     import PersistentDocument from "$lib/components/PersistentDocument.svelte";
     import InsightCard from "$lib/components/InsightCard.svelte";
     import GraphNodeMenu from "$lib/components/GraphNodeMenu.svelte";
+    import SoundToggle from "$lib/components/SoundToggle.svelte";
+    import { cue } from "$lib/sound.svelte";
     import { applyAction, curateInsights, emptyCuration, isPinned, parseCuration, type CurationAction, type GraphCuration } from "$lib/graph-curation";
     import { ownerHint } from "$lib/owner";
     import { wikiSourcesFor } from "$lib/wiki-sources";
@@ -550,6 +552,8 @@
                 // Remove placeholder on error
                 insights = insights.filter((i) => i.topic !== topic);
                 insightsByTopic.delete(topic);
+                // The click asked for it, however long ago, so its answer may sound.
+                cue("error", { force: true });
                 return;
             }
 
@@ -575,6 +579,7 @@
 
                 // Trigger reactivity for the Map by creating a new instance
                 insightsByTopic = new Map(insightsByTopic);
+                cue("ready", { force: true });
 
                 // Only rewrite the bio if the insight actually produced text
                 if (data.insight) {
@@ -592,6 +597,7 @@
 
     // Handle clicking on an insight card
     function handleInsightCardClick(topic: string) {
+        if (topic !== activeInsightTopic) cue("select");
         activeInsightTopic = topic;
         // Focus the graph on this node
         graphFocusNodeId = topic;
@@ -672,6 +678,7 @@
 <!-- The same top-left title every other page pins, so the corner reads alike across the site. -->
 <Corner as="nav" side="start" aria-label="On this page">
     <SegmentedPill size="md" tone="quiet" compact segments={[{ label: section.label, href: '#top', icon: section.icon, current: true, menu: sections, menuActive: section.value }]} />
+    <SoundToggle />
 </Corner>
 
 <section class="hero-container" id="top">

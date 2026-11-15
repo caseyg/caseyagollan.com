@@ -116,3 +116,7 @@ export const Compact: Story = {
 export const LargeWithCurrent: Story = {
 	args: { size: 'lg', segments: [segments[0], { ...segments[1], current: true, count: 42 }] }
 };
+/** A segment with `onclick` and `pressed` is a toggle button, announced as on or off; the icon shows which. */
+export const ToggleSegment: Story = {
+	args: { size: 'md', compact: true, label: undefined, tone: 'quiet', segments: [{ label: 'Sound', icon: '🔊', pressed: true, title: 'Turn sound off', onclick: () => {} }] }
+};

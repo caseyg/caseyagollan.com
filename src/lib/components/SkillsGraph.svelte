@@ -13,6 +13,7 @@
 	import { goto } from '$app/navigation';
 	import { wikiHref } from '$lib/wiki/links';
 	import LinkPreviewCard, { faviconUrl, type LinkPreviewImage } from '$lib/components/ui/LinkPreviewCard.svelte';
+	import { cue } from '$lib/sound.svelte';
 
 	let {
 		onTopicClick,
@@ -31,6 +32,14 @@
 
 	let graphContainer: HTMLDivElement;
 	let focusedNode: string | null = $state(null);
+
+	// Focusing a node further from Casey rises; coming back toward the center falls.
+	const DEPTH: Partial<Record<Node['type'], number>> = { center: 0, category: 1, subcategory: 2, node: 3 };
+	function cueFocus(next: Pick<Node, 'id' | 'type'>) {
+		const from = focusedNode ? allNodes.find((node) => node.id === focusedNode) ?? shownNodes.find((node) => node.id === focusedNode) : undefined;
+		const deeper = (DEPTH[next.type] ?? 3) >= (from ? DEPTH[from.type] ?? 3 : 0);
+		cue('select', { direction: deeper ? 'forward' : 'back' });
+	}
 
 	// The nodes on screen are also commands in the site's command palette.
 	let shownNodes = $state<Pick<Node, 'id' | 'type' | 'url' | 'title'>[]>([]);
@@ -54,6 +63,7 @@
 				if (node.url) openSource(node.url);
 				return;
 			}
+			if (node) cueFocus(node);
 			applyFocusMode(id);
 			focusNodeId = id;
 			onTopicClick?.(id);
@@ -61,6 +71,8 @@
 	}]);
 	/** Casey's own wiki pages open in the wiki browser here; other sources open in a new tab. */
 	function openSource(url: string) {
+		// Before opening the tab, which uses up the click's permission to play sound.
+		cue('navigate');
 		const local = wikiHref(url);
 		if (local) goto(local);
 		else window.open(url, '_blank');
@@ -845,6 +857,7 @@
 				}
 
 				// Focus on the clicked node (including Casey)
+				cueFocus(d);
 				applyFocusMode(d.id);
 				focusNodeId = d.id;
 				if (onTopicClick) {
@@ -884,18 +897,23 @@
 	}
 
 	// Drag functions for the simulation
+	// A drag only counts once the node has moved; a press that stays put is a click.
+	let dragMoved = false;
 	function dragstarted(event: any) {
+		dragMoved = false;
 		if (!event.active) simulation.alphaTarget(0.3).restart();
 		event.subject.fx = event.subject.x;
 		event.subject.fy = event.subject.y;
 	}
 
 	function dragged(event: any) {
+		dragMoved = true;
 		event.subject.fx = event.x;
 		event.subject.fy = event.y;
 	}
 
 	function dragended(event: any) {
+		if (dragMoved) cue('tap');
 		if (!event.active) simulation.alphaTarget(0);
 		event.subject.fx = null;
 		event.subject.fy = null;
