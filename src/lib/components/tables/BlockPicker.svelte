@@ -136,7 +136,7 @@
 		</ul>
 	{:else}
 	<div class="controls">
-		<TextField label="Search posts, books, wiki and Are.na" type="search" bind:value={query} placeholder="Search" autocomplete="off" />
+		<TextField label={owner ? "Search posts, books, wiki, Are.na and Raindrop" : "Search posts, books, wiki and Are.na"} type="search" bind:value={query} placeholder="Search" autocomplete="off" />
 		<SegmentedPill segments={filters} size="sm" label="Show" compact={owner ? 'always' : false} value={filter} onValueChange={(value) => (filter = value as SourceFilter)} />
 	</div>
 
