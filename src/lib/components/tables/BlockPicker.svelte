@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { linkBlock, type Block } from '$lib/tables';
+	import { blockKey, KIND_LABEL, linkBlock, type Block } from '$lib/tables';
 	import type { SourceFilter } from '$lib/table-sources';
 	import Button from '../ui/Button.svelte';
 	import SegmentedPill from '../ui/SegmentedPill.svelte';
@@ -13,14 +13,48 @@
 		/** Adds blocks to the middle of the table. Blocks can also be dragged onto it. */
 		onadd: (blocks: Block[]) => void;
 		onclose?: () => void;
+		/** Blocks already on the table, by `blockKey`; they are left out of the results. */
+		placed?: string[];
+		/** The block selected when the picker opened: its page's pictures, posts and paragraphs are offered first. */
+		source?: Block;
+		/** Reads a block's page into pieces. */
+		pieces?: (block: Block) => Promise<Block[]>;
 		/** Starting query and filter, for stories. */
 		query?: string;
 		filter?: SourceFilter;
 	}
 
-	let { search, onadd, onclose, query = $bindable(''), filter = $bindable('all') }: Props = $props();
+	let { search, onadd, onclose, placed = [], source, pieces, query = $bindable(''), filter = $bindable('all') }: Props = $props();
 
-	let results = $state<Block[]>([]);
+	const onTable = $derived(new Set(placed));
+	let found = $state<Block[]>([]);
+	const results = $derived(found.filter((block) => !onTable.has(blockKey(block))));
+
+	// The selected block's page, read once per block; the picker opens on it when it has pieces.
+	let parts = $state<Block[] | null>(null);
+	let tab = $state<'page' | 'site'>('site');
+	const sourceKey = $derived(source && pieces ? blockKey(source) : '');
+	$effect(() => {
+		const key = sourceKey;
+		parts = null;
+		if (!key || !source || !pieces) return;
+		let live = true;
+		tab = 'page';
+		pieces(source).then((next) => {
+			if (!live) return;
+			parts = next;
+			if (!next.length) tab = 'site';
+		});
+		return () => {
+			live = false;
+		};
+	});
+	const partsLeft = $derived((parts ?? []).filter((block) => !onTable.has(blockKey(block))));
+	const showPage = $derived(!!sourceKey && tab === 'page' && parts?.length !== 0);
+	const tabs = $derived([
+		{ label: 'This page', value: 'page', icon: '✂️' },
+		{ label: 'Search', value: 'site', icon: '🔎' }
+	]);
 	let phase = $state<'idle' | 'loading' | 'done' | 'unavailable'>('idle');
 	let link = $state('');
 	let linkError = $state('');
@@ -40,10 +74,10 @@
 		const f = filter;
 		phase = 'loading';
 		const timer = setTimeout(async () => {
-			const found = await search(q, f).catch(() => []);
+			const matches = await search(q, f).catch(() => []);
 			if (run !== latest) return;
-			results = found ?? [];
-			phase = found === null ? 'unavailable' : 'done';
+			found = matches ?? [];
+			phase = matches === null ? 'unavailable' : 'done';
 		}, q ? 150 : 0);
 		return () => clearTimeout(timer);
 	});
@@ -77,6 +111,26 @@
 		{#if onclose}<Button variant="icon" size="sm" icon="close" label="Close" onclick={onclose} />{/if}
 	</header>
 
+	{#if sourceKey && parts?.length !== 0}
+		<div class="tabs">
+			<SegmentedPill segments={tabs} size="sm" label="Add from" value={tab} onValueChange={(value) => (tab = value as 'page' | 'site')} />
+		</div>
+	{/if}
+
+	{#if showPage}
+		<p class="hint">Pieces of <strong>{source?.title}</strong>. Drag onto the table, or click to add.</p>
+		<ul class="results" aria-busy={parts === null}>
+			{#each partsLeft as block (blockKey(block))}
+				<li>
+					<button class="result" type="button" draggable="true" ondragstart={(event) => ondragstart(event, block)} onclick={() => onadd([block])} title="Add this {KIND_LABEL[block.kind].toLowerCase()}">
+						<BlockCard {block} layout="row" />
+					</button>
+				</li>
+			{:else}
+				<li class="empty">{parts === null ? 'Reading the page…' : 'Every piece is on the table.'}</li>
+			{/each}
+		</ul>
+	{:else}
 	<div class="controls">
 		<TextField label="Search posts, books and wiki" type="search" bind:value={query} placeholder="Search" autocomplete="off" />
 		<SegmentedPill segments={filters} size="sm" label="Show" value={filter} onValueChange={(value) => (filter = value as SourceFilter)} />
@@ -85,7 +139,7 @@
 	<p class="hint">Drag onto the table, or click to add.</p>
 
 	<ul class="results" aria-busy={phase === 'loading'}>
-		{#each results as block (block.url)}
+		{#each results as block (blockKey(block))}
 			<li>
 				<button class="result" type="button" draggable="true" ondragstart={(event) => ondragstart(event, block)} onclick={() => onadd([block])} title="Add “{block.title}”">
 					<BlockCard {block} layout="row" />
@@ -95,6 +149,7 @@
 			{#if phase !== 'loading'}<li class="empty">{emptyMessage}</li>{/if}
 		{/each}
 	</ul>
+	{/if}
 
 	<form class="link" onsubmit={addLink}>
 		<TextField label="Add a link" type="url" inputmode="url" bind:value={link} placeholder="https://" hint={linkError || 'Or paste a link straight onto the table.'} />
@@ -129,6 +184,15 @@
 	.heading {
 		margin: 0;
 		font-size: var(--fs-base);
+		font-weight: var(--fw-semibold);
+	}
+
+	.tabs {
+		margin-top: var(--space-2);
+	}
+
+	.hint strong {
+		color: var(--text-secondary);
 		font-weight: var(--fw-semibold);
 	}
 

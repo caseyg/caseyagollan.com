@@ -12,8 +12,8 @@ import {
 	type TLShapeId
 } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { BLOCK_SHAPE, linkBlock, type Block } from '$lib/tables';
-import { SiteBlockShapeUtil, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
+import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
+import { SiteBlockShapeUtil, blockOf, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
 export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser';
@@ -23,21 +23,27 @@ export interface TableState {
 	canUndo: boolean;
 	canRedo: boolean;
 	empty: boolean;
+	/** The blocks on the table, by `blockKey`, so the picker can leave them out. */
+	placed: string[];
+	/** The block selected on its own, whose page's pieces the picker offers. */
+	selected?: Block;
 }
 
 /** What the Svelte page drives the canvas with. */
 export interface TableApi {
 	/**
-	 * Adds blocks with their top-left at a screen point, or around the middle of the view, in a row
-	 * or wrapped into `columns`.
+	 * Adds blocks with their top-left at a screen point, or around the middle of the view (or beside
+	 * the block they were taken from, `near`), in a row or wrapped into `columns`.
 	 */
-	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean }): void;
+	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block }): void;
 	setTool(tool: TableTool): void;
 	undo(): void;
 	redo(): void;
 	zoomToFit(): void;
 	/** The canvas's document, as saved. */
 	document(): unknown;
+	/** A picture of the whole table as an SVG document, or null for an empty table. */
+	thumbnail(): Promise<string | null>;
 	subscribe(listener: (state: TableState) => void): () => void;
 }
 
@@ -55,12 +61,15 @@ const shapeUtils = [SiteBlockShapeUtil];
 const GAP = 24;
 
 /**
- * Where a block added without a drop point goes: the middle of the view, or the nearest free
- * place around it, so it isn't set down on top of another.
+ * Where a block added without a drop point goes: the middle of the view, or just right of the block
+ * it was taken from, or the nearest free place around there, so it isn't set down on top of another.
  */
-function openSpot(editor: Editor, size: { w: number; h: number }): { x: number; y: number } {
+function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block): { x: number; y: number } {
 	const viewport = editor.getViewportPageBounds();
-	const start = { x: viewport.center.x - size.w / 2, y: viewport.center.y - size.h / 2 };
+	const key = near && blockKey(near);
+	const source = key ? editor.getCurrentPageShapes().find((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE) && blockKey((shape as SiteBlockShape).props) === key) : undefined;
+	const beside = source && editor.getShapePageBounds(source);
+	const start = beside ? { x: beside.maxX + GAP, y: beside.minY } : { x: viewport.center.x - size.w / 2, y: viewport.center.y - size.h / 2 };
 	const taken = editor.getCurrentPageShapes().map((shape) => editor.getShapePageBounds(shape)).filter((bounds) => bounds !== undefined);
 	const free = (x: number, y: number) => !taken.some((b) => x < b.maxX + GAP && x + size.w + GAP > b.minX && y < b.maxY + GAP && y + size.h + GAP > b.minY);
 	const step = 40;
@@ -79,9 +88,9 @@ function openSpot(editor: Editor, size: { w: number; h: number }): { x: number; 
 
 function apiFor(editor: Editor): TableApi {
 	return {
-		addBlocks(blocks, at, { columns = blocks.length, select = true } = {}) {
+		addBlocks(blocks, at, { columns = blocks.length, select = true, near } = {}) {
 			if (!blocks.length) return;
-			const origin = at ? editor.screenToPage(at) : openSpot(editor, blockProps(blocks[0]));
+			const origin = at ? editor.screenToPage(at) : openSpot(editor, blockProps(blocks[0]), near);
 			const ids: TLShapeId[] = [];
 			let x = origin.x;
 			let y = origin.y;
@@ -104,19 +113,35 @@ function apiFor(editor: Editor): TableApi {
 			});
 			if (select) editor.select(...ids);
 			editor.setCurrentTool('select');
+			// A block set down out of sight is brought into view.
+			const added = editor.getShapePageBounds(ids[0]);
+			if (!at && added && !editor.getViewportPageBounds().contains(added)) editor.centerOnPoint(added.center, { animation: { duration: 220 } });
 		},
 		setTool: (tool) => editor.setCurrentTool(tool),
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
 		zoomToFit: () => editor.zoomToFit({ animation: { duration: 220 } }),
 		document: () => getSnapshot(editor.store).document,
+		async thumbnail() {
+			const ids = [...editor.getCurrentPageShapeIds()];
+			if (!ids.length) return null;
+			const result = await editor.getSvgString(ids, { background: false, darkMode: true, padding: 24 });
+			// Embedded fonts would make the picture hundreds of kilobytes; it falls back to the system's.
+			return result ? result.svg.replace(/@font-face\s*\{[^}]*\}/g, '') : null;
+		},
 		subscribe(listener) {
 			return react('table state', () => {
+				const only = editor.getOnlySelectedShape();
 				listener({
 					tool: editor.getCurrentToolId(),
 					canUndo: editor.getCanUndo(),
 					canRedo: editor.getCanRedo(),
-					empty: editor.getCurrentPageShapeIds().size === 0
+					empty: editor.getCurrentPageShapeIds().size === 0,
+					placed: editor
+						.getCurrentPageShapes()
+						.filter((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE))
+						.map((shape) => blockKey((shape as SiteBlockShape).props)),
+					selected: only && editor.isShapeOfType(only, BLOCK_SHAPE) ? blockOf((only as SiteBlockShape).props) : undefined
 				});
 			});
 		}

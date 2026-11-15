@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { blockUrl, cleanBlock, cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, BLOCK_SHAPE } from '../src/lib/tables';
+import { blockKey, blockUrl, cleanBlock, cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, BLOCK_SHAPE } from '../src/lib/tables';
 import { blockFromSearch } from '../src/lib/table-sources';
+import { passageUrl, piecesPath, quoteSize } from '../src/lib/table-pieces';
 import { listTables, readTable, writeTable } from '../src/lib/server/tables';
 
 /** An in-memory stand-in for the R2 bucket's get and put. */
@@ -90,5 +91,31 @@ describe('tables', () => {
 		expect((await readTable(store, 'aaaa1111'))?.name).toBe('Renamed');
 		expect(await readTable(store, '../x')).toBeNull();
 		expect(await listTables(undefined)).toEqual([]);
+	});
+});
+
+describe('table pieces', () => {
+	test('reads pieces from posts and wiki pages, not books or links', () => {
+		expect(piecesPath({ kind: 'post', url: '/2026/11/14/changelog' })).toBe('/2026/11/14/changelog');
+		expect(piecesPath({ kind: 'quote', url: '/2026/11/14/changelog#:~:text=Hello' })).toBe('/2026/11/14/changelog');
+		expect(piecesPath({ kind: 'book', url: '/library/1' })).toBeNull();
+		expect(piecesPath({ kind: 'link', url: 'https://example.com/' })).toBeNull();
+		expect(piecesPath({ kind: 'wiki', url: 'https://cag.wiki/A' }, () => '/wiki/a')).toBe('/wiki/a');
+		expect(piecesPath({ kind: 'post', url: 'https://bsky.app/profile/a/post/b' })).toBeNull();
+	});
+
+	test('links a passage by its first words', () => {
+		expect(passageUrl('/a', '  The quick-brown fox jumps over the lazy dog and keeps going ')).toBe('/a#:~:text=The%20quick%2Dbrown%20fox%20jumps%20over%20the%20lazy%20dog');
+	});
+
+	test('sizes quotes to their words', () => {
+		expect(quoteSize('short').h).toBe(140);
+		expect(quoteSize('x'.repeat(2000)).h).toBe(460);
+	});
+
+	test('tells pictures from the same page apart', () => {
+		expect(blockKey({ url: '/a', image: '/1.jpg' })).not.toBe(blockKey({ url: '/a', image: '/2.jpg' }));
+		expect(blockKey({ url: '/a' })).toBe('/a');
+		expect(cleanBlock({ kind: 'quote', url: '/a#:~:text=x', title: 'A', excerpt: 'Words' })).toMatchObject({ kind: 'quote' });
 	});
 });

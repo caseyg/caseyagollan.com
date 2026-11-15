@@ -18,6 +18,10 @@
 	let failed = $state(false);
 	const image = $derived(failed ? undefined : block.image);
 	const tone = $derived(image ? 'picture' : 'text');
+	// A quote leads with its words and names the page they come from underneath.
+	const quote = $derived(block.kind === 'quote' && !!block.excerpt);
+	const heading = $derived(quote ? block.excerpt! : block.title);
+	const line = $derived(quote ? block.title : block.meta);
 </script>
 
 <article class="block-card block-card--{layout} block-card--{tone} block-card--{block.kind} {className}" class:bare data-kind={block.kind}>
@@ -28,9 +32,9 @@
 	{/if}
 	{#if !bare}
 		<div class="body">
-			<h3 class="title">{block.title}</h3>
-			{#if block.meta}<p class="meta">{block.meta}</p>{/if}
-			{#if block.excerpt && layout === 'tile' && !image}<p class="excerpt">{block.excerpt}</p>{/if}
+			<h3 class="title">{heading}</h3>
+			{#if line}<p class="meta">{line}</p>{/if}
+			{#if block.excerpt && layout === 'tile' && !image && !quote}<p class="excerpt">{block.excerpt}</p>{/if}
 		</div>
 	{/if}
 	<span class="tile" role="img" aria-label={KIND_LABEL[block.kind]} title={KIND_LABEL[block.kind]}>{blockIcon(block)}</span>
@@ -80,8 +84,9 @@
 		object-position: top;
 	}
 
-	/* A book is its cover: whole, never cropped. */
-	.block-card--book .media img {
+	/* A book is its cover, and an image is itself: whole, never cropped. */
+	.block-card--book .media img,
+	.block-card--image .media img {
 		object-fit: contain;
 		object-position: center;
 	}
@@ -114,6 +119,23 @@
 		-webkit-line-clamp: 3;
 		line-clamp: 3;
 		overflow: hidden;
+	}
+
+	/* A quote's words read as text, not a heading, and run as long as the block allows. */
+	.block-card--quote .title {
+		flex: 1;
+		min-height: 0;
+		font-weight: var(--fw-regular);
+		line-height: var(--lh-normal);
+		-webkit-line-clamp: unset;
+		line-clamp: unset;
+		mask-image: linear-gradient(to bottom, black 80%, transparent);
+	}
+
+	.block-card--row.block-card--quote .title {
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		mask-image: none;
 	}
 
 	.block-card--picture .title {
