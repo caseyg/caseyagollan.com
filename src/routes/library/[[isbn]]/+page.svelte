@@ -1230,21 +1230,12 @@
 		step(started);
 	}
 
-	// Where the camera looks at an open book: square to its cover, the way the
-	// shelves present one, so the graph turns to the book rather than the book
-	// to the camera. It stands back far enough to keep the neighborhood in view.
-	function bookView(node: Node) {
-		const book = node.__threeObj;
+	// Where the camera looks at an open book: along its cover's facing, levelled
+	// so the world stays upright (OrbitControls never rolls), standing back far
+	// enough to keep the neighborhood in view. The book itself makes up the
+	// remaining tilt and roll, so its cover ends square and upright.
+	function bookView(node: Node, facing: Three.Vector3) {
 		const at = position(node);
-		const facing = new THREE.Vector3(0, 0, 1);
-		if (book) facing.applyQuaternion(book.quaternion);
-		// Steep covers are met at an angle; OrbitControls keeps the world upright.
-		const level = Math.hypot(facing.x, facing.z);
-		if (level < 0.5) {
-			const scale = level > 1e-3 ? 0.5 / level : 0;
-			facing.set(level > 1e-3 ? facing.x * scale : 0, Math.sign(facing.y) * Math.sqrt(0.75), level > 1e-3 ? facing.z * scale : 1);
-		}
-		facing.normalize();
 		const distance = bookViewDistance;
 		// Center the book in the part of the view the sidebar leaves open, as
 		// shelfCoverCamera does: slide along the view's right (desktop sidebar)
@@ -1253,36 +1244,86 @@
 		const viewWidth = graphContainer.clientWidth, viewHeight = graphContainer.clientHeight;
 		const slide = viewWidth > 600 ? 320 / viewHeight * reach : 0;
 		const drop = viewWidth > 600 ? 0 : 0.5 * reach;
-		const right = new THREE.Vector3().crossVectors(facing.clone().negate(), new THREE.Vector3(0, 1, 0)).normalize();
-		const target = { x: at.x + right.x * slide, y: at.y - drop, z: at.z + right.z * slide };
-		return {
-			position: { x: target.x + facing.x * distance, y: target.y + facing.y * distance, z: target.z + facing.z * distance },
-			target
-		};
+		const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), facing).normalize();
+		const target = new THREE.Vector3(at.x + right.x * slide, at.y - drop, at.z + right.z * slide);
+		return { target, distance };
 	}
 
-	// Turn the graph to face the open book, once, then leave the camera to the reader.
-	function aimAtBook(node: Node, animate = true, duration = 1400) {
+	// The direction the camera settles on: the cover's own facing, with its
+	// elevation held within 40 degrees of level.
+	function bookFacing(node: Node) {
+		const facing = new THREE.Vector3(0, 0, 1);
+		const book = node.__threeObj;
+		if (book) facing.applyQuaternion(book.quaternion);
+		const limit = Math.sin(40 * Math.PI / 180);
+		const level = Math.hypot(facing.x, facing.z);
+		if (Math.abs(facing.y) > limit) {
+			const flat = level > 1e-3 ? new THREE.Vector3(facing.x / level, 0, facing.z / level) : (() => {
+				// Cover straight up or down: meet it from where the camera already is.
+				const camera = Graph.camera().position, target = Graph.controls().target;
+				const d = new THREE.Vector3(camera.x - target.x, 0, camera.z - target.z);
+				return d.lengthSq() > 1e-6 ? d.normalize() : new THREE.Vector3(0, 0, 1);
+			})();
+			const cos = Math.sqrt(1 - limit * limit);
+			facing.set(flat.x * cos, Math.sign(facing.y) * limit, flat.z * cos);
+		}
+		return facing.normalize();
+	}
+
+	// Upright and square to a camera looking back along `facing`.
+	function uprightToward(facing: Three.Vector3) {
+		const up = new THREE.Vector3(0, 1, 0).addScaledVector(facing, -facing.y).normalize();
+		const x = new THREE.Vector3().crossVectors(up, facing);
+		return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, up, facing));
+	}
+
+	// Swing the camera round to the open book, once, then leave it to the reader.
+	// The camera travels on a sphere about its moving target (no straight-line
+	// swoop through the graph), and everything follows one critically damped
+	// spring: it starts from rest and settles without overshoot.
+	function aimAtBook(node: Node, animate = true, duration = 1600) {
 		stopOrbit();
 		bookViewTouched = false;
-		const from = animate ? { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } } : null;
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
+		const camera = Graph.camera(), controls = Graph.controls();
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) animate = false;
+		const book = node.__threeObj;
+		const facing = bookFacing(node);
+		const startTarget = new THREE.Vector3().copy(controls.target);
+		const offset = new THREE.Vector3().subVectors(camera.position, startTarget);
+		const startDistance = Math.max(offset.length(), 1e-3);
+		const startDirection = offset.normalize();
+		const turn = new THREE.Quaternion().setFromUnitVectors(startDirection, facing);
+		const identity = new THREE.Quaternion();
+		const startPose = book ? book.quaternion.clone() : null;
+		const endPose = uprightToward(facing);
+		// Critically damped: s(t) = 1 - (1 + wt)e^(-wt), ~99% settled by `duration`.
+		const omega = 6.6 / Math.max(duration, 1) * 1000;
+		const rotation = new THREE.Quaternion(), direction = new THREE.Vector3(), target = new THREE.Vector3();
 		let started: number | null = null;
 		const step = (now: number) => {
 			if (isDestroyed || selectedBook?.id !== node.id || isGridModeActive) return;
 			started ??= now;
-			// Recomputed each frame, so the distance can ease out as the neighborhood settles.
-			const goal = bookView(node);
-			const p = from && duration ? Math.min((now - started) / duration, 1) : 1;
-			const t = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-			const mix = (a: Point, b: Point) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t });
-			Graph.cameraPosition(from ? mix(from.position, goal.position) : goal.position, from ? mix(from.target, goal.target) : goal.target, 0);
-			orbitAnimationId = p < 1 ? scheduleFrame(step) : null;
+			const time = (now - started) / 1000;
+			const s = animate ? Math.min(1, 1 - (1 + omega * time) * Math.exp(-omega * time)) : 1;
+			const done = s > 0.9995;
+			const t = done ? 1 : s;
+			if (book && startPose) book.quaternion.slerpQuaternions(startPose, endPose, t);
+			if (!bookViewTouched) {
+				// Recomputed each frame, so the distance can ease out as the neighborhood settles.
+				const goal = bookView(node, facing);
+				rotation.slerpQuaternions(identity, turn, t);
+				direction.copy(startDirection).applyQuaternion(rotation);
+				target.lerpVectors(startTarget, goal.target, t);
+				const distance = startDistance * Math.pow(goal.distance / startDistance, t);
+				Graph.cameraPosition(
+					{ x: target.x + direction.x * distance, y: target.y + direction.y * distance, z: target.z + direction.z * distance },
+					{ x: target.x, y: target.y, z: target.z }, 0);
+			}
+			orbitAnimationId = done ? null : scheduleFrame(step);
 		};
 		orbitAnimationId = scheduleFrame(step);
-		// Grabbing the view hands the camera to the reader.
-		const controls = Graph.controls();
-		const release = () => { bookViewTouched = true; stopOrbit(); };
+		// Grabbing the view hands the camera to the reader; the book still finishes turning upright.
+		const release = () => { bookViewTouched = true; };
 		controls.addEventListener('start', release);
 		removeOrbitListener = () => controls.removeEventListener('start', release);
 	}
