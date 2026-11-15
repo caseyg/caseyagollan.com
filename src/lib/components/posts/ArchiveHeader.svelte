@@ -1,15 +1,18 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { PageHeader } from '$lib/components/ui';
-	import { POSTS_CRUMB } from './trail';
+	import { postsCrumb } from './trail';
 
 	interface Props {
 		title: string;
 		count: number;
+		icon?: string;
+		/** Value of this archive's entry in the Posts menu. */
+		menuActive?: string;
 		actions?: Snippet;
 	}
 
-	let { title, count, actions }: Props = $props();
+	let { title, count, icon, menuActive, actions }: Props = $props();
 </script>
 
-<PageHeader trail={[POSTS_CRUMB, { label: title, href: '', current: true, count }]} {title} {actions} />
+<PageHeader trail={[postsCrumb(menuActive), { label: title, href: '', icon, current: true, count }]} {title} {actions} />

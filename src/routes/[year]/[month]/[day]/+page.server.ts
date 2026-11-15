@@ -1,3 +1,4 @@
+import { getPostsMenu } from '$lib/server/posts-menu';
 import type { PageServerLoad } from './$types';
 import { getAllPosts, rollupIndexPosts } from '$lib/posts';
 import { error } from '@sveltejs/kit';
@@ -19,6 +20,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	}
 
 	return {
+		postsMenu: await getPostsMenu(),
 		year,
 		month,
 		day,

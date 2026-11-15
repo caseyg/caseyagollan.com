@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { PageHeader, type MenuOption } from '$lib/components/ui';
-	import { POSTS_CRUMB } from './trail';
+	import { postsCrumb } from './trail';
 
 	interface Props {
 		current: string;
@@ -17,7 +17,7 @@
 </script>
 
 <PageHeader
-	trail={[POSTS_CRUMB, { label: current, href: '', icon: currentIcon, count, menu: options }]}
+	trail={[postsCrumb(), { label: current, href: '', icon: currentIcon, count, menu: options, current: true }]}
 	title={current}
 	description={countDescription}
 	{actions}

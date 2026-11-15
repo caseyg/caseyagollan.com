@@ -1,3 +1,4 @@
+import { getPostsMenu } from '$lib/server/posts-menu';
 import { getAllPosts, getPostsByType, getPostsByDay, POST_TYPES, POST_TYPE_PLURALS } from '$lib/posts';
 import { error } from '@sveltejs/kit';
 import { TYPE_ICONS } from '$lib/posts-filter';
@@ -21,28 +22,12 @@ export const load: PageServerLoad = async ({ params }) => {
 	const postsByDay = getPostsByDay(posts);
 	const postsByDayArray = Array.from(postsByDay.entries()).sort((a, b) => b[0].localeCompare(a[0]));
 
-	// Get counts for all types
-	const allTypes = POST_TYPES.map((t) => {
-		const typePosts = getPostsByType(allPosts, t);
-		return {
-			value: t,
-			label: capitalizeFirst(POST_TYPE_PLURALS[t]),
-			href: `/type/${POST_TYPE_PLURALS[t].toLowerCase()}/`,
-			count: typePosts.length,
-			icon: TYPE_ICONS[t as keyof typeof TYPE_ICONS] || '📌'
-		};
-	}).filter((t) => t.count > 0);
-
 	return {
+		postsMenu: await getPostsMenu(),
 		type: singularType,
 		typeIcon: TYPE_ICONS[singularType as keyof typeof TYPE_ICONS] || '📌',
 		typePlural: POST_TYPE_PLURALS[singularType],
 		postsByDay: postsByDayArray,
-		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),
-		allTypes
+		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)
 	};
 };
-
-function capitalizeFirst(str: string): string {
-	return str.charAt(0).toUpperCase() + str.slice(1);
-}

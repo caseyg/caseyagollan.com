@@ -5,6 +5,8 @@
 		href: string;
 		count?: number;
 		icon?: string;
+		/** Options that share a group sit together under it as a heading. */
+		group?: string;
 	}
 </script>
 
@@ -18,27 +20,32 @@
 		currentIcon?: string;
 		count?: number;
 		options: MenuOption[];
-		/** Render the trigger as the last segment of a `SegmentedPill`, taking its size from the pill. */
+		/** Value of the option for the page being viewed. Defaults to the option labelled like `current`. */
+		active?: string;
+		/** Render the trigger as a segment of a `SegmentedPill`, taking its size and colours from the pill. */
 		segment?: boolean;
 	}
 
-	let { current, currentIcon, count, options, segment = false }: Props = $props();
+	let { current, currentIcon, count, options, active, segment = false }: Props = $props();
+
+	const isActive = (option: MenuOption) => (active === undefined ? option.label === current : option.value === active);
 </script>
 
 <Popover class="select-menu {segment ? 'segment' : ''}" triggerClass="trigger" panelClass="menu">
 	{#snippet trigger(open)}
-		<span class="current" title={current}>{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}{current}</span>
-		{#if count !== undefined}<Count value={count} label="{count} posts" />{/if}
+		<span class="current" class:has-icon={currentIcon} title={current}>{#if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}<span class="text">{current}</span></span>
+		{#if count !== undefined}<span class="count"><Count value={count} label="{count} posts" /></span>{/if}
 		<span class="arrow" class:open aria-hidden="true">▾</span>
 	{/snippet}
 	<ul>
-		{#each options as option (option.value)}
+		{#each options as option, i (option.value)}
+			{#if option.group && option.group !== options[i - 1]?.group}<li class="group" role="presentation">{option.group}</li>{/if}
 			<li>
 				<a
 					href={option.href}
 					class="item"
-					class:active={option.label === current}
-					aria-current={option.label === current ? 'page' : undefined}
+					class:active={isActive(option)}
+					aria-current={isActive(option) ? 'page' : undefined}
 				>
 					<span>{#if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}{option.label}</span>
 					{#if option.count !== undefined}<Count value={option.count} />{/if}
@@ -71,7 +78,12 @@
 		background: var(--accent-hover);
 	}
 
-	/* Inside a segmented pill the trigger is one more segment. */
+	/* Inside a segmented pill the trigger is one more segment, as tall as its neighbours. */
+	:global(.select-menu.segment),
+	:global(.select-menu.segment .trigger) {
+		height: 100%;
+	}
+
 	:global(.select-menu.segment .trigger) {
 		padding: var(--segment-padding, var(--space-1) var(--space-3));
 		border-radius: 0;
@@ -84,7 +96,7 @@
 
 	:global(.select-menu.segment .trigger:hover),
 	:global(.select-menu.segment .trigger[aria-expanded='true']) {
-		background: var(--segment-hover);
+		background: var(--seg-hover, var(--segment-hover));
 	}
 
 	:global(.select-menu.segment .trigger:focus-visible) {
@@ -92,10 +104,21 @@
 	}
 
 	.current {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+
+	.text {
 		max-width: min(16rem, 40vw);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.count {
+		display: inline-flex;
 	}
 
 	.arrow {
@@ -107,19 +130,41 @@
 		transform: rotate(180deg);
 	}
 
-	.icon {
+	.item .icon {
 		margin-right: var(--space-2);
+	}
+
+	/* A compact pill shows emoji alone on a phone; a label with no emoji stays, kept short. */
+	@media (max-width: 600px) {
+		:global(.pill.compact) .current.has-icon .text,
+		:global(.pill.compact) .count {
+			display: none;
+		}
+
+		:global(.pill.compact) .current .icon {
+			font-size: var(--fs-lg);
+		}
+
+		:global(.pill.compact) .text {
+			max-width: 26vw;
+		}
+
+		:global(.pill.compact) .arrow {
+			font-size: var(--fs-xs);
+		}
 	}
 
 	:global(.select-menu .menu) {
 		min-width: 12rem;
-		max-height: 19rem;
+		max-height: 75vh;
 		margin: 0;
 		padding: 0;
 		overflow-y: auto;
 		list-style: none;
 		border-radius: var(--radius-sm);
-		background: var(--segment);
+		background: var(--menu-bg, var(--segment));
+		outline: var(--menu-outline, none);
+		outline-offset: -1px;
 		box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
 		scrollbar-width: thin;
 		/* Grow out of the trigger it belongs to. */
@@ -140,6 +185,15 @@
 		list-style: none;
 	}
 
+	.group {
+		padding: var(--space-3) var(--space-4) var(--space-1);
+		color: var(--text-secondary);
+		font-size: var(--fs-xs);
+		font-weight: var(--fw-regular);
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
 	.item {
 		display: flex;
 		align-items: center;
@@ -148,18 +202,21 @@
 		padding: var(--space-2) var(--space-4);
 		color: var(--text-primary);
 		font-size: var(--fs-base);
+		font-weight: var(--fw-regular);
 		line-height: var(--lh-normal);
+		letter-spacing: 0;
 		text-decoration: none;
+		white-space: nowrap;
 		transition: background var(--duration) var(--ease);
 	}
 
 	.item:hover {
-		background: var(--segment-hover);
+		background: var(--seg-hover, var(--segment-hover));
 	}
 
-	/* The page being viewed takes the full accent, as it does in the trail. */
+	/* The page being viewed is marked as the current segment of a trail is. */
 	.item.active {
-		background: var(--segment-current);
+		background: var(--seg-current, var(--segment-current));
 	}
 
 	.item:focus-visible {

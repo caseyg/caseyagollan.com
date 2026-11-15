@@ -61,7 +61,7 @@
 
 <div class="foundations">
 	{#if section === 'color'}
-		<p class="intro">Three ideas: a gray ground, white ink at three strengths, and one blue reserved for things you can act on. In the pinned navigation the lighter blue is somewhere you can go and the full blue is where you are; anything inside the page that only labels content stays gray. Everything else is white or black at low opacity, so it stays in key with the ground.</p>
+		<p class="intro">Three ideas: a gray ground, white ink at three strengths, and one blue reserved for things you can act on. In the pinned navigation the lighter blue is somewhere you can go and the full blue is where you are; a page's own trail, opposite it, is the ground colour with a gray outline; anything inside the page that only labels content stays gray. Everything else is white or black at low opacity, so it stays in key with the ground.</p>
 		<ul class="swatches">
 			{#each colors as [name, use] (name)}
 				<li>
