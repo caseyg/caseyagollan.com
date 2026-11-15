@@ -14,11 +14,36 @@
 		checked?: boolean;
 	}
 
-	// A filter can lead to another route, which builds a new menu; that one opens where this one was.
-	let reopen = false;
+	/*
+	 * Choosing a filter can lead to another route, or to a full page load after a deploy, and either
+	 * builds a new menu. The menu of filters stays open until it is closed on purpose, so remember
+	 * that here and, for a full load, in the session for a few seconds.
+	 */
+	const STICKY_KEY = 'select-menu-open';
+	let sticky = false;
+
+	function setSticky(value: boolean) {
+		sticky = value;
+		try {
+			if (value) sessionStorage.setItem(STICKY_KEY, String(Date.now()));
+			else sessionStorage.removeItem(STICKY_KEY);
+		} catch {
+			// Storage can be unavailable; the menu then only stays open within the page.
+		}
+	}
+
+	function wasSticky(): boolean {
+		if (sticky) return true;
+		try {
+			return Date.now() - Number(sessionStorage.getItem(STICKY_KEY) ?? 0) < 10_000;
+		} catch {
+			return false;
+		}
+	}
 </script>
 
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Count from './Count.svelte';
 	import Popover from './Popover.svelte';
@@ -39,18 +64,29 @@
 
 	let { current, currentIcon, count, options, active, badge, segment = false }: Props = $props();
 
-	let open = $state(reopen);
-	reopen = false;
+	const isActive = (option: MenuOption) => (active === undefined ? option.label === current : option.value === active);
+	const filters = $derived(options.some((option) => option.checked !== undefined));
+
+	// svelte-ignore state_referenced_locally
+	let open = $state(filters && sticky);
+	onMount(() => {
+		if (filters && wasSticky()) {
+			sticky = true;
+			open = true;
+		}
+	});
+	// Closing the menu, by any means, ends it.
+	$effect(() => {
+		if (filters && !open && sticky) setSticky(false);
+	});
 
 	// Without JavaScript a filter is a plain link; with it, keep the scroll position and the menu.
 	function onFilterClick(event: MouseEvent, option: MenuOption) {
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		event.preventDefault();
-		reopen = true;
-		void goto(option.href, { noScroll: true, keepFocus: true }).finally(() => setTimeout(() => (reopen = false)));
+		setSticky(true);
+		void goto(option.href, { noScroll: true, keepFocus: true });
 	}
-
-	const isActive = (option: MenuOption) => (active === undefined ? option.label === current : option.value === active);
 </script>
 
 <Popover bind:open class="select-menu {segment ? 'segment' : ''}" triggerClass="trigger" panelClass="menu">
