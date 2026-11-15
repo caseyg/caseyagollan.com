@@ -180,6 +180,7 @@
 
 	onDestroy(() => {
 		stopCoachmarkAnimation();
+		simulation?.stop();
 	});
 
 	// Fetch screenshot for a URL
@@ -339,7 +340,7 @@
 			});
 		}
 
-		if (!insightsData) return { nodes: [...allNodes], links: [...allLinks, ...dynamicLinks] };
+		if (!insightsData) return forLayout([...allNodes], [...allLinks, ...dynamicLinks]);
 
 		// Create citation nodes and recommended topic nodes for each topic
 		insightsData.forEach((insight, topicId) => {
@@ -404,10 +405,30 @@
 		// Pinned sources can name a topic that isn't in the graph yet; a link to a missing node breaks the layout.
 		const nodes = [...allNodes, ...dynamicNodes];
 		const ids = new Set(nodes.map((n) => n.id));
-		const endpoint = (end: string | Node) => (typeof end === 'string' ? end : end.id);
+		return forLayout(
+			nodes.filter((n) => n.type !== 'citation' || ids.has(n.parent ?? '')),
+			[...allLinks, ...dynamicLinks.filter((l) => ids.has(endpoint(l.source)) && ids.has(endpoint(l.target)))]
+		);
+	}
+
+	const endpoint = (end: string | Node) => (typeof end === 'string' ? end : end.id);
+
+	// The simulation writes positions and velocities onto the nodes it is given, and the base graph
+	// lives in a shared module. Each graph keeps its own copy of every node, so coming back to the page
+	// starts from a fresh layout like a full load instead of from where the last visit left off.
+	const layoutNodes = new Map<string, Node>();
+	function forLayout(nodes: Node[], links: Link[]): { nodes: Node[]; links: Link[] } {
 		return {
-			nodes: nodes.filter((n) => n.type !== 'citation' || ids.has(n.parent ?? '')),
-			links: [...allLinks, ...dynamicLinks.filter((l) => ids.has(endpoint(l.source)) && ids.has(endpoint(l.target)))]
+			nodes: nodes.map((node) => {
+				const { x, y, vx, vy, fx, fy, index, ...data } = node as Node & Record<string, unknown>;
+				const own = layoutNodes.get(node.id);
+				if (own) return Object.assign(own, data);
+				const fresh = { ...data } as Node;
+				layoutNodes.set(node.id, fresh);
+				return fresh;
+			}),
+			// forceLink swaps ids for node objects, so hand it ids each time.
+			links: links.map((link) => ({ source: endpoint(link.source), target: endpoint(link.target) }))
 		};
 	}
 
