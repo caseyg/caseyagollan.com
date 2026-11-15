@@ -1,6 +1,7 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.png';
 	import '../app.css';
+	import WikiPreviews from '$lib/components/wiki/WikiPreviews.svelte';
 
 	let { children } = $props();
 </script>
@@ -22,3 +23,6 @@
 </svelte:head>
 
 {@render children?.()}
+
+<!-- Hovering a link to a wiki page, anywhere on the site, previews it. -->
+<WikiPreviews />

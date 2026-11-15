@@ -8,7 +8,7 @@ interface Pagefind {
 interface PagefindData {
 	url: string;
 	excerpt: string;
-	meta: { title?: string };
+	meta: { title?: string; source?: string };
 }
 
 const MAX_PAGES = 3;
@@ -51,7 +51,8 @@ export function wikiSourcesFor(topic: string): Promise<InsightSource[]> {
 				const response = await search.search(topic, { filters: { Type: 'wiki' } });
 				const pages = await Promise.all((response?.results ?? []).slice(0, MAX_PAGES).map((result) => result.data()));
 				return pages.map((page) => ({
-					url: new URL(page.url.replace(/^\/+(?=https?:)/, ''), 'https://cag.wiki/').href,
+					// Sources keep the cag.wiki address that pins and blocks are keyed by; the graph opens it in the wiki browser.
+					url: page.meta.source ?? new URL(page.url.replace(/^\/+(?=https?:)/, ''), 'https://cag.wiki/').href,
 					title: page.meta.title ?? page.url,
 					page_age: null,
 					cited_text: plain(page.excerpt) || null

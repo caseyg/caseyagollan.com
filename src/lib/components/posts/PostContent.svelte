@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Prose } from '$lib/components/ui';
 	import { renderContentSync } from '$lib/utils/renderContent';
+	import { localizeLinks } from '$lib/wiki/links';
 
 	interface Props {
 		content: string;
@@ -11,5 +12,5 @@
 </script>
 
 <Prose class="e-content post-content">
-	{@html renderContentSync(content, format)}
+	{@html localizeLinks(renderContentSync(content, format))}
 </Prose>
