@@ -4,12 +4,14 @@
 
 	interface Props {
 		children: Snippet;
+		/** `full` spans the window, for a gallery such as the photos archive. */
+		width?: 'reading' | 'full';
 	}
 
-	let { children }: Props = $props();
+	let { children, width = 'reading' }: Props = $props();
 </script>
 
-<!-- The reading-width page used by every posts route. -->
-<Page width="reading">
+<!-- The page used by every posts route: reading width, or the full window for galleries. -->
+<Page {width}>
 	{@render children()}
 </Page>

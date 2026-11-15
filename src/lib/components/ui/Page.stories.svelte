@@ -60,3 +60,11 @@
 		</Section>
 	</Page>
 </Story>
+
+<!-- The full window, for a gallery such as the photos archive. It always starts below the pinned trail and navigation. -->
+<Story asChild name="FullPage">
+	<Page width="full">
+		<PageHeader title="Photos" trail={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: 'Photos', href: '', icon: '📷', current: true, count: 2 }]} />
+		<p>Content spans the window, with the page's usual side padding.</p>
+	</Page>
+</Story>

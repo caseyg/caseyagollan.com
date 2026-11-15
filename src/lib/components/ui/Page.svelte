@@ -2,8 +2,8 @@
 	import type { Snippet } from 'svelte';
 
 	interface Props {
-		/** `reading` is the post measure; `wide` suits forms and account pages. */
-		width?: 'reading' | 'wide';
+		/** `reading` is the post measure; `wide` suits forms and account pages; `full` spans the window, for galleries. */
+		width?: 'reading' | 'wide' | 'full';
 		/** Element to render, e.g. `main` for standalone pages. */
 		as?: 'div' | 'main';
 		class?: string;
@@ -48,6 +48,12 @@
 	.page--wide {
 		max-width: var(--measure-wide);
 		font-size: var(--fs-base);
+	}
+
+	.page--full {
+		max-width: none;
+		/* Nothing sits beside the pinned trail and navigation, so the page always starts below them. */
+		padding-top: calc(var(--nav-lane) + var(--space-5));
 	}
 
 	.page-main {

@@ -18,3 +18,5 @@ export { default as SavedSocialPost } from './SavedSocialPost.svelte';
 export { default as SiteSocialPost } from './SiteSocialPost.svelte';
 export { default as ThreadGroup } from './ThreadGroup.svelte';
 export { default as TagList } from './TagList.svelte';
+export { default as PhotoTile } from './PhotoTile.svelte';
+export { default as PhotoGrid } from './PhotoGrid.svelte';
