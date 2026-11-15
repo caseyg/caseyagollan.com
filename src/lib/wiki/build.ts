@@ -69,6 +69,8 @@ function preprocess(markdown: string, context: Context): { markdown: string; foo
 	// Obsidian's %% comments are hidden. A line of three or more % is a stray mark, not a comment's start, and
 	// any %% left unpaired is dropped rather than hiding the rest of the page.
 	body = outsideCode(body, (text) => text.replace(/^[ \t]*%{3,}[ \t]*$/gm, '').replace(/%%[\s\S]*?%%/g, '').replace(/%{2,}/g, ''));
+	// A block's `^id` at the end of its line is only for linking to it, as in [[Page#^id]]; Obsidian hides it.
+	body = outsideCode(body, (text) => text.replace(/(^|[ \t])\^[A-Za-z0-9-]+[ \t]*$/gm, ''));
 	// Obsidian allows spaces in a link's address, as in `[mail](mailto:me@x.org?subject=Hi there)`; Markdown doesn't, so encode them.
 	body = outsideCode(body, (text) => text.replace(/(\]\()([^()\s<>"']+(?:[ \t]+[^()\s<>"']+)+)\)/g, (_match, open: string, url: string) => `${open}${url.replace(/[ \t]/g, '%20')})`));
 	// Dataview's `key:: value` lines are the page's details, shown with its title rather than as text.
@@ -345,6 +347,8 @@ export function previewHtml(html: string, length = 600): string {
 	for (const node of tree.children) {
 		if (count >= length) break;
 		if (isElement(node, 'div') && (node.properties.className as string[] | undefined)?.includes('wiki-embed')) continue;
+		// A diagram's Mermaid source reads as noise in a small card.
+		if (isElement(node, 'pre') && isElement(node.children[0], 'code') && ((node.children[0] as Element).properties.className as string[] | undefined)?.includes('language-mermaid')) continue;
 		kept.push(node);
 		count += textOf(node).length;
 	}
