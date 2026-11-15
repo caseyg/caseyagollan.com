@@ -15,7 +15,8 @@
 	let creating = $state(false);
 	let failure = $state('');
 
-	const tables = $derived(demoTables ?? data.tables);
+	// Visitors see published tables; the owner also sees drafts.
+	const tables = $derived(demoTables ?? session.tables ?? data.tables);
 	const editable = $derived(session.mode !== 'visitor');
 
 	onMount(async () => {

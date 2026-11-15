@@ -1,23 +1,23 @@
 import type { RequestHandler } from './$types';
 import { cleanName, emptyTable, MAX_TABLES } from '$lib/tables';
-import { listTables, writeTable } from '$lib/server/tables';
+import { listPublishedTables, listTables, writeTable } from '$lib/server/tables';
 import { ownerBucket, PRIVATE } from '$lib/server/tables-api';
 import { editorSession } from '$lib/server/publishing/syndication-editor';
 
 export const prerender = false;
 
-/** Everyone gets the list; the owner also gets a CSRF token to change tables. */
+/** Everyone gets the published tables; the owner gets drafts too, and a CSRF token to change tables. */
 export const GET: RequestHandler = async ({ request, platform }) => {
 	const env = platform?.env;
 	const session = await editorSession(request, env ?? {}).catch(() => null);
-	const tables = await listTables(env?.PUBLISHING_STATE);
+	const tables = session ? await listTables(env?.PUBLISHING_STATE) : await listPublishedTables(env?.PUBLISHING_STATE);
 	return Response.json(
 		{ tables, owner: !!session && !!env?.PUBLISHING_STATE, ...(session ? { csrf: session.csrf } : {}) },
 		{ headers: session ? PRIVATE : { 'cache-control': 'public, max-age=60' } }
 	);
 };
 
-/** Creates an empty table: `{ name }`. */
+/** Creates an empty table, as a draft: `{ name }`. */
 export const POST: RequestHandler = async ({ request, platform }) => {
 	const bucket = await ownerBucket(request, platform?.env);
 	if (bucket instanceof Response) return bucket;

@@ -12,6 +12,8 @@ export type TablesMode = 'owner' | 'demo' | 'visitor';
 export interface TablesSession {
 	mode: TablesMode;
 	csrf?: string;
+	/** The owner's tables, drafts included. */
+	tables?: TableSummary[];
 }
 
 const DEMO_FLAG = 'tables-demo';
@@ -32,8 +34,8 @@ export async function tablesSession(): Promise<TablesSession> {
 	if (ownerHint()) {
 		try {
 			const response = await fetch('/api/tables?owner', { credentials: 'same-origin' });
-			const data = (await response.json()) as { owner?: boolean; csrf?: string };
-			if (response.ok && data.owner && data.csrf) return { mode: 'owner', csrf: data.csrf };
+			const data = (await response.json()) as { owner?: boolean; csrf?: string; tables?: TableSummary[] };
+			if (response.ok && data.owner && data.csrf) return { mode: 'owner', csrf: data.csrf, tables: data.tables };
 		} catch {
 			/* Fall through: without a session the page is read-only. */
 		}
@@ -85,7 +87,7 @@ async function sampleTable(): Promise<DemoTable> {
 	const pictures = (arena ?? []).filter((block) => block.image).slice(0, 2);
 	const link = linkBlock('https://tabletop.grantcuster.com');
 	const seed = [...(posts ?? []), ...covers, ...(wiki ?? []), ...pictures, ...(link ? [link] : [])];
-	return { ...emptyTable('Sample table'), seed };
+	return { ...emptyTable('Sample table'), seed, published: true };
 }
 
 export async function listDemoTables(): Promise<TableSummary[]> {
@@ -112,13 +114,14 @@ export async function createTable(session: TablesSession, name = 'Untitled table
 	return (await send<{ table: Table }>(session, 'POST', '/api/tables', { name })).table;
 }
 
-/** Saves a rename, a canvas, or both, and returns the table's new summary. */
-export async function saveTable(session: TablesSession, id: string, change: { name?: string; document?: unknown; thumbnail?: string }): Promise<TableSummary> {
+/** Saves a rename, a canvas, its picture, publishing, or several together, and returns the table's new summary. */
+export async function saveTable(session: TablesSession, id: string, change: { name?: string; document?: unknown; thumbnail?: string; published?: boolean }): Promise<TableSummary> {
 	if (session.mode === 'demo') {
 		const store = demoStore();
 		const current = store[id] ?? emptyTable('Untitled table', id);
 		const next: DemoTable = { ...current, updated: new Date().toISOString() };
 		if (change.name !== undefined) next.name = cleanName(change.name) ?? current.name;
+		if (change.published !== undefined) next.published = change.published;
 		if (change.document !== undefined) {
 			next.document = change.document;
 			delete next.seed;

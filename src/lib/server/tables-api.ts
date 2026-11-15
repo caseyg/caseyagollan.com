@@ -15,3 +15,8 @@ export async function ownerBucket(request: Request, env: App.Platform['env'] | u
 	const bucket = env?.PUBLISHING_STATE;
 	return bucket ?? Response.json({ error: 'Tables can’t be saved here.' }, { status: 503, headers: PRIVATE });
 }
+
+/** Whether the request comes from the signed-in owner, who also sees drafts. */
+export async function isOwner(request: Request, env: App.Platform['env'] | undefined): Promise<boolean> {
+	return !!(await editorSession(request, env ?? {}).catch(() => null));
+}

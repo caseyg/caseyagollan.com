@@ -26,7 +26,8 @@ function trustedFrame(src: unknown): boolean {
   const url = new URL(src);
   if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
   return ((url.hostname === 'www.youtube.com' || url.hostname === 'www.youtube-nocookie.com') && /^\/embed\/[\w-]{11}$/.test(url.pathname)) ||
-   (url.hostname === 'player.vimeo.com' && /^\/video\/\d+$/.test(url.pathname));
+   (url.hostname === 'player.vimeo.com' && /^\/video\/\d+$/.test(url.pathname)) ||
+   (url.hostname === 'caseyagollan.com' && /^\/tables\/[a-z0-9-]{4,40}\/embed$/.test(url.pathname) && !url.search);
  } catch { return false; }
 }
 

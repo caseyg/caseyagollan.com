@@ -51,6 +51,8 @@ export interface TableEditorProps {
 	/** A saved document (`{ store, schema }`), or null for a new table. */
 	document: unknown;
 	editable: boolean;
+	/** Framed in a post: scrolling passes to the page, and dragging pans. */
+	embedded?: boolean;
 	licenseKey?: string;
 	/** Called with the document after each change a person makes. */
 	onChange?: (document: unknown) => void;
@@ -149,7 +151,7 @@ function apiFor(editor: Editor): TableApi {
 }
 
 /** A table's canvas: tldraw without its own interface, drawn in the site's colours. */
-export function TableEditor({ document, editable, licenseKey, onChange, onReady }: TableEditorProps) {
+export function TableEditor({ document, editable, embedded = false, licenseKey, onChange, onReady }: TableEditorProps) {
 	const onMount = useCallback(
 		(editor: Editor) => {
 			editor.user.updateUserPreferences({ colorScheme: 'dark' });
@@ -179,12 +181,16 @@ export function TableEditor({ document, editable, licenseKey, onChange, onReady 
 			onReady?.(apiFor(editor));
 			// Read-only once the page has set anything out, so a seeded table can still be shown to visitors.
 			editor.updateInstanceState({ isReadonly: !editable });
+			if (embedded) {
+				editor.setCameraOptions({ wheelBehavior: 'none' });
+				editor.setCurrentTool('hand');
+			}
 			return () => {
 				stop();
 				editor.off('event', offEvent);
 			};
 		},
-		[editable, onChange, onReady]
+		[editable, embedded, onChange, onReady]
 	);
 
 	const snapshot = document ? ({ document } as unknown as TLEditorSnapshot) : undefined;

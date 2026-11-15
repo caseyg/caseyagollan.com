@@ -26,6 +26,11 @@
 	<div class="one"><TableCard table={tableSummary} href="#table" thumbnail="/missing.svg" /></div>
 </Story>
 
+<!-- A draft, as the owner sees it on the browse page; visitors don't see it at all. -->
+<Story asChild name="Draft">
+	<div class="one"><TableCard table={{ ...tableSummary, published: false }} href="#table" /></div>
+</Story>
+
 <Story asChild name="New and empty">
 	<div class="one"><TableCard table={{ ...tableSummary, name: 'Untitled table', count: 0, preview: [] }} href="#table" /></div>
 </Story>

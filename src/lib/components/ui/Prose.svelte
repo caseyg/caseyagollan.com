@@ -253,6 +253,21 @@
 		margin: 1.5em 0;
 	}
 
+	/* A table from /tables, framed read-only at a landscape size, with a link to open it whole. */
+	.prose :global(.embed-table iframe) {
+		display: block;
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-sunken);
+	}
+
+	.prose :global(.embed-table .embed-caption) {
+		margin: var(--space-1) 0 0;
+		font-size: var(--fs-sm);
+	}
+
 	.prose :global(.embed-video) {
 		position: relative;
 		height: 0;

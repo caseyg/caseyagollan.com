@@ -34,9 +34,12 @@
 		onredo?: () => void;
 		onfit?: () => void;
 		onadd?: () => void;
+		/** Whether visitors can see the table. With `onpublish`, the owner gets Publish or Unpublish. */
+		published?: boolean;
+		onpublish?: (published: boolean) => void;
 	}
 
-	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd }: Props = $props();
+	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -55,6 +58,15 @@
 	{/if}
 	<Button variant="icon" icon="fit" label="Fit to screen" onclick={onfit} />
 	{#if status}<span class="status" role="status">{status}</span>{/if}
+	{#if editable && onpublish}
+		<span class="divider" aria-hidden="true"></span>
+		{#if published}
+			<Button variant="quiet" size="sm" onclick={() => onpublish(false)} title="Make this a draft only you can see">Unpublish</Button>
+		{:else}
+			<span class="draft">Draft</span>
+			<Button variant="secondary" size="sm" onclick={() => onpublish(true)} title="Let anyone see this table, and embed it in posts">Publish</Button>
+		{/if}
+	{/if}
 </Toolbar>
 
 <style>
@@ -91,6 +103,14 @@
 		color: var(--text-muted);
 		font-size: var(--fs-xs);
 		white-space: nowrap;
+	}
+
+	.draft {
+		flex: none;
+		padding: 0 var(--space-2);
+		color: var(--text-secondary);
+		font-size: var(--fs-xs);
+		font-weight: var(--fw-semibold);
 	}
 
 	@media (max-width: 600px) {

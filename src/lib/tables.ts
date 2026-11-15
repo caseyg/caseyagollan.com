@@ -32,6 +32,11 @@ export interface TableSummary {
 	count: number;
 	/** The first few blocks, for a card whose table has no picture yet. */
 	preview: Block[];
+	/**
+	 * Whether visitors can see it. New tables start as drafts (false), seen only by the owner; tables
+	 * from before drafts have no flag and stay public.
+	 */
+	published?: boolean;
 	/** When the table's picture (an SVG drawn from the canvas) was last saved; absent until it first is. */
 	thumb?: string;
 }
@@ -135,8 +140,11 @@ export function validThumbnail(value: unknown): value is string {
 }
 
 export function emptyTable(name: string, id = newTableId(), now = new Date().toISOString()): Table {
-	return { id, name, created: now, updated: now, count: 0, preview: [], document: null };
+	return { id, name, created: now, updated: now, count: 0, preview: [], document: null, published: false };
 }
+
+/** Whether visitors may see a table: every table but a draft. */
+export const isPublished = (table: Pick<TableSummary, 'published'>) => table.published !== false;
 
 export function toSummary({ document: _document, ...summary }: Table): TableSummary {
 	return summary;
