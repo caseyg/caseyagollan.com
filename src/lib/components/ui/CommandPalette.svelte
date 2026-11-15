@@ -69,6 +69,28 @@
 		open = false;
 	}
 
+	// The dialog hides the page's overflow, but iOS still scrolls the page under a finger.
+	// While open, a drag moves only the list, and only while the list has somewhere to go.
+	$effect(() => {
+		if (!open) return;
+		let lastY = 0;
+		const onStart = (event: TouchEvent) => (lastY = event.touches[0]?.clientY ?? 0);
+		function onMove(event: TouchEvent) {
+			const y = event.touches[0]?.clientY ?? lastY;
+			const dy = y - lastY;
+			lastY = y;
+			const list = event.target instanceof Element ? event.target.closest<HTMLElement>('.command-list') : null;
+			const canScroll = list && (dy > 0 ? list.scrollTop > 0 : list.scrollTop + list.clientHeight < list.scrollHeight - 1);
+			if (!canScroll && event.cancelable) event.preventDefault();
+		}
+		window.addEventListener('touchstart', onStart, { passive: true });
+		window.addEventListener('touchmove', onMove, { passive: false });
+		return () => {
+			window.removeEventListener('touchstart', onStart);
+			window.removeEventListener('touchmove', onMove);
+		};
+	});
+
 	// Every palette opens empty, on its first page.
 	$effect(() => {
 		if (!open) query = '';
@@ -131,6 +153,9 @@
 		position: fixed;
 		inset: 0;
 		background: rgb(0 0 0 / 0.35);
+		/* iOS Safari draws its toolbars over the page, past the bottom of a fixed box; the shadow dims there too. */
+		box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.35);
+		touch-action: none;
 		transition: opacity 150ms var(--ease-out);
 	}
 
@@ -166,6 +191,7 @@
 
 	:global(.command) {
 		display: flex;
+		flex: 1;
 		flex-direction: column;
 		min-height: 0;
 	}
@@ -225,6 +251,7 @@
 		padding: var(--space-1);
 		overflow-y: auto;
 		overscroll-behavior: contain;
+		touch-action: pan-y;
 		scroll-padding: var(--space-2);
 		scrollbar-width: thin;
 	}

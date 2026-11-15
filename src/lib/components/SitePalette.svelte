@@ -78,8 +78,10 @@
 			.catch(() => (menuRequested = false));
 	});
 	const toCommand = (option: MenuOption): CommandOption => ({ value: `go:${option.href}`, label: option.label, icon: option.icon, count: option.count });
-	const postTypes = $derived(postsMenu.filter((option) => option.group === 'By type').map(toCommand));
-	const years = $derived(postsMenu.filter((option) => option.group === 'By year').map(toCommand));
+	// The posts menu has named its groups both ways.
+	const inGroup = (...names: string[]) => postsMenu.filter((option) => option.group && names.includes(option.group)).map(toCommand);
+	const postTypes = $derived(inGroup('Type', 'By type'));
+	const years = $derived(inGroup('Year', 'By year'));
 
 	// Typing also searches posts, books and the wiki, for the few best matches.
 	let pagefind: Promise<Pagefind> | undefined;
