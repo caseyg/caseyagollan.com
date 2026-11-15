@@ -13,6 +13,8 @@
  let { post }: {post: Post; showType?: boolean; activeTag?: string} = $props();
  const members = $derived(post.indexThreadPosts ?? []);
  const entries = $derived(buildThreadEntries(members));
+ // The rollup's link goes to this thread on its day page, not just the top of the day.
+ const anchor = $derived(`thread-${post.slug}`);
  const replies = $derived(members.filter(member => member.type === 'reply').length);
  const reactions = $derived(entries.reduce((n, entry) => n + (entry.kind === 'own' ? 0 : entry.reactions.length), 0));
  const verbs = $derived([...new Set(entries.flatMap(entry => entry.kind === 'own' ? [] : entry.reactions.map(r => r.type)))]);
@@ -26,8 +28,8 @@
  const marks = (list: ThreadReaction[]) => list.map(r => ({ icon: REACTION[r.type][0], label: REACTION[r.type][1], href: r.permalink }));
 </script>
 
-<section class="thread-group" aria-label="Conversation activity">
- <div class="thread-meta"><Chip href={getPostPermalink(post).replace(/[^/]+\/$/, '')}><span aria-hidden="true">{replies ? '💬' : REACTION[verbs[0] ?? 'like'][0]}</span> {summary} in a thread</Chip></div>
+<section class="thread-group" id={anchor} aria-label="Conversation activity">
+ <div class="thread-meta"><Chip href={`${getPostPermalink(post).replace(/\/[^/]+\/$/, '')}#${anchor}`}><span aria-hidden="true">{replies ? '💬' : REACTION[verbs[0] ?? 'like'][0]}</span> {summary} in a thread</Chip></div>
  <SocialCard label="Conversation">
   {#each entries as entry, i (entry.key)}
    {@const connected = i < entries.length - 1}
@@ -47,6 +49,6 @@
 
 
 <style>
- .thread-group { margin-bottom: var(--space-5); }
+ .thread-group { margin-bottom: var(--space-5); scroll-margin-top: calc(var(--nav-lane) + var(--space-3)); }
  .thread-meta { margin-left: calc(-1 * var(--space-2)); margin-bottom: var(--space-2); color: var(--text-muted); }
 </style>
