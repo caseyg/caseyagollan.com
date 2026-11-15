@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { PageHeader, type Segment } from '$lib/components/ui';
-	import { POSTS_CRUMB } from './trail';
+	import { postsCrumb } from './trail';
 
 	interface Props {
 		year: string;
@@ -23,7 +23,7 @@
 
 	// Posts, then the date from year down. The deepest segment is the page being viewed and carries the count.
 	const trail = $derived.by(() => {
-		const list: Segment[] = [POSTS_CRUMB, { label: year, href: `/${year}/` }];
+		const list: Segment[] = [postsCrumb(year), { label: year, href: `/${year}/` }];
 		if (month) list.push({ label: month, href: `/${year}/${month}/` });
 		if (month && day) list.push({ label: day, href: `/${year}/${month}/${day}/` });
 		if (!parent) list[list.length - 1] = { ...list[list.length - 1], current: true, count };

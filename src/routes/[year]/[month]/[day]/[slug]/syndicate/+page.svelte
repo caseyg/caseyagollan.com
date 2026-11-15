@@ -2,14 +2,13 @@
 	import { onMount, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { rememberOwner } from '$lib/owner';
-	import Icon from '$lib/components/composer/ComposerIcon.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
-	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
-	import ComposerChip from '$lib/components/composer/ComposerChip.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
 	import SyndicationList from '$lib/components/composer/SyndicationList.svelte';
-	import { Heading, Notice, Page, PageHeader } from '$lib/components/ui';
+	import { Heading, Notice, Page, PageHeader, CheckboxGroup, ToggleChip } from '$lib/components/ui';
 	import { characterCount, mentionQuery, type SocialService, type FollowedAccount } from '$lib/social-text';
 	import follows from '$lib/data/social-follows.json';
 	import type { PageData, ActionData } from './$types';
@@ -80,12 +79,12 @@
 		<OwnerSignIn message="Sign in to syndicate this post." />
 	{:else}
 		<ComposerBar>
-			<ComposerButton variant="icon" icon="close" label="Back to the post" href={postHref} />
+			<Button variant="icon" icon="close" label="Back to the post" href={postHref} />
 			<span class="kind"><Icon name="share" size={18} /> Syndicate {kind}</span>
 			{#snippet actions()}
-				<ComposerButton variant="icon" icon="article" label="Edit {kind}" href="{postHref}edit/" />
+				<Button variant="icon" icon="article" label="Edit {kind}" href="{postHref}edit/" />
 				{#if ready.length}
-					<ComposerButton variant="primary" type="submit" form="syndicate" name="intent" value="send" disabled={sending || !chosen.length || over}>{sending ? 'Posting…' : 'Post'}</ComposerButton>
+					<Button variant="primary" type="submit" form="syndicate" name="intent" value="send" disabled={sending || !chosen.length || over}>{sending ? 'Posting…' : 'Post'}</Button>
 				{/if}
 			{/snippet}
 		</ComposerBar>
@@ -99,7 +98,7 @@
 			{#if settled.length}
 				<SyndicationList destinations={settled}>
 					{#if unrecorded}
-						<ComposerButton type="submit" name="intent" value="sync" disabled={sending}>Save links to the post</ComposerButton>
+						<Button variant="quiet" type="submit" name="intent" value="sync" disabled={sending}>Save links to the post</Button>
 					{/if}
 				</SyndicationList>
 			{/if}
@@ -120,7 +119,7 @@
 							onkeyup={(event) => { if (event.key === 'Escape') { query = null; return; } track(destination.service, event); }}></textarea>
 						{#if active === destination.service && query}
 							<div class="mentions" role="group" aria-label="Mention suggestions">
-								{#each suggestions as account (account.handle)}<ComposerButton onclick={() => insert(account)}>{account.name} <span class="handle">@{account.handle}</span></ComposerButton>{/each}
+								{#each suggestions as account (account.handle)}<Button variant="quiet" onclick={() => insert(account)}>{account.name} <span class="handle">@{account.handle}</span></Button>{/each}
 								{#if !suggestions.length}<p class="hint">No matching followed accounts. You can type a full handle.</p>{/if}
 							</div>
 						{/if}
@@ -129,12 +128,12 @@
 					<p class="hint">Choose where to post.</p>
 				{/each}
 				<ComposerToolbar label="Post to">
-					<span class="share" role="group" aria-label="Post to">
+					<CheckboxGroup layout="row" label="Post to" name="targets" bind:value={targets}>
 						{#each ready as destination (destination.service)}
-							<ComposerChip name="targets" value={destination.service} bind:group={targets} title="Post to {destination.name}">{destination.name}</ComposerChip>
+							<ToggleChip value={destination.service} title="Post to {destination.name}">{destination.name}</ToggleChip>
 						{/each}
-					</span>
-					{#if chosen.length > 1}<ComposerButton variant="icon" icon="link" label={linked ? 'Text is shared. Edit each separately' : 'Share one text'} pressed={linked} onclick={toggleLinked} />{/if}
+					</CheckboxGroup>
+					{#if chosen.length > 1}<Button variant="icon" icon="link" label={linked ? 'Text is shared. Edit each separately' : 'Share one text'} pressed={linked} onclick={toggleLinked} />{/if}
 					{#snippet end()}
 						{#each shown as destination (destination.service)}
 							<span class="count" class:over={destination.count > destination.limit} title={destination.name}>{destination.count}/{destination.limit}</span>
@@ -162,7 +161,6 @@
 	.body::placeholder { color: var(--text-muted); opacity: 1; }
 	.mentions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 	.handle { color: var(--text-muted); }
-	.share { display: inline-flex; gap: var(--space-1); margin-right: var(--space-1); }
 	.count { min-width: 2.5rem; color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
 	.count.over { color: var(--text-primary); text-decoration: underline wavy; font-weight: var(--fw-semibold); }
 	.hint { margin: var(--space-1) 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }

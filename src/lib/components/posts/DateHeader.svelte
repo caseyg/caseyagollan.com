@@ -28,6 +28,7 @@
 		top: var(--sticky-top, 0);
 		z-index: var(--z-sticky);
 		display: flex;
+		justify-content: center;
 		margin: var(--space-5) 0 var(--space-3);
 		padding: var(--space-2) 0;
 		background: var(--bg-primary);

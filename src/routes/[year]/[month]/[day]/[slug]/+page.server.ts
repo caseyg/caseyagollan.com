@@ -5,6 +5,7 @@ import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publicationRevision } from '$lib/server/publishing/publication';
 import { isPublicPost } from '$lib/server/parse-post';
 import { publishingConfig } from '$lib/server/publishing/config';
+import { getPostsMenu } from '$lib/server/posts-menu';
 import { error } from '@sveltejs/kit';
 
 // Keep generated posts static, but retain this route in the Worker for new URLs.
@@ -30,5 +31,5 @@ export const load: PageServerLoad = async (event) => {
 
 	if (!post) error(404, 'Post not found');
 	if (!isPublicPost(post)) error(post.deleted ? 410 : 404, post.deleted ? 'Post deleted' : 'Post not found');
-	return { year, month, day, post, revision: await publicationRevision(post) };
+	return { year, month, day, post, postsMenu: await getPostsMenu(), revision: await publicationRevision(post) };
 };

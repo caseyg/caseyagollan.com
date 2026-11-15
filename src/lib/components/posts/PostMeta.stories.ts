@@ -7,3 +7,10 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 export const Article: Story = { args: { type: 'article' } };
 export const WithoutInteractions: Story = { args: { showInteractions: false } };
+/** The signed-in owner sees a pencil at the right edge of the row, leading to the editor. */
+export const OwnerEdit: Story = {
+	beforeEach: () => {
+		localStorage.setItem('owner-signed-in', '1');
+		return () => localStorage.removeItem('owner-signed-in');
+	}
+};

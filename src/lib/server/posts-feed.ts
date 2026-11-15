@@ -1,3 +1,4 @@
+import type { MenuOption } from '$lib/components/ui';
 import { getAllPosts, rollupIndexPosts, type Post } from '$lib/posts';
 import { entryTypes, FEED_CHUNK_SIZE, typeFilterOptions, type PostType } from '$lib/posts-filter';
 
@@ -6,6 +7,8 @@ export interface FeedIndex {
 	/** Types of each feed entry, in feed order (newest first). */
 	entries: PostType[][];
 	chunkSize: number;
+	/** The Posts menu of types and years, carried here so the on-demand filtered feed can show it. */
+	menu?: MenuOption[];
 }
 
 const rolled = new WeakMap<Post[], Post[]>();
@@ -21,8 +24,8 @@ export async function getFeedEntries(): Promise<Post[]> {
 	return entries;
 }
 
-export function buildFeedIndex(entries: Post[]): FeedIndex {
-	return { entries: entries.map(entryTypes), chunkSize: FEED_CHUNK_SIZE };
+export function buildFeedIndex(entries: Post[], menu?: MenuOption[]): FeedIndex {
+	return { entries: entries.map(entryTypes), chunkSize: FEED_CHUNK_SIZE, menu };
 }
 
 export function feedChunkCount(entries: { length: number }): number {

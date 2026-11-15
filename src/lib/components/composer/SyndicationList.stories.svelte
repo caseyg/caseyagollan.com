@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import SyndicationList from './SyndicationList.svelte';
-	import ComposerButton from './ComposerButton.svelte';
+	import Button from '../ui/Button.svelte';
 
 	const { Story } = defineMeta({ title: 'Composer/SyndicationList', component: SyndicationList, tags: ['!autodocs'] });
 	const bluesky = 'https://bsky.app/profile/caseyagollan.com/post/3mzoozs6d4tqh';
@@ -18,6 +18,6 @@
 
 <Story name="Needs review">
 	<SyndicationList destinations={[{ service: 'bluesky', name: 'Bluesky', links: [], pending: true }, { service: 'mastodon', name: 'Mastodon', links: [mastodon] }]}>
-		<ComposerButton>Save links to the post</ComposerButton>
+		<Button variant="quiet">Save links to the post</Button>
 	</SyndicationList>
 </Story>

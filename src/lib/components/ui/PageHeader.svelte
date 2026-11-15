@@ -22,9 +22,9 @@
 
 <header class="page-header" class:tight class:bare={!actions && !children && !description}>
 	<div class="bar" class:solo={!actions}>
-		<!-- Pinned top-left, opposite the site navigation. On a phone it returns to the page beneath the nav. -->
-		<Corner as="nav" side="start" phone="inline" class="trail" aria-label="Breadcrumb">
-			<SegmentedPill segments={trail} size="md" />
+		<!-- Pinned top-left, opposite the site navigation, in the quiet tone so it reads as part of the page. -->
+		<Corner as="nav" side="start" class="trail" aria-label="Breadcrumb">
+			<SegmentedPill segments={trail} size="md" tone="quiet" compact />
 		</Corner>
 		{#if actions}<div class="actions">{@render actions()}</div>{/if}
 	</div>
@@ -63,26 +63,13 @@
 		min-width: 0;
 	}
 
-	/* Above the feed's sticky date pills, so a segment's menu opens over them. */
-	.bar > :global(.trail) {
-		z-index: var(--z-menu);
-		justify-self: start;
-		align-self: start;
+	/* With the trail pinned away and no control beside it, the row takes up no space. */
+	.bar.solo {
+		display: contents;
 	}
 
-	@media (min-width: 601px) {
-		.bar > :global(.trail) {
-			z-index: var(--z-nav);
-		}
-
-		/* With the trail pinned away and no control beside it, the row takes up no space. */
-		.bar.solo {
-			display: contents;
-		}
-
-		.page-header.bare {
-			margin-bottom: 0;
-		}
+	.page-header.bare {
+		margin-bottom: 0;
 	}
 
 	.description {
@@ -92,12 +79,4 @@
 		line-height: var(--lh-normal);
 	}
 
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
-	}
 </style>

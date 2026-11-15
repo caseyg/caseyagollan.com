@@ -6,3 +6,9 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 export const Empty: Story = { args: { value: '' } };
 export const Bare: Story = { args: { bare: true } };
+/** Figures render as they do on the post, with the caption editable in place. They are written back as the same HTML. */
+export const WithFigures: Story = {
+	args: {
+		value: '## Publishing\n\n<figure class="align-right narrow"><img src="/author-avatar.webp" alt="Casey\'s avatar"><figcaption>The composer opens <a href="/new/">straight into a note</a>.</figcaption></figure>\n\n- New post composer at `/new`, with every post type Quill offers.\n- Redesigned it around a single writing surface, like a social app\'s compose box.\n- Drafts are saved to a separate private GitHub repo.\n\nA paragraph that wraps beside the figure, the way it does on the published post.'
+	}
+};

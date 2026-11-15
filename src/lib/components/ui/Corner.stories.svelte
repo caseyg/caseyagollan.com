@@ -9,7 +9,7 @@
 <!-- Top-left says where you are, top-right where you can go. Both stay put while the page scrolls. -->
 <Story asChild name="BothCorners">
 	<Corner side="start">
-		<SegmentedPill size="md" segments={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: '2026', href: '/2026/', current: true, count: 42 }]} />
+		<SegmentedPill size="md" tone="quiet" compact segments={[{ label: 'Posts', href: '/posts/', icon: '📡' }, { label: '2026', href: '/2026/', current: true, count: 42 }]} />
 	</Corner>
 	<Nav currentPage="posts" />
 </Story>
@@ -21,9 +21,10 @@
 			size="md"
 			compact
 			label="Library view"
+			value="shelves"
 			segments={[
-				{ label: 'Graph', icon: '🕸️', pressed: false, onclick: () => {} },
-				{ label: 'Shelves', icon: '📚', pressed: true, onclick: () => {} }
+				{ label: 'Graph', icon: '🕸️', value: 'graph' },
+				{ label: 'Shelves', icon: '📚', value: 'shelves' }
 			]}
 		/>
 		<SegmentedPill size="md" compact segments={[{ label: 'Recently acquired', icon: '📅', onclick: () => {} }]} />

@@ -3,6 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Post } from '$lib/posts';
 import { parseTypesParam, typeFilterOptions, typesHref, type PostType } from '$lib/posts-filter';
 import { buildFeedIndex, feedChunk, getFeedEntries, type FeedIndex } from '$lib/server/posts-feed';
+import { getPostsMenu } from '$lib/server/posts-menu';
 import { PAGE_SIZE, pageNumber, postsByDayArray } from '$lib/server/posts-page';
 import type { PageServerLoad } from './$types';
 
@@ -35,7 +36,7 @@ function assetSource(assets: Fetcher, origin: string): FeedSource {
 
 /** Development has no fresh build output, so read the Markdown directly. */
 const localSource: FeedSource = {
-	index: async () => buildFeedIndex(await getFeedEntries()),
+	index: async () => buildFeedIndex(await getFeedEntries(), await getPostsMenu()),
 	chunk: async (chunk) => feedChunk(await getFeedEntries(), chunk)
 };
 
@@ -91,6 +92,7 @@ export const load: PageServerLoad = async ({ url, platform }) => {
 		page,
 		totalPages,
 		typeOptions,
+		postsMenu: index.menu ?? [],
 		selectedTypes: available.filter((type) => selected.has(type)) as PostType[]
 	};
 };

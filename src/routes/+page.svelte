@@ -536,9 +536,15 @@
 <!-- Full-viewport 3-pane interface -->
 <Nav currentPage="home" />
 <!-- The same top-left title every other page pins, so the corner reads alike across the site. -->
-<Corner side="start" phone="hidden"><SegmentedPill size="md" segments={[{ label: 'Casey Gollan', href: '/', icon: '👋', current: true }]} /></Corner>
+<Corner as="nav" side="start" aria-label="On this page">
+    <SegmentedPill size="md" tone="quiet" compact segments={[{ label: 'Casey Gollan', href: '#top', icon: '👋', current: true, menu: [
+        { value: 'top', label: 'Casey Gollan', href: '#top', icon: '👋' },
+        { value: 'currently', label: 'Currently', href: '#currently', icon: '📍' },
+        { value: 'exploring', label: 'Exploring', href: '#exploring', icon: '🧭' }
+    ] }]} />
+</Corner>
 
-<section class="hero-container">
+<section class="hero-container" id="top">
     <div class="three-pane">
         <!-- Left: Graph -->
         <div class="pane-graph">
@@ -602,7 +608,7 @@
 <!-- Info sections below the fold -->
 <div class="info-sections">
     <div class="two-column-section">
-        <section class="info-section">
+        <section class="info-section" id="currently">
             <h2>Currently</h2>
             <p>
                 I'm a Senior Manager of Engineering in IBM's Product Excellence
@@ -627,7 +633,7 @@
             </p>
         </section>
 
-        <section class="info-section">
+        <section class="info-section" id="exploring">
             <h2>Exploring</h2>
             <ul>
                 <li>
@@ -823,6 +829,11 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: var(--spacing-lg);
+    }
+
+    /* Clear of the pinned navigation when jumped to from the menu. */
+    .info-section {
+        scroll-margin-top: calc(var(--nav-lane) + var(--space-4));
     }
 
     .info-section h2 {

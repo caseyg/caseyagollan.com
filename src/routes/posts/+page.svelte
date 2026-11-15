@@ -3,7 +3,7 @@
 	import Nav from '$lib/components/Nav.svelte';
 	import { PostFeed, PostsLayout, PostTypeFilter } from '$lib/components/posts';
 	import { PageHeader, Pagination } from '$lib/components/ui';
-	import { POSTS_CRUMB } from '$lib/components/posts/trail';
+	import { postsCrumb } from '$lib/components/posts/trail';
 	import { typesHref } from '$lib/posts-filter';
 
 	let { data }: { data: PageData } = $props();
@@ -30,7 +30,7 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<PageHeader trail={[{ ...POSTS_CRUMB, current: !filtered && data.page === 1 }]} title={filtered ? shownLabel : 'Posts'}>
+	<PageHeader trail={[{ ...postsCrumb('all'), current: true }]} title={filtered ? shownLabel : 'Posts'}>
 		{#snippet actions()}
 			<PostTypeFilter options={data.typeOptions} selected={data.selectedTypes} href={(types) => typesHref(types, available)} />
 		{/snippet}
@@ -43,8 +43,7 @@
 		label="Posts pagination"
 		page={data.page}
 		totalPages={data.totalPages}
-		prevHref={data.page > 1 ? pageHref(data.page - 1) : undefined}
-		nextHref={data.page < data.totalPages ? pageHref(data.page + 1) : undefined}
+		href={pageHref}
 	/>
 </PostsLayout>
 
