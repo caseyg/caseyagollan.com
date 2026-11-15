@@ -220,10 +220,18 @@
 		}
 	}
 
+	// iOS Safari reports the click that follows a tap with pointerType "mouse", so a click
+	// is judged by the press that started it: the last pointerdown anywhere on the page.
+	let lastPressType = '';
+	$effect(() => {
+		const onPress = (event: PointerEvent) => (lastPressType = event.pointerType);
+		window.addEventListener('pointerdown', onPress, true);
+		return () => window.removeEventListener('pointerdown', onPress, true);
+	});
+
 	/** A tap or pen press, rather than a mouse click. */
-	function isTouch(event: MouseEvent): boolean {
-		const type = (event as PointerEvent).pointerType;
-		if (type) return type !== 'mouse';
+	function isTouch(): boolean {
+		if (lastPressType) return lastPressType !== 'mouse';
 		return window.matchMedia('(hover: none)').matches;
 	}
 
@@ -811,7 +819,7 @@
 				if (d.type === 'citation') {
 					if (!d.url) return;
 					const held = preview?.mode === 'tap' && preview.node.id === d.id;
-					if (isTouch(event) && !held) {
+					if (isTouch() && !held) {
 						showPreview({ mode: 'tap', node: d, anchor: this });
 						return;
 					}
