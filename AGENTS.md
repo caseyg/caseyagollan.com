@@ -22,7 +22,7 @@ Use Bun for package management and local scripts. Run tests and a production bui
 - `src/lib/components/SkillsGraph.svelte`: D3 skills visualization.
 - `src/routes/library/[[isbn]]/`: Three.js book graph and detail view.
 - `src/app.css`: design tokens (color, type scale, space, radius, motion) and global base styles. Use tokens instead of literal values.
-- `src/lib/components/ui/`: presentational primitives (`Page`, `PageHeader`, `Heading`, `Button`, `Chip`, `SegmentedPill`, `SelectMenu`, `TextField`, `Checkbox`, `Notice`, `Section`, `Prose`, ...). Compose these before writing new one-off styles.
+- `src/lib/components/ui/`: presentational primitives (`Page`, `PageHeader`, `Heading`, `Button`, `Chip`, `SegmentedPill`, `SelectMenu`, `TextField`, `Checkbox`, `Notice`, `Section`, `Prose`, ...). See "UI work" below.
 - `src/lib/components/posts/`: post components built from the primitives; routes render feeds with `PostFeed`.
 - `.storybook/` and `*.stories.{ts,svelte}`: Storybook, published at `/storybook/`. Add a story for each new component; `Foundations/Tokens` documents the tokens.
 - `src/lib/posts.ts`: Vite-bundled Markdown snapshot; shared parsing is limited to production builds.
@@ -36,6 +36,22 @@ Use Bun for package management and local scripts. Run tests and a production bui
 - `.svelte-kit/cloudflare/`: generated Worker and assets; never edit or commit generated output.
 
 Cloudflare builds use `bun run build` followed by Wrangler deployment or version upload. Build caching and watch exclusions are configured on Cloudflare build triggers; see README.md.
+
+## UI work: component-first, atomic design
+
+Every UI change goes through the design system. Do not style a route or page directly.
+
+1. **Find the component first.** Before touching markup or CSS, look for the existing component in `src/lib/components/` and in Storybook (`bun run storybook`, port 6006). Change that component, or extend it with a prop or variant, rather than adding a one-off style at the call site.
+2. **Prefer ui-sdk primitives.** Components are being migrated onto ui-sdk. When a ui-sdk primitive covers the need, use it (wrapped in `src/lib/components/ui/` if site styling is required) instead of writing a custom primitive.
+3. **Build up by atomic level.** Compose each level only from the levels below it:
+   - **Atoms** (`src/lib/components/ui/`, Storybook `Primitives/*`): `Button`, `Chip`, `Count`, `Avatar`, `TextField`, `Checkbox`, `Toggle`, `Heading`. Tokens from `src/app.css` only; no layout or data knowledge.
+   - **Molecules** (`ui/` and feature folders): small groups of atoms with one job, such as `SegmentedPill`, `SelectMenu`, `Popover`, `PostMeta`, `PostTitle`, `ComposerButton`.
+   - **Organisms** (`posts/`, `composer/`, `editor/`, top-level `components/`, Storybook `Posts/*`, `Composer/*`, `Site/*`): self-contained sections such as `PostCard`, `PostFeed`, `Nav`, `Search`, `ComposerBar`.
+   - **Templates** (`Page`, `PageHeader`, `Section`, `PostsLayout`): page structure with slots, no route data.
+   - **Pages** (`src/routes/**/+page.svelte`): load data and arrange templates and organisms. Routes hold no reusable markup and no `<style>` beyond one-off layout glue.
+4. **Update Storybook in the same change.** Every new or changed component needs a story covering its new props, variants, and states (empty, loading, error, long content, mobile where relevant). Put the story next to the component (`Name.stories.ts` or `Name.stories.svelte`) under the matching Storybook group. If a token changes, update `Foundations/Tokens`.
+5. **Promote, don't duplicate.** If a second place needs the same pattern, extract it into a component at the right level and replace both usages.
+6. **Verify.** Run `bun run build-storybook` (or check `bun run storybook`) alongside tests and the production build, and look at the changed stories and the routes that use them.
 
 ## Editing and verification
 
