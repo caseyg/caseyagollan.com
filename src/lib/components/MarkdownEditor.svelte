@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { TOGGLE_LINK_COMMAND } from '@lexical/link';
+	import { $insertNodes as insertNodes } from 'lexical';
+	import { $createFigureNode as createFigureNode } from '$lib/components/editor/figure-node';
+	import FigurePlugin from '$lib/components/editor/FigurePlugin.svelte';
 	import {
 		Composer, ContentEditable, RichTextPlugin, HistoryPlugin, ListPlugin, LinkPlugin, HorizontalRulePlugin, MarkdownShortcutPlugin, OnChangePlugin,
 		toggleBold, toggleItalic, toggleStrikethrough, formatParagraph, formatHeading, formatBulletList, formatNumberedList, formatQuote, formatCode, undo, redo,
@@ -38,12 +41,19 @@
 		editor.dispatchCommand(TOGGLE_LINK_COMMAND, /^(https?:\/\/|mailto:|\/)\S+$/.test(url.trim()) ? url.trim() : null);
 	}
 
+	function figure(editor: LexicalEditor) {
+		const src = window.prompt('Image URL', 'https://')?.trim();
+		if (!src || !/^(https?:\/\/|\/)\S+$/.test(src)) return;
+		editor.update(() => insertNodes([createFigureNode({ src, alt: '', caption: '', align: 'full' })]));
+	}
+
 	// Empty block type: the format buttons always apply, and Text resets.
 	const tools: { label: string; title: string; action: (editor: LexicalEditor) => void }[] = [
 		{ label: 'B', title: 'Bold', action: toggleBold },
 		{ label: 'I', title: 'Italic', action: toggleItalic },
 		{ label: 'S', title: 'Strikethrough', action: toggleStrikethrough },
 		{ label: 'Link', title: 'Add or remove a link', action: link },
+		{ label: 'Figure', title: 'Add an image with a caption', action: figure },
 		{ label: 'Text', title: 'Paragraph', action: formatParagraph },
 		{ label: 'H2', title: 'Heading', action: editor => formatHeading(editor, '', 'h2') },
 		{ label: 'H3', title: 'Subheading', action: editor => formatHeading(editor, '', 'h3') },
@@ -72,6 +82,7 @@
 		<ListPlugin />
 		<LinkPlugin />
 		<HorizontalRulePlugin />
+		<FigurePlugin />
 		<MarkdownShortcutPlugin {transformers} />
 		<OnChangePlugin {onChange} ignoreSelectionChange ignoreHistoryMergeTagChange />
 	</Composer>
