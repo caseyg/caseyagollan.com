@@ -16,7 +16,8 @@ const linkEnd = (end: string | { id: string }) => (typeof end === 'object' ? end
 /**
  * The ids a category keeps: its subject node, when the graph has one, the books
  * linked to it, and the books whose catalog tags name it. Tags such as
- * "Nonfiction" have no node of their own, so they gather books by tag alone.
+ * "Nonfiction" have no node of their own, so they gather books by tag, along
+ * with the subjects two or more of those books share.
  */
 export function libraryCategoryMembers(
 	name: string,
@@ -31,6 +32,15 @@ export function libraryCategoryMembers(
 	}
 	for (const link of links) {
 		if (linkEnd(link.target) === name && members.has(name)) members.add(linkEnd(link.source));
+	}
+	if (!members.has(name)) {
+		// A tag has no node of its own to link its books, so keep the subjects
+		// two or more of them share; the graph then still shows how they connect.
+		const shared = new Map<string, number>();
+		for (const link of links) {
+			if (members.has(linkEnd(link.source))) shared.set(linkEnd(link.target), (shared.get(linkEnd(link.target)) ?? 0) + 1);
+		}
+		for (const [subject, count] of shared) if (count >= 2) members.add(subject);
 	}
 	return members;
 }

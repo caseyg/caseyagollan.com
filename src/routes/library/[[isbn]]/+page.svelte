@@ -154,11 +154,13 @@
 	let selectedBook: Node | null = $state.raw(data.initialBook);
 	let bookDetails: BookDetails | null = $state(data.initialBook ? catalogDetailsFor(data.initialBook) : null);
 	let orbitAnimationId: number | null = null;
-	let orbitPaused = false;
 	let removeOrbitListener: (() => void) | undefined;
 	let orbitStartTimeoutId: ReturnType<typeof setTimeout> | undefined;
 	let orbitResumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
-	let orbitDirection = 1; // 1 or -1 for clockwise/counter-clockwise
+	// How far the camera stands from an open book: far enough to take in its neighborhood.
+	let bookViewDistance = 160;
+	// Whether the reader has moved the camera since it turned to the open book.
+	let bookViewTouched = false;
 
 	// Top-level DDC class names for shelf labels
 	const topLevelDdcNames = new Set([
@@ -1228,123 +1230,73 @@
 		step(started);
 	}
 
+	// Where the camera looks at an open book: square to its cover, the way the
+	// shelves present one, so the graph turns to the book rather than the book
+	// to the camera. It stands back far enough to keep the neighborhood in view.
+	function bookView(node: Node) {
+		const book = node.__threeObj;
+		const at = position(node);
+		const facing = new THREE.Vector3(0, 0, 1);
+		if (book) facing.applyQuaternion(book.quaternion);
+		// Steep covers are met at an angle; OrbitControls keeps the world upright.
+		const level = Math.hypot(facing.x, facing.z);
+		if (level < 0.5) {
+			const scale = level > 1e-3 ? 0.5 / level : 0;
+			facing.set(level > 1e-3 ? facing.x * scale : 0, Math.sign(facing.y) * Math.sqrt(0.75), level > 1e-3 ? facing.z * scale : 1);
+		}
+		facing.normalize();
+		const distance = bookViewDistance;
+		// Center the book in the part of the view the sidebar leaves open, as
+		// shelfCoverCamera does: slide along the view's right (desktop sidebar)
+		// or down (phone bottom sheet).
+		const reach = distance * Math.tan(Graph.camera().fov * Math.PI / 360);
+		const viewWidth = graphContainer.clientWidth, viewHeight = graphContainer.clientHeight;
+		const slide = viewWidth > 600 ? 320 / viewHeight * reach : 0;
+		const drop = viewWidth > 600 ? 0 : 0.5 * reach;
+		const right = new THREE.Vector3().crossVectors(facing.clone().negate(), new THREE.Vector3(0, 1, 0)).normalize();
+		const target = { x: at.x + right.x * slide, y: at.y - drop, z: at.z + right.z * slide };
+		return {
+			position: { x: target.x + facing.x * distance, y: target.y + facing.y * distance, z: target.z + facing.z * distance },
+			target
+		};
+	}
+
+	// Turn the graph to face the open book, once, then leave the camera to the reader.
+	function aimAtBook(node: Node, animate = true, duration = 1400) {
+		stopOrbit();
+		bookViewTouched = false;
+		const from = animate ? { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } } : null;
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
+		let started: number | null = null;
+		const step = (now: number) => {
+			if (isDestroyed || selectedBook?.id !== node.id || isGridModeActive) return;
+			started ??= now;
+			// Recomputed each frame, so the distance can ease out as the neighborhood settles.
+			const goal = bookView(node);
+			const p = from && duration ? Math.min((now - started) / duration, 1) : 1;
+			const t = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+			const mix = (a: Point, b: Point) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t });
+			Graph.cameraPosition(from ? mix(from.position, goal.position) : goal.position, from ? mix(from.target, goal.target) : goal.target, 0);
+			orbitAnimationId = p < 1 ? scheduleFrame(step) : null;
+		};
+		orbitAnimationId = scheduleFrame(step);
+		// Grabbing the view hands the camera to the reader.
+		const controls = Graph.controls();
+		const release = () => { bookViewTouched = true; stopOrbit(); };
+		controls.addEventListener('start', release);
+		removeOrbitListener = () => controls.removeEventListener('start', release);
+	}
+
 	function focusGraphBook(node: Node, animate = true) {
 		showHighResolutionCover(node);
 		if (isGridModeActive) presentShelfBook(node);
 		Graph.controls().minDistance = 0.1;
 		Graph.controls().maxDistance = Infinity;
 		if (coverflow) return;
-		fadeOtherBooks(node);
+		// In the graph the neighborhood stays readable around the open book.
+		fadeOtherBooks(node, isGridModeActive ? 0.25 : 0.7);
 
-		if (!isGridModeActive) {
-			// Start orbit animation around the selected book
-			const bookX = node.x || 0;
-			const bookY = node.y || 0;
-			const bookZ = node.z || 0;
-			const orbitRadius = 40;
-			const orbitSpeed = 0.0003; // radians per millisecond
-			let startTime: number | null = null;
-			const blendDuration = 1400;
-			let blendFrom: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null =
-				animate ? { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } } : null;
-
-			// Random orbit direction each time
-			orbitDirection = Math.random() > 0.5 ? 1 : -1;
-			orbitPaused = false;
-
-			// Clear any existing resume timeout
-			if (orbitResumeTimeoutId) {
-				clearTimeout(orbitResumeTimeoutId);
-				orbitResumeTimeoutId = null;
-			}
-
-			function orbitCamera(timestamp: number) {
-				if (isDestroyed || !selectedBook || selectedBook.id !== node.id) return;
-
-				// Skip position update if paused, but keep animation frame running
-				if (orbitPaused) {
-					orbitAnimationId = scheduleFrame(orbitCamera);
-					return;
-				}
-
-				if (!startTime) startTime = timestamp;
-
-				const elapsed = timestamp - startTime;
-				const angle = Math.PI / 2 + elapsed * orbitSpeed * orbitDirection;
-				// The force simulation keeps moving the selected book during startup.
-				const bookX = node.x || 0;
-				const bookY = node.y || 0;
-				const bookZ = node.z || 0;
-
-				// Orbit in XZ plane around the book
-				let cameraX = bookX + orbitRadius * Math.cos(angle);
-				let cameraZ = bookZ + orbitRadius * Math.sin(angle);
-				let cameraY = bookY + 10; // Slightly above
-				let targetX = bookX, targetY = bookY, targetZ = bookZ;
-				// Center the book in the part of the view the sidebar leaves open, as
-				// shelfCoverCamera does: slide camera and target along the view's right
-				// (desktop sidebar) or down (mobile bottom sheet).
-				const reach = Math.hypot(orbitRadius, 10) * Math.tan(Graph.camera().fov * Math.PI / 360);
-				const viewWidth = graphContainer.clientWidth, viewHeight = graphContainer.clientHeight;
-				const slide = viewWidth > 600 ? 320 / viewHeight * reach : 0;
-				const drop = viewWidth > 600 ? 0 : 0.5 * reach;
-				const slideX = slide * Math.sin(angle), slideZ = -slide * Math.cos(angle);
-				cameraX += slideX; cameraZ += slideZ; cameraY -= drop;
-				targetX += slideX; targetZ += slideZ; targetY -= drop;
-				// Blend from where the camera was into the moving orbit, so the zoom
-				// and the orbit are one continuous motion with no stop between them.
-				if (blendFrom && elapsed < blendDuration) {
-					const p = elapsed / blendDuration;
-					const t = p * p * (3 - 2 * p);
-					const mix = (a: number, b: number) => a + (b - a) * t;
-					cameraX = mix(blendFrom.position.x, cameraX);
-					cameraY = mix(blendFrom.position.y, cameraY);
-					cameraZ = mix(blendFrom.position.z, cameraZ);
-					targetX = mix(blendFrom.target.x, targetX);
-					targetY = mix(blendFrom.target.y, targetY);
-					targetZ = mix(blendFrom.target.z, targetZ);
-				} else blendFrom = null;
-
-				Graph.cameraPosition(
-					{ x: cameraX, y: cameraY, z: cameraZ },
-					{ x: targetX, y: targetY, z: targetZ },
-					0 // Instant update for smooth orbit
-				);
-
-				orbitAnimationId = scheduleFrame(orbitCamera);
-			}
-
-			// Set up pause on user interaction
-			const controls = Graph.controls();
-			const pauseOrbit = () => {
-				if (!selectedBook) return;
-				orbitPaused = true;
-
-				// Clear existing timeout
-				if (orbitResumeTimeoutId) {
-					clearTimeout(orbitResumeTimeoutId);
-				}
-
-				// Resume after 5 seconds of inactivity
-				orbitResumeTimeoutId = setTimeout(() => {
-					if (selectedBook) {
-						orbitPaused = false;
-						startTime = null; // Reset start time so orbit continues smoothly
-						blendFrom = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } };
-					}
-				}, 5000);
-			};
-
-			// Listen for user interaction
-			removeOrbitListener?.();
-			controls.addEventListener('start', pauseOrbit);
-			removeOrbitListener = () => controls.removeEventListener('start', pauseOrbit);
-
-			clearTimeout(orbitStartTimeoutId);
-			if (orbitAnimationId !== null) cancelAnimationFrame(orbitAnimationId);
-			orbitAnimationId = scheduleFrame(orbitCamera);
-
-		}
+		if (!isGridModeActive) aimAtBook(node, animate);
 
 	}
 
@@ -1468,7 +1420,6 @@
 			clearTimeout(orbitResumeTimeoutId);
 			orbitResumeTimeoutId = null;
 		}
-		orbitPaused = false;
 	}
 
 	function deselectBook() {
@@ -1491,7 +1442,6 @@
 			clearTimeout(orbitResumeTimeoutId);
 			orbitResumeTimeoutId = null;
 		}
-		orbitPaused = false;
 
 		if (Graph) {
 			// Restore all books to full opacity
@@ -2169,6 +2119,18 @@
 			// Books from a previous filter go back to where they were.
 			for (const [node, home] of homePositions) if (!targets.has(node)) targets.set(node, home);
 			moveNodes(targets, false, duration);
+			if (selected) {
+				// Orbit far enough to take in most of the book's neighborhood.
+				const book = targets.get(selected) ?? position(selected);
+				const distances = members.map((node) => {
+					const at = targets.get(node) ?? position(node);
+					return Math.hypot(at.x - book.x, at.y - book.y, at.z - book.z);
+				}).sort((a, b) => a - b);
+				const reach = distances[Math.floor((distances.length - 1) * 0.5)] ?? 0;
+				bookViewDistance = Math.max(70, Math.min(fitDistance(reach + 10), 900));
+				// Arrived after the camera finished turning: step back to fit, unless the reader has taken over.
+				if (orbitAnimationId === null && !bookViewTouched && !savedForces) aimAtBook(selected, true, 700);
+			}
 			if (frame && !selectedBook) frameCategory(duration && 1000, targets);
 			return;
 		}
@@ -2244,6 +2206,8 @@
 	function filteredScale(node: Node) {
 		if (!graphMembers) return 1;
 		if (!graphMembers.has(node.id)) return 0;
+		// The open book stands out from its neighborhood.
+		if (node.group === 'book' && node.id === selectedBook?.id) return 1.8;
 		return node.group === 'ddc' ? 8 / Math.max((node.points || 1) / 2, 3) : 1;
 	}
 
@@ -2281,6 +2245,15 @@
 		step(started);
 	}
 
+	// How far back the camera stands to fit a sphere of this radius, in the part
+	// of the view a book's sidebar leaves open when one is showing.
+	function fitDistance(radius: number) {
+		const halfFov = (Graph.camera().fov * Math.PI) / 360;
+		const sidebar = selectedBook && graphContainer.clientWidth > 600 ? 320 : 0;
+		const aspect = (graphContainer.clientWidth - sidebar) / Math.max(1, graphContainer.clientHeight);
+		return radius / Math.sin(Math.min(halfFov, Math.atan(Math.tan(halfFov) * aspect)));
+	}
+
 	// Fit the category's subject and books in view, from the side the reader is looking.
 	function frameCategory(duration = 900, targets?: Map<Node, Point>) {
 		if (!Graph || !graphMembers || isGridModeActive) return;
@@ -2298,9 +2271,7 @@
 			.sort((a, b) => a - b);
 		const radius = Math.max(30, distances[Math.floor((distances.length - 1) * 0.9)] + 15);
 		const camera = Graph.camera();
-		const halfFov = (camera.fov * Math.PI) / 360;
-		const aspect = graphContainer.clientWidth / Math.max(1, graphContainer.clientHeight);
-		const distance = radius / Math.sin(Math.min(halfFov, Math.atan(Math.tan(halfFov) * aspect)));
+		const distance = fitDistance(radius);
 		const target = Graph.controls().target;
 		const direction = new THREE.Vector3(camera.position.x - target.x, camera.position.y - target.y, camera.position.z - target.z);
 		if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);

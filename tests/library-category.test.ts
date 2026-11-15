@@ -24,7 +24,9 @@ test('links resolved to node objects count like string ids', () => {
 	expect([...libraryCategoryMembers('History', nodes, links, tagsOf)].sort()).toEqual(['Book B', 'Book C', 'History']);
 });
 
-test('a tag with no subject node keeps only the books tagged with it', () => {
+test('a tag with no subject node keeps its books and the subjects they share', () => {
 	expect([...libraryCategoryMembers('Nonfiction', nodes, links, tagsOf)].sort()).toEqual(['Book A', 'Book B']);
+	const shared = [...links, { source: 'Book A', target: 'History' }];
+	expect([...libraryCategoryMembers('Nonfiction', nodes, shared, tagsOf)].sort()).toEqual(['Book A', 'Book B', 'History']);
 	expect(libraryCategoryMembers('Unknown', nodes, links, tagsOf).size).toBe(0);
 });
