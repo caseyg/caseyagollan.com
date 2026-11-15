@@ -4,6 +4,7 @@
 	import type * as Three from 'three';
 	import { browser } from '$app/environment';
 	import { pushState, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
 	import { Chip, Corner, SegmentedPill } from '$lib/components/ui';
@@ -92,7 +93,15 @@
 	let Graph: any;
 	let isLoading = $state(true);
 	let sceneReady = $state(false);
+	// The cover preview stays until the 3D cover takes its place.
+	let previewDone = $state(false);
+	// A book link opening in the graph shows a smaller preview that settles into the graph.
+	const previewInGraph = !readLibraryView(page.url).shelves;
+	// Covers and labels may load behind the preview, before the graph is shown.
+	let warmingUp = false;
 	let previewRect = $state<{ left: number; top: number; width: number; height: number } | null>(null);
+	// Carries the graph preview onto the 3D cover on the compositor, from where it stood.
+	let previewTransform = $state<string | null>(null);
 	// The preview shows the same picture the 3D book will wear: its catalog image,
 	// its larger cover, or (drawn in the browser) its lettered placeholder.
 	const initialCover = data.initialBook?.img ? `/library/${data.initialBook.img}`
@@ -510,7 +519,7 @@
 	let coverUploadFrame: number | null = null;
 	function uploadCovers() {
 		coverUploadFrame = null;
-		if (!isLoading) for (const upload of coverUploads.splice(0, 4)) upload();
+		if (!isLoading || warmingUp) for (const upload of coverUploads.splice(0, 4)) upload();
 		if (coverUploads.length) coverUploadFrame = scheduleFrame(uploadCovers);
 	}
 
@@ -1854,20 +1863,54 @@
 			restoreLibraryView();
 			window.addEventListener('popstate', restoreLibraryView);
 
-			const reveal = async () => {
+			const reveal = async (glide = false) => {
 				// Crossfade only once the 3D book wears the same cover as the preview.
 				await Promise.race([highResolutionReady, new Promise((resolve) => setTimeout(resolve, 1500))]);
 				await new Promise((resolve) => scheduleFrame(() => scheduleFrame(resolve)));
 				if (isDestroyed) return;
 				// Glide the preview onto the 3D cover's exact spot, then crossfade.
-				const rect = selectedBook?.__threeObj?.visible ? coverScreenRect(selectedBook.__threeObj) : null;
-				if (rect) {
-					previewRect = rect;
-					await new Promise((resolve) => setTimeout(resolve, 320));
+				const book = selectedBook?.__threeObj;
+				const rect = book?.visible ? coverScreenRect(book) : null;
+				if (rect && glide) {
+					// The graph fades in around the preview while it settles onto the
+					// 3D cover, which stays hidden until the preview reaches it.
+					book!.visible = false;
+					// Pin the preview where it stands first, so every edge can ease from there.
+					const shown = document.querySelector('.book-preview > img, .book-preview > .preview-placeholder')?.getBoundingClientRect();
+					if (shown && shown.width > 0 && shown.height > 0) {
+						previewRect = { left: shown.left, top: shown.top, width: shown.width, height: shown.height };
+						await new Promise((resolve) => scheduleFrame(() => scheduleFrame(resolve)));
+						previewTransform = `translate(${rect.left - shown.left}px, ${rect.top - shown.top}px) scale(${rect.width / shown.width}, ${rect.height / shown.height})`;
+					} else previewRect = rect;
+					sceneReady = true;
+					isLoading = false;
+					await new Promise((resolve) => setTimeout(resolve, 900));
+					if (selectedBook?.__threeObj === book) book!.visible = true;
+					previewDone = true;
+				} else {
+					if (rect) {
+						previewRect = rect;
+						await new Promise((resolve) => setTimeout(resolve, 320));
+					}
+					sceneReady = true;
+					previewDone = true;
+					isLoading = false;
 				}
-				sceneReady = true;
-				isLoading = false;
 				if (paintFrame === null) paintFrame = scheduleFrame(paintQueued);
+			};
+			// Paint labels and spines and upload whatever covers have arrived while
+			// the preview still shows, so the graph appears whole instead of in pieces.
+			const warmUp = async (limit: number) => {
+				warmingUp = true;
+				const until = performance.now() + limit;
+				let quietSince = performance.now();
+				while (!isDestroyed && performance.now() < until) {
+					if (pendingLabels.size || pendingPaint.size) { if (paintFrame === null) paintQueued(); quietSince = performance.now(); }
+					if (coverUploads.length) { if (coverUploadFrame === null) uploadCovers(); quietSince = performance.now(); }
+					if (performance.now() - quietSince > 200) break;
+					await new Promise((resolve) => scheduleFrame(resolve));
+				}
+				warmingUp = false;
 			};
 			const bookNode = selectedBook ? graphData.nodes.find((node) => node.id === selectedBook?.id) : undefined;
 			if (bookNode) selectedBook = bookNode;
@@ -1876,30 +1919,25 @@
 				const waitForShelf = () => (shelfFramePending ? scheduleFrame(waitForShelf) : reveal());
 				scheduleFrame(waitForShelf);
 			} else if (bookNode) {
-				// A book link skips the opening animation: settle the layout in the
-				// worker, then show the 3D book exactly where the cover image sits.
+				// A book link skips the opening animation: settle the layout and the
+				// book's neighborhood behind the preview, frame the open book as it
+				// will stay, then let the preview settle onto its 3D cover while the
+				// graph fades in around it.
 				await layoutFinished;
 				if (isDestroyed || isGridModeActive || selectedBook !== bookNode) { reveal(); return; }
 				finishWorkerLayout(true);
 				await new Promise((resolve) => scheduleFrame(() => scheduleFrame(resolve)));
-				// The book's neighborhood gathers as the camera pulls back from the cover.
-				refreshGraph(false);
-				const book = bookNode.__threeObj;
-				if (book) {
-					book.rotation.set(0, 0, 0);
-					const { width, height } = book.geometry.parameters;
-					const view = shelfCoverCamera({ x: bookNode.x || 0, y: bookNode.y || 0, z: bookNode.z || 0, width, height },
-						{ width: graphContainer.clientWidth, height: graphContainer.clientHeight }, Graph.camera().fov);
-					Graph.cameraPosition(view.position, view.target, 0);
-					showHighResolutionCover(bookNode, book);
-					// The cover stands alone at first; the graph fades in as the camera pulls back.
-					fadeOtherBooks(bookNode, 0, 0);
-				}
-				await reveal();
-				// After the crossfade, ease from the cover into the usual orbit.
-				setTimeout(() => {
-					if (!isDestroyed && selectedBook === bookNode && !isGridModeActive) focusGraphBook(bookNode);
-				}, 700);
+				graphMembers = currentGraphMembers();
+				fadeFilteredGraph(0);
+				await arrangeCategory(false, 0);
+				if (isDestroyed || isGridModeActive || selectedBook !== bookNode) { reveal(); return; }
+				bookNode.__threeObj?.rotation.set(0, 0, 0);
+				Graph.camera().position.set(bookNode.x || 0, bookNode.y || 0, (bookNode.z || 0) + 1);
+				Graph.controls().target.set(bookNode.x || 0, bookNode.y || 0, bookNode.z || 0);
+				focusGraphBook(bookNode, false);
+				fadeOtherBooks(bookNode, 0.7, 0);
+				await warmUp(1500);
+				await reveal(true);
 			} else if (graphMembers && !isGridModeActive) {
 				// A filtered link opens already arranged and framed, like a book link
 				// skips the opening animation, instead of drifting into place off-center.
@@ -1913,7 +1951,7 @@
 				}
 				reveal();
 			} else {
-				scheduleFrame(reveal);
+				scheduleFrame(() => reveal());
 			}
 
 			// Add keyboard event listener for arrow key navigation
@@ -2872,19 +2910,19 @@
 	</div>
 {/if}
 {#if data.initialBook && selectedBook}
-	<div class="book-preview" class:ready={sceneReady} aria-hidden="true">
+	<div class="book-preview" class:ready={previewDone} class:in-graph={previewInGraph} aria-hidden="true">
 		{#if initialCover}
 			<img src={initialCover} alt="" fetchpriority="high" loading="eager" class:placed={previewRect}
 				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
-				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} />
+				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} style:transform={previewTransform} />
 		{:else if generatedPreview}
 			<img src={generatedPreview.src} alt="" class="generated" class:placed={previewRect} style:aspect-ratio={generatedPreview.aspect}
 				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
-				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} />
+				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} style:transform={previewTransform} />
 		{:else}
 			<div class="preview-placeholder" class:placed={previewRect} style:background={placeholderColor(data.initialBook.id)} style:color={placeholderInk(data.initialBook)}
 				style:left={previewRect && `${previewRect.left}px`} style:top={previewRect && `${previewRect.top}px`}
-				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`}>{libraryText(data.initialBook.id)}</div>
+				style:width={previewRect && `${previewRect.width}px`} style:height={previewRect && `${previewRect.height}px`} style:transform={previewTransform}>{libraryText(data.initialBook.id)}</div>
 		{/if}
 	</div>
 {/if}
@@ -3035,9 +3073,21 @@
 		object-fit: fill;
 		transition: left 300ms ease, top 300ms ease, width 300ms ease, height 300ms ease;
 	}
+	/* In the graph the cover ends up small, so it starts smaller and takes its
+	   time settling into place. */
+	/* Above the graph as it fades in, so the cover settles over it. */
+	.book-preview.in-graph { z-index: 1; }
+	.book-preview.in-graph img, .book-preview.in-graph .preview-placeholder { height: 46vh; }
+	.book-preview.in-graph .placed {
+		transform-origin: 0 0;
+		transition: transform 900ms cubic-bezier(0.4, 0, 0.2, 1);
+		will-change: transform;
+	}
+	.book-preview.in-graph.ready { transition: opacity 250ms ease; }
 	@media (max-width: 600px) {
 		.book-preview { inset: 0 0 50vh; }
 		.book-preview img, .preview-placeholder { height: 37vh; }
+		.book-preview.in-graph img, .book-preview.in-graph .preview-placeholder { height: 26vh; }
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.book-preview, .graph-container { transition: none !important; }
