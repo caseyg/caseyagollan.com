@@ -4,7 +4,7 @@
 	import { ownerHint } from '$lib/owner';
 	import { pageCommands } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
-	import { CommandPalette, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
+	import { CommandPalette, PullDown, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
 
 	interface Props {
 		/** Opens the site search, with the text typed so far. */
@@ -153,4 +153,6 @@
 	}
 </script>
 
+<!-- On a phone, with no keyboard shortcut, pulling down from the top of the page opens it. -->
+<PullDown onPull={() => (open = true)} disabled={open} />
 <CommandPalette {sections} {onAction} bind:open bind:query status={searching && term.length >= 2 && !results.length ? 'Searching…' : ''} />
