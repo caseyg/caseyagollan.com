@@ -31,6 +31,11 @@
 	<div class="dock"><BlockPicker {search} onadd={add} onclose={() => {}} filter="arena" /></div>
 </Story>
 
+<!-- Signed in, the owner also gets Raindrop. -->
+<Story asChild name="Owner, Raindrop">
+	<div class="dock"><BlockPicker {search} onadd={add} onclose={() => {}} owner filter="raindrop" /></div>
+</Story>
+
 <Story asChild name="Empty query">
 	<div class="dock"><BlockPicker {search} onadd={add} /></div>
 </Story>

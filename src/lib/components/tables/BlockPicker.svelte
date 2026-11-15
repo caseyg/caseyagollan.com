@@ -19,12 +19,14 @@
 		source?: Block;
 		/** Reads a block's page into pieces. */
 		pieces?: (block: Block) => Promise<Block[]>;
+		/** The signed-in owner also gets a Raindrop filter for their bookmarks, which only they can see. */
+		owner?: boolean;
 		/** Starting query and filter, for stories. */
 		query?: string;
 		filter?: SourceFilter;
 	}
 
-	let { search, onadd, onclose, placed = [], source, pieces, query = $bindable(''), filter = $bindable('all') }: Props = $props();
+	let { search, onadd, onclose, placed = [], source, pieces, owner = false, query = $bindable(''), filter = $bindable('all') }: Props = $props();
 
 	const onTable = $derived(new Set(placed));
 	let found = $state<Block[]>([]);
@@ -59,13 +61,14 @@
 	let link = $state('');
 	let linkError = $state('');
 
-	const filters = [
+	const filters = $derived([
 		{ label: 'All', value: 'all' },
 		{ label: 'Posts', value: 'post', icon: '📡' },
 		{ label: 'Books', value: 'book', icon: '📚' },
 		{ label: 'Wiki', value: 'wiki', icon: '🌱' },
-		{ label: 'Are.na', value: 'arena', icon: '✳️' }
-	];
+		{ label: 'Are.na', value: 'arena', icon: '✳️' },
+		...(owner ? [{ label: 'Raindrop', value: 'raindrop', icon: '💧' }] : [])
+	]);
 
 	// Each keystroke starts a search; only the latest one's results are shown.
 	let latest = 0;
@@ -102,7 +105,7 @@
 	}
 
 	const emptyMessage = $derived(
-		phase === 'unavailable' ? 'Search isn’t available here. Links still work.' : !query.trim() && filter === 'all' ? 'Search, or pick Books, Wiki or Are.na to browse them all.' : 'Nothing matches.'
+		phase === 'unavailable' ? 'Search isn’t available here. Links still work.' : !query.trim() && filter === 'all' ? owner ? 'Search, or pick Books, Wiki, Are.na or Raindrop to browse.' : 'Search, or pick Books, Wiki or Are.na to browse them all.' : 'Nothing matches.'
 	);
 </script>
 

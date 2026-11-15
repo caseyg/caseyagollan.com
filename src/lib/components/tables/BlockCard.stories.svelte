@@ -36,6 +36,13 @@
 	</div>
 </Story>
 
+<!-- A Raindrop bookmark, which only the signed-in owner can add. -->
+<Story asChild name="Raindrop">
+	<div class="tiles">
+		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.raindrop} /></div>
+	</div>
+</Story>
+
 <!-- A picture that fails to load falls back to the text block. Long titles clamp. -->
 <Story asChild name="Broken image and long title">
 	<div class="tiles">
