@@ -8,6 +8,8 @@
     import InsightCard from "$lib/components/InsightCard.svelte";
 
     import type { InsightResponse } from "$lib/insight-types";
+    import { usePageCommands } from "$lib/page-commands.svelte";
+
 
     interface Insight {
         topic: string;
@@ -26,6 +28,8 @@
         { value: 'exploring', label: 'Exploring', href: '#exploring', icon: '🧭' }
     ];
     let section = $state(sections[0]);
+    // The same sections in the command palette.
+    usePageCommands(() => [{ label: 'On this page', items: sections.map(({ href, label, icon }) => ({ value: `go:${href}`, label, icon })) }]);
 
     onMount(() => {
         let frame = 0;
