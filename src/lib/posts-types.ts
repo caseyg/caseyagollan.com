@@ -154,6 +154,17 @@ export function rollupIndexPosts(posts: Post[]): Post[] {
  return rollupThreadPosts(result).sort((a,b) => Date.parse(b.date)-Date.parse(a.date));
 }
 
+/**
+ * Every post a rendered card stands for, as `post-<slug>` anchors: the card itself, the likes and reposts
+ * rolled into it, and the members of its thread. Pages can roll the same posts up differently, so a link
+ * to any one of them still lands on the card that shows it.
+ */
+export function postAnchors(post: Post): string[] {
+ const slugs = [post.slug, ...(post.indexActivities ?? []).map(a => a.permalink.replace(/\/$/, '').split('/').pop() ?? ''),
+  ...(post.indexThreadPosts ?? []).flatMap(postAnchors).map(id => id.slice(5))];
+ return [...new Set(slugs.filter(Boolean))].map(slug => `post-${slug}`);
+}
+
 /** Group only saved conversation relationships, never proximity in time or shared authors. */
 function rollupThreadPosts(posts: Post[]): Post[] {
  const parents = posts.map((_, i) => i);

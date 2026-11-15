@@ -50,11 +50,11 @@
  .social-card-scope .social-reply-context .social-post-content p { margin: 0.35rem 0; }
  .social-card-scope .social-reply-context .social-snapshot footer { margin-top: 0.5rem; }
 
- .social-card-scope .social-card-context { margin: calc(-1 * var(--social-card-padding, 1rem)) calc(-1 * var(--social-card-padding, 1rem)) var(--social-card-padding, 1rem); }
- .social-card-scope .social-card-context > .social-reply-context { margin: 0; padding: var(--social-card-padding, 1rem); }
- .social-card-scope .social-card-context > .social-reply-context > p { margin: 0 0 0.5rem; }
-
- /* A conversation shares the same shell as a reply and its context. */
- .social-card-scope > .social-thread { padding: 0; margin: 0; overflow: hidden; }
+/* Attachments under a SocialPost sit close to its text. */
+ .social-post .social-card-scope > :is(.social-images, .social-link-preview, .social-quoted-post, .social-video) { margin-top: var(--space-2); }
 
  .social-card-scope .social-video { margin-top: var(--space-3); }
+
+ /* Links in a SocialPost's text read as text, as in saved posts. */
+ .social-card-scope .social-post .body a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
+ .social-card-scope .social-post .body a.social-link-preview { text-decoration: none; }

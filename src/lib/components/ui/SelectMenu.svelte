@@ -140,6 +140,7 @@
 	</MenuItem>
 {/snippet}
 
+<!-- Collision padding stays inside the corner inset, so a menu pinned to a corner lines up with its trigger. -->
 <Menu bind:open>
 	<MenuTrigger class="select-menu-trigger select-menu-trigger--{variant}" aria-label={label}>
 		<span class="current" class:has-icon={currentIcon || icon} title={current}>
@@ -150,7 +151,7 @@
 		{#if count !== undefined}<span class="count"><Count value={count} label="{count} posts" /></span>{/if}
 		<span class="arrow" aria-hidden="true">▾</span>
 	</MenuTrigger>
-	<MenuContent class="select-menu select-menu--{variant} {columns === 2 ? 'select-menu--columns' : ''}" side="bottom" {align} sideOffset={4} collisionPadding={8}>
+	<MenuContent class="select-menu select-menu--{variant} {columns === 2 ? 'select-menu--columns' : ''}" side="bottom" {align} sideOffset={4} collisionPadding={4}>
 		{#each groups as group, i (group.label ?? i)}
 			{#if group.label}
 				<MenuGroup class="select-menu-group">

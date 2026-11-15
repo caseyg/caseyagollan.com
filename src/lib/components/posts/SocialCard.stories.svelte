@@ -1,15 +1,24 @@
 <script module lang="ts">
-	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import SocialCard from './SocialCard.svelte';
-	const { Story } = defineMeta({
-		title: 'Posts/SocialCard', component: SocialCard,
-		args: { published: '2026-01-10T12:00:00-05:00', url: '/2026/01/10/storybook-note/' }
-	});
+ import { defineMeta } from '@storybook/addon-svelte-csf';
+ import SocialCard from './SocialCard.svelte';
+ import SocialPost from './SocialPost.svelte';
+ import { siteAuthor } from '$lib/social-card';
+ const { Story } = defineMeta({ title: 'Posts/SocialCard', component: SocialCard });
+ const casey = { ...siteAuthor, handle: '@caseyagollan.com' };
+ const reader = { name: 'Example Reader', handle: '@example.com', url: 'https://bsky.app/profile/example.com' };
+ const bluesky = [{ url: 'https://bsky.app/profile/caseyagollan.com/post/1', label: '🦋', title: 'View on Bluesky' }];
 </script>
 
-<Story name="NativePost"><p>A thought shared from the site, with author and publication details.</p></Story>
-<Story name="SavedMarkup" args={{ html: '<div class="social-snapshot"><p>A saved social post rendered from sanitized markup.</p></div>' }} />
-<Story name="Thread" args={{ variant: 'thread' }}>
- <SocialCard published="2026-01-10T12:00:00-05:00" url="/2026/01/10/storybook-note/"><p>The first post in a conversation.</p></SocialCard>
- <SocialCard published="2026-01-10T12:04:00-05:00" url="/2026/01/10/storybook-reply/"><p>The next post shares the conversation shell.</p></SocialCard>
+<!-- One shell for every social post: a single post, a reply under its parent, or a whole thread. -->
+<Story name="Single post">
+ <SocialPost author={casey} date="2026-01-10T12:00:00-05:00" url="/2026/01/10/storybook-note/" sources={bluesky}><p>A thought shared from the site.</p></SocialPost>
+</Story>
+<Story name="Reply">
+ <SocialPost author={reader} date="2026-01-09T15:30:00-05:00" connected sources={bluesky}><p>Research is a way of paying attention together.</p></SocialPost>
+ <SocialPost author={casey} date="2026-01-10T12:00:00-05:00" sources={bluesky}><p>This resonates with how I think about research.</p></SocialPost>
+</Story>
+<Story name="Thread" args={{ label: 'Conversation' }}>
+ <SocialPost author={reader} date="2026-01-10T12:00:00-05:00" connected marks={[{ icon: '♥', label: 'liked', href: '#' }]}><p>The first post in a conversation.</p></SocialPost>
+ <SocialPost author={casey} date="2026-01-10T12:04:00-05:00" connected sources={bluesky}><p>A reply joins it with the thread line.</p></SocialPost>
+ <SocialPost author={reader} date="2026-01-10T12:09:00-05:00"><p>And the conversation keeps going.</p></SocialPost>
 </Story>

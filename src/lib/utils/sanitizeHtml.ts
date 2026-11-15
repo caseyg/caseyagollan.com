@@ -53,7 +53,18 @@ function restrictFrames(node: Root | Element): void {
 /** Parse as browser HTML, allowlist markup and protocols, then serialize a safe fragment.
  * Shared by publishing input validation and every HTML render boundary. No DOM or Node APIs.
  */
+// The function is pure, and prerendering sanitizes the same post body on every feed page that shows it.
+const sanitized = new Map<string, string>();
+const SANITIZE_CACHE_LIMIT = 2000;
 export function sanitizePublishingHtml(html: string): string {
+ const cached = sanitized.get(html);
+ if (cached !== undefined) return cached;
+ const result = sanitizeUncached(html);
+ if (sanitized.size >= SANITIZE_CACHE_LIMIT) sanitized.clear();
+ sanitized.set(html, result);
+ return result;
+}
+function sanitizeUncached(html: string): string {
  const parsed = fromHtml(html, { fragment: true });
  normalizeClobberPrefixes(parsed);
  const tree = sanitize(parsed, schema);

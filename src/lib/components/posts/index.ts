@@ -13,4 +13,8 @@ export { default as PostDetails } from './PostDetails.svelte';
 export { default as NoteCard } from './NoteCard.svelte';
 export { default as BookmarkTitle } from './BookmarkTitle.svelte';
 export { default as SocialCard } from './SocialCard.svelte';
+export { default as SocialPost } from './SocialPost.svelte';
+export { default as SavedSocialPost } from './SavedSocialPost.svelte';
+export { default as SiteSocialPost } from './SiteSocialPost.svelte';
+export { default as ThreadGroup } from './ThreadGroup.svelte';
 export { default as TagList } from './TagList.svelte';

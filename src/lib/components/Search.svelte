@@ -43,6 +43,20 @@
 
 	let { onResultClick }: { onResultClick?: (url: URL) => boolean } = $props();
 
+	/** Opens search, with `query` already typed, as the command palette does. */
+	export function openWith(query = '') {
+		const modal = document.querySelector('pagefind-modal') as (HTMLElement & { open(): void }) | null;
+		if (!modal?.open) return;
+		modal.open();
+		if (!query) return;
+		requestAnimationFrame(() => {
+			const input = modal.querySelector<HTMLInputElement>('pagefind-input input');
+			if (!input) return;
+			input.value = query;
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+		});
+	}
+
 	function handleResultClick(event: MouseEvent) {
 		if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.search-result a') : null;
@@ -69,7 +83,8 @@
 
 <div class="site-search">
 	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
-	<pagefind-modal-trigger compact hide-shortcut placeholder="Search posts, books, and wiki">
+	<!-- ⌘K is the command palette; / opens search directly. -->
+	<pagefind-modal-trigger compact hide-shortcut shortcut="/" placeholder="Search posts, books, and wiki">
 		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->
 		<button class="pf-trigger-btn" type="button" aria-label="Search posts, books, and wiki" aria-haspopup="dialog" aria-expanded="false">
 			<span class="pf-trigger-icon" aria-hidden="true"></span>
@@ -218,6 +233,8 @@
 	.site-search :global(.search-meta) { display: block; margin-bottom: var(--space-1); }
 
 	.site-search :global(.search-title) { display: block; color: var(--text-primary); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-snug); text-decoration: none; }
+	/* Wiki pages live on another site. */
+	.site-search :global(.search-title[href^="http"])::after { content: ' ↗'; color: var(--text-secondary); font-weight: var(--fw-regular); }
 	.site-search :global(.search-title:hover) { text-decoration: underline; text-underline-offset: .15em; }
 	.site-search :global(.search-author) { margin-top: var(--space-2); color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.5; overflow-wrap: anywhere; }
 	.site-search :global(.search-result p) { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-base); line-height: var(--lh-relaxed, 1.6); margin: var(--space-2) 0 0; color: var(--text-secondary); }
