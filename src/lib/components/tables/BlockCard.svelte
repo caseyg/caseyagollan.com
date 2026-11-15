@@ -18,6 +18,12 @@
 	let { block, layout = 'tile', bare = false, details = true, class: className = '' }: Props = $props();
 
 	let failed = $state(false);
+	let loaded = $state(false);
+
+	/** Pictures fade in as they arrive rather than popping in; one already loaded shows at once. */
+	function arrive(img: HTMLImageElement) {
+		if (img.complete && img.naturalWidth) loaded = true;
+	}
 	const image = $derived(failed ? undefined : block.image);
 	const tone = $derived(image ? 'picture' : 'text');
 	// A quote leads with its words and names the page they come from underneath.
@@ -29,7 +35,7 @@
 <article class="block-card block-card--{layout} block-card--{tone} block-card--{block.kind} {className}" class:bare class:plain={!details} data-kind={block.kind}>
 	{#if image}
 		<div class="media">
-			<img src={image} alt="" loading="lazy" decoding="async" draggable="false" onerror={() => (failed = true)} />
+			<img src={image} alt="" loading="lazy" decoding="async" draggable="false" class:loaded use:arrive onload={() => (loaded = true)} onerror={() => (failed = true)} />
 		</div>
 	{/if}
 	{#if !bare}
@@ -79,11 +85,23 @@
 	}
 
 	.media img {
+		opacity: 0;
+		transition: opacity var(--duration) ease-out;
 		display: block;
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		object-position: top;
+	}
+
+	.media img.loaded {
+		opacity: 1;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.media img {
+			transition: none;
+		}
 	}
 
 	/* A book is its cover, and an image is itself: whole, never cropped. */

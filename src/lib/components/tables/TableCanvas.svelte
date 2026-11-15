@@ -5,9 +5,11 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { cleanBlock, type Block } from '$lib/tables';
 	import { TLDRAW_LICENSE_KEY, tldrawLicensed } from '$lib/tldraw-license';
 	import Notice from '../ui/Notice.svelte';
+	import TableWireframe from './TableWireframe.svelte';
 	import type { TableApi } from './canvas/TableEditor';
 
 	interface Props {
@@ -29,6 +31,19 @@
 	let failed = $state(false);
 	let unlicensed = $state(false);
 	let dropping = $state(false);
+	/** The canvas has drawn its blocks; until then the table's wireframe stands in, and the canvas fades in over it. */
+	let ready = $state(false);
+
+	const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+	/** Waits for tldraw to draw the blocks and for the pictures in view to decode, but not long. */
+	async function reveal() {
+		await frame();
+		await frame();
+		const pictures = Array.from(host.querySelectorAll('img')).map((img) => img.decode().catch(() => {}));
+		await Promise.race([Promise.all(pictures), new Promise((resolve) => setTimeout(resolve, 500))]);
+		ready = true;
+	}
 
 	onMount(() => {
 		unlicensed = !tldrawLicensed(location.hostname);
@@ -50,6 +65,7 @@
 						onReady: (ready: TableApi) => {
 							api = ready;
 							onready?.(ready);
+							void reveal();
 						}
 					})
 				);
@@ -101,7 +117,10 @@
 	role="application"
 	aria-label={editable ? 'Table canvas. Double-click a block to open it.' : 'Table. Double-click a block to open it.'}
 >
-	<div class="host" bind:this={host}></div>
+	{#if !ready && !failed}
+		<div class="standin" out:fade={{ duration: 150 }}><TableWireframe {document} /></div>
+	{/if}
+	<div class="host" class:ready bind:this={host}></div>
 	{#if failed || unlicensed}
 		<div class="message">
 			<Notice tone={failed ? 'error' : 'info'}>
@@ -127,6 +146,23 @@
 	.host {
 		position: absolute;
 		inset: 0;
+		opacity: 0;
+	}
+
+	.standin {
+		position: absolute;
+		inset: 0;
+	}
+
+	.host.ready {
+		opacity: 1;
+		transition: opacity var(--duration) ease-out;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.host.ready {
+			transition: none;
+		}
 	}
 
 	.dropping::after {
