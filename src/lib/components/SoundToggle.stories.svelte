@@ -8,6 +8,7 @@
 <script lang="ts">
 	import { play, setVolume, type PlayOptions, type SoundName } from 'cuelume';
 	import { Button, Section } from '$lib/components/ui';
+	import { SOUND_EMPHASIS, SOUND_VOLUME } from '$lib/sound.svelte';
 
 	// Every cue the graphs and the library play, at the site's volume, to audition them together.
 	const cues: { moment: string; name: SoundName; options?: PlayOptions }[] = [
@@ -22,30 +23,32 @@
 		{ moment: 'Library: next book (→, swipe)', name: 'navigate', options: { direction: 'forward' } },
 		{ moment: 'Library: previous book (←, swipe)', name: 'navigate', options: { direction: 'back' } },
 		{ moment: 'Library: close a book', name: 'close' },
-		{ moment: 'Library: filter by subject', name: 'toggle' },
-		{ moment: 'Library: clear the filter', name: 'toggle', options: { direction: 'back' } },
+		{ moment: 'Library graph: filter by subject', name: 'toggle' },
+		{ moment: 'Library graph: clear the filter', name: 'toggle', options: { direction: 'back' } },
+		{ moment: 'Shelves: filter by subject', name: 'navigate', options: { direction: 'forward' } },
+		{ moment: 'Shelves: clear the filter', name: 'navigate', options: { direction: 'back' } },
 		{ moment: 'Library: Graph → Shelves', name: 'navigate', options: { direction: 'forward' } },
 		{ moment: 'Library: Shelves → Graph', name: 'navigate', options: { direction: 'back' } },
-		{ moment: 'Library: change the shelf sort', name: 'select' }
+		{ moment: 'Shelves: change the sort', name: 'navigate', options: { direction: 'forward' } }
 	];
 
 	function audition(name: SoundName, options?: PlayOptions) {
-		setVolume(0.5);
-		play(name, { emphasis: 'subtle', ...options });
+		setVolume(SOUND_VOLUME);
+		play(name, { emphasis: SOUND_EMPHASIS, ...options });
 	}
 </script>
 
-<!-- What the visitor sees: on, unless they turned it off or ask their system for reduced motion. -->
+<!-- What the visitor sees, floating bottom left: on, unless they turned it off or ask their system for reduced motion. -->
 <Story asChild name="Live">
 	<SoundToggle />
 </Story>
 
 <Story asChild name="On">
-	<SoundToggle enabled />
+	<SoundToggle enabled floating={false} />
 </Story>
 
 <Story asChild name="Off">
-	<SoundToggle enabled={false} />
+	<SoundToggle enabled={false} floating={false} />
 </Story>
 
 <Story asChild name="Cues">

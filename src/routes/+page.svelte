@@ -678,8 +678,8 @@
 <!-- The same top-left title every other page pins, so the corner reads alike across the site. -->
 <Corner as="nav" side="start" aria-label="On this page">
     <SegmentedPill size="md" tone="quiet" compact segments={[{ label: section.label, href: '#top', icon: section.icon, current: true, menu: sections, menuActive: section.value }]} />
-    <SoundToggle />
 </Corner>
+<SoundToggle />
 
 <section class="hero-container" id="top">
     <div class="three-pane">
