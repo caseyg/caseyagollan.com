@@ -18,6 +18,15 @@
 	</div>
 </Story>
 
+<!-- Pieces taken out of a page: a picture shown whole, a quote that leads with its words, a social post. -->
+<Story asChild name="Pieces">
+	<div class="tiles">
+		<div class="tile" style="width: 280px; height: 240px"><BlockCard block={blocks.image} /></div>
+		<div class="tile" style="width: 300px; height: 180px"><BlockCard block={blocks.quote} /></div>
+		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.socialPost} /></div>
+	</div>
+</Story>
+
 <!-- Casey's Are.na: channels, and blocks of each type, which open on Are.na. -->
 <Story asChild name="Are.na">
 	<div class="tiles">

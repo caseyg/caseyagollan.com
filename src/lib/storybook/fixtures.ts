@@ -33,6 +33,9 @@ export const blocks = {
 	arenaImage: { kind: 'arena', url: 'https://www.are.na/block/2092617', title: 'Light Phone 2', meta: 'Image · indiegogo.com', icon: '🖼️', image: 'https://images.are.na/eyJidWNrZXQiOiJhcmVuYV9pbWFnZXMiLCJrZXkiOiIyMDkyNjE3L29yaWdpbmFsXzk5ZjA3MzhjMjE1MTUyZGQxYThkZmExODMyNzg1YzYxLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6NDAwLCJoZWlnaHQiOjQwMCwiZml0IjoiaW5zaWRlIiwid2l0aG91dEVubGFyZ2VtZW50Ijp0cnVlfSwid2VicCI6eyJxdWFsaXR5Ijo3NX0sImpwZWciOnsicXVhbGl0eSI6NzV9LCJyb3RhdGUiOm51bGx9fQ==' },
 	arenaText: { kind: 'arena', url: 'https://www.are.na/block/1970355', title: 'Sander Moolin', meta: 'Text', icon: '📝', excerpt: '"Beaker is a client and a server rolled into one"' },
 	link: { kind: 'link', url: 'https://tabletop.grantcuster.com/', title: 'tabletop.grantcuster.com', meta: 'tabletop.grantcuster.com', image: '/library/img/0321918622.jpg' },
+	image: { kind: 'image', url: '/2025/11/29/changelog/', title: 'Dark Matters, on the shelf', meta: 'From 2025-11-29 Changelog', image: '/library/img/0822359383.jpg' },
+	quote: { kind: 'quote', url: '/wiki/aesthetic-crisis#:~:text=What%20is%20the%20nature', title: 'Aesthetic Crisis', excerpt: 'What is the nature of the crisis? It is hard to say. Architects dressed up as their own buildings, and the city went on without them.' },
+	socialPost: { kind: 'post', url: 'https://bsky.app/profile/shannonmattern.bsky.social/post/3abc', title: 'Shannon Mattern', meta: '@shannonmattern.bsky.social', icon: '🦋', excerpt: 'Small, weird, local: a torch worth carrying.' },
 	longTitle: { kind: 'book', url: '/library/0306808935', title: 'Talking Music: Conversations With John Cage, Philip Glass, Laurie Anderson, And 5 Generations Of American Experimental Composers', meta: 'Duckworth, William · 1999' }
 } satisfies Record<string, Block>;
 

@@ -61,6 +61,7 @@
 		"@simplewebauthn/server": "14.0.3",
 		"@ui-sdk/core": "^0.1.0-beta.1",
 		"@ui-sdk/svelte": "^0.1.0-beta.1",
+		"cuelume": "0.2.8",
 		"d3-drag": "^3.0.0",
 		"d3-ease": "^3.0.1",
 		"d3-force": "^3.0.0",

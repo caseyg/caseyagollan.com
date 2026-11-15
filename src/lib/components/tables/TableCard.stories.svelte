@@ -5,10 +5,25 @@
 	import TableGrid from './TableGrid.svelte';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCard', component: TableCard, tags: ['!autodocs'] });
+
+	/** A table's picture as the canvas exports it: blocks where they sit, and an arrow between them. */
+	const picture = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400"><rect x="24" y="24" width="240" height="160" rx="4" fill="gray" stroke="blue" stroke-width="2"/><rect x="380" y="60" width="180" height="300" rx="4" fill="#333"/><rect x="60" y="230" width="240" height="140" rx="4" fill="gray" stroke="blue" stroke-width="2"/><path d="M264 110 C320 110 330 160 378 170" fill="none" stroke="white" stroke-width="3"/></svg>'
+	)}`;
 </script>
 
 <Story asChild name="Default">
 	<div class="one"><TableCard table={tableSummary} href="#table" /></div>
+</Story>
+
+<!-- With its picture: the table as it is laid out, arrows and all. -->
+<Story asChild name="With picture">
+	<div class="one"><TableCard table={tableSummary} href="#table" thumbnail={picture} /></div>
+</Story>
+
+<!-- A picture that fails to load falls back to the first blocks. -->
+<Story asChild name="Broken picture">
+	<div class="one"><TableCard table={tableSummary} href="#table" thumbnail="/missing.svg" /></div>
 </Story>
 
 <Story asChild name="New and empty">

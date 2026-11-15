@@ -11,7 +11,7 @@
 
 <script lang="ts">
 	let api: TableApi | undefined = $state();
-	let view: TableState = $state({ tool: 'select', canUndo: false, canRedo: false, empty: true });
+	let view: TableState = $state({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [] });
 
 	function onready(ready: TableApi) {
 		api = ready;

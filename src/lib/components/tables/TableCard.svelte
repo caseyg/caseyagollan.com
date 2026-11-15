@@ -5,21 +5,30 @@
 	interface Props {
 		table: Pick<TableSummary, 'name' | 'count' | 'updated' | 'preview'>;
 		href: string;
+		/** A picture of the whole table as it is laid out. Without one, the first blocks stand in. */
+		thumbnail?: string;
 	}
 
-	let { table, href }: Props = $props();
+	let { table, href, thumbnail }: Props = $props();
+	let failed = $state(false);
 
 	const updated = $derived(new Date(table.updated).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }));
 	const count = $derived(table.count === 1 ? '1 block' : `${table.count} blocks`);
 </script>
 
-<!-- A table on the browse page: its first blocks laid out like a tabletop, then its name. -->
+<!-- A table on the browse page: a picture of it as laid out, then its name. -->
 <a class="table-card" {href}>
-	<div class="surface" class:empty={!table.preview.length} aria-hidden="true">
-		{#each table.preview as block, index (index)}
-			<div class="spot spot--{index}"><BlockCard {block} bare={!!block.image} /></div>
-		{/each}
-	</div>
+	{#if thumbnail && !failed}
+		<div class="surface surface--picture" aria-hidden="true">
+			<img src={thumbnail} alt="" loading="lazy" decoding="async" onerror={() => (failed = true)} />
+		</div>
+	{:else}
+		<div class="surface" class:empty={!table.preview.length} aria-hidden="true">
+			{#each table.preview as block, index (index)}
+				<div class="spot spot--{index}"><BlockCard {block} bare={!!block.image} /></div>
+			{/each}
+		</div>
+	{/if}
 	<h2 class="name">{table.name}</h2>
 	<p class="meta">{count} · {updated}</p>
 </a>
@@ -45,6 +54,18 @@
 		background: var(--surface-sunken);
 		overflow: hidden;
 		transition: border-color var(--duration) var(--ease), scale 160ms var(--ease-out);
+	}
+
+	.surface--picture {
+		display: block;
+		background: var(--bg-primary);
+	}
+
+	.surface--picture img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
 	}
 
 	.surface.empty {

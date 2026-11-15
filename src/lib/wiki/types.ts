@@ -27,6 +27,11 @@ export interface WikiHeading {
 	level: number;
 }
 
+export interface WikiField {
+	name: string;
+	html: string;
+}
+
 /** A page ready to show on the site. */
 export interface WikiPage {
 	slug: string;
@@ -36,6 +41,8 @@ export interface WikiPage {
 	aliases: string[];
 	tags: string[];
 	year?: string;
+	/** Details the page gives as Dataview `key:: value` lines, such as its author, with rendered values. */
+	fields: WikiField[];
 	html: string;
 	/** Plain text from the top of the page, for previews and descriptions. */
 	excerpt: string;

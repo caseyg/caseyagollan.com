@@ -18,6 +18,8 @@
 		menuBadge?: string;
 		/** Makes the segment a button, such as a control that steps through its options. */
 		onclick?: () => void;
+		/** With `onclick`, makes the segment a toggle button that is on or off, like a sound switch. */
+		pressed?: boolean;
 		/** Makes the segment one choice of the pill's `value`. */
 		value?: string;
 		/** Accessible name when it should say more than the label. */
@@ -78,7 +80,7 @@
 					<SelectMenu variant="segment" current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} badge={segment.menuBadge} />
 				</span>
 			{:else if segment.onclick}
-				<Button class="segment" aria-label={name(segment)} title={segment.title} onclick={segment.onclick}>{@render content(segment)}</Button>
+				<Button class="segment" aria-label={name(segment)} aria-pressed={segment.pressed} title={segment.title} onclick={segment.onclick}>{@render content(segment)}</Button>
 			{:else}
 				<a href={segment.href} class="segment" class:current={segment.current} aria-current={segment.current ? 'page' : undefined} aria-label={name(segment)} title={segment.title}>{@render content(segment)}</a>
 			{/if}

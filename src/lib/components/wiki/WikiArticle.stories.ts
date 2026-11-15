@@ -21,6 +21,9 @@ export const WithImage: Story = { args: { page: sampleWiki.bySlug.get('radical-a
 /** Links to pages that aren't published show as dotted text, as Obsidian shows them. */
 export const UnpublishedLinks: Story = { args: { page: sampleWiki.bySlug.get('home')! } };
 
+/** Dataview `key:: value` lines show as details under the title; %% comments stay hidden; links off the site open in a new tab, marked ↗. */
+export const WithDetails: Story = { args: { page: sampleWiki.bySlug.get('nielsen-model-of-reops')! } };
+
 /** The wiki's home page leaves its title to the trail. */
 export const WithoutTitle: Story = { args: { page: sampleWiki.bySlug.get('home')!, showTitle: false } };
 
