@@ -143,6 +143,8 @@
 <!-- Collision padding stays inside the corner inset, so a menu pinned to a corner lines up with its trigger. -->
 <Menu bind:open>
 	<MenuTrigger class="select-menu-trigger select-menu-trigger--{variant}" aria-label={label}>
+		<!-- Shown in place of the emoji and arrow where a pill asks for it: the menu that leads a compact trail on a phone. -->
+		<span class="burger" aria-hidden="true"></span>
 		<span class="current" class:has-icon={currentIcon || icon} title={current}>
 			{#if icon && selected}{@render icon(selected)}{:else if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}
 			<span class="text">{current}</span>
@@ -225,6 +227,44 @@
 	:global(.select-menu-trigger--quiet:hover),
 	:global(.select-menu-trigger--quiet[data-open]) {
 		background: var(--surface-2);
+	}
+
+	/* Three lines, drawn rather than typed so they match the text colour and weight everywhere. */
+	.burger {
+		display: none;
+		width: 1.125rem;
+		height: 0.875rem;
+		background: linear-gradient(currentColor, currentColor) top / 100% 2px no-repeat,
+			linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat,
+			linear-gradient(currentColor, currentColor) bottom / 100% 2px no-repeat;
+	}
+
+	@media (max-width: 600px) {
+		:global(.segmented-pill.compact > .segment--menu:first-child) .burger {
+			display: block;
+		}
+
+		/* The label stays for screen readers as the button's name. */
+		:global(.segmented-pill.compact > .segment--menu:first-child) .current.has-icon {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+
+		:global(.segmented-pill.compact > .segment--menu:first-child) .current.has-icon ~ .arrow {
+			display: none;
+		}
+
+		:global(.segmented-pill.compact > .segment--menu:first-child:has(.current.has-icon) .select-menu-trigger) {
+			padding-inline: 0.75rem;
+		}
+
+		:global(.segmented-pill.compact > .segment--menu:first-child:not(:has(.current.has-icon))) .burger {
+			display: none;
+		}
 	}
 
 	.current {

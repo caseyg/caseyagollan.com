@@ -24,6 +24,12 @@
 	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));
 </script>
 
+<!--
+	The ground behind the top bar where it sits over the page. A real element, not a pseudo-element:
+	iOS Safari tints the status bar from a fixed element at the top edge, and ignores generated content.
+-->
+<div class="top-band" aria-hidden="true"></div>
+
 <Corner as="nav" side="end" class="site-nav" aria-label="Site">
 	<div class="group">
 		<SegmentedPill {segments} size="md" compact attached />
@@ -37,5 +43,29 @@
 <style>
 	.group {
 		display: flex;
+	}
+
+	.top-band {
+		display: none;
+	}
+
+	@media (max-width: 1360px) {
+		:global(body:has(.page)) .top-band {
+			display: block;
+			position: fixed;
+			inset: 0 0 auto;
+			z-index: calc(var(--z-sticky) + 1);
+			height: var(--sticky-top);
+			background: var(--bg-primary);
+		}
+
+		/* Content that overscrolls, or that iOS draws under the status bar, stays covered too. */
+		.top-band::before {
+			content: '';
+			position: absolute;
+			inset: auto 0 100%;
+			height: 100vh;
+			background: inherit;
+		}
 	}
 </style>

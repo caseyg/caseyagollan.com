@@ -40,7 +40,7 @@
 
 	/*
 	 * Where the pinned trail and navigation would sit over the reading column, the page starts below
-	 * them and a band of the ground colour keeps scrolling content from showing through their row.
+	 * them. `Nav` draws the band of ground colour that keeps scrolling content out of their row.
 	 */
 	@media (max-width: 1360px) {
 		:global(body:has(.site-nav, .page-header)) {
@@ -49,15 +49,6 @@
 
 		:global(body:has(.site-nav, .page-header)) .page {
 			padding-top: calc(var(--nav-lane) + var(--space-5));
-		}
-
-		:global(body:has(.site-nav, .page-header)) .page::before {
-			content: '';
-			position: fixed;
-			inset: 0 0 auto;
-			z-index: calc(var(--z-sticky) + 1);
-			height: var(--sticky-top);
-			background: var(--bg-primary);
 		}
 	}
 

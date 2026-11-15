@@ -177,17 +177,17 @@
 		--seg-bg: var(--bg-primary);
 		--seg-hover: color-mix(in srgb, white 15%, var(--bg-primary));
 		--seg-current: color-mix(in srgb, white 22%, var(--bg-primary));
-		--seg-divider: var(--border-strong);
+		--seg-divider: var(--border);
 		--menu-bg: var(--bg-primary);
-		--menu-outline: 1px solid var(--border-strong);
+		--menu-outline: 1px solid var(--border);
 	}
 
-	/* The outline is drawn over the segments, which would otherwise cover it. */
+	/* The outline is drawn over the segments, which would otherwise cover it. It is the gray of a post card's outline. */
 	:global(.segmented-pill--md.segmented-pill--quiet::after) {
 		content: '';
 		position: absolute;
 		inset: 0;
-		border: 1px solid var(--border-strong);
+		border: 1px solid var(--border);
 		border-radius: inherit;
 		pointer-events: none;
 	}
