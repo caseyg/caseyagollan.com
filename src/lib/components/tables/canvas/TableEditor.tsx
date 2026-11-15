@@ -27,6 +27,8 @@ export interface TableState {
 	placed: string[];
 	/** The block selected on its own, whose page's pieces the picker offers. */
 	selected?: Block;
+	/** Whether the selected blocks show their details (source line and kind tile); unset when none are selected. */
+	details?: 'shown' | 'hidden' | 'mixed';
 }
 
 /** What the Svelte page drives the canvas with. */
@@ -37,6 +39,8 @@ export interface TableApi {
 	 */
 	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block }): void;
 	setTool(tool: TableTool): void;
+	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
+	setDetails(shown: boolean): void;
 	undo(): void;
 	redo(): void;
 	zoomToFit(): void;
@@ -58,7 +62,10 @@ export interface TableEditorProps {
 }
 
 const shapeUtils = [SiteBlockShapeUtil];
-const GAP = 24;
+/** The dot grid's spacing; blocks snap to it, and are set out a grid step apart. */
+export const GRID = 20;
+const GAP = GRID;
+const onGrid = (value: number) => Math.round(value / GRID) * GRID;
 
 /**
  * Where a block added without a drop point goes: the middle of the view, or just right of the block
@@ -69,10 +76,10 @@ function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block):
 	const key = near && blockKey(near);
 	const source = key ? editor.getCurrentPageShapes().find((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE) && blockKey((shape as SiteBlockShape).props) === key) : undefined;
 	const beside = source && editor.getShapePageBounds(source);
-	const start = beside ? { x: beside.maxX + GAP, y: beside.minY } : { x: viewport.center.x - size.w / 2, y: viewport.center.y - size.h / 2 };
+	const start = beside ? { x: onGrid(beside.maxX + GAP), y: onGrid(beside.minY) } : { x: onGrid(viewport.center.x - size.w / 2), y: onGrid(viewport.center.y - size.h / 2) };
 	const taken = editor.getCurrentPageShapes().map((shape) => editor.getShapePageBounds(shape)).filter((bounds) => bounds !== undefined);
 	const free = (x: number, y: number) => !taken.some((b) => x < b.maxX + GAP && x + size.w + GAP > b.minX && y < b.maxY + GAP && y + size.h + GAP > b.minY);
-	const step = 40;
+	const step = GRID * 2;
 	for (let ring = 0; ring <= 20; ring++) {
 		for (let dx = -ring; dx <= ring; dx++) {
 			for (let dy = -ring; dy <= ring; dy++) {
@@ -86,11 +93,20 @@ function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block):
 	return start;
 }
 
+const selectedBlocks = (editor: Editor) => editor.getSelectedShapes().filter((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE)) as SiteBlockShape[];
+
+function detailsOf(blocks: SiteBlockShape[]): TableState['details'] {
+	if (!blocks.length) return undefined;
+	const hidden = blocks.filter((shape) => shape.props.hideMeta).length;
+	return hidden === 0 ? 'shown' : hidden === blocks.length ? 'hidden' : 'mixed';
+}
+
 function apiFor(editor: Editor): TableApi {
 	return {
 		addBlocks(blocks, at, { columns = blocks.length, select = true, near } = {}) {
 			if (!blocks.length) return;
-			const origin = at ? editor.screenToPage(at) : openSpot(editor, blockProps(blocks[0]), near);
+			const dropped = at && editor.screenToPage(at);
+			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, blockProps(blocks[0]), near);
 			const ids: TLShapeId[] = [];
 			let x = origin.x;
 			let y = origin.y;
@@ -118,6 +134,12 @@ function apiFor(editor: Editor): TableApi {
 			if (!at && added && !editor.getViewportPageBounds().contains(added)) editor.centerOnPoint(added.center, { animation: { duration: 220 } });
 		},
 		setTool: (tool) => editor.setCurrentTool(tool),
+		setDetails(shown) {
+			const blocks = selectedBlocks(editor).filter((shape) => shape.props.hideMeta === shown);
+			if (!blocks.length) return;
+			editor.markHistoryStoppingPoint('toggle details');
+			editor.updateShapes(blocks.map((shape) => ({ id: shape.id, type: BLOCK_SHAPE, props: { hideMeta: !shown } })));
+		},
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
 		zoomToFit: () => editor.zoomToFit({ animation: { duration: 220 } }),
@@ -134,7 +156,8 @@ function apiFor(editor: Editor): TableApi {
 						.getCurrentPageShapes()
 						.filter((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE))
 						.map((shape) => blockKey((shape as SiteBlockShape).props)),
-					selected: only && editor.isShapeOfType(only, BLOCK_SHAPE) ? blockOf((only as SiteBlockShape).props) : undefined
+					selected: only && editor.isShapeOfType(only, BLOCK_SHAPE) ? blockOf((only as SiteBlockShape).props) : undefined,
+					details: detailsOf(selectedBlocks(editor))
 				});
 			});
 		}
@@ -146,7 +169,9 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 	const onMount = useCallback(
 		(editor: Editor) => {
 			editor.user.updateUserPreferences({ colorScheme: 'dark' });
-			editor.updateInstanceState({ isGridMode: false });
+			// A dot grid that blocks, notes and drawings snap to, for everyone who sees the table.
+			editor.updateInstanceState({ isGridMode: true });
+			if (editor.getDocumentSettings().gridSize !== GRID) editor.updateDocumentSettings({ gridSize: GRID });
 			// Notes and text read in the site's sans, in white.
 			editor.setStyleForNextShapes(DefaultFontStyle, 'sans');
 			editor.setStyleForNextShapes(DefaultColorStyle, 'white');

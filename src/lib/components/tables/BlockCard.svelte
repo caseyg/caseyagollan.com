@@ -10,10 +10,12 @@
 		layout?: 'tile' | 'row';
 		/** Draws the tile without its text, for thumbnails too small to read. */
 		bare?: boolean;
+		/** Shows the block's details: its source line (site, author, year) and the kind tile in the corner. */
+		details?: boolean;
 		class?: string;
 	}
 
-	let { block, layout = 'tile', bare = false, class: className = '' }: Props = $props();
+	let { block, layout = 'tile', bare = false, details = true, class: className = '' }: Props = $props();
 
 	let failed = $state(false);
 	const image = $derived(failed ? undefined : block.image);
@@ -24,7 +26,7 @@
 	const line = $derived(quote ? block.title : block.meta);
 </script>
 
-<article class="block-card block-card--{layout} block-card--{tone} block-card--{block.kind} {className}" class:bare data-kind={block.kind}>
+<article class="block-card block-card--{layout} block-card--{tone} block-card--{block.kind} {className}" class:bare class:plain={!details} data-kind={block.kind}>
 	{#if image}
 		<div class="media">
 			<img src={image} alt="" loading="lazy" decoding="async" draggable="false" onerror={() => (failed = true)} />
@@ -33,11 +35,11 @@
 	{#if !bare}
 		<div class="body">
 			<h3 class="title">{heading}</h3>
-			{#if line}<p class="meta">{line}</p>{/if}
+			{#if line && details}<p class="meta">{line}</p>{/if}
 			{#if block.excerpt && layout === 'tile' && !image && !quote}<p class="excerpt">{block.excerpt}</p>{/if}
 		</div>
 	{/if}
-	<span class="tile" role="img" aria-label={KIND_LABEL[block.kind]} title={KIND_LABEL[block.kind]}>{blockIcon(block)}</span>
+	{#if details}<span class="tile" role="img" aria-label={KIND_LABEL[block.kind]} title={KIND_LABEL[block.kind]}>{blockIcon(block)}</span>{/if}
 </article>
 
 <style>
@@ -98,6 +100,11 @@
 		min-height: 0;
 		padding: var(--space-3);
 		padding-right: calc(var(--space-3) + 1.75rem);
+	}
+
+	/* Without its corner tile, the text runs the block's whole width. */
+	.plain.block-card--tile .body {
+		padding-right: var(--space-3);
 	}
 
 	.block-card--tile.block-card--text .body {

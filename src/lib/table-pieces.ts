@@ -40,10 +40,10 @@ export function passageUrl(path: string, text: string): string {
 	return `${path}#:~:text=${encodeURIComponent(start).replace(/-/g, '%2D')}`;
 }
 
-/** A height that fits a quote's words at the width it is set out at. */
+/** A height that fits a quote's words at the width it is set out at, in whole steps of the table's 20px grid. */
 export function quoteSize(excerpt: string): { w: number; h: number } {
 	const lines = Math.ceil(excerpt.length / 34);
-	return { w: 300, h: Math.min(460, Math.max(140, 64 + lines * 25)) };
+	return { w: 300, h: Math.min(460, Math.max(140, Math.ceil((64 + lines * 25) / 20) * 20)) };
 }
 
 /** A picture's address as a block keeps it: this site's own pictures as site paths, others' whole. */

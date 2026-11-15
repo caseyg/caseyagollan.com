@@ -159,6 +159,8 @@
 		--tl-color-selection-fill: rgb(0 0 255 / 0.12);
 		--tl-color-text: var(--text-primary);
 		--tl-color-text-1: var(--text-primary);
+		/* The dot grid blocks snap to: quiet, so it reads as paper, not content. */
+		--tl-color-grid: var(--border-strong);
 		--tl-font-sans: var(--font-sans);
 		font-family: var(--font-sans);
 	}

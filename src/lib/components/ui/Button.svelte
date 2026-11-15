@@ -117,7 +117,8 @@
 		height: 1.75rem;
 	}
 
-	:global(.button--icon[aria-pressed='true']) {
+	:global(.button--icon[aria-pressed='true']),
+	:global(.button--quiet[aria-pressed='true']) {
 		background: var(--surface-1);
 		color: var(--text-primary);
 	}

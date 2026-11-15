@@ -187,6 +187,8 @@
 				status={statusText}
 				{published}
 				onpublish={publish}
+				details={view.details}
+				ondetails={(shown) => api?.setDetails(shown)}
 				ontool={(tool) => api?.setTool(tool)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}

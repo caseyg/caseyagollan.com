@@ -150,6 +150,10 @@ describe('table pieces', () => {
 		expect(quoteSize('x'.repeat(2000)).h).toBe(460);
 	});
 
+	test('sizes quotes in whole steps of the dot grid', () => {
+		for (let length = 1; length < 800; length += 37) expect(quoteSize('x'.repeat(length)).h % 20).toBe(0);
+	});
+
 	test('tells pictures from the same page apart', () => {
 		expect(blockKey({ url: '/a', image: '/1.jpg' })).not.toBe(blockKey({ url: '/a', image: '/2.jpg' }));
 		expect(blockKey({ url: '/a' })).toBe('/a');
