@@ -317,6 +317,13 @@
 		color: var(--text-secondary);
 	}
 
+	/* No keyboard to press it on, on a touch screen. */
+	@media (hover: none) and (pointer: coarse) {
+		.command-kbd {
+			display: none;
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		:global(.command-palette),
 		:global(.command-backdrop) {
