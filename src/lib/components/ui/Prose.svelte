@@ -17,6 +17,7 @@
 <style>
 	/* Long-form rhythm for rendered Markdown and HTML. */
 	.prose {
+		display: flow-root;
 		margin: 0;
 		line-height: var(--lh-relaxed);
 		text-wrap: pretty;
@@ -134,6 +135,55 @@
 		color: var(--text-muted);
 		font-size: var(--fs-sm);
 		line-height: var(--lh-snug);
+	}
+
+	/* Screenshots and asides that sit beside the text: <figure class="align-right">. */
+	.prose :global(figure) {
+		margin: 1.5em 0;
+	}
+
+	.prose :global(figure img) {
+		display: block;
+		margin: 0;
+	}
+
+	.prose :global(figure figcaption) {
+		margin-top: var(--space-2);
+	}
+
+	.prose :global(figure.align-right) {
+		float: right;
+		clear: right;
+		width: min(45%, 24rem);
+		margin: 0.35em 0 1.25em var(--space-6);
+	}
+
+	/* Screenshots share the page's gray ground, so a hairline keeps their edges. */
+	.prose :global(figure.align-right img) {
+		width: 100%;
+		outline: 1px solid var(--border);
+		outline-offset: -1px;
+	}
+
+	.prose :global(figure.align-right.narrow) {
+		width: min(36%, 15rem);
+	}
+
+	.prose :global(:is(h2, h3, hr)) {
+		clear: both;
+	}
+
+	@media (max-width: 640px) {
+		.prose :global(figure.align-right),
+		.prose :global(figure.align-right.narrow) {
+			float: none;
+			width: auto;
+			margin: 1.5em 0;
+		}
+
+		.prose :global(figure.align-right.narrow img) {
+			max-width: 60%;
+		}
 	}
 
 	.prose :global(table) {

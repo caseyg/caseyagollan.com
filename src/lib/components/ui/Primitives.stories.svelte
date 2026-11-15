@@ -99,6 +99,8 @@
 			<p>Long-form copy sets at a relaxed line height with <a href="/posts/">quiet underlines</a> that firm up on hover, <strong>semibold emphasis</strong>, and <code>inline code</code>.</p>
 			<h2>Start with curiosity</h2>
 			<p>Try something small, learn from it, and share what you find.</p>
+			<figure class="align-right"><img src="/author-avatar.webp" alt="Casey's avatar" /><figcaption>A right-aligned figure sits beside the text and stacks on phones.</figcaption></figure>
+			<p>Figures marked <code>align-right</code> float beside the paragraphs and lists that follow, and the next heading clears them.</p>
 			<blockquote><p>Quotations step back a little and lean.</p></blockquote>
 			<ul><li>Lists keep their markers muted</li><li>so the words lead.</li></ul>
 			<pre><code>bun run storybook</code></pre>
