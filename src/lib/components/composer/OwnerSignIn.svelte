@@ -10,7 +10,7 @@
 	let signInError = $state('');
 	let passkeysSupported = $state(false);
 	let ready = $state(false);
-	// The owner hint is not cleared here: an expired session should still show Edit links, which lead back to sign-in.
+	// Signing in here sets the owner hint; pages clear it themselves once they see the session has ended.
 	onMount(() => { passkeysSupported = browserSupportsWebAuthn(); ready = true; });
 	async function login() {
 		if (signingIn) return;
