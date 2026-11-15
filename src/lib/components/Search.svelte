@@ -160,7 +160,7 @@
 		cursor: pointer;
 		transition: background-color var(--duration) var(--ease) !important;
 	}
-	.site-search :global(.pf-trigger-btn::after) { content: 'Search'; }
+	/* The magnifying glass says enough; the accessible name stays on the button. */
 	.site-search :global(.pf-trigger-btn > :not(.pf-trigger-icon)) { display: none !important; }
 	.site-search :global(.pf-trigger-btn:focus-visible) { outline: var(--focus-ring) !important; outline-offset: -2px !important; }
 	.site-search :global(.pf-trigger-icon) {
@@ -174,7 +174,6 @@
 	}
 	@media (max-width: 600px) {
 		.site-search :global(.pf-trigger-btn) { padding: 0 0.625rem !important; font-size: var(--fs-lg) !important; }
-		.site-search :global(.pf-trigger-btn::after) { content: none; }
 	}
 	.site-search :global(.pf-trigger-icon::before) { content: '🔍'; }
 	/*
