@@ -11,6 +11,7 @@ import { createGitHubStore, GitHubStoreError } from './github';
 import { validPostParams } from '../github-posts';
 import { POST_TYPE_PLURALS } from '../../posts-types';
 import { channels, channelValue, postFolder, QUILL_TYPES, validateQuill } from './quill';
+import { decodeCursor, encodeCursor, listedFiles, listPosts, postTypeFolders, type ReadPost } from './micropub-list';
 
 export interface PublishingConfig extends AuthConfig {
 	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaBucket?: R2Bucket; mediaEnabled?: boolean; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
@@ -152,25 +153,74 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				return { target, file: found };
 			}
 
+
+			/** `q=source` without a URL: the post-list extension, newest first, with cursor paging. */
+			async function list<T>(source: (doc: ReturnType<typeof readDocument>, postUrl: string) => T) {
+				const number = (name: string, fallback: number, max: number) => {
+					const value = url.searchParams.get(name);
+					if (value === null) return fallback;
+					if (!/^\d+$/.test(value)) throw bad(`Use a whole number for ${name}`);
+					return Math.min(Number(value), max);
+				};
+				const limit = Math.max(1, number('limit', 20, 100));
+				const offset = number('offset', 0, 100000);
+				let selected: Set<string> | undefined;
+				let after, before;
+				try {
+					selected = postTypeFolders(url.searchParams.getAll('post-type'));
+					after = url.searchParams.get('after') ? decodeCursor(url.searchParams.get('after')!) : undefined;
+					before = url.searchParams.get('before') ? decodeCursor(url.searchParams.get('before')!) : undefined;
+				} catch (error) { throw bad((error as Error).message); }
+				if ([after, before, offset || undefined].filter(Boolean).length > 1) throw bad('Use one of after, before or offset');
+				const paths = await store.paths();
+				if (!paths) throw new ProtocolError(503, 'temporarily_unavailable', 'Post list is unavailable');
+				const files = listedFiles(paths, selected ?? new Set(folders));
+				const origin = new URL(me).origin;
+				const result = await listPosts(files, { limit, offset, after, before }, async batch => {
+					const posts: ReadPost<T>[] = [];
+					for (const file of await store.readMany(batch)) {
+						let doc;
+						try { doc = readDocument(file.content); } catch { continue; }
+						if (doc.properties.deleted?.[0] === true) continue;
+						const date = file.path.match(/(\d{4}-\d{2}-\d{2})-[^/]*\.md$/)![1];
+						const slug = file.path.slice(file.path.lastIndexOf('/') + 1 + 11, -3);
+						const published = String(doc.properties.published?.[0] ?? '');
+						const day = /^\d{4}-\d{2}-\d{2}/.test(published) ? published.slice(0, 10) : date;
+						const postUrl = `${origin}/${day.replaceAll('-', '/')}/${encodeURIComponent(slug)}/`;
+						posts.push({ path: file.path, date, published: Date.parse(published) || 0, value: source(doc, postUrl) });
+					}
+					return posts;
+				});
+				const items = result.items;
+				const paging = items.length ? { before: encodeCursor(items[0]), ...(result.more ? { after: encodeCursor(items[items.length - 1]) } : {}) } : undefined;
+				return { items: items.map(item => item.value), ...(paging ? { paging } : {}) };
+			}
+
 			if (request.method === 'GET') {
 				const q = url.searchParams.get('q');
 				if (q === 'channels') return json({ channels });
 				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video'].includes(type)).map(type => ({ type, name: type })) });
 				if (q === 'syndicate-to') return json({ 'syndicate-to': syndicationTargets(config) });
 				if (q !== 'source') throw bad('Unsupported query');
+				const filter = url.searchParams.getAll('properties[]');
+				const markdown = url.searchParams.get('p3k-content-type') === 'text/markdown';
+				const source = (doc: ReturnType<typeof readDocument>, postUrl?: string) => {
+					const properties: Properties = { ...doc.properties };
+					delete properties.syndicationTargets;
+					if (doc.channel) properties['mp-channel'] = [doc.channel];
+					// Legacy Markdown bodies are rendered for clients unless the editor asks for the source.
+					if (!properties.content && doc.body) {
+						if (markdown) Object.assign(properties, { content: [doc.body], 'p3k-content-type': ['text/markdown'] });
+						else properties.content = [{ html: sanitizePublishingHtml(marked.parse(doc.body, { async: false })) }];
+					}
+					if (postUrl) properties.url = [postUrl];
+					const selected = filter.length ? Object.fromEntries(Object.entries(properties).filter(([key]) => filter.includes(key) || (postUrl && key === 'url'))) : properties;
+					return { ...(!filter.length ? { type: [doc.type] } : {}), properties: selected };
+				};
+				if (!url.searchParams.has('url')) return json(await list(source));
 				const { file } = await find(url.searchParams.get('url'));
 				if (!file) throw new ProtocolError(404, 'invalid_request', 'Post not found');
-				const doc = readDocument(file.content);
-				const properties: Properties = { ...doc.properties };
-				delete properties.syndicationTargets;
-				if (doc.channel) properties['mp-channel'] = [doc.channel];
-				// Legacy Markdown bodies are rendered for clients unless the editor asks for the source.
-				if (!properties.content && doc.body) {
-					if (url.searchParams.get('p3k-content-type') === 'text/markdown') Object.assign(properties, { content: [doc.body], 'p3k-content-type': ['text/markdown'] });
-					else properties.content = [{ html: sanitizePublishingHtml(marked.parse(doc.body, { async: false })) }];
-				}
-				const filter = url.searchParams.getAll('properties[]');
-				return json({ ...(!filter.length ? { type: [doc.type] } : {}), properties: filter.length ? Object.fromEntries(Object.entries(properties).filter(([key]) => filter.includes(key))) : properties }, 200, { ETag: `"${file.sha}"`, 'X-Content-Path': file.path });
+				return json(source(readDocument(file.content)), 200, { ETag: `"${file.sha}"`, 'X-Content-Path': file.path });
 			}
 
 			if (action === 'create') {
