@@ -1,3 +1,4 @@
+import type { Block, TableSummary } from '../tables';
 import type { Post } from '../posts-types';
 
 export const note: Post = {
@@ -19,3 +20,24 @@ export const photo: Post = { ...note, type: 'photo', photo: [{ url: '/sisu.gif',
 export const reaction: Post = { ...note, type: 'like', content: '', syndication: [], properties: { 'like-of': [savedPost.url] }, socialSnapshots: [savedPost] };
 export const repost: Post = { ...reaction, type: 'repost', properties: { 'repost-of': [savedPost.url] } };
 export const unsavedLike: Post = { ...reaction, properties: { 'like-of': ['https://example.com/ideas'] }, socialSnapshots: [] };
+
+/* Tables: blocks as the block picker makes them from site search. */
+
+export const blocks = {
+	article: { kind: 'post', url: '/2025/11/29/changelog/', title: '2025-11-29 Changelog', meta: 'article · 2025-11-29', icon: '📄', excerpt: 'Screenshot previews on citation nodes, smoother loading animations, migrated to Cloudflare Workers. Posts got a UI refresh with type icons, date-based permalinks, and restored webmentions.' },
+	note: { kind: 'post', url: '/2026/11/14/3n2cde25cgc2m/', title: 'Happy belated bday to @shannonmattern.bsky.social', meta: 'note · 2026-11-14', icon: '📝', excerpt: 'Thank you for being a beacon of light (and carrier of the "small, weird, local" torch).' },
+	book: { kind: 'book', url: '/library/0822359383', title: 'Dark Matters: On the Surveillance of Blackness', meta: 'Browne, Simone · 2015', image: '/library/img/0822359383.jpg' },
+	bookNoCover: { kind: 'book', url: '/library/0374532559', title: 'Trickster Makes This World: Mischief, Myth and Art', meta: 'Hyde, Lewis · 2010' },
+	wiki: { kind: 'wiki', url: 'https://cag.wiki/Aesthetic+Crisis', title: 'Aesthetic Crisis', meta: 'cag.wiki', excerpt: 'Architects dressed up for the 1931 Beaux Arts Ball; photo from the collection of Christopher Gray. What is the nature of the crisis? It is hard to say.' },
+	link: { kind: 'link', url: 'https://tabletop.grantcuster.com/', title: 'tabletop.grantcuster.com', meta: 'tabletop.grantcuster.com', image: '/library/img/0321918622.jpg' },
+	longTitle: { kind: 'book', url: '/library/0306808935', title: 'Talking Music: Conversations With John Cage, Philip Glass, Laurie Anderson, And 5 Generations Of American Experimental Composers', meta: 'Duckworth, William · 1999' }
+} satisfies Record<string, Block>;
+
+export const tableSummary: TableSummary = {
+	id: 'sample1234',
+	name: 'Reading room',
+	created: '2026-11-14T18:00:00.000Z',
+	updated: '2026-11-15T06:40:00.000Z',
+	count: 9,
+	preview: [blocks.article, blocks.book, blocks.wiki, blocks.link]
+};
