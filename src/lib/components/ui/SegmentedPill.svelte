@@ -14,6 +14,8 @@
 		menu?: MenuOption[];
 		/** Value of the menu entry for the page being viewed, when it is not the one labelled like the segment. */
 		menuActive?: string;
+		/** A short note after a menu segment's label, e.g. the filter in effect. */
+		menuBadge?: string;
 		/** Makes the segment a button, such as a control that steps through its options. */
 		onclick?: () => void;
 		/** Makes the segment one choice of the pill's `value`. */
@@ -73,7 +75,7 @@
 		{#each segments as segment (segment.href || segment.label)}
 			{#if segment.menu}
 				<span class="segment segment--menu" class:current={segment.current}>
-					<SelectMenu variant="segment" current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} />
+					<SelectMenu variant="segment" current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} badge={segment.menuBadge} />
 				</span>
 			{:else if segment.onclick}
 				<Button class="segment" aria-label={name(segment)} title={segment.title} onclick={segment.onclick}>{@render content(segment)}</Button>
@@ -244,7 +246,8 @@
 			--segment-padding: 0 var(--space-2);
 		}
 
-		:global(.segmented-pill.compact .icon) {
+		/* Direct children only: a menu opened from a segment keeps its own sizes and counts. */
+		:global(.segmented-pill.compact .segment > .icon) {
 			font-size: var(--fs-lg);
 		}
 
@@ -253,7 +256,7 @@
 		}
 
 		:global(.segmented-pill.compact .segment:has(> .icon) .text),
-		:global(.segmented-pill.compact .count) {
+		:global(.segmented-pill.compact .segment > .count) {
 			display: none;
 		}
 	}

@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	);
 
 	return {
-		postsMenu: await getPostsMenu(),
+		postsMenu: await getPostsMenu({ years: [params.year] }),
 		year,
 		month,
 		postsByDay: postsByDayArray,

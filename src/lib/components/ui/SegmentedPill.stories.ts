@@ -6,7 +6,7 @@ const segments = [
 	{ label: '01', href: '/2026/01/' },
 	{ label: '10', href: '/2026/01/10/' }
 ];
-const meta = { title: 'Primitives/SegmentedPill', component: SegmentedPill, args: { segments, label: 'Date archive' }, parameters: { docs: { story: { height: '260px' } } } } satisfies Meta<typeof SegmentedPill>;
+const meta = { title: 'Primitives/SegmentedPill', component: SegmentedPill, args: { segments, label: 'Date archive' }, parameters: { docs: { story: { height: '420px' } } } } satisfies Meta<typeof SegmentedPill>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Small: Story = {};
@@ -32,6 +32,30 @@ export const TrailWithMenu: Story = {
 			{ label: 'Posts', href: '/posts/', icon: '📡', menu: postsMenu, menuActive: 'note' },
 			{ label: 'Notes', href: '', icon: '📝', count: 73, current: true }
 		]
+	}
+};
+/**
+ * In the posts section the menu's types, tags and years are check boxes that combine. Each count is what
+ * the choice would show given the others, the menu stays open between choices, and `menuBadge` says what is in effect.
+ */
+export const TrailWithFacets: Story = {
+	args: {
+		size: 'md',
+		tone: 'quiet',
+		compact: true,
+		label: undefined,
+		segments: [{
+			label: 'Posts', href: '/posts/', icon: '📡', current: true, menuBadge: 'Notes, 2026',
+			menu: [
+				postsMenu[0],
+				{ value: 'note', label: 'Notes', href: '?years=2026', count: 31, icon: '📝', group: 'Type', checked: true },
+				{ value: 'article', label: 'Articles', href: '?types=notes,articles&years=2026', count: 2, icon: '📄', group: 'Type', checked: false },
+				{ value: 'tag:design', label: '#design', href: '?types=notes&tags=design&years=2026', count: 6, group: 'Tag', checked: false },
+				{ value: 'tags', label: 'All tags', href: '/tags/', icon: '🏷️', group: 'Tag' },
+				{ value: '2026', label: '2026', href: '?types=notes', count: 31, group: 'Year', checked: true },
+				{ value: '2025', label: '2025', href: '?types=notes&years=2026,2025', count: 40, group: 'Year', checked: false }
+			]
+		}]
 	}
 };
 /** The homepage's trail jumps to sections of the page. */
