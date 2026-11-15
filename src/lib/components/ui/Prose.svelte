@@ -124,7 +124,7 @@
 		border: 0;
 		overflow: visible;
 		height: auto;
-		color: var(--text-muted);
+		color: var(--border);
 		text-align: center;
 		line-height: 1;
 	}
