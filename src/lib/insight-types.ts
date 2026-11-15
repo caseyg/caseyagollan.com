@@ -3,6 +3,8 @@ export interface InsightSource {
 	title: string;
 	page_age: string | null;
 	cited_text: string | null;
+	/** Set on sources the owner chose to always show. */
+	pinned?: boolean;
 }
 
 export interface InsightResponse {

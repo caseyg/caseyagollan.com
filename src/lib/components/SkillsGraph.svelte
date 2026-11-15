@@ -8,15 +8,19 @@
 	import { easeCubicOut, easeQuadOut } from 'd3-ease';
 	import 'd3-transition';
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
+	import { urlKey } from '$lib/graph-curation';
 	import { usePageCommands } from '$lib/page-commands.svelte';
 
 	let {
 		onTopicClick,
 		focusNodeId = $bindable(),
 		insightsData,
-		loadingTopics = []
+		loadingTopics = [],
+		onNodeContextMenu
 	}: {
 		onTopicClick?: (topic: string | null) => void;
+		/** Given only to the owner: a right-click on a node opens their menu instead of the browser's. */
+		onNodeContextMenu?: (node: Node, event: MouseEvent) => void;
 		focusNodeId?: string | null;
 		insightsData?: Map<string, InsightResponse>;
 		loadingTopics?: string[];
@@ -265,9 +269,10 @@
 		insightsData.forEach((insight, topicId) => {
 			// Add citation nodes
 			if (insight.sources && insight.sources.length > 0) {
-				insight.sources.forEach((source, idx) => {
-					// Create unique ID for citation node
-					const citationId = `citation:${topicId}:${idx}`;
+				insight.sources.forEach((source) => {
+					// Keyed by URL so a pinned source added in front doesn't take another node's place
+					const citationId = `citation:${topicId}:${urlKey(source.url)}`;
+					if (dynamicNodeIds.has(citationId)) return;
 
 					// Add citation node
 					dynamicNodes.push({
@@ -278,7 +283,8 @@
 						url: source.url,
 						title: source.title,
 						page_age: source.page_age,
-						cited_text: source.cited_text
+						cited_text: source.cited_text,
+						pinned: source.pinned
 					});
 					dynamicNodeIds.add(citationId);
 
@@ -319,9 +325,13 @@
 			}
 		});
 
+		// Pinned sources can name a topic that isn't in the graph yet; a link to a missing node breaks the layout.
+		const nodes = [...allNodes, ...dynamicNodes];
+		const ids = new Set(nodes.map((n) => n.id));
+		const endpoint = (end: string | Node) => (typeof end === 'string' ? end : end.id);
 		return {
-			nodes: [...allNodes, ...dynamicNodes],
-			links: [...allLinks, ...dynamicLinks]
+			nodes: nodes.filter((n) => n.type !== 'citation' || ids.has(n.parent ?? '')),
+			links: [...allLinks, ...dynamicLinks.filter((l) => ids.has(endpoint(l.source)) && ids.has(endpoint(l.target)))]
 		};
 	}
 
@@ -726,6 +736,7 @@
 			.style('opacity', 1);
 
 		nodeSelection = nodeEnter.merge(nodeSelection);
+		nodeSelection.classed('pinned', (d: Node) => !!d.pinned);
 
 		// Apply active state and manage coachmark rings
 		nodeSelection.classed('active', (d: Node) => d.id === focusedNode);
@@ -767,6 +778,13 @@
 				if (onTopicClick) {
 					onTopicClick(d.id);
 				}
+			})
+			.on('contextmenu', function (event: MouseEvent, d: Node) {
+				if (!onNodeContextMenu || d.type === 'loading') return;
+				event.preventDefault();
+				event.stopPropagation();
+				tooltip.style('opacity', 0).style('display', 'none');
+				onNodeContextMenu(d, event);
 			})
 			.on('mouseenter', function (event: MouseEvent, d: Node) {
 				// Show tooltip for citation nodes
@@ -993,6 +1011,12 @@
 		fill: white;
 		stroke: none;
 		transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	/* A source the owner chose to always show. */
+	.skills-graph :global(.node.citation.pinned > circle) {
+		stroke: var(--accent);
+		stroke-width: 3px;
 	}
 
 	.skills-graph :global(.node text) {

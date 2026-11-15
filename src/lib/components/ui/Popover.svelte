@@ -3,8 +3,10 @@
 	import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@ui-sdk/svelte/popover';
 
 	interface Props {
-		/** Content of the trigger button. */
-		trigger: Snippet;
+		/** Content of the trigger button. Leave it out and pass `anchor` to open the panel from code with `open`. */
+		trigger?: Snippet;
+		/** Positions the panel against this instead of the trigger, such as a right-click's `{ x, y }`. */
+		anchor?: { x: number; y: number } | HTMLElement | null;
 		/** Panel content: links or a short form. For a list of pages to switch between, use `SelectMenu`. */
 		children: Snippet;
 		/** Names the trigger and the panel. Shown as the panel's heading unless `hideTitle`. */
@@ -18,7 +20,7 @@
 		panelClass?: string;
 	}
 
-	let { trigger, children, label, hideTitle = true, align = 'start', open = $bindable(false), triggerClass = '', panelClass = '' }: Props = $props();
+	let { trigger, anchor, children, label, hideTitle = true, align = 'start', open = $bindable(false), triggerClass = '', panelClass = '' }: Props = $props();
 
 	// Following a link inside the panel closes it, as leaving the page would.
 	function onPanelClick(event: MouseEvent) {
@@ -27,8 +29,8 @@
 </script>
 
 <Popover bind:open>
-	<PopoverTrigger class="popover-trigger {triggerClass}" aria-label={label} title={label}>{@render trigger()}</PopoverTrigger>
-	<PopoverContent class="popover-panel {panelClass}" side="bottom" {align} sideOffset={4} collisionPadding={8} onclick={onPanelClick}>
+	{#if trigger}<PopoverTrigger class="popover-trigger {triggerClass}" aria-label={label} title={label}>{@render trigger()}</PopoverTrigger>{/if}
+	<PopoverContent class="popover-panel {panelClass}" side="bottom" {align} sideOffset={4} collisionPadding={8} anchor={anchor ?? undefined} finalFocus={trigger ? undefined : 'none'} onclick={onPanelClick}>
 		<PopoverTitle class={hideTitle ? 'visually-hidden' : 'popover-title'}>{label}</PopoverTitle>
 		{@render children()}
 	</PopoverContent>
@@ -68,6 +70,9 @@
 		border-radius: var(--radius-sm);
 		background: var(--bg-primary);
 		color: var(--text-primary);
+		/* The panel renders where it is declared, so reset type a page may have enlarged. */
+		font-size: var(--fs-base);
+		line-height: var(--lh-normal);
 		box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.3);
 		transform-origin: var(--transform-origin);
 		transition: opacity 150ms var(--ease-out), scale 150ms var(--ease-out);

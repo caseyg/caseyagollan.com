@@ -16,6 +16,7 @@ export interface Node {
   title?: string;
   page_age?: string | null;
   cited_text?: string | null;
+  pinned?: boolean;
 }
 
 export interface Link {
