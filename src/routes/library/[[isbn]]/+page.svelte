@@ -273,7 +273,8 @@
 		// The layout has settled; stop ticking physics instead of running it to the 15 s cooldown.
 		if (!isGridModeActive) Graph.d3AlphaMin(0.001);
 		// Switching to the shelves also ends the layout; only the graph frames the category.
-		scheduleFrame(() => { if (!isGridModeActive) refreshGraph(); });
+		// A settled link arranges the graph itself, before it is revealed.
+		if (!settle) scheduleFrame(() => { if (!isGridModeActive) refreshGraph(); });
 		if (settle) {
 			// One more tick moves the meshes to the final positions, then the engine stops.
 			Graph.d3AlphaDecay(1);
@@ -1890,6 +1891,8 @@
 				if (isDestroyed || isGridModeActive || selectedBook !== bookNode) { reveal(); return; }
 				finishWorkerLayout(true);
 				await new Promise((resolve) => scheduleFrame(() => scheduleFrame(resolve)));
+				// The book's neighborhood gathers as the camera pulls back from the cover.
+				refreshGraph(false);
 				const book = bookNode.__threeObj;
 				if (book) {
 					book.rotation.set(0, 0, 0);
@@ -1906,6 +1909,18 @@
 				setTimeout(() => {
 					if (!isDestroyed && selectedBook === bookNode && !isGridModeActive) focusGraphBook(bookNode);
 				}, 700);
+			} else if (graphMembers && !isGridModeActive) {
+				// A filtered link opens already arranged and framed, like a book link
+				// skips the opening animation, instead of drifting into place off-center.
+				await layoutFinished;
+				if (isDestroyed) return;
+				if (!isGridModeActive && savedForces) {
+					finishWorkerLayout(true);
+					await new Promise((resolve) => scheduleFrame(() => scheduleFrame(resolve)));
+					fadeFilteredGraph(0);
+					await arrangeCategory(true, 0);
+				}
+				reveal();
 			} else {
 				scheduleFrame(reveal);
 			}
@@ -2134,7 +2149,7 @@
 		});
 	}
 
-	async function arrangeCategory(frame = true) {
+	async function arrangeCategory(frame = true, duration = 900) {
 		if (!Graph || isGridModeActive) return;
 		const request = ++categoryLayoutRequest;
 		const nodes = Graph.graphData().nodes as Node[];
@@ -2153,8 +2168,8 @@
 			if (request !== categoryLayoutRequest || isDestroyed || isGridModeActive) return;
 			// Books from a previous filter go back to where they were.
 			for (const [node, home] of homePositions) if (!targets.has(node)) targets.set(node, home);
-			moveNodes(targets);
-			if (frame && !selectedBook) frameCategory(1000, targets);
+			moveNodes(targets, false, duration);
+			if (frame && !selectedBook) frameCategory(duration && 1000, targets);
 			return;
 		}
 		const saved = unfilteredCamera;
