@@ -1,9 +1,9 @@
 /**
- * Tables: canvases of blocks taken from the site (posts, books, wiki pages) and the web (links).
+ * Tables: canvases of blocks taken from the site (posts, books, wiki pages), Casey's Are.na, and the web (links).
  * Shared by the browser and the server; the canvas itself is a tldraw document.
  */
 
-export type BlockKind = 'post' | 'book' | 'wiki' | 'link';
+export type BlockKind = 'post' | 'book' | 'wiki' | 'arena' | 'link';
 
 /** What a block shows, saved with it so a table reads the same if the source moves or changes. */
 export interface Block {
@@ -38,8 +38,10 @@ export interface Table extends TableSummary {
 }
 
 export const BLOCK_SHAPE = 'site-block';
-export const KIND_ICON: Record<BlockKind, string> = { post: '📡', book: '📚', wiki: '🌱', link: '🔗' };
-export const KIND_LABEL: Record<BlockKind, string> = { post: 'Post', book: 'Book', wiki: 'Wiki', link: 'Link' };
+export const KIND_ICON: Record<BlockKind, string> = { post: '📡', book: '📚', wiki: '🌱', arena: '✳️', link: '🔗' };
+export const KIND_LABEL: Record<BlockKind, string> = { post: 'Post', book: 'Book', wiki: 'Wiki', arena: 'Are.na', link: 'Link' };
+/** Are.na blocks' emoji by their type; channels have their own. */
+export const ARENA_ICON: Record<string, string> = { channel: '✳️', image: '🖼️', link: '🔗', text: '📝', embed: '🎬', attachment: '📎' };
 /** Post types' emoji, as in the posts feed. */
 export const POST_ICON: Record<string, string> = { note: '📝', article: '📄', photo: '📷', video: '🎬', bookmark: '🔖', like: '⭐', repost: '🔁', reply: '💬', checkin: '📍', rsvp: '📅' };
 
@@ -49,7 +51,7 @@ export const MAX_DOCUMENT_BYTES = 2_000_000;
 const MAX_TEXT = 600;
 const PREVIEW_COUNT = 4;
 
-export const isBlockKind = (value: unknown): value is BlockKind => value === 'post' || value === 'book' || value === 'wiki' || value === 'link';
+export const isBlockKind = (value: unknown): value is BlockKind => value === 'post' || value === 'book' || value === 'wiki' || value === 'arena' || value === 'link';
 export const validId = (value: unknown): value is string => typeof value === 'string' && /^[a-z0-9-]{4,40}$/.test(value);
 
 export function newTableId(): string {

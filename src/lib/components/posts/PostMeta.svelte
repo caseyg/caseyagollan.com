@@ -6,6 +6,7 @@
 	import { formatRelativeDate, formatAbsoluteDate } from '$lib/utils/formatDate';
 	import { onMount } from 'svelte';
 	import { ownerHint } from '$lib/owner';
+	import { ARENA_PROFILE } from '$lib/arena';
 
 	interface Props {
 		type: string;
@@ -42,7 +43,7 @@
 	}
 
 	const TYPE_ICONS: Record<string, string> = {
-		wiki: '📖', book: '📚', like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
+		wiki: '📖', book: '📚', arena: '✳️', like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
 		note: '📝',
 		article: '📄',
 		bookmark: '🔖',
@@ -70,7 +71,11 @@
 					<Chip href={activity.permalink} class="post-type" title={formatAbsoluteDate(activity.date)}><span aria-hidden="true">{getTypeIcon(activity.type)}</span> {activity.type === 'like' ? 'liked' : 'reposted'}</Chip>
 				{/each}
 			{:else}
-				<Chip href={type === 'wiki' ? '/wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type"><span aria-hidden="true">{getTypeIcon(type)}</span> {action?.verb ?? type}</Chip>
+				{#if type === 'arena'}
+					<Chip href={ARENA_PROFILE} class="post-type" target="_blank" rel="noopener"><span aria-hidden="true">{getTypeIcon(type)}</span> Are.na</Chip>
+				{:else}
+					<Chip href={type === 'wiki' ? '/wiki/' : type === 'book' ? '/library/' : `/type/${getTypePlural(type).toLowerCase()}/`} class="post-type"><span aria-hidden="true">{getTypeIcon(type)}</span> {action?.verb ?? type}</Chip>
+				{/if}
 			{/if}
 		{/if}
 		{#each action?.targets ?? [] as target (target.url)}

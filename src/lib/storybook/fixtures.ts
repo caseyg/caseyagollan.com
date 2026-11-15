@@ -29,6 +29,9 @@ export const blocks = {
 	book: { kind: 'book', url: '/library/0822359383', title: 'Dark Matters: On the Surveillance of Blackness', meta: 'Browne, Simone · 2015', image: '/library/img/0822359383.jpg' },
 	bookNoCover: { kind: 'book', url: '/library/0374532559', title: 'Trickster Makes This World: Mischief, Myth and Art', meta: 'Hyde, Lewis · 2010' },
 	wiki: { kind: 'wiki', url: 'https://cag.wiki/Aesthetic+Crisis', title: 'Aesthetic Crisis', meta: 'cag.wiki', excerpt: 'Architects dressed up for the 1931 Beaux Arts Ball; photo from the collection of Christopher Gray. What is the nature of the crisis? It is hard to say.' },
+	arenaChannel: { kind: 'arena', url: 'https://www.are.na/casey-gollan/is-this-this-website', title: 'Is This This Website?', meta: 'Channel · 5 blocks', icon: '✳️', excerpt: 'Metaphors for websites — discuss!' },
+	arenaImage: { kind: 'arena', url: 'https://www.are.na/block/2092617', title: 'Light Phone 2', meta: 'Image · indiegogo.com', icon: '🖼️', image: 'https://images.are.na/eyJidWNrZXQiOiJhcmVuYV9pbWFnZXMiLCJrZXkiOiIyMDkyNjE3L29yaWdpbmFsXzk5ZjA3MzhjMjE1MTUyZGQxYThkZmExODMyNzg1YzYxLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6NDAwLCJoZWlnaHQiOjQwMCwiZml0IjoiaW5zaWRlIiwid2l0aG91dEVubGFyZ2VtZW50Ijp0cnVlfSwid2VicCI6eyJxdWFsaXR5Ijo3NX0sImpwZWciOnsicXVhbGl0eSI6NzV9LCJyb3RhdGUiOm51bGx9fQ==' },
+	arenaText: { kind: 'arena', url: 'https://www.are.na/block/1970355', title: 'Sander Moolin', meta: 'Text', icon: '📝', excerpt: '"Beaker is a client and a server rolled into one"' },
 	link: { kind: 'link', url: 'https://tabletop.grantcuster.com/', title: 'tabletop.grantcuster.com', meta: 'tabletop.grantcuster.com', image: '/library/img/0321918622.jpg' },
 	longTitle: { kind: 'book', url: '/library/0306808935', title: 'Talking Music: Conversations With John Cage, Philip Glass, Laurie Anderson, And 5 Generations Of American Experimental Composers', meta: 'Duckworth, William · 1999' }
 } satisfies Record<string, Block>;

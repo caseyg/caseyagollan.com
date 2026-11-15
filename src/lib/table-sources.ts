@@ -1,5 +1,5 @@
 import { loadPagefind, plainExcerpt, type PagefindData } from './pagefind';
-import { POST_ICON, type Block, type BlockKind } from './tables';
+import { ARENA_ICON, POST_ICON, type Block, type BlockKind } from './tables';
 
 const PAGE_SIZE = 24;
 
@@ -22,6 +22,10 @@ export function blockFromSearch(data: PagefindData): Block {
 		// The cag.wiki address, as saved tables keep it; opening the block goes to the wiki browser.
 		return { kind: 'wiki', url: data.meta.source ?? new URL(url, 'https://cag.wiki/').href, title, meta: 'cag.wiki', excerpt };
 	}
+	if (type === 'arena') {
+		// Casey's Are.na channels and blocks open on Are.na.
+		return { kind: 'arena', url, title, meta: data.meta.detail || 'Are.na', excerpt, image, icon: ARENA_ICON[data.meta.kind ?? ''] };
+	}
 	const date = data.meta.date?.slice(0, 10);
 	return { kind: 'post', url, title, meta: [type, date].filter(Boolean).join(' · ') || undefined, excerpt, image, icon: POST_ICON[type] };
 }
@@ -29,15 +33,15 @@ export function blockFromSearch(data: PagefindData): Block {
 export type SourceFilter = 'all' | Exclude<BlockKind, 'link'>;
 
 /**
- * Site content matching a query, best first: posts, books and wiki pages. An empty query lists a
- * kind's pages (the whole library, every wiki page), not everything. Resolves null without a search index.
+ * Site content matching a query, best first: posts, books, wiki pages and Casey's Are.na. An empty query lists a
+ * kind's pages (the whole library, every wiki page, all of Are.na), not everything. Resolves null without a search index.
  */
 export async function searchBlocks(query: string, filter: SourceFilter = 'all', limit = PAGE_SIZE): Promise<Block[] | null> {
 	const pagefind = await loadPagefind();
 	if (!pagefind) return null;
 	const term = query.trim() || null;
 	if (!term && filter === 'all') return [];
-	const filters = filter === 'book' || filter === 'wiki' ? { Type: filter } : undefined;
+	const filters = filter === 'book' || filter === 'wiki' || filter === 'arena' ? { Type: filter } : undefined;
 	const response = await pagefind.search(term, filters ? { filters } : undefined);
 	const results = response?.results ?? [];
 	const blocks: Block[] = [];
