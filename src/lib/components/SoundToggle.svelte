@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { SegmentedPill } from '$lib/components/ui';
+	import { Button } from '$lib/components/ui';
 	import { usePageCommands } from '$lib/page-commands.svelte';
 	import { sound } from '$lib/sound.svelte';
 
 	let {
 		/** Show the state given here instead of the visitor's preference, for stories. */
-		enabled: shown
-	}: { enabled?: boolean } = $props();
+		enabled: shown,
+		/** Float in the page's bottom-left corner. Off only to show it in place, in stories. */
+		floating = true
+	}: { enabled?: boolean; floating?: boolean } = $props();
 
 	// The server can't know the preference, so the button shows it once the page is live.
 	let mounted = $state(false);
@@ -26,18 +28,23 @@
 </script>
 
 <!--
-	The sounds of the page this sits on, on or off. One choice for the whole site, remembered.
-	Quiet, not blue: it is a setting, not a place to go.
+	The sounds of the page this sits on, on or off: one choice for the whole site, remembered.
+	A speaker while sound is on, a slashed speaker while it's off. Only pages that make sound show it.
 -->
-<SegmentedPill
-	size="md"
-	tone="quiet"
-	compact
-	segments={[{
-		label: 'Sound',
-		icon: on ? '🔊' : '🔇',
-		pressed: on,
-		title: on ? 'Turn sound off' : 'Turn sound on',
-		onclick: toggle
-	}]}
-/>
+<div class="sound-toggle" class:floating>
+	<Button variant="icon" icon={on ? 'volume' : 'volume-off'} label={on ? 'Turn sound off' : 'Turn sound on'} onclick={toggle} />
+</div>
+
+<style>
+	.sound-toggle :global(.button--icon) {
+		border-color: var(--border);
+		background: var(--bg-primary);
+	}
+
+	.floating {
+		position: fixed;
+		left: calc(var(--nav-inset) + env(safe-area-inset-left));
+		bottom: calc(var(--nav-inset) + env(safe-area-inset-bottom));
+		z-index: var(--z-nav);
+	}
+</style>

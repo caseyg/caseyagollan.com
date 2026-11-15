@@ -10,8 +10,9 @@ import { play, setEnabled, setVolume, unlock, type PlayOptions, type SoundName }
  */
 
 const KEY = 'sound';
-/** Cuelume's levels are full scale; the site plays them well below that. */
-const VOLUME = 0.5;
+/** Cuelume's own full level, with each cue's normal arrangement. */
+export const SOUND_VOLUME = 1;
+export const SOUND_EMPHASIS = 'normal' as const;
 /** One gesture, one cue: a cue played this soon after another is dropped. */
 const GAP_MS = 150;
 
@@ -33,7 +34,7 @@ let lastCue = -Infinity;
 function configure() {
 	if (configured || !browser) return;
 	configured = true;
-	setVolume(VOLUME);
+	setVolume(SOUND_VOLUME);
 	setEnabled(preference.enabled);
 }
 
@@ -61,7 +62,7 @@ export const sound = {
 };
 
 /**
- * Play a cue for something the visitor just did. Quiet (`subtle`) unless told otherwise.
+ * Play a cue for something the visitor just did, at `normal` emphasis unless told otherwise.
  * Does nothing without a recent user gesture, so programmatic changes on load or from
  * the browser's history stay silent, and only the first cue of a gesture sounds.
  */
@@ -73,5 +74,5 @@ export function cue(name: SoundName, options: PlayOptions & { force?: boolean } 
 	if (!force && now - lastCue < GAP_MS) return;
 	lastCue = now;
 	configure();
-	play(name, { emphasis: 'subtle', ...playOptions });
+	play(name, { emphasis: SOUND_EMPHASIS, ...playOptions });
 }

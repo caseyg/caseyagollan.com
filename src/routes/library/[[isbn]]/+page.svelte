@@ -2111,7 +2111,8 @@
 	/** Narrow the library to one subject or tag, or pass null to show every book again. */
 	function setCategoryFilter(name: string | null, { frame = true } = {}) {
 		if (!Graph || name === categoryFilter) return;
-		cue('toggle', { direction: name ? 'forward' : 'back' });
+		// On the shelves a filter re-lays every shelf, so it whooshes like switching views.
+		cue(isGridModeActive ? 'navigate' : 'toggle', { direction: name ? 'forward' : 'back' });
 		useCategory(name);
 		if (name) focusOnBook = false;
 		updateLibraryUrl();
@@ -2700,7 +2701,7 @@
 			sortIndex = sort;
 			toggleMode(true, true);
 		} else if (shelves && sort !== sortIndex) {
-			cue('select');
+			cue('navigate');
 			sortIndex = sort;
 			applyShelfSort();
 			updateLibraryUrl();
@@ -2737,7 +2738,7 @@
 			})),
 			// The page restores its view from the URL, as the browser's back button does.
 			run: (value) => {
-				if (value.slice('library:category:'.length) !== categoryFilter) cue('toggle');
+				if (value.slice('library:category:'.length) !== categoryFilter) cue(isGridModeActive ? 'navigate' : 'toggle');
 				const url = new URL(window.location.href);
 				url.searchParams.set('category', value.slice('library:category:'.length));
 				pushState(url, {});
@@ -2750,7 +2751,7 @@
 		if (!Graph || !isGridModeActive) return;
 
 		// The re-sorted shelves present the selected book again once laid out.
-		cue('select', { direction: 'forward' });
+		cue('navigate');
 		sortIndex = (sortIndex + 1) % sortModes.length;
 		applyShelfSort();
 		updateLibraryUrl();
@@ -3055,8 +3056,8 @@
 				]}
 			/>
 		{/if}
-		<SoundToggle />
 	</Corner>
+	<SoundToggle />
 {/if}
 
 {#if selectedBook}
