@@ -5,12 +5,11 @@
 	import { COMPOSER_KINDS, type ComposerFields, type ComposerKind, type LegFields } from '$lib/composer-kinds';
 	import { formatAbsoluteDate } from '$lib/utils/formatDate';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
-	import Icon, { type IconName } from '$lib/components/composer/ComposerIcon.svelte';
+	import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
-	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
-	import ComposerChip from '$lib/components/composer/ComposerChip.svelte';
-	import { Heading, Notice, Page, PageHeader, Popover } from '$lib/components/ui';
+	import { Heading, Notice, Page, PageHeader, Popover, SelectMenu, CheckboxGroup, ToggleChip } from '$lib/components/ui';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -19,7 +18,7 @@
 		note: 'note', article: 'article', reply: 'reply', bookmark: 'bookmark', like: 'heart', repost: 'repost', rsvp: 'rsvp',
 		photo: 'image', video: 'video', event: 'calendar', review: 'star', itinerary: 'plane', food: 'food', drink: 'drink'
 	};
-	const kinds = Object.entries(COMPOSER_KINDS) as [ComposerKind, (typeof COMPOSER_KINDS)[ComposerKind]][];
+	const kindOptions = (Object.entries(COMPOSER_KINDS) as [ComposerKind, (typeof COMPOSER_KINDS)[ComposerKind]][]).map(([value, details]) => ({ value, label: details.label, title: details.hint, href: `/new/${value}/` }));
 	const PLACEHOLDERS: Partial<Record<ComposerKind, string>> = {
 		note: 'What’s on your mind?', article: 'Tell your story…', reply: 'Write your reply', bookmark: 'Add a comment (optional)',
 		repost: 'Add a comment (optional)', rsvp: 'Add a note (optional)', photo: 'Add a caption', video: 'Add a caption',
@@ -129,19 +128,14 @@
 		<OwnerSignIn message="Sign in to post." />
 	{:else}
 		<ComposerBar>
-			<ComposerButton variant="icon" icon="close" label="Close" href="/account" />
-			<Popover class="menu kinds" triggerClass="menu-trigger" panelClass="menu-panel kind-panel" label="Post type: {info.label}">
-				{#snippet trigger()}<Icon name={KIND_ICONS[kind]} size={18} /> {info.label} <Icon name="chevron" size={16} />{/snippet}
-				<!-- Full page loads: switching type must start the form from the server data. -->
-				<ul class="kind-list" data-sveltekit-reload>
-					{#each kinds as [option, details] (option)}
-						<li><a href="/new/{option}/" title={details.hint} aria-current={option === kind ? 'page' : undefined}><Icon name={KIND_ICONS[option]} size={18} /><span>{details.label}</span></a></li>
-					{/each}
-				</ul>
-			</Popover>
+			<Button variant="icon" icon="close" label="Close" href="/account" />
+			<!-- Full page loads: switching type must start the form from the server data. -->
+			<SelectMenu variant="quiet" columns={2} reload label="Post type: {info.label}" current={info.label} options={kindOptions}>
+				{#snippet icon(option)}<Icon name={KIND_ICONS[option.value as ComposerKind]} size={18} />{/snippet}
+			</SelectMenu>
 			{#snippet actions()}
 			{#if data.draftsEnabled}
-				<Popover class="menu drafts" triggerClass="menu-trigger" panelClass="menu-panel drafts-panel" align="end" label="Drafts ({data.drafts.length})" title="Drafts">
+				<Popover panelClass="drafts-panel" align="end" label="Drafts ({data.drafts.length})">
 					{#snippet trigger()}<Icon name="drafts" size={18} /><span class="count-badge">{data.drafts.length}</span>{/snippet}
 					<!-- Full page loads: opening a draft must start the form from the draft, not the current state. -->
 					<div class="draft-list" data-sveltekit-reload>
@@ -155,7 +149,7 @@
 										<form method="POST" action="?/discard">
 											<input type="hidden" name="csrf" value={data.csrf} />
 											<input type="hidden" name="id" value={draft.id} />
-											<ComposerButton variant="icon" size="sm" icon="close" type="submit" label="Discard {draft.title}" />
+											<Button variant="icon" size="sm" icon="close" type="submit" label="Discard {draft.title}" />
 										</form>
 									</li>
 								{/each}
@@ -163,9 +157,9 @@
 						{/if}
 					</div>
 				</Popover>
-				<ComposerButton type="submit" form="composer" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</ComposerButton>
+				<Button variant="quiet" type="submit" form="composer" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</Button>
 			{/if}
-			<ComposerButton variant="primary" type="submit" form="composer" name="intent" value="publish" disabled={submitting || uploading > 0}>{submitting && intent === 'publish' ? 'Posting…' : 'Publish'}</ComposerButton>
+			<Button variant="primary" type="submit" form="composer" name="intent" value="publish" disabled={submitting || uploading > 0}>{submitting && intent === 'publish' ? 'Posting…' : 'Publish'}</Button>
 			{/snippet}
 		</ComposerBar>
 
@@ -248,10 +242,10 @@
 							<label class="mini">Departs<input name="leg-departure" type="datetime-local" bind:value={leg.departure} required /></label>
 							<label class="mini">Arrives<input name="leg-arrival" type="datetime-local" bind:value={leg.arrival} required /></label>
 						</div>
-						{#if legs.length > 1}<span class="remove-leg"><ComposerButton variant="icon" size="sm" icon="close" label="Remove leg {index + 1}" onclick={() => legs.splice(index, 1)} /></span>{/if}
+						{#if legs.length > 1}<span class="remove-leg"><Button variant="icon" size="sm" icon="close" label="Remove leg {index + 1}" onclick={() => legs.splice(index, 1)} /></span>{/if}
 					</fieldset>
 				{/each}
-				<span class="add"><ComposerButton icon="plus" onclick={() => legs.push(emptyLeg())}>Add leg</ComposerButton></span>
+				<span class="add"><Button variant="quiet" icon="plus" onclick={() => legs.push(emptyLeg())}>Add leg</Button></span>
 			{/if}
 
 			{#if hasContent}
@@ -291,13 +285,13 @@
 			{#if hasPhotos}
 				<div class="panel row" hidden={!open.photoUrl}>
 					<label class="target grow"><Icon name="link" size={18} /><span class="visually-hidden">Photo URL</span><input id="field-photo-url" type="url" bind:value={photoUrl} placeholder="Add a photo by URL" autocomplete="off" spellcheck="false" /></label>
-					<ComposerButton disabled={!photoUrl} onclick={() => { photos.push({ url: photoUrl, alt: '' }); photoUrl = ''; open.photoUrl = false; }}>Add</ComposerButton>
+					<Button variant="quiet" disabled={!photoUrl} onclick={() => { photos.push({ url: photoUrl, alt: '' }); photoUrl = ''; open.photoUrl = false; }}>Add</Button>
 				</div>
 			{/if}
 			{#if hasLocation}
 				<div class="panel row" hidden={!open.location}>
 					<label class="target grow"><Icon name="pin" size={18} /><span class="visually-hidden">Location</span><input id="field-location" name="location" bind:value={location} placeholder="Add a place" autocomplete="off" /></label>
-					<ComposerButton variant="icon" icon="locate" label="Use current location" disabled={locating} onclick={locate} />
+					<Button variant="icon" icon="locate" label="Use current location" disabled={locating} onclick={locate} />
 				</div>
 				{#if locationError}<p class="hint">{locationError}</p>{/if}
 			{/if}
@@ -318,25 +312,25 @@
 
 			<ComposerToolbar>
 				{#if hasPhotos}
-					<ComposerButton variant="icon" icon="image" label="Add photos" onclick={() => photoInput?.click()} />
+					<Button variant="icon" icon="image" label="Add photos" onclick={() => photoInput?.click()} />
 					<input bind:this={photoInput} class="visually-hidden" tabindex="-1" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" multiple onchange={event => { void upload(event.currentTarget.files, 'photo'); event.currentTarget.value = ''; }} />
-					<ComposerButton variant="icon" icon="link" label="Add a photo by URL" pressed={open.photoUrl} onclick={() => reveal('photoUrl', 'field-photo-url')} />
+					<Button variant="icon" icon="link" label="Add a photo by URL" pressed={open.photoUrl} onclick={() => reveal('photoUrl', 'field-photo-url')} />
 				{/if}
 				{#if kind === 'video' && data.mediaEnabled}
-					<ComposerButton variant="icon" icon="video" label="Add a video" onclick={() => videoInput?.click()} />
+					<Button variant="icon" icon="video" label="Add a video" onclick={() => videoInput?.click()} />
 					<input bind:this={videoInput} class="visually-hidden" tabindex="-1" type="file" accept="video/mp4,video/quicktime,video/webm" onchange={event => { void upload(event.currentTarget.files, 'video'); event.currentTarget.value = ''; }} />
 				{/if}
-				{#if kind === 'note'}<ComposerButton variant="icon" icon="reply" label="Reply to a URL" pressed={open.reply || !!replyTo} onclick={() => reveal('reply', 'field-reply')} />{/if}
-				{#if hasLocation}<ComposerButton variant="icon" icon="pin" label="Add location" pressed={open.location || !!location} onclick={() => reveal('location', 'field-location')} />{/if}
-				<ComposerButton variant="icon" icon="hash" label="Add tags" pressed={open.tags || !!category} onclick={() => reveal('tags', 'field-tags')} />
-				<ComposerButton variant="icon" icon="sliders" label="Slug, date and format" pressed={open.options} onclick={() => reveal('options', 'field-slug')} />
+				{#if kind === 'note'}<Button variant="icon" icon="reply" label="Reply to a URL" pressed={open.reply || !!replyTo} onclick={() => reveal('reply', 'field-reply')} />{/if}
+				{#if hasLocation}<Button variant="icon" icon="pin" label="Add location" pressed={open.location || !!location} onclick={() => reveal('location', 'field-location')} />{/if}
+				<Button variant="icon" icon="hash" label="Add tags" pressed={open.tags || !!category} onclick={() => reveal('tags', 'field-tags')} />
+				<Button variant="icon" icon="sliders" label="Slug, date and format" pressed={open.options} onclick={() => reveal('options', 'field-slug')} />
 				{#snippet end()}
 				{#if data.syndication.length && kind !== 'like' && kind !== 'repost'}
-					<span class="share" role="group" aria-label="Also post to">
+					<CheckboxGroup layout="row" label="Also post to" name="syndicate-to" bind:value={syndicateTo}>
 						{#each data.syndication as destination (destination.uid)}
-							<ComposerChip name="syndicate-to" value={destination.uid} bind:group={syndicateTo} title="Also post to {destination.name}">{destination.name}</ComposerChip>
+							<ToggleChip value={destination.uid} title="Also post to {destination.name}">{destination.name}</ToggleChip>
 						{/each}
-					</span>
+					</CheckboxGroup>
 				{/if}
 				{#if hasContent && kind !== 'article'}<span class="count" class:over={limit && content.length > limit} aria-live="polite">{limit ? `${content.length}/${limit}` : content.length || ''}</span>{/if}
 				{/snippet}
@@ -351,24 +345,15 @@
 
 <style>
 	:global(.compose-page) { max-width: 40rem; }
-	.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 	[hidden] { display: none !important; }
 	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
 
 
-	:global(.menu .menu-trigger) { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3); border: 0; border-radius: var(--radius-full); background: transparent; color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
-	:global(.menu .menu-trigger:hover), :global(.menu .menu-trigger[aria-expanded='true']) { background: var(--surface-2); }
-	:global(.drafts .menu-trigger) { padding: var(--space-2); color: var(--text-secondary); }
 	.count-badge { min-width: 1em; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
-	:global(.menu .menu-panel) { min-width: 17rem; margin: 0; padding: var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-primary); box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.3); }
-	:global(.menu .kind-panel) { min-width: 0; }
-	ul.kind-list, .draft-list ul { margin: 0; padding: 0; list-style: none; }
-	ul.kind-list { display: grid; grid-template-columns: repeat(2, minmax(8.5rem, 1fr)); }
-	.kind-list a { align-items: center; }
-	:global(.menu .drafts-panel) { width: min(22rem, 85vw); }
-	.kind-list a, .draft-list a { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); text-decoration: none; }
-	.kind-list a:hover, .kind-list a[aria-current='page'], .draft-list a:hover { background: var(--surface-2); }
-	.kind-list span, .draft-list a span { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
+	.draft-list ul { margin: 0; padding: 0; list-style: none; }
+	.draft-list a { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); text-decoration: none; }
+	.draft-list a:hover { background: var(--surface-2); }
+	.draft-list a span { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
 	.draft-list small { color: var(--text-muted); font-size: var(--fs-xs); }
 	.draft-list li { display: flex; align-items: center; gap: var(--space-1); }
 	.draft-list li > a { flex: 1; min-width: 0; }
@@ -422,11 +407,9 @@
 	.alt { box-sizing: border-box; width: 100%; padding: var(--space-1) var(--space-2); border: 0; border-top: 1px solid var(--border-subtle); background: transparent; font-size: var(--fs-xs); outline: none; }
 	.remove { position: absolute; top: var(--space-1); right: var(--space-1); display: flex; padding: var(--space-1); border: 0; border-radius: 999px; background: rgb(0 0 0 / 0.6); color: white; cursor: pointer; }
 
-	.share { display: inline-flex; gap: var(--space-1); }
 	.count { min-width: 2.5rem; color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
 	.count.over { color: var(--text-primary); text-decoration: underline wavy; font-weight: var(--fw-semibold); }
 	.hint { margin: var(--space-1) 0; color: var(--text-muted); font-size: var(--fs-sm); line-height: var(--lh-normal); }
 	.footer { margin-top: var(--space-4); font-size: var(--fs-xs); }
 	.footer a { margin-left: var(--space-2); }
-	@media (max-width: 30rem) { :global(.menu .menu-trigger) { padding-left: var(--space-2); } }
 </style>

@@ -21,9 +21,10 @@
 			size="md"
 			compact
 			label="Library view"
+			value="shelves"
 			segments={[
-				{ label: 'Graph', icon: '🕸️', pressed: false, onclick: () => {} },
-				{ label: 'Shelves', icon: '📚', pressed: true, onclick: () => {} }
+				{ label: 'Graph', icon: '🕸️', value: 'graph' },
+				{ label: 'Shelves', icon: '📚', value: 'shelves' }
 			]}
 		/>
 		<SegmentedPill size="md" compact segments={[{ label: 'Recently acquired', icon: '📅', onclick: () => {} }]} />

@@ -43,8 +43,7 @@
 		label="Posts pagination"
 		page={data.page}
 		totalPages={data.totalPages}
-		prevHref={data.page > 1 ? pageHref(data.page - 1) : undefined}
-		nextHref={data.page < data.totalPages ? pageHref(data.page + 1) : undefined}
+		href={pageHref}
 	/>
 </PostsLayout>
 

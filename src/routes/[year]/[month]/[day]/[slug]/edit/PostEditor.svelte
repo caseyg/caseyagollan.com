@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import Icon, { type IconName } from '$lib/components/composer/ComposerIcon.svelte';
+	import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
-	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
 	import FrontmatterProperties from '$lib/components/editor/FrontmatterProperties.svelte';
 	import { Notice } from '$lib/components/ui';
@@ -54,12 +54,12 @@
 <svelte:head><title>Edit {kindLabel} — Casey Gollan</title></svelte:head>
 
 <ComposerBar>
-	<ComposerButton variant="icon" icon="close" label="Back to the post" href={base} />
+	<Button variant="icon" icon="close" label="Back to the post" href={base} />
 	<span class="kind"><Icon name={kindIcon} size={18} /> Edit {kindLabel}</span>
 	{#snippet actions()}
-		{#if editor.github}<ComposerButton variant="icon" icon="github" label="Open on GitHub" href={editor.github} target="_blank" rel="noopener noreferrer" />{/if}
-		{#if !reaction}<ComposerButton variant="icon" icon="share" label="Syndicate" href="{base}syndicate/" />{/if}
-		<ComposerButton variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</ComposerButton>
+		{#if editor.github}<Button variant="icon" icon="github" label="Open on GitHub" href={editor.github} target="_blank" rel="noopener noreferrer" />{/if}
+		{#if !reaction}<Button variant="icon" icon="share" label="Syndicate" href="{base}syndicate/" />{/if}
+		<Button variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
 	{/snippet}
 </ComposerBar>
 {#if form?.message}<Notice tone={form.saved ? 'info' : 'error'}>{form.message}</Notice>{/if}
@@ -84,7 +84,7 @@
 		{#if Editor && format === 'markdown'}<label class="check"><input type="checkbox" bind:checked={source} /> Edit Markdown source</label>{/if}
 	</div>
 	<ComposerToolbar label="Post options">
-		<ComposerButton variant="icon" icon="sliders" label="Format" pressed={showOptions} onclick={() => { showOptions = !showOptions; }} />
+		<Button variant="icon" icon="sliders" label="Format" pressed={showOptions} onclick={() => { showOptions = !showOptions; }} />
 		{#snippet end()}<span class="count">{content.length || ''}</span>{/snippet}
 	</ComposerToolbar>
 </form>

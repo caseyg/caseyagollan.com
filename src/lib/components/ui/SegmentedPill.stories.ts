@@ -48,25 +48,27 @@ export const SectionMenu: Story = {
 		] }]
 	}
 };
-/** Segments can be buttons that change the page in place. The choice in effect is pressed. */
-export const ButtonGroup: Story = {
+/** With a `value`, the pill picks one of its segments, like a radio group: one tab stop, arrow keys between choices, and a fill that slides to the choice. */
+export const Choice: Story = {
 	args: {
 		size: 'md',
 		label: 'Library view',
+		value: 'graph',
 		segments: [
-			{ label: 'Graph', icon: '🕸️', pressed: true, onclick: () => {} },
-			{ label: 'Shelves', icon: '📚', pressed: false, onclick: () => {} }
+			{ label: 'Graph', icon: '🕸️', value: 'graph' },
+			{ label: 'Shelves', icon: '📚', value: 'shelves' }
 		]
 	}
 };
-/** A small group of buttons, in the grays of in-page controls, such as a figure's placement in the editor. */
-export const SmallButtonGroup: Story = {
+/** A small choice, in the grays of in-page controls, such as a figure's placement in the editor. */
+export const SmallChoice: Story = {
 	args: {
 		label: 'Placement',
+		value: 'right',
 		segments: [
-			{ label: 'Full', pressed: false, onclick: () => {} },
-			{ label: 'Right', pressed: true, onclick: () => {} },
-			{ label: 'Narrow', pressed: false, onclick: () => {} }
+			{ label: 'Full', value: 'full' },
+			{ label: 'Right', value: 'right' },
+			{ label: 'Narrow', value: 'narrow' }
 		]
 	}
 };

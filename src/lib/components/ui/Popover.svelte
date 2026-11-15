@@ -1,64 +1,93 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@ui-sdk/svelte/popover';
 
 	interface Props {
 		/** Content of the trigger button. */
-		trigger: Snippet<[open: boolean]>;
-		/** Panel content: links, a menu list, or a short form. */
+		trigger: Snippet;
+		/** Panel content: links or a short form. For a list of pages to switch between, use `SelectMenu`. */
 		children: Snippet;
-		/** Accessible name for the trigger when its content is only an icon or a count. */
-		label?: string;
+		/** Names the trigger and the panel. Shown as the panel's heading unless `hideTitle`. */
+		label: string;
+		hideTitle?: boolean;
 		/** Which edge of the trigger the panel lines up with. */
 		align?: 'start' | 'end';
 		open?: boolean;
-		/** Classes on the wrapper, trigger and panel, for the caller's styles (use `:global`). */
-		class?: string;
+		/** Classes for the caller's sizing of the trigger and panel (use `:global`). */
 		triggerClass?: string;
 		panelClass?: string;
-		title?: string;
 	}
 
-	let { trigger, children, label, align = 'start', open = $bindable(false), class: className = '', triggerClass = '', panelClass = '', title }: Props = $props();
+	let { trigger, children, label, hideTitle = true, align = 'start', open = $bindable(false), triggerClass = '', panelClass = '' }: Props = $props();
 
-	const panelId = $props.id();
-	let container: HTMLElement | undefined = $state();
-	let button: HTMLButtonElement | undefined = $state();
-
-	// Every popover closes on an outside click, on Escape, and when one of its links is followed.
-	function onWindowClick(event: MouseEvent) {
-		if (open && container && !container.contains(event.target as Node)) open = false;
-	}
-	function onWindowKeydown(event: KeyboardEvent) {
-		if (open && event.key === 'Escape') { open = false; button?.focus(); }
-	}
+	// Following a link inside the panel closes it, as leaving the page would.
 	function onPanelClick(event: MouseEvent) {
 		if ((event.target as Element).closest('a[href]')) open = false;
 	}
 </script>
 
-<svelte:window onclick={onWindowClick} onkeydown={onWindowKeydown} />
-
-<div class="popover {className}" bind:this={container}>
-	<button bind:this={button} type="button" class="popover-trigger {triggerClass}" aria-expanded={open} aria-controls={panelId} aria-label={label} {title} onclick={() => { open = !open; }}>
-		{@render trigger(open)}
-	</button>
-	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-	<div id={panelId} class="popover-panel {panelClass}" class:end={align === 'end'} hidden={!open} onclick={onPanelClick}>
+<Popover bind:open>
+	<PopoverTrigger class="popover-trigger {triggerClass}" aria-label={label} title={label}>{@render trigger()}</PopoverTrigger>
+	<PopoverContent class="popover-panel {panelClass}" side="bottom" {align} sideOffset={4} collisionPadding={8} onclick={onPanelClick}>
+		<PopoverTitle class={hideTitle ? 'visually-hidden' : 'popover-title'}>{label}</PopoverTitle>
 		{@render children()}
-	</div>
-</div>
+	</PopoverContent>
+</Popover>
 
 <style>
-	.popover { position: relative; width: fit-content; }
-	.popover-trigger { font: inherit; cursor: pointer; }
-	.popover-panel {
-		position: absolute;
-		top: calc(100% + var(--space-1));
-		left: 0;
-		z-index: var(--z-menu);
-		overflow: auto;
-		max-height: 70vh;
+	:global(.popover-trigger) {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: var(--space-2);
+		border: 0;
+		border-radius: var(--radius-full);
+		background: transparent;
+		color: var(--text-secondary);
+		font: inherit;
+		font-size: var(--fs-sm);
+		font-weight: var(--fw-medium);
+		line-height: var(--lh-snug);
+		cursor: pointer;
+		transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
 	}
-	.popover-panel.end { left: auto; right: 0; }
-	.popover-panel[hidden] { display: none; }
+
+	:global(.popover-trigger:hover),
+	:global(.popover-trigger[data-open]) {
+		background: var(--surface-2);
+		color: var(--text-primary);
+	}
+
+	:global(.popover-panel) {
+		box-sizing: border-box;
+		max-height: min(70vh, var(--available-height));
+		margin: 0;
+		padding: var(--space-1);
+		overflow: auto;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-primary);
+		color: var(--text-primary);
+		box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.3);
+		transform-origin: var(--transform-origin);
+		transition: opacity 150ms var(--ease-out), scale 150ms var(--ease-out);
+	}
+
+	:global(.popover-panel[data-starting-style]),
+	:global(.popover-panel[data-ending-style]) {
+		opacity: 0;
+		scale: 0.97;
+	}
+
+	:global(.popover-title) {
+		margin: var(--space-2);
+		font-size: var(--fs-sm);
+		font-weight: var(--fw-medium);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		:global(.popover-panel) {
+			transition: none;
+		}
+	}
 </style>

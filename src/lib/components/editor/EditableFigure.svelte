@@ -23,7 +23,7 @@
 		{ align: 'right', label: 'Right', title: 'Beside the text' },
 		{ align: 'narrow', label: 'Narrow', title: 'Beside the text, narrow, for phone screenshots' }
 	];
-	const segments = $derived(placements.map(({ align, label, title }) => ({ label, title, pressed: figure.align === align, onclick: () => onchange?.({ align }) })));
+	const segments = placements.map(({ align, label, title }) => ({ label, title, value: align }));
 
 	// The caption is edited in place. Write its HTML only when it changed from outside,
 	// so typing never resets the cursor.
@@ -56,7 +56,7 @@
 <figure class="editable-figure" class:align-right={figure.align !== 'full'} class:narrow={figure.align === 'narrow'} class:selected>
 	{#if selected}
 		<div class="controls" role="toolbar" aria-label="Figure">
-			<SegmentedPill size="sm" label="Placement" {segments} />
+			<SegmentedPill size="sm" label="Placement" {segments} value={figure.align} onValueChange={(align) => onchange?.({ align: align as FigureAlign })} />
 			<Button size="sm" variant="quiet" aria-pressed={editingAlt} onclick={() => (editingAlt = !editingAlt)}>Alt text</Button>
 			<Button size="sm" variant="quiet" onclick={() => onremove?.()}>Remove</Button>
 		</div>

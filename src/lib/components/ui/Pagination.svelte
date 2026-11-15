@@ -1,36 +1,32 @@
 <script lang="ts">
+	import { Pagination, PaginationItem, PaginationList, PaginationNext, PaginationPrevious } from '@ui-sdk/svelte/pagination';
+
 	interface Props {
 		page: number;
 		totalPages: number;
-		prevHref?: string;
-		nextHref?: string;
+		/** The URL of a page, from 1. Steps are links, so paging works before JavaScript loads. */
+		href: (page: number) => string;
 		prevLabel?: string;
 		nextLabel?: string;
 		/** Accessible name for the landmark. */
 		label?: string;
 	}
 
-	let { page, totalPages, prevHref, nextHref, prevLabel = 'Newer', nextLabel = 'Older', label = 'Pagination' }: Props = $props();
+	let { page, totalPages, href, prevLabel = 'Newer', nextLabel = 'Older', label = 'Pagination' }: Props = $props();
 </script>
 
 {#if totalPages > 1}
-	<nav class="pagination" aria-label={label}>
-		<span class="slot">
-			{#if prevHref}<a href={prevHref} rel="prev"><span aria-hidden="true">←</span> {prevLabel}</a>{/if}
-		</span>
-		<span class="status">Page {page} of {totalPages}</span>
-		<span class="slot slot--end">
-			{#if nextHref}<a href={nextHref} rel="next">{nextLabel} <span aria-hidden="true">→</span></a>{/if}
-		</span>
-	</nav>
+	<Pagination class="pagination" aria-label={label} {page} pageCount={totalPages} getHref={href}>
+		<PaginationList class="pagination-list">
+			<PaginationItem><PaginationPrevious class="pagination-step" rel="prev"><span aria-hidden="true">←</span> {prevLabel}</PaginationPrevious></PaginationItem>
+			<li class="status">Page {page} of {totalPages}</li>
+			<PaginationItem class="pagination-end"><PaginationNext class="pagination-step" rel="next">{nextLabel} <span aria-hidden="true">→</span></PaginationNext></PaginationItem>
+		</PaginationList>
+	</Pagination>
 {/if}
 
 <style>
-	.pagination {
-		display: grid;
-		grid-template-columns: 1fr auto 1fr;
-		align-items: center;
-		gap: var(--space-4);
+	:global(.pagination) {
 		margin-top: var(--space-6);
 		padding-top: var(--space-4);
 		border-top: 1px solid var(--border-subtle);
@@ -38,7 +34,17 @@
 		line-height: var(--lh-snug);
 	}
 
-	.slot--end {
+	:global(.pagination-list) {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		gap: var(--space-4);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	:global(.pagination-end) {
 		text-align: right;
 	}
 
@@ -47,8 +53,9 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	a {
+	:global(.pagination-step) {
 		display: inline-block;
+		margin-inline: calc(-1 * var(--space-2));
 		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius-sm);
 		color: var(--text-primary);
@@ -56,15 +63,14 @@
 		transition: background var(--duration) var(--ease);
 	}
 
-	.slot:not(.slot--end) a {
-		margin-left: calc(-1 * var(--space-2));
+	/* At either end the step has nowhere to go. */
+	:global(.pagination-step[data-disabled]) {
+		visibility: hidden;
 	}
 
-	.slot--end a {
-		margin-right: calc(-1 * var(--space-2));
-	}
-
-	a:hover {
-		background: var(--surface-2);
+	@media (hover: hover) {
+		:global(.pagination-step:hover) {
+			background: var(--surface-2);
+		}
 	}
 </style>

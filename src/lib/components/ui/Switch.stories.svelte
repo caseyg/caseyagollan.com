@@ -1,27 +1,27 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import Toggle from './Toggle.svelte';
+	import Switch from './Switch.svelte';
 
 	const { Story } = defineMeta({
-		title: 'Primitives/Toggle',
-		component: Toggle,
+		title: 'Primitives/Switch',
+		component: Switch,
 		args: { checked: false },
 		tags: ['!autodocs']
 	});
 </script>
 
 <Story asChild name="Off">
-	<Toggle>Keep text in sync</Toggle>
+	<Switch>Keep text in sync</Switch>
 </Story>
 
 <Story asChild name="On">
-	<Toggle checked>Keep text in sync</Toggle>
+	<Switch checked>Keep text in sync</Switch>
 </Story>
 
 <Story asChild name="DisabledOff">
-	<Toggle disabled>Keep text in sync</Toggle>
+	<Switch disabled>Keep text in sync</Switch>
 </Story>
 
 <Story asChild name="DisabledOn">
-	<Toggle checked disabled>Keep text in sync</Toggle>
+	<Switch checked disabled>Keep text in sync</Switch>
 </Story>

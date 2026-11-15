@@ -74,7 +74,7 @@
  <p class="muted">Choose what belongs on your site. Previews stay private until you import.</p></header>
  <details class="help"><summary>What gets imported?</summary><aside>Imports publish the title, URL, summary below, and selected tags, dated when saved to Reader. Personal notes are never imported. Days use America/New_York time. Day controls apply to loaded items. Dismissals save only Readwise IDs.</aside></details>
  <div class="toolbar">
-  <Checkbox disabled={busy || !pending.length} checked={checked(pending)} indeterminate={selected.length > 0 && !checked(pending)} onchange={(e: Event & { currentTarget: HTMLInputElement }) => toggle(pending, e.currentTarget.checked)}>Select all loaded</Checkbox>
+  <Checkbox disabled={busy || !pending.length} checked={checked(pending)} indeterminate={selected.length > 0 && !checked(pending)} onCheckedChange={(on) => toggle(pending, on)}>Select all loaded</Checkbox>
   <Button size="sm" variant="primary" disabled={busy || !selected.length} onclick={() => act('import', items.filter(i => selected.includes(i.id)))}>Import selected · {selected.length}</Button>
   <Button size="sm" disabled={busy || !selected.length} onclick={() => act('dismiss', items.filter(i => selected.includes(i.id)))}>Dismiss selected</Button>
  </div>
@@ -83,13 +83,13 @@
  {#if failure}<Notice tone="error">{failure}</Notice>{/if}
  {#each groups as group (group.day)}
   <section>
-   <div class="day"><Checkbox disabled={busy || !group.pending.length} checked={checked(group.pending)} indeterminate={group.pending.some(i => selected.includes(i.id)) && !checked(group.pending)} onchange={(e: Event & { currentTarget: HTMLInputElement }) => toggle(group.pending, e.currentTarget.checked)}><strong>{group.day}</strong></Checkbox><span>{group.pending.length} pending · {group.items.length - group.pending.length} imported</span><Button size="sm" disabled={busy || !group.pending.length} onclick={() => act('dismiss', group.pending)}>Dismiss day</Button></div>
+   <div class="day"><Checkbox disabled={busy || !group.pending.length} checked={checked(group.pending)} indeterminate={group.pending.some(i => selected.includes(i.id)) && !checked(group.pending)} onCheckedChange={(on) => toggle(group.pending, on)}><strong>{group.day}</strong></Checkbox><span>{group.pending.length} pending · {group.items.length - group.pending.length} imported</span><Button size="sm" disabled={busy || !group.pending.length} onclick={() => act('dismiss', group.pending)}>Dismiss day</Button></div>
    {#each group.items as item (item.id)}
     <article>
      {#if imported[item.id]}
       <div class="preview"><p class="source">Imported</p><h2><a href={imported[item.id]}>{item.title}</a></h2><p><a href={imported[item.id]}>View post →</a></p></div>
      {:else}
-     <Checkbox aria-label={`Select ${item.title}`} disabled={busy} checked={selected.includes(item.id)} onchange={(e: Event & { currentTarget: HTMLInputElement }) => toggle([item], e.currentTarget.checked)} />
+     <Checkbox aria-label={`Select ${item.title}`} disabled={busy} checked={selected.includes(item.id)} onCheckedChange={(on) => toggle([item], on)} />
      <div class="preview"><p class="source">{new URL(item.url).hostname} · {item.category}</p><h2><a href={item.url} target="_blank" rel="noreferrer noopener">{item.title}</a></h2><details class="item-details"><summary>Edit details <span class="detail-hint">· summary &amp; tags{item.tags.length ? ` · ${item.tags.length} ${item.tags.length === 1 ? 'tag' : 'tags'}` : ''}</span></summary>{#if item.author}<p class="author">{item.author}</p>{/if}<TextField multiline label="Summary" maxlength={4000} disabled={busy} bind:value={item.summary} />
       <div class="tags">{#each item.tags as tag}<Chip variant="soft" disabled={busy} aria-label={`Remove tag ${tag}`} onclick={() => item.tags = item.tags.filter(t => t !== tag)}>{tag} ×</Chip>{/each}</div>
       <TextField label="Add tag" list="existing-tags" maxlength={100} disabled={busy} bind:value={tagDraft[item.id]} onkeydown={(e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); addTag(item); } }} /><Button size="sm" disabled={busy || !tagDraft[item.id]?.trim()} onclick={() => addTag(item)}>Add tag</Button><p class="url"><a href={item.url} target="_blank" rel="noreferrer noopener">{item.url}</a></p></details></div>

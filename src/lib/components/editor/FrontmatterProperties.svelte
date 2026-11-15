@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import { formatAbsoluteDate } from '$lib/utils/formatDate';
-	import Icon, { type IconName } from '$lib/components/composer/ComposerIcon.svelte';
+	import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
 
 	interface Props {
 		/** Editable text properties, as { key: [values] }. Bound, and posted as JSON under `name`. */
