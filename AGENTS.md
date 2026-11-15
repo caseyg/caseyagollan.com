@@ -28,7 +28,7 @@ Use Bun for package management and local scripts. Run tests and a production bui
 - `src/lib/posts.ts`: Vite-bundled Markdown snapshot; shared parsing is limited to production builds.
 - `src/lib/server/`: shared Markdown parser and server-side content helpers.
 - `src/lib/utils/htmlToMarkdown.ts`: posts are stored as Markdown by default. Imported (PESOS) and edited HTML is converted when `sameRendering` confirms the Markdown renders identically; otherwise it stays HTML. `utils/convert-html-content.ts` applies the same rule to the content repository.
-- `src/lib/components/composer/` and `src/lib/components/editor/`: shared composer parts (`ComposerBar`, `ComposerButton`, `ComposerToolbar`, `ComposerIcon`, `FrontmatterProperties`) used by `/new` and the post editor.
+- `src/lib/components/composer/` and `src/lib/components/editor/`: shared composer parts (`ComposerBar`, `ComposerButton`, `ComposerToolbar`, `ComposerIcon`, `FrontmatterProperties`) used by `/new` and the post editor. The rich editor (`MarkdownEditor`, Lexical) reads post figures (`<figure>` HTML, see `src/lib/markdown-figure.ts`) into `FigureNode` blocks drawn by `EditableFigure`, and writes untouched figures back byte for byte.
 - `content/`: canonical Git submodule. Preserve it; do not add another copy under `src/`.
 - `static/library/`: generated library dataset and cover images.
 - `utils/librarything-to-graph.js`: library import utility; input is `utils/librarything_caseygollan.json`.

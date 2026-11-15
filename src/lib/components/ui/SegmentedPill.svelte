@@ -84,6 +84,7 @@
 
 	button.segment {
 		border: 0;
+		background: transparent;
 		font: inherit;
 		letter-spacing: inherit;
 		cursor: pointer;

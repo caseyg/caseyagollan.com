@@ -36,6 +36,17 @@ export const ButtonGroup: Story = {
 		]
 	}
 };
+/** A small group of buttons, in the grays of in-page controls, such as a figure's placement in the editor. */
+export const SmallButtonGroup: Story = {
+	args: {
+		label: 'Placement',
+		segments: [
+			{ label: 'Full', pressed: false, onclick: () => {} },
+			{ label: 'Right', pressed: true, onclick: () => {} },
+			{ label: 'Narrow', pressed: false, onclick: () => {} }
+		]
+	}
+};
 /** A lone button segment, such as the library's sort control, which steps through its options. */
 export const SingleButton: Story = {
 	args: { size: 'md', label: undefined, segments: [{ label: 'Recently acquired', icon: '📅', ariaLabel: 'Sorted by recently acquired. Sort by publication year', onclick: () => {} }] }
