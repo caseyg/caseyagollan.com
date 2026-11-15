@@ -217,9 +217,34 @@
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let savedForces: Record<string, any> | null = null;
 
+	const newLayoutWorker = () => new Worker(new URL('$lib/library/layout.worker.ts', import.meta.url), { type: 'module' });
+	// Category and book layouts reuse one worker, started with the opening
+	// layout's, so a click does not wait for a new worker to load.
+	let arrangeWorker: Worker | null = null;
+	let arrangeRequest = 0;
+	const arrangeReplies = new Map<number, (positions: Float32Array) => void>();
+	function useArrangeWorker() {
+		if (arrangeWorker) return arrangeWorker;
+		arrangeWorker = newLayoutWorker();
+		arrangeWorker.onmessage = (event: MessageEvent<LayoutTick>) => {
+			if (!event.data.done || event.data.id === undefined) return;
+			arrangeReplies.get(event.data.id)?.(event.data.positions);
+			arrangeReplies.delete(event.data.id);
+		};
+		arrangeWorker.onerror = (error) => {
+			console.error('Category layout failed', error);
+			arrangeWorker?.terminate();
+			arrangeWorker = null;
+			// Whoever was waiting keeps the nodes where they stand.
+			for (const reply of arrangeReplies.values()) reply(new Float32Array());
+			arrangeReplies.clear();
+		};
+		return arrangeWorker;
+	}
+
 	function startWorkerLayout(graph: GraphData) {
 		layoutNodes = graph.nodes;
-		layoutWorker = new Worker(new URL('$lib/library/layout.worker.ts', import.meta.url), { type: 'module' });
+		layoutWorker = newLayoutWorker();
 		layoutWorker.onmessage = (event: MessageEvent<LayoutTick>) => {
 			layoutTicks.push(event.data.positions);
 			if (event.data.done) {
@@ -229,6 +254,7 @@
 				layoutWorker = null;
 			}
 		};
+		useArrangeWorker();
 		const request: LayoutRequest = {
 			ids: graph.nodes.map((node) => node.id),
 			links: graph.links.map((link) => [String(link.source), String(link.target)]),
@@ -260,7 +286,9 @@
 	}
 
 	// settle jumps straight to the final layout and stops the engine there.
-	function finishWorkerLayout(settle = false) {
+	// interrupted stops playing it without arranging the graph afterwards, and
+	// lets the worker finish computing where the nodes settle.
+	function finishWorkerLayout(settle = false, interrupted = false) {
 		if (!savedForces || !Graph) return;
 		if (settle && layoutTicks.length) {
 			const positions = layoutTicks[layoutTicks.length - 1];
@@ -271,8 +299,10 @@
 				Object.assign(node, { vx: 0, vy: 0, vz: 0 });
 			});
 		}
-		layoutWorker?.terminate();
-		layoutWorker = null;
+		if (!interrupted) {
+			layoutWorker?.terminate();
+			layoutWorker = null;
+		}
 		Graph.d3Force('worker', null);
 		for (const node of layoutNodes) {
 			delete node.fx;
@@ -288,7 +318,7 @@
 		if (!isGridModeActive) Graph.d3AlphaMin(0.001);
 		// Switching to the shelves also ends the layout; only the graph frames the category.
 		// A settled link arranges the graph itself, before it is revealed.
-		if (!settle) scheduleFrame(() => { if (!isGridModeActive) refreshGraph(); });
+		if (!settle && !interrupted) scheduleFrame(() => { if (!isGridModeActive) refreshGraph(); });
 		if (settle) {
 			// One more tick moves the meshes to the final positions, then the engine stops.
 			Graph.d3AlphaDecay(1);
@@ -1977,6 +2007,7 @@
 		clearHighResolutionCover();
 		if (!browser) return;
 		layoutWorker?.terminate();
+		arrangeWorker?.terminate();
 		linkLines?.geometry.dispose();
 		linkLines?.material.dispose();
 		cancelShelfGesture?.();
@@ -2143,8 +2174,32 @@
 		if (!Graph || isGridModeActive) return;
 		graphMembers = currentGraphMembers();
 		fadeFilteredGraph();
-		// The opening layout arranges the graph once it settles.
 		if (!savedForces) void arrangeCategory(frame);
+		// Before the reveal, the opening settles and arranges the graph itself.
+		else if (sceneReady) interruptOpeningLayout(frame);
+	}
+
+	// A filter or a book chosen while the opening animation still plays stops it
+	// where it stands, instead of waiting out its five seconds. The settled layout
+	// becomes where every node returns once the filter is cleared.
+	function interruptOpeningLayout(frame: boolean) {
+		const nodes = layoutNodes;
+		const settle = (settled: Float32Array | undefined) => {
+			if (!settled || !homePositions || isDestroyed) return;
+			nodes.forEach((node, index) => homePositions!.set(node, {
+				x: settled[index * 3], y: settled[index * 3 + 1], z: settled[index * 3 + 2]
+			}));
+		};
+		const computed = layoutDone ? layoutTicks[layoutTicks.length - 1] : undefined;
+		finishWorkerLayout(false, true);
+		// Arranging starts from where the nodes stand now; the worker may still be
+		// computing where the whole graph settles, which becomes home when it is done.
+		homePositions ??= new Map((Graph.graphData().nodes as Node[]).map((node) => [node, position(node)]));
+		// Leaving the filter returns to this view, as it would once the opening had ended.
+		unfilteredCamera ??= { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } };
+		if (computed) settle(computed);
+		else void layoutFinished.then(() => settle(layoutTicks[layoutTicks.length - 1]));
+		void arrangeCategory(frame);
 	}
 
 	const position = (node: Node): Point => ({ x: node.x || 0, y: node.y || 0, z: node.z || 0 });
@@ -2171,12 +2226,11 @@
 			linkDistance: 80, charge: -250,
 		};
 		const anchorIndex = anchor ? members.indexOf(anchor) : -1;
-		return new Promise((resolve, reject) => {
-			const worker = new Worker(new URL('$lib/library/layout.worker.ts', import.meta.url), { type: 'module' });
-			worker.onmessage = (event: MessageEvent<LayoutTick>) => {
-				if (!event.data.done) return;
-				worker.terminate();
-				const result = event.data.positions;
+		return new Promise((resolve) => {
+			const id = ++arrangeRequest;
+			request.id = id;
+			arrangeReplies.set(id, (result) => {
+				if (result.length < members.length * 3) { resolve(new Map()); return; }
 				const shift = anchorIndex < 0 ? { x: 0, y: 0, z: 0 } : {
 					x: (anchor!.x || 0) - result[anchorIndex * 3],
 					y: (anchor!.y || 0) - result[anchorIndex * 3 + 1],
@@ -2185,9 +2239,8 @@
 				resolve(new Map(members.map((node, index) => [node, {
 					x: result[index * 3] + shift.x, y: result[index * 3 + 1] + shift.y, z: result[index * 3 + 2] + shift.z
 				}])));
-			};
-			worker.onerror = (error) => { worker.terminate(); reject(error); };
-			worker.postMessage(request, [start.buffer]);
+			});
+			useArrangeWorker().postMessage(request, [start.buffer]);
 		});
 	}
 
