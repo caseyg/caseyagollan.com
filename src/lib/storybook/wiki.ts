@@ -30,6 +30,11 @@ export const sampleVault: WikiVault = {
 		page('Cooper Union', 'A school that was free for 150 years. See [[Art Under Risk]] and [[Composite Financial Index]].', { tags: ['art'] }),
 		page('Composite Financial Index', 'A single score for an institution\'s financial health, used by accreditors. [[Cooper Union]] scored low in 2011.'),
 		page('Organizing', 'Notes on working together.\n\n## Governance\n\nWho decides, and how decisions are written down. Related: [[Research Ops]].\n\n## Facilitation\n\nRunning a meeting so everyone can speak.'),
+		page(
+			'Nielsen Model of ReOps',
+			'---\npublish: true\n---\n\n%%%\nauthor:: [[Kate Kaplan]]\nsource:: [[Research Ops]]\n\n# Nielsen Model of ReOps\n\n%% A note to self that stays hidden. %%\n\n[ResearchOps 101](https://www.nngroup.com/articles/research-ops-101/)\n\n> It outlines 6 common focus areas of ResearchOps.',
+			{ aliases: [] }
+		),
 		page('Research Ops', 'The people, tools and processes that help research happen. Linked from [[Home]].', { tags: ['🔍/ops'], aliases: ['ReOps'] })
 	]
 };
