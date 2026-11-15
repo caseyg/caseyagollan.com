@@ -1,4 +1,4 @@
-import { searchPrivateArena } from './arena-client';
+import { searchPrivateArena, searchRaindrop } from './arena-client';
 import { loadPagefind, plainExcerpt, type PagefindData } from './pagefind';
 import { ARENA_ICON, POST_ICON, type Block, type BlockKind } from './tables';
 
@@ -31,7 +31,7 @@ export function blockFromSearch(data: PagefindData): Block {
 	return { kind: 'post', url, title, meta: [type, date].filter(Boolean).join(' · ') || undefined, excerpt, image, icon: POST_ICON[type] };
 }
 
-export type SourceFilter = 'all' | Extract<BlockKind, 'post' | 'book' | 'wiki' | 'arena'>;
+export type SourceFilter = 'all' | Extract<BlockKind, 'post' | 'book' | 'wiki' | 'arena' | 'raindrop'>;
 
 /**
  * Site content matching a query, best first: posts, books, wiki pages and Casey's Are.na. An empty query lists a
@@ -41,7 +41,7 @@ export async function searchBlocks(query: string, filter: SourceFilter = 'all', 
 	const pagefind = await loadPagefind();
 	if (!pagefind) return null;
 	const term = query.trim() || null;
-	if (!term && filter === 'all') return [];
+	if ((!term && filter === 'all') || filter === 'raindrop') return [];
 	const filters = filter === 'book' || filter === 'wiki' || filter === 'arena' ? { Type: filter } : undefined;
 	const response = await pagefind.search(term, filters ? { filters } : undefined);
 	const results = response?.results ?? [];
@@ -59,14 +59,15 @@ export async function searchBlocks(query: string, filter: SourceFilter = 'all', 
 }
 
 /**
- * Site search plus Casey's private Are.na, for the signed-in owner's tables. Private blocks follow the
- * public ones: a few in a search of everything, all of them under the Are.na filter.
+ * Site search plus what only the signed-in owner sees: private Are.na blocks and Raindrop bookmarks.
+ * They follow the public results: a few each in a search of everything, all of them under their own filter.
  */
-export function withPrivateArena(search: typeof searchBlocks = searchBlocks) {
+export function withOwnerSources(search: typeof searchBlocks = searchBlocks, sources = { arena: searchPrivateArena, raindrop: searchRaindrop }) {
 	return async (query: string, filter: SourceFilter = 'all'): Promise<Block[] | null> => {
-		const wantPrivate = filter === 'arena' || (filter === 'all' && !!query.trim());
-		const [found, hidden] = await Promise.all([search(query, filter), wantPrivate ? searchPrivateArena(query, filter === 'arena' ? PAGE_SIZE : 6) : Promise.resolve([])]);
-		if (found === null && !hidden.length) return null;
-		return [...(found ?? []), ...hidden];
+		const everything = filter === 'all' && !!query.trim();
+		const extra = (source: 'arena' | 'raindrop') => (filter === source ? sources[source](query, PAGE_SIZE) : everything ? sources[source](query, 6) : Promise.resolve([]));
+		const [found, arena, raindrop] = await Promise.all([filter === 'raindrop' ? Promise.resolve([]) : search(query, filter), extra('arena'), extra('raindrop')]);
+		if (found === null && !arena.length && !raindrop.length) return null;
+		return [...(found ?? []), ...arena, ...raindrop];
 	};
 }

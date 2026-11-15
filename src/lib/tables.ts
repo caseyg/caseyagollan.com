@@ -4,7 +4,7 @@
  */
 
 /** `image` and `quote` are pieces taken out of a page: one of its pictures, or one of its paragraphs. `arena` is Casey's Are.na. */
-export type BlockKind = 'post' | 'book' | 'wiki' | 'arena' | 'link' | 'image' | 'quote';
+export type BlockKind = 'post' | 'book' | 'wiki' | 'arena' | 'raindrop' | 'link' | 'image' | 'quote';
 
 /** What a block shows, saved with it so a table reads the same if the source moves or changes. */
 export interface Block {
@@ -45,8 +45,8 @@ export interface Table extends TableSummary {
 }
 
 export const BLOCK_SHAPE = 'site-block';
-export const KIND_ICON: Record<BlockKind, string> = { post: '📡', book: '📚', wiki: '🌱', arena: '✳️', link: '🔗', image: '🖼️', quote: '✂️' };
-export const KIND_LABEL: Record<BlockKind, string> = { post: 'Post', book: 'Book', wiki: 'Wiki', arena: 'Are.na', link: 'Link', image: 'Image', quote: 'Excerpt' };
+export const KIND_ICON: Record<BlockKind, string> = { post: '📡', book: '📚', wiki: '🌱', arena: '✳️', raindrop: '💧', link: '🔗', image: '🖼️', quote: '✂️' };
+export const KIND_LABEL: Record<BlockKind, string> = { post: 'Post', book: 'Book', wiki: 'Wiki', arena: 'Are.na', raindrop: 'Raindrop', link: 'Link', image: 'Image', quote: 'Excerpt' };
 /** Are.na blocks' emoji by their type; channels have their own. */
 export const ARENA_ICON: Record<string, string> = { channel: '✳️', image: '🖼️', link: '🔗', text: '📝', embed: '🎬', attachment: '📎' };
 /** Post types' emoji, as in the posts feed. */

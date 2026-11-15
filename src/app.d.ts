@@ -29,6 +29,8 @@ declare global {
 				KAGI_API_KEY: string;
 				/** Are.na personal access token; reads Casey’s private blocks for the owner only. */
 				ARENA_PAT?: string;
+				/** Raindrop.io token; searches Casey’s bookmarks for the owner only. */
+				RAINDROP_TOKEN?: string;
 				NODE_ENV: string;
 				WEBMENTION_IO_TOKEN: string;
 			};
