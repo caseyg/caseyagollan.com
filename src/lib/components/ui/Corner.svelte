@@ -27,15 +27,18 @@
 	const EVENT = 'corner-resize';
 
 	/*
-	 * The room the `start` corner asks for: its full width, less what its titles give up when they
-	 * end in an ellipsis, keeping `TITLE_ROOM` of them. A title's `scrollWidth` is its full width
-	 * even while it is cut short.
+	 * The room the `start` corner asks for: its width with nothing cut short, less what its titles
+	 * can give up by ending in an ellipsis, keeping `TITLE_ROOM` of them. It is measured with the
+	 * corner's cap lifted for the moment, since controls that can't shrink, such as the library's,
+	 * would otherwise be measured as already squeezed and leave the other corner on top of them.
 	 */
 	function startNeed(node: HTMLElement) {
-		const titles = [...node.querySelectorAll<HTMLElement>('.segment > .text')];
-		const full = titles.reduce((sum, title) => sum + title.scrollWidth, 0);
-		const shown = titles.reduce((sum, title) => sum + title.clientWidth, 0);
-		return node.offsetWidth - shown + Math.min(full, TITLE_ROOM);
+		const cap = node.style.maxWidth;
+		node.style.maxWidth = 'none';
+		const width = node.offsetWidth;
+		const titles = [...node.querySelectorAll<HTMLElement>('.segment > .text')].reduce((sum, title) => sum + title.offsetWidth, 0);
+		node.style.maxWidth = cap;
+		return width - titles + Math.min(titles, TITLE_ROOM);
 	}
 
 	/*
@@ -70,12 +73,16 @@
 		};
 		const observer = new ResizeObserver(update);
 		observer.observe(node);
+		// Held at its cap, the start corner keeps its size while what it holds grows, so watch that too.
+		const contents = new MutationObserver(update);
+		if (side === 'start') contents.observe(node, { childList: true, subtree: true, characterData: true });
 		window.addEventListener('resize', update);
 		if (side === 'end') window.addEventListener(EVENT, fit);
 		update();
 		return {
 			destroy() {
 				observer.disconnect();
+				contents.disconnect();
 				window.removeEventListener('resize', update);
 				window.removeEventListener(EVENT, fit);
 				root.style.removeProperty(name);
