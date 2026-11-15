@@ -2,6 +2,7 @@ export { default as Avatar } from './Avatar.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as CheckboxGroup } from './CheckboxGroup.svelte';
+export { default as Divider } from './Divider.svelte';
 export { default as Chip } from './Chip.svelte';
 export { default as Corner } from './Corner.svelte';
 export { default as CommandPalette } from './CommandPalette.svelte';

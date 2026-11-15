@@ -76,7 +76,7 @@
 		<p class="p-summary preview">
 			{post.summary || getPreview(post.content)}
 		</p>
-		<Button href={permalink} variant="quiet" size="sm" class="read-more">Read more <span aria-hidden="true">→</span></Button>
+		<Button href={permalink} size="sm" class="read-more">Read more <span aria-hidden="true">→</span></Button>
 	{:else if post.type === 'note' || post.type === 'reply'}
 		<NoteCard {post} />
 	{:else}
@@ -88,9 +88,6 @@
 <style>
 	.post {
 		position: relative;
-		margin-bottom: var(--space-5);
-		padding-bottom: var(--space-5);
-		border-bottom: 1px solid var(--border-subtle);
 	}
 
 	/* Anchors sit above the card by the pinned navigation's height, so a jump to one stops just below the nav.
@@ -99,14 +96,6 @@
 		position: absolute;
 		top: calc(-1 * (var(--nav-lane) + var(--space-3)));
 	}
-
-	.post:last-child {
-		margin-bottom: 0;
-		padding-bottom: 0;
-		border-bottom: none;
-	}
-
-
 
 	.activity-sources {
 		margin: var(--space-3) 0;
