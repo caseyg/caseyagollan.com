@@ -22,7 +22,38 @@
 	 * that here and, for a full load, in the session for a few seconds.
 	 */
 	const STICKY_KEY = 'select-menu-open';
+	const SCROLL_KEY = 'select-menu-scroll';
 	let sticky = false;
+
+	const openMenu = () => document.querySelector<HTMLElement>('.select-menu[data-open]');
+
+	/** How far the open menu is scrolled, kept so the menu that replaces it opens at the same place. */
+	function saveScroll() {
+		try {
+			sessionStorage.setItem(SCROLL_KEY, String(openMenu()?.scrollTop ?? 0));
+		} catch {
+			// Without storage the new menu opens at its top.
+		}
+	}
+
+	/** Puts the reopened menu where the last one was, without replaying its entrance. */
+	function restoreScroll() {
+		let top = 0;
+		try {
+			top = Number(sessionStorage.getItem(SCROLL_KEY) ?? 0);
+		} catch {
+			return;
+		}
+		const root = document.documentElement;
+		root.setAttribute('data-menu-instant', '');
+		const place = (tries: number) => {
+			const menu = openMenu();
+			if (menu) menu.scrollTop = top;
+			if (tries > 0 && (!menu || menu.scrollTop !== top)) requestAnimationFrame(() => place(tries - 1));
+			else setTimeout(() => root.removeAttribute('data-menu-instant'), 200);
+		};
+		place(10);
+	}
 
 	function setSticky(value: boolean) {
 		sticky = value;
@@ -88,6 +119,7 @@
 		if (filters && wasSticky()) {
 			sticky = true;
 			open = true;
+			restoreScroll();
 		}
 	});
 	// Closing the menu, by any means, ends it.
@@ -100,6 +132,7 @@
 		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 		event.preventDefault();
 		setSticky(true);
+		saveScroll();
 		void goto(option.href, { noScroll: true, keepFocus: true });
 	}
 
@@ -168,6 +201,10 @@
 </Menu>
 
 <style>
+	:global(:root[data-menu-instant] .select-menu) {
+		transition: none !important;
+	}
+
 	:global(.select-menu-trigger) {
 		display: inline-flex;
 		align-items: center;
@@ -339,7 +376,9 @@
 		}
 	}
 
+	/* Fixed from the start, so the menu never takes part in its segment's layout while it is being placed. */
 	:global(.select-menu) {
+		position: fixed;
 		box-sizing: border-box;
 		min-width: max(12rem, var(--anchor-width));
 		max-height: min(75vh, var(--available-height));
