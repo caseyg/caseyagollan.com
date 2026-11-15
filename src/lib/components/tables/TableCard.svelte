@@ -60,7 +60,6 @@
 
 	.surface--picture {
 		display: block;
-		background: var(--bg-primary);
 	}
 
 	.surface--picture img {

@@ -5,7 +5,7 @@
 	import { POST_TYPE_PLURALS } from '$lib/posts-types';
 	import { formatRelativeDate, formatAbsoluteDate } from '$lib/utils/formatDate';
 	import { onMount } from 'svelte';
-	import { ownerHint } from '$lib/owner';
+	import { ownerSignedIn } from '$lib/owner';
 	import { ARENA_PROFILE } from '$lib/arena';
 
 	interface Props {
@@ -32,9 +32,9 @@
 
 	const categories = $derived(getCategories(category));
 
-	// Pages are static, so the owner's edit link appears only after hydration.
+	// Pages are static, so the owner's edit link appears only after hydration, once the session is confirmed.
 	let owner = $state(false);
-	onMount(() => { owner = ownerHint(); });
+	onMount(() => { ownerSignedIn().then((signedIn) => (owner = signedIn)); });
 	const editHref = $derived(owner && /^\/\d{4}\/\d{2}\/\d{2}\/[^/]+\/$/.test(permalink) ? `${permalink}edit/` : undefined);
 	const activityTypes = $derived(indexActivities?.filter((activity, i, all) => all.findIndex(other => other.type === activity.type) === i));
 

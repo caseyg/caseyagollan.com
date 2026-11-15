@@ -2,11 +2,10 @@ import { byUpdated, isPublished, toSummary, validId, type Table, type TableSumma
 
 /*
  * Tables live in the publishing-state bucket beside the graph curation: one object per table, and
- * an index of their summaries so the browse page reads a single object. Previews get their own bucket.
+ * an index of their summaries so the browse page reads a single object.
  */
 const INDEX = 'tables/index.json';
 const tableKey = (id: string) => `tables/${id}.json`;
-const thumbnailKey = (id: string) => `tables/${id}.svg`;
 const JSON_TYPE = { httpMetadata: { contentType: 'application/json' } };
 
 /** Published tables, for visitors. */
@@ -45,14 +44,4 @@ export async function writeTable(bucket: R2Bucket, table: Table): Promise<TableS
 	const next = [toSummary(table), ...list].sort(byUpdated);
 	await bucket.put(INDEX, JSON.stringify(next), JSON_TYPE);
 	return next;
-}
-
-export async function writeThumbnail(bucket: R2Bucket, id: string, svg: string): Promise<void> {
-	await bucket.put(thumbnailKey(id), svg, { httpMetadata: { contentType: 'image/svg+xml' } });
-}
-
-export async function readThumbnail(bucket: R2Bucket | undefined, id: string): Promise<string | null> {
-	if (!bucket || !validId(id)) return null;
-	const object = await bucket.get(thumbnailKey(id)).catch(() => null);
-	return object ? object.text() : null;
 }

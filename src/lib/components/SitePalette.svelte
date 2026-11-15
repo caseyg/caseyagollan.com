@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { COMPOSER_KINDS, type ComposerKind } from '$lib/composer-kinds';
-	import { ownerHint } from '$lib/owner';
+	import { ownerSignedIn } from '$lib/owner';
 	import { searchPrivateArena } from '$lib/arena-client';
 	import { pageCommands } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
@@ -65,10 +65,10 @@
 	// The posts menu (each type and year, with counts) loads the first time the palette opens.
 	let postsMenu = $state<MenuOption[]>([]);
 	let menuRequested = false;
-	// Writing is offered only where the owner has signed in; the composer checks the session itself.
+	// Writing is offered only while the owner is signed in; the composer checks the session itself too.
 	let owner = $state(false);
 	$effect(() => {
-		if (open) owner = ownerHint();
+		if (open) ownerSignedIn().then((signedIn) => (owner = signedIn));
 	});
 
 	$effect(() => {
@@ -161,6 +161,11 @@
 		...(term ? [{ label: 'Posts, books, wiki, and Are.na', items: results }, { label: 'Private on Are.na', items: privateResults }, { items: [search] }] : [])
 	]);
 
+	// Commands that go to a page are links too, so ⌘-click can open them in a new tab.
+	const LINK = /^(?:go|open|new):(.+)$/;
+	const linked = (item: CommandOption): CommandOption => ({ ...item, href: item.href ?? item.value.match(LINK)?.[1], items: item.items?.map(linked) });
+	const linkedSections = $derived(sections.map((section) => ({ ...section, items: section.items.map(linked) })));
+
 	function onAction(value: string) {
 		const page = forPage.find((section) => section.run && section.items.some((item) => item.value === value));
 		if (page && !value.startsWith('go:')) return page.run?.(value);
@@ -179,4 +184,4 @@
 
 <!-- On a phone, with no keyboard shortcut, pulling down from the top of the page opens it. -->
 <PullDown onPull={() => (open = true)} disabled={open} />
-<CommandPalette {sections} {onAction} bind:open bind:query status={searching && term.length >= 2 && !results.length ? 'Searching…' : ''} />
+<CommandPalette sections={linkedSections} {onAction} bind:open bind:query status={searching && term.length >= 2 && !results.length ? 'Searching…' : ''} />

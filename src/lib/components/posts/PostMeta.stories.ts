@@ -11,6 +11,8 @@ export const WithoutInteractions: Story = { args: { showInteractions: false } };
 export const OwnerEdit: Story = {
 	beforeEach: () => {
 		localStorage.setItem('owner-signed-in', '1');
-		return () => localStorage.removeItem('owner-signed-in');
+		const fetch = window.fetch;
+		window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => String(input).endsWith('/auth/session') ? Promise.resolve(Response.json({ authenticated: true })) : fetch(input, init)) as typeof fetch;
+		return () => { localStorage.removeItem('owner-signed-in'); window.fetch = fetch; };
 	}
 };

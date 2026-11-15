@@ -50,11 +50,24 @@
 			]
 		}
 	];
+
+	const links: CommandSection[] = [
+		{
+			label: 'Go to',
+			items: [
+				{ value: 'go:/', label: 'Home', icon: '👋', href: '/' },
+				{ value: 'go:/library/', label: 'Library', icon: '📚', href: '/library/' },
+				{ value: 'go:/posts/', label: 'Posts', icon: '📡', href: '/posts/' }
+			]
+		}
+	];
 </script>
 
 <script lang="ts">
 	let open = $state(false);
 	let openResults = $state(false);
+	let openLinks = $state(false);
+	let ran = $state('');
 </script>
 
 <!-- ⌘K or Ctrl+K opens it from anywhere. Typing filters the commands with a fuzzy match and marks the matched letters; arrows move, Enter runs, Escape clears, then goes back a page, then closes. Built on ui-sdk Dialog and Command. -->
@@ -67,4 +80,11 @@
 <Story asChild name="With search results">
 	<Button variant="secondary" onclick={() => (openResults = true)}>Open with results</Button>
 	<CommandPalette sections={withResults} bind:open={openResults} shortcut={null} onAction={() => {}} status="" />
+</Story>
+
+<!-- A command with `href` is also a link. A plain click runs it and closes the palette; ⌘/Ctrl-click, Shift-click, a middle click or ⌘/Ctrl-Enter opens it in a new tab and leaves the palette open, so you can open several. -->
+<Story asChild name="Links">
+	<Button variant="secondary" onclick={() => (openLinks = true)}>Open with links</Button>
+	{#if ran}<p>Ran {ran}</p>{/if}
+	<CommandPalette sections={links} bind:open={openLinks} shortcut={null} onAction={(value) => (ran = value)} />
 </Story>
