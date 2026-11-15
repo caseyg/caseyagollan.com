@@ -9,6 +9,8 @@
 	import Nav from '$lib/components/Nav.svelte';
 	import { Chip, Corner, SegmentedPill } from '$lib/components/ui';
 	import { usePageCommands } from '$lib/page-commands.svelte';
+	import { cue } from '$lib/sound.svelte';
+	import SoundToggle from '$lib/components/SoundToggle.svelte';
 	import { spineTextureSize } from '$lib/library/textures';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
@@ -962,7 +964,11 @@
 			const progress = duration ? Math.min(1, (now - started) / duration) : 1;
 			paintCoverflow(from + (destination - from) * (1 - Math.pow(1 - progress, 3)));
 			if (progress < 1) coverflowFrame = scheduleFrame(step);
-			else if (commit && selectedBook?.id !== coverflow.books[destination].id) selectBook(coverflow.books[destination], true, false);
+			else if (commit && selectedBook?.id !== coverflow.books[destination].id) {
+				const current = selectedBook ? coverflow.books.indexOf(selectedBook) : -1;
+				cue('navigate', { direction: destination < current ? 'back' : 'forward' });
+				selectBook(coverflow.books[destination], true, false);
+			}
 		};
 		coverflowFrame = scheduleFrame(step);
 	}
@@ -1090,6 +1096,8 @@
 
 	// Select a book and show its details
 	function selectBook(node: Node, updateUrl = true, focus = true) {
+		// Opening a book, or moving from one to another. Silent unless the visitor just did it.
+		if (selectedBook?.id !== node.id) cue(selectedBook ? 'select' : 'open');
 		if (categoryMembers && !categoryMembers.has(node.id)) setCategoryFilter(null, { frame: false });
 		clearHighResolutionCover();
 		selectedBook = node;
@@ -1354,6 +1362,7 @@
 	// Navigate to next/previous book using arrow keys
 	function navigateToAdjacentBook(direction: 'left' | 'right') {
 		if (!Graph || !selectedBook) return;
+		cue('navigate', { direction: direction === 'right' ? 'forward' : 'back' });
 		if (coverflow) {
 			const index = coverflow.books.indexOf(selectedBook) + (direction === 'right' ? 1 : -1);
 			const next = coverflow.books[index];
@@ -1476,6 +1485,7 @@
 	function deselectBook() {
 		clearHighResolutionCover();
 		if (!selectedBook) return;
+		cue('close');
 
 		removeOrbitListener?.();
 		removeOrbitListener = undefined;
@@ -1800,6 +1810,7 @@
 				.onNodeRightClick((graphNode) => {
 					const node = graphNode as Node;
 					if (node.group === 'book') {
+						cue('navigate');
 						window.open(`https://librarything.com/work/${node.workcode}`, '_blank');
 					}
 				})
@@ -2102,6 +2113,7 @@
 	/** Narrow the library to one subject or tag, or pass null to show every book again. */
 	function setCategoryFilter(name: string | null, { frame = true } = {}) {
 		if (!Graph || name === categoryFilter) return;
+		cue('toggle', { direction: name ? 'forward' : 'back' });
 		useCategory(name);
 		if (name) focusOnBook = false;
 		updateLibraryUrl();
@@ -2483,6 +2495,8 @@
 
 	function toggleMode(updateUrl = true, preserveSelection = false) {
 		if (!Graph) return;
+		// Into the shelves rises, back out to the graph falls. Before deselecting, so this is the cue that sounds.
+		cue('navigate', { direction: isGridModeActive ? 'back' : 'forward' });
 
 		finishWorkerLayout();
 		// Each view lays itself out; a filtered graph is arranged again once it settles.
@@ -2688,6 +2702,7 @@
 			sortIndex = sort;
 			toggleMode(true, true);
 		} else if (shelves && sort !== sortIndex) {
+			cue('select');
 			sortIndex = sort;
 			applyShelfSort();
 			updateLibraryUrl();
@@ -2724,6 +2739,7 @@
 			})),
 			// The page restores its view from the URL, as the browser's back button does.
 			run: (value) => {
+				if (value.slice('library:category:'.length) !== categoryFilter) cue('toggle');
 				const url = new URL(window.location.href);
 				url.searchParams.set('category', value.slice('library:category:'.length));
 				pushState(url, {});
@@ -2736,6 +2752,7 @@
 		if (!Graph || !isGridModeActive) return;
 
 		// The re-sorted shelves present the selected book again once laid out.
+		cue('select', { direction: 'forward' });
 		sortIndex = (sortIndex + 1) % sortModes.length;
 		applyShelfSort();
 		updateLibraryUrl();
@@ -3040,6 +3057,7 @@
 				]}
 			/>
 		{/if}
+		<SoundToggle />
 	</Corner>
 {/if}
 
