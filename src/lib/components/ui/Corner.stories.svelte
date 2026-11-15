@@ -31,3 +31,22 @@
 	</Corner>
 	<Nav currentPage="library" />
 </Story>
+
+<!--
+	A long trail on a phone. The site navigation folds into a menu so the trail keeps room for a
+	word or two of its title, and the title ends in an ellipsis where it still runs out of space.
+-->
+<Story asChild name="LongTrailOnPhone" globals={{ viewport: { value: 'mobile2' } }}>
+	<Corner side="start">
+		<SegmentedPill
+			size="md"
+			tone="quiet"
+			compact
+			segments={[
+				{ label: 'Wiki', icon: '📓', menu: [{ value: 'wiki', label: 'Wiki', href: '/wiki/', icon: '📓' }] },
+				{ label: 'Nielsen Model of ResearchOps and the six focus areas', href: '/wiki/nielsen-model-of-reops', current: true }
+			]}
+		/>
+	</Corner>
+	<Nav currentPage="wiki" />
+</Story>

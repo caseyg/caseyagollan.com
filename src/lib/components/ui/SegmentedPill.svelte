@@ -16,6 +16,8 @@
 		menuActive?: string;
 		/** A short note after a menu segment's label, e.g. the filter in effect. */
 		menuBadge?: string;
+		/** Which edge of the segment its menu lines up with; `end` for a segment at the right of the page. */
+		menuAlign?: 'start' | 'end';
 		/** Makes the segment a button, such as a control that steps through its options. */
 		onclick?: () => void;
 		/** With `onclick`, makes the segment a toggle button that is on or off, like a sound switch. */
@@ -77,7 +79,7 @@
 		{#each segments as segment (segment.href || segment.label)}
 			{#if segment.menu}
 				<span class="segment segment--menu" class:current={segment.current}>
-					<SelectMenu variant="segment" current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} badge={segment.menuBadge} />
+					<SelectMenu variant="segment" current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} badge={segment.menuBadge} align={segment.menuAlign} />
 				</span>
 			{:else if segment.onclick}
 				<Button class="segment" aria-label={name(segment)} aria-pressed={segment.pressed} title={segment.title} onclick={segment.onclick}>{@render content(segment)}</Button>
@@ -121,6 +123,26 @@
 		white-space: nowrap;
 		cursor: pointer;
 		transition: background var(--duration) var(--ease);
+		flex-shrink: 0;
+	}
+
+	/*
+	 * Where the pill is given less room than it asks for, as a trail beside the site navigation on
+	 * a phone is, the last segment (the page itself) gives it up, its title ending in an ellipsis.
+	 */
+	:global(.segmented-pill .segment:last-child) {
+		flex-shrink: 1;
+		min-width: 0;
+	}
+
+	:global(.segmented-pill .segment > .icon) {
+		flex: none;
+	}
+
+	:global(.segmented-pill .segment > .text) {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	:global(.segmented-pill .segment--menu) {

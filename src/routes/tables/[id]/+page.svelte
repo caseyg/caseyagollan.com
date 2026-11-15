@@ -164,7 +164,7 @@
 
 <svelte:window {onkeydown} />
 
-<Nav />
+<Nav currentPage="tables" />
 
 <PageHeader trail={[{ ...TABLES_CRUMB, href: listHref }, nameSegment]} title={name || 'Table'} />
 

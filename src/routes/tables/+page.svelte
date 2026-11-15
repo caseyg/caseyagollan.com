@@ -43,7 +43,7 @@
 	<meta property="og:type" content="website" />
 </svelte:head>
 
-<Nav />
+<Nav currentPage="tables" />
 
 <Page as="main" width="wide" class="tables-page">
 	<PageHeader trail={[{ ...TABLES_CRUMB, current: true }]} title="Tables" description="Posts, books, wiki pages and links, set out on tables to see side by side.">

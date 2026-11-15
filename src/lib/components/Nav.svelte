@@ -3,15 +3,18 @@
 	import SitePalette from './SitePalette.svelte';
 	import { Corner, SegmentedPill } from '$lib/components/ui';
 
-	type Section = 'home' | 'library' | 'posts' | 'wiki';
+	type Section = 'home' | 'library' | 'posts' | 'wiki' | 'tables';
 
 	let {
 		currentPage,
-		onSearchResultClick
+		onSearchResultClick,
+		condensed: forceCondensed = false
 	}: {
 		/** The section being viewed; its segment is marked. Omit on pages outside all of them. */
 		currentPage?: Section;
 		onSearchResultClick?: (url: URL) => boolean;
+		/** Always show the condensed menu, as the nav does by itself when a page's trail needs the room. */
+		condensed?: boolean;
 	} = $props();
 
 	// The same segments in the same order on every page, so each one stays where it was last time.
@@ -19,10 +22,27 @@
 		{ id: 'home', href: '/', label: 'Home', icon: '👋' },
 		{ id: 'library', href: '/library/', label: 'Library', icon: '📚' },
 		{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡' },
-		{ id: 'wiki', href: '/wiki/', label: 'Wiki', icon: '📓' }
+		{ id: 'wiki', href: '/wiki/', label: 'Wiki', icon: '📓' },
+		{ id: 'tables', href: '/tables/', label: 'Tables', icon: '🗂️' }
 	];
 	let search: Search | undefined = $state();
+	// Set by the corner when the full row would leave a page's trail too little room, as on a phone.
+	let crowded = $state(false);
+	const condensed = $derived(forceCondensed || crowded);
 	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));
+
+	// Condensed, the sections fold into one menu that names the section being viewed.
+	const current = $derived(sections.find(({ id }) => id === currentPage));
+	const menu = $derived([
+		{
+			label: current?.label ?? 'Menu',
+			icon: current?.icon,
+			current: Boolean(current),
+			menuAlign: 'end' as const,
+			menuActive: currentPage ?? '',
+			menu: sections.map(({ id, href, label, icon }) => ({ value: id, href, label, icon }))
+		}
+	]);
 </script>
 
 <!--
@@ -31,9 +51,13 @@
 -->
 <div class="top-band" aria-hidden="true"></div>
 
-<Corner as="nav" side="end" class="site-nav" aria-label="Site">
+<Corner as="nav" side="end" class="site-nav" aria-label="Site" bind:crowded>
 	<div class="group">
-		<SegmentedPill {segments} size="md" compact attached />
+		{#if condensed}
+			<SegmentedPill segments={menu} size="md" attached />
+		{:else}
+			<SegmentedPill {segments} size="md" compact attached />
+		{/if}
 		<!-- Search is an action, not a place, so it closes the row in the corner itself. -->
 		<Search bind:this={search} onResultClick={onSearchResultClick} />
 	</div>
