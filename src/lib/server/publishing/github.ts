@@ -102,6 +102,40 @@ export function createGitHubStore(config: Config, fetcher: Fetcher = fetch) {
 				return { path, sha: file.sha, content: decode(file.content) };
 			} catch { throw new GitHubStoreError('unavailable', response.status); }
 		},
+		/**
+		 * Reads many post files in one GraphQL request (100 per request), so a listing costs a
+		 * few subrequests rather than one per post. Missing or binary files are left out.
+		 */
+		async readMany(paths: string[]): Promise<{ path: string; sha: string; content: string }[]> {
+			for (const path of paths) validatePath(path);
+			const files: { path: string; sha: string; content: string }[] = [];
+			for (let start = 0; start < paths.length; start += 100) {
+				const batch = paths.slice(start, start + 100);
+				const fields = batch.map((_, index) => `f${index}: object(expression: $e${index}) { ... on Blob { oid text isBinary isTruncated } }`).join(' ');
+				const variables: Record<string, string> = { owner: config.owner, name: config.repo };
+				batch.forEach((path, index) => { variables[`e${index}`] = `${config.branch}:${path}`; });
+				const response = await request('https://api.github.com/graphql', {
+					method: 'POST', body: JSON.stringify({
+						query: `query Read($owner: String!, $name: String!, ${batch.map((_, index) => `$e${index}: String!`).join(', ')}) { repository(owner: $owner, name: $name) { ${fields} } }`,
+						variables
+					})
+				});
+				if (!response.ok) throw new GitHubStoreError('unavailable', response.status);
+				try {
+					const result = object(await response.json());
+					if (Array.isArray(result.errors) && result.errors.length) throw new Error();
+					const repository = object(object(result.data).repository);
+					batch.forEach((path, index) => {
+						const blob = repository[`f${index}`];
+						if (!blob || typeof blob !== 'object') return;
+						const { oid, text, isBinary, isTruncated } = blob as Record<string, unknown>;
+						if (isBinary || isTruncated || typeof oid !== 'string' || typeof text !== 'string') return;
+						files.push({ path, sha: oid, content: text });
+					});
+				} catch { throw new GitHubStoreError('unavailable', response.status); }
+			}
+			return files;
+		},
 		async write(path: string, content: string, options: { sha?: string; expectedHead?: string; message: string }): Promise<{ sha: string; commit: string }> {
 			validatePath(path);
 			if (!options.message.trim() || (options.sha !== undefined && !options.sha.trim())) throw new Error('Commit message and supplied revision must not be empty');

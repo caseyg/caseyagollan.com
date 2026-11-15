@@ -12,11 +12,24 @@ const unb64 = (value: string) => new TextDecoder().decode(Uint8Array.from(atob(v
 function setup(scope = 'create update delete undelete', options: Partial<PublishingConfig> = {}, snapshotFetcher?: (url: string) => Promise<Response>) {
   const files = new Map<string, { content: string; sha: string }>();
   let writes = 0;
+  let reads = 0;
   const handler = createMicropubHandler({ ...config, ...options }, {
     now: () => new Date('2026-11-06T17:00:00Z'), id: () => 'abc123', snapshotFetcher,
     fetcher: async (url, init) => {
       if (url === config.introspectionEndpoint) return Response.json({ active: true, me: config.me, client_id: 'https://quill.example/', scope });
       if (url.includes('/git/ref/')) return Response.json({ object: { sha: `head-${writes}` } });
+      if (url.includes('/git/trees/')) return Response.json({ truncated: false, tree: [...files.keys()].map(path => ({ type: 'blob', path })) });
+      if (url === 'https://api.github.com/graphql' && JSON.parse(init.body as string).query.startsWith('query Read')) {
+        reads++;
+        const { variables } = JSON.parse(init.body as string);
+        const repository: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(variables as Record<string, string>)) {
+          if (!key.startsWith('e')) continue;
+          const file = files.get(value.slice(value.indexOf(':') + 1));
+          repository[`f${key.slice(1)}`] = file ? { oid: file.sha, text: file.content, isBinary: false, isTruncated: false } : null;
+        }
+        return Response.json({ data: { repository } });
+      }
       if (url === 'https://api.github.com/graphql') {
         const input = JSON.parse(init.body as string).variables.input;
         if (input.expectedHeadOid !== `head-${writes}`) return Response.json({ errors: [{ type: 'STALE_DATA' }] });
@@ -37,7 +50,7 @@ function setup(scope = 'create update delete undelete', options: Partial<Publish
   });
   const send = (body: unknown) => handler(new Request('https://example.com/micropub', { method: 'POST', headers: { Authorization: 'Bearer client', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
   const query = (value: string) => handler(new Request(`https://example.com/micropub?${value}`, { headers: { Authorization: 'Bearer client' } }));
-  return { handler, files, send, query, writes: () => writes };
+  return { handler, files, send, query, writes: () => writes, reads: () => reads };
 }
 
 describe('Micropub HTTP flow', () => {
@@ -352,4 +365,74 @@ test('saves fetched likes and reposts in the same GitHub Markdown write and pres
   expect((await app.send({action:'update',url:'https://example.com/2026/11/06/saved/',replace:{[key]:['https://example.net/other']}})).status).toBe(204);
   expect(app.files.get(path)!.content).not.toContain('Saved original');
  }
+});
+
+describe('Micropub post list (q=source without url)', () => {
+  async function seeded() {
+    const app = setup('create update delete');
+    const post = (path: string, published: string, extra = '') => app.files.set(path, { content: `---\npublished: ${published}\n${extra}---\n\nBody of ${path}\n`, sha: `sha-${path}` });
+    post('notes/2026-11-01-first.md', '2026-11-01T09:00:00-05:00');
+    post('notes/2026-11-02-morning.md', '2026-11-02T08:00:00-05:00');
+    post('articles/2026-11-02-evening.md', '2026-11-02T20:00:00-05:00', 'name: Evening\n');
+    post('notes/2026-11-03-gone.md', '2026-11-03T10:00:00-05:00', 'deleted: true\n');
+    post('bookmarks/2026-11-04-link.md', '2026-11-04T10:00:00-05:00', 'bookmark-of: https://example.org/\n');
+    // Legacy UTC filename: the URL follows the local published date.
+    post('notes/2026-11-06-late.md', '2026-11-05T22:00:00-05:00');
+    return app;
+  }
+  const urls = (body: any) => body.items.map((item: any) => item.properties.url[0]);
+
+  test('lists posts newest first as mf2 with urls, leaving out deleted posts', async () => {
+    const app = await seeded();
+    const response = await app.query('q=source');
+    expect(response.status).toBe(200);
+    const body = await response.json() as any;
+    expect(urls(body)).toEqual([
+      'https://example.com/2026/11/05/late/',
+      'https://example.com/2026/11/04/link/',
+      'https://example.com/2026/11/02/evening/',
+      'https://example.com/2026/11/02/morning/',
+      'https://example.com/2026/11/01/first/'
+    ]);
+    expect(body.items[1].type).toEqual(['h-entry']);
+    expect(body.items[1].properties['bookmark-of']).toEqual(['https://example.org/']);
+    expect(body.items[2].properties.name).toEqual(['Evening']);
+    expect(body.items[0].properties.content[0].html).toContain('Body of notes/2026-11-06-late.md');
+    expect(body.paging.after).toBeUndefined();
+    // One tree request plus one batched read, not one request per post.
+    expect(app.reads()).toBe(1);
+  });
+
+  test('pages with limit and after/before cursors without gaps or repeats', async () => {
+    const app = await seeded();
+    const first = await (await app.query('q=source&limit=2')).json() as any;
+    expect(urls(first)).toEqual(['https://example.com/2026/11/05/late/', 'https://example.com/2026/11/04/link/']);
+    const second = await (await app.query(`q=source&limit=2&after=${first.paging.after}`)).json() as any;
+    expect(urls(second)).toEqual(['https://example.com/2026/11/02/evening/', 'https://example.com/2026/11/02/morning/']);
+    const third = await (await app.query(`q=source&limit=2&after=${second.paging.after}`)).json() as any;
+    expect(urls(third)).toEqual(['https://example.com/2026/11/01/first/']);
+    expect(third.paging.after).toBeUndefined();
+    const back = await (await app.query(`q=source&limit=2&before=${second.paging.before}`)).json() as any;
+    expect(urls(back)).toEqual(urls(first));
+    const newer = await (await app.query(`q=source&limit=10&before=${first.paging.before}`)).json() as any;
+    expect(newer.items).toEqual([]);
+  });
+
+  test('supports offset, post-type filtering and properties[]', async () => {
+    const app = await seeded();
+    expect(urls(await (await app.query('q=source&limit=2&offset=2')).json())).toEqual(['https://example.com/2026/11/02/evening/', 'https://example.com/2026/11/02/morning/']);
+    expect(urls(await (await app.query('q=source&post-type=note')).json())).toEqual(['https://example.com/2026/11/05/late/', 'https://example.com/2026/11/02/morning/', 'https://example.com/2026/11/01/first/']);
+    expect(urls(await (await app.query('q=source&post-type=article,bookmark')).json())).toEqual(['https://example.com/2026/11/04/link/', 'https://example.com/2026/11/02/evening/']);
+    const filtered = await (await app.query('q=source&limit=1&post-type=article&properties[]=name')).json() as any;
+    expect(filtered.items).toEqual([{ properties: { name: ['Evening'], url: ['https://example.com/2026/11/02/evening/'] } }]);
+  });
+
+  test('rejects bad paging and unknown types, and keeps q=source auth', async () => {
+    const app = await seeded();
+    expect((await app.query('q=source&post-type=poem')).status).toBe(400);
+    expect((await app.query('q=source&after=nope')).status).toBe(400);
+    expect((await app.query('q=source&limit=-1')).status).toBe(400);
+    expect((await app.handler(new Request('https://example.com/micropub?q=source'))).status).toBe(401);
+    expect((await setup('create').query('q=source')).status).toBe(403);
+  });
 });
