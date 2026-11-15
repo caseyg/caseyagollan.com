@@ -1,43 +1,8 @@
 import type { InsightSource } from './insight-types';
-
-/** The parts of Pagefind's browser API used here; the bundle is built into /pagefind/ by utils/build-search.ts. */
-interface Pagefind {
-	options(options: Record<string, unknown>): Promise<void>;
-	search(term: string, options?: { filters?: Record<string, string> }): Promise<{ results: { score: number; data(): Promise<PagefindData> }[] } | null>;
-}
-interface PagefindData {
-	url: string;
-	excerpt: string;
-	meta: { title?: string; source?: string };
-}
+import { loadPagefind as load, plainExcerpt as plain } from './pagefind';
 
 const MAX_PAGES = 3;
-let pagefind: Promise<Pagefind | null> | undefined;
 const cache = new Map<string, Promise<InsightSource[]>>();
-
-function load(): Promise<Pagefind | null> {
-	pagefind ??= (async () => {
-		try {
-			const path = '/pagefind/pagefind.js';
-			const module = (await import(/* @vite-ignore */ path)) as Pagefind;
-			await module.options({ baseUrl: '/' });
-			return module;
-		} catch {
-			return null;
-		}
-	})();
-	return pagefind;
-}
-
-const plain = (html: string) =>
-	html
-		.replace(/<[^>]*>/g, '')
-		.replace(/&amp;/g, '&')
-		.replace(/&quot;/g, '"')
-		.replace(/&#0?39;/g, "'")
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.trim();
 
 /** Casey's cag.wiki pages that the site search finds for a topic, best match first. Never rejects. */
 export function wikiSourcesFor(topic: string): Promise<InsightSource[]> {

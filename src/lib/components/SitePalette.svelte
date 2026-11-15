@@ -45,7 +45,8 @@
 	const places: CommandOption[] = [
 		{ value: 'go:/', label: 'Home', icon: '👋', keywords: ['about', 'bio', 'casey'] },
 		{ value: 'go:/library/', label: 'Library', icon: '📚', keywords: ['books', 'reading', 'graph'] },
-		{ value: 'go:/posts/', label: 'Posts', icon: '📡', keywords: ['feed', 'blog', 'notes'] }
+		{ value: 'go:/posts/', label: 'Posts', icon: '📡', keywords: ['feed', 'blog', 'notes'] },
+		{ value: 'go:/tables/', label: 'Tables', icon: '🗂️', keywords: ['canvas', 'boards', 'collections', 'tldraw'] }
 	];
 	const write: CommandOption = {
 		value: 'write',
