@@ -58,8 +58,8 @@
 	}
 	async function refresh() {
 		session = await api<Session>('/auth/session');
-		// Only signing out clears the owner hint; an expired session keeps Edit links visible.
-		if (session.authenticated) rememberOwner(true);
+		// Edit links on static pages follow the real session, so an expired one hides them too.
+		rememberOwner(session.authenticated);
 		if (session.authenticated) {
 			if (returnToPage()) return;
 			[tokens, credentials] = await Promise.all([api<Token[]>('/auth/tokens'), api<Credential[]>('/auth/credentials')]);

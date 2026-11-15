@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { COMPOSER_KINDS, type ComposerKind } from '$lib/composer-kinds';
-	import { ownerHint } from '$lib/owner';
+	import { ownerSignedIn } from '$lib/owner';
 	import { searchPrivateArena } from '$lib/arena-client';
 	import { pageCommands } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
@@ -65,10 +65,10 @@
 	// The posts menu (each type and year, with counts) loads the first time the palette opens.
 	let postsMenu = $state<MenuOption[]>([]);
 	let menuRequested = false;
-	// Writing is offered only where the owner has signed in; the composer checks the session itself.
+	// Writing is offered only while the owner is signed in; the composer checks the session itself too.
 	let owner = $state(false);
 	$effect(() => {
-		if (open) owner = ownerHint();
+		if (open) ownerSignedIn().then((signedIn) => (owner = signedIn));
 	});
 
 	$effect(() => {

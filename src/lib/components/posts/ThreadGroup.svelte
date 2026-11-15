@@ -7,7 +7,7 @@
  import SiteSocialPost from './SiteSocialPost.svelte';
  import { getPostPermalink, postAnchors, type Post } from '$lib/posts-types';
  import { buildThreadEntries, type ThreadReaction } from '$lib/utils/thread-entries';
- import { ownerHint } from '$lib/owner';
+ import { ownerSignedIn } from '$lib/owner';
  /** A rolled-up conversation: every reply, like and repost in one card, as one thread joined by a line. */
  const REACTION = { like: ['♥', 'liked'], repost: ['🔁', 'reposted'] } as const;
  let { post }: {post: Post; showType?: boolean; activeTag?: string} = $props();
@@ -23,9 +23,9 @@
   replies ? `replied ${replies === 1 ? 'once' : `${replies} times`}` : '',
   reactions ? `${verbs.map(v => REACTION[v][1]).join(' and ')} ${reactions === 1 ? '1 post' : `${reactions} posts`}` : ''
  ].filter(Boolean).join(' and '));
- // Pages are static, so the owner's edit links appear only after hydration.
+ // Pages are static, so the owner's edit links appear only after hydration, once the session is confirmed.
  let owner = $state(false);
- onMount(() => { owner = ownerHint(); });
+ onMount(() => { ownerSignedIn().then((signedIn) => (owner = signedIn)); });
  const marks = (list: ThreadReaction[]) => list.map(r => ({ icon: REACTION[r.type][0], label: REACTION[r.type][1], href: r.permalink }));
 </script>
 
