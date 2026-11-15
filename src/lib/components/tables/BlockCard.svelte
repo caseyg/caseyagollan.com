@@ -5,7 +5,7 @@
 		block: Block;
 		/**
 		 * `tile` fills the box it is given: a block on a table, or a table's thumbnail. Pictures lead
-		 * where there is one; text blocks are the site's blue. `row` is a line in a list of results.
+		 * where there is one; text blocks are outlined in the site's blue. `row` is a line in a list of results.
 		 */
 		layout?: 'tile' | 'row';
 		/** Draws the tile without its text, for thumbnails too small to read. */
@@ -57,8 +57,10 @@
 		border-radius: var(--radius-sm);
 	}
 
+	/* Text blocks are outlined in the site's blue on the gray ground, so their text stays easy to read. */
 	.block-card--tile.block-card--text {
-		background: var(--accent);
+		border: 2px solid var(--accent);
+		background: var(--bg-primary);
 	}
 
 	.block-card--tile.block-card--picture {

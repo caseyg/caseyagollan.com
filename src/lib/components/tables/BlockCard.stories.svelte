@@ -6,7 +6,7 @@
 	const { Story } = defineMeta({ title: 'Tables/BlockCard', component: BlockCard, tags: ['!autodocs'] });
 </script>
 
-<!-- Tiles as they sit on a table: pictures lead where there is one; text blocks are the site's blue. -->
+<!-- Tiles as they sit on a table: pictures lead where there is one; text blocks are outlined in blue. -->
 <Story asChild name="Tiles">
 	<div class="tiles">
 		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.article} /></div>
