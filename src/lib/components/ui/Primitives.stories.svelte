@@ -37,12 +37,12 @@
 		<div class="row muted">
 			<Chip href="/type/notes/">📝 note</Chip>
 			<Chip href="/2026/01/10/storybook-note/">3 days ago</Chip>
-			<Chip href="/tag/design/" active>#Design</Chip>
-			<Chip href="/tag/research/">#Research</Chip>
+			<Chip href="/tags/design/" active>#Design</Chip>
+			<Chip href="/tags/research/">#Research</Chip>
 		</div>
 		<div class="row">
-			<Chip href="/tag/design/" variant="soft" size="sm" active>Design</Chip>
-			<Chip href="/tag/research/" variant="soft" size="sm">Research</Chip>
+			<Chip href="/tags/design/" variant="soft" size="sm" active>Design</Chip>
+			<Chip href="/tags/research/" variant="soft" size="sm">Research</Chip>
 			<Chip variant="soft" onclick={noop}>Removable ×</Chip>
 		</div>
 	</div>

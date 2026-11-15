@@ -1,13 +1,12 @@
 import { dev } from '$app/environment';
 import { error, redirect } from '@sveltejs/kit';
 import type { Post } from '$lib/posts';
-import { parseTypesParam, typeFilterOptions, typesHref, type PostType } from '$lib/posts-filter';
-import { buildFeedIndex, feedChunk, getFeedEntries, type FeedIndex } from '$lib/server/posts-feed';
-import { getPostsMenu } from '$lib/server/posts-menu';
+import { facetLabels, facetMenu, facetsHref, matchesFacets, parseFacets } from '$lib/posts-filter';
+import { buildFeedIndex, feedChunk, getFeedEntries, indexFacetEntries, type FeedIndex } from '$lib/server/posts-feed';
 import { PAGE_SIZE, pageNumber, postsByDayArray } from '$lib/server/posts-page';
 import type { PageServerLoad } from './$types';
 
-// Any combination of types can be requested, so render on demand from prerendered feed data.
+// Any combination of types, tags and years can be requested, so render on demand from prerendered feed data.
 export const prerender = false;
 
 interface FeedSource {
@@ -36,7 +35,7 @@ function assetSource(assets: Fetcher, origin: string): FeedSource {
 
 /** Development has no fresh build output, so read the Markdown directly. */
 const localSource: FeedSource = {
-	index: async () => buildFeedIndex(await getFeedEntries(), await getPostsMenu()),
+	index: async () => buildFeedIndex(await getFeedEntries()),
 	chunk: async (chunk) => feedChunk(await getFeedEntries(), chunk)
 };
 
@@ -52,21 +51,20 @@ export const load: PageServerLoad = async ({ url, platform }) => {
 		error(503, 'Posts temporarily unavailable. Please try again shortly.');
 	}
 
-	const typeOptions = typeFilterOptions(index.entries);
-	const available = typeOptions.map((option) => option.type);
-	const selected = parseTypesParam(url.searchParams.get('types'), available);
+	const facets = parseFacets(url.searchParams);
 	const pageParam = url.searchParams.get('page') ?? '1';
 
-	// Everything (or nothing valid) selected is the static feed; keep one URL per view.
-	const canonical = typesHref(selected, available, /^[1-9]\d*$/.test(pageParam) ? Number(pageParam) : 1);
+	// Each view has one URL: nothing chosen is the static feed, a lone year or tag is its own page.
+	const canonical = facetsHref(facets, /^[1-9]\d*$/.test(pageParam) ? Number(pageParam) : 1);
 	const target = new URL(canonical, url);
 	if (target.pathname !== url.pathname || target.searchParams.toString() !== url.searchParams.toString()) {
 		redirect(307, canonical);
 	}
 
+	const entries = indexFacetEntries(index);
 	const matches: number[] = [];
-	index.entries.forEach((types, i) => {
-		if (types.some((type) => selected.has(type))) matches.push(i);
+	entries.forEach((entry, i) => {
+		if (matchesFacets(entry, facets)) matches.push(i);
 	});
 	const totalPages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
 	const page = pageNumber(pageParam, totalPages);
@@ -91,8 +89,8 @@ export const load: PageServerLoad = async ({ url, platform }) => {
 		totalPosts: matches.length,
 		page,
 		totalPages,
-		typeOptions,
-		postsMenu: index.menu ?? [],
-		selectedTypes: available.filter((type) => selected.has(type)) as PostType[]
+		postsMenu: facetMenu(entries, index.tagNames, facets),
+		facets,
+		filterLabels: facetLabels(facets, index.tagNames)
 	};
 };

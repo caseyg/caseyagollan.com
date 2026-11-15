@@ -17,4 +17,4 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
-export const TagMenu: Story = { args: { current: '#design', currentIcon: undefined, count: 18, options: [{ value: 'design', label: '#design', href: '/tag/design/', count: 18 }, { value: 'research', label: '#research', href: '/tag/research/', count: 9 }] } };
+export const TagMenu: Story = { args: { current: '#design', currentIcon: undefined, count: 18, options: [{ value: 'design', label: '#design', href: '/tags/design/', count: 18 }, { value: 'research', label: '#research', href: '/tags/research/', count: 9 }] } };

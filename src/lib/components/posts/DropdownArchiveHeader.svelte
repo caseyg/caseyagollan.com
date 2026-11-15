@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { PageHeader, type MenuOption } from '$lib/components/ui';
-	import { postsCrumb, TAGS_CRUMB, type TrailFilter } from './trail';
+	import { postsCrumb, TAGS_CRUMB } from './trail';
 
 	interface Props {
 		current: string;
@@ -10,16 +10,14 @@
 		options: MenuOption[];
 		count?: number;
 		countDescription?: string;
-		/** Lets the Posts menu narrow this page by post type. */
-		filter?: TrailFilter;
 		actions?: Snippet;
 	}
 
-	let { current, currentIcon, options, count, countDescription, filter, actions }: Props = $props();
+	let { current, currentIcon, options, count, countDescription, actions }: Props = $props();
 </script>
 
 <PageHeader
-	trail={[postsCrumb(`tag:${current.replace(/^#/, '').toLowerCase()}`, filter), TAGS_CRUMB, { label: current, href: '', icon: currentIcon, count, menu: options, current: true }]}
+	trail={[postsCrumb(), TAGS_CRUMB, { label: current, href: '', icon: currentIcon, count, menu: options, current: true }]}
 	title={current}
 	description={countDescription}
 	{actions}

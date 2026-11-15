@@ -20,7 +20,7 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<ArchiveHeader title={capitalizeFirst(data.typePlural)} icon={data.typeIcon} menuActive={data.type} count={data.totalPosts} />
+	<ArchiveHeader title={capitalizeFirst(data.typePlural)} icon={data.typeIcon} count={data.totalPosts} />
 
 	<PostFeed postsByDay={data.postsByDay} showType={false} />
 </PostsLayout>

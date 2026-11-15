@@ -4,19 +4,15 @@
 	import { PostFeed, PostsLayout } from '$lib/components/posts';
 	import { PageHeader, Pagination } from '$lib/components/ui';
 	import { postsCrumb } from '$lib/components/posts/trail';
-	import { typesHref } from '$lib/posts-filter';
+	import { facetsHref } from '$lib/posts-filter';
 
 	let { data }: { data: PageData } = $props();
 
-	const available = $derived(data.typeOptions.map((option) => option.type));
-	const filtered = $derived(data.selectedTypes.length < available.length);
-	const shownLabel = $derived(
-		data.typeOptions
-			.filter((option) => data.selectedTypes.includes(option.type))
-			.map((option) => option.label)
-			.join(', ')
-	);
-	const pageHref = (page: number) => typesHref(data.selectedTypes, available, page);
+	const filtered = $derived(data.filterLabels.length > 0);
+	const shownLabel = $derived(data.filterLabels.join(', '));
+	// What is in effect, beside the menu that set it.
+	const badge = $derived(data.filterLabels.length > 2 ? `${data.filterLabels.length} filters` : shownLabel || undefined);
+	const pageHref = (page: number) => facetsHref(data.facets, page);
 </script>
 
 <svelte:head>
@@ -31,11 +27,11 @@
 
 <PostsLayout>
 	<PageHeader
-		trail={[{ ...postsCrumb('all', { options: data.typeOptions, selected: data.selectedTypes, href: (types) => typesHref(types, available) }), current: true }]}
+		trail={[{ ...postsCrumb(filtered ? undefined : 'all', badge), current: true }]}
 		title={filtered ? shownLabel : 'Posts'}
 	/>
 	{#if data.totalPosts === 0}
-		<p class="empty">No posts of these types yet.</p>
+		<p class="empty">No posts match these filters.</p>
 	{/if}
 	<PostFeed postsByDay={data.postsByDay} />
 	<Pagination

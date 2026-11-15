@@ -35,25 +35,25 @@ export const TrailWithMenu: Story = {
 	}
 };
 /**
- * On a page that lists posts of several types, the types in the menu are check boxes that narrow the page
- * and can be combined. The menu stays open between choices, and `menuBadge` says what is in effect.
+ * In the posts section the menu's types, tags and years are check boxes that combine. Each count is what
+ * the choice would show given the others, the menu stays open between choices, and `menuBadge` says what is in effect.
  */
-export const TrailWithFilter: Story = {
+export const TrailWithFacets: Story = {
 	args: {
 		size: 'md',
 		tone: 'quiet',
 		compact: true,
 		label: undefined,
 		segments: [{
-			label: 'Posts', href: '/posts/', icon: '📡', current: true, menuBadge: 'Notes',
+			label: 'Posts', href: '/posts/', icon: '📡', current: true, menuBadge: 'Notes, 2026',
 			menu: [
 				postsMenu[0],
-				{ value: 'note', label: 'Notes', href: '?types=notes', count: 73, icon: '📝', group: 'Filter by type', checked: true },
-				{ value: 'article', label: 'Articles', href: '?types=notes,articles', count: 4, icon: '📄', group: 'Filter by type', checked: false },
-				{ value: 'every-type', label: 'Show all types', href: '?', group: 'Filter by type' },
-				{ value: 'tag:design', label: '#design', href: '/tag/design/', count: 42, group: 'By tag' },
-				{ value: 'tags', label: 'All tags', href: '/tag/', count: 58, icon: '🏷️', group: 'By tag' },
-				...postsMenu.slice(3)
+				{ value: 'note', label: 'Notes', href: '?years=2026', count: 31, icon: '📝', group: 'Type', checked: true },
+				{ value: 'article', label: 'Articles', href: '?types=notes,articles&years=2026', count: 2, icon: '📄', group: 'Type', checked: false },
+				{ value: 'tag:design', label: '#design', href: '?types=notes&tags=design&years=2026', count: 6, group: 'Tag', checked: false },
+				{ value: 'tags', label: 'All tags', href: '/tags/', icon: '🏷️', group: 'Tag' },
+				{ value: '2026', label: '2026', href: '?types=notes', count: 31, group: 'Year', checked: true },
+				{ value: '2025', label: '2025', href: '?types=notes&years=2026,2025', count: 40, group: 'Year', checked: false }
 			]
 		}]
 	}
