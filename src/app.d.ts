@@ -24,6 +24,8 @@ declare global {
 				GITHUB_CONTENT_TOKEN?: string;
 				INFERENCE_COOP_API_KEY: string;
 				KAGI_API_KEY: string;
+				/** Are.na personal access token; reads Casey’s private blocks for the owner only. */
+				ARENA_PAT?: string;
 				NODE_ENV: string;
 				WEBMENTION_IO_TOKEN: string;
 			};

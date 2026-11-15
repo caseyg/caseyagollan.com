@@ -1,3 +1,4 @@
+import { searchPrivateArena } from './arena-client';
 import { loadPagefind, plainExcerpt, type PagefindData } from './pagefind';
 import { ARENA_ICON, POST_ICON, type Block, type BlockKind } from './tables';
 
@@ -55,4 +56,17 @@ export async function searchBlocks(query: string, filter: SourceFilter = 'all', 
 		if (filter !== 'post') break;
 	}
 	return blocks.slice(0, limit);
+}
+
+/**
+ * Site search plus Casey's private Are.na, for the signed-in owner's tables. Private blocks follow the
+ * public ones: a few in a search of everything, all of them under the Are.na filter.
+ */
+export function withPrivateArena(search: typeof searchBlocks = searchBlocks) {
+	return async (query: string, filter: SourceFilter = 'all'): Promise<Block[] | null> => {
+		const wantPrivate = filter === 'arena' || (filter === 'all' && !!query.trim());
+		const [found, hidden] = await Promise.all([search(query, filter), wantPrivate ? searchPrivateArena(query, filter === 'arena' ? PAGE_SIZE : 6) : Promise.resolve([])]);
+		if (found === null && !hidden.length) return null;
+		return [...(found ?? []), ...hidden];
+	};
 }

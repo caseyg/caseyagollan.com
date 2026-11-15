@@ -5,12 +5,14 @@
 	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
 	import { PageHeader } from '$lib/components/ui';
 	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
-	import { searchBlocks } from '$lib/table-sources';
+	import { searchBlocks, withPrivateArena } from '$lib/table-sources';
 	import type { Block } from '$lib/tables';
 
 	let { data }: { data: PageData } = $props();
 
 	let session = $state<TablesSession | null>(null);
+	// The owner's Add menu also finds private Are.na blocks.
+	const ownerSearch = withPrivateArena();
 	let name = $state('');
 	let document: unknown = $state.raw(null);
 	let seed: Block[] | undefined;
@@ -163,7 +165,7 @@
 		</div>
 		{#if editable && adding}
 			<div class="dock dock--picker">
-				<BlockPicker search={searchBlocks} onadd={(blocks) => api?.addBlocks(blocks)} onclose={() => (adding = false)} />
+				<BlockPicker search={session.mode === 'owner' ? ownerSearch : searchBlocks} onadd={(blocks) => api?.addBlocks(blocks)} onclose={() => (adding = false)} />
 			</div>
 		{/if}
 	{/if}

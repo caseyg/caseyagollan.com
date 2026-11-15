@@ -51,7 +51,8 @@ describe('Are.na search documents', () => {
 	test('only Casey’s own public items are indexed', () => {
 		expect(isPublicOwn(image)).toBe(true);
 		expect(isPublicOwn({ ...image, visibility: 'private' })).toBe(false);
-		expect(isPublicOwn({ ...channel, visibility: 'closed' })).toBe(false);
+		// Closed channels are visible to anyone on Are.na; only Casey adds to them.
+		expect(isPublicOwn({ ...channel, visibility: 'closed' })).toBe(true);
 		expect(isPublicOwn({ ...channel, owner: { slug: 'someone-else' } })).toBe(false);
 		expect(isPublicOwn({ ...image, state: 'processing' })).toBe(false);
 	});
@@ -77,7 +78,7 @@ describe('Are.na search documents', () => {
 	});
 
 	test('sends a token when the build has one', async () => {
-		let auth: string | null = null;
+		let auth = null as string | null;
 		const fetcher = async (_url: string, init?: RequestInit) => ((auth = new Headers(init?.headers).get('authorization')), Response.json({ data: [], meta: {} }));
 		await fetchArena({ fetcher, token: 'abc' });
 		expect(auth).toBe('Bearer abc');
