@@ -51,7 +51,7 @@
 
 
 <style>
- .thread-group { position: relative; margin-bottom: var(--space-5); }
+ .thread-group { position: relative; }
  .thread-meta { margin-left: calc(-1 * var(--space-2)); margin-bottom: var(--space-2); color: var(--text-muted); }
  /* See PostCard: anchors sit above the card so a jump stops below the pinned navigation. */
  .anchor { position: absolute; top: calc(-1 * (var(--nav-lane) + var(--space-3))); }

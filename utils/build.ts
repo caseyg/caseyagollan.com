@@ -5,12 +5,17 @@
  * - Pagefind writes to a scratch folder, because `vite build` copies static/ while it runs.
  * - Storybook writes to a scratch folder, because the Cloudflare adapter empties
  *   .svelte-kit/cloudflare when it finishes.
+ * - cag.wiki is fetched once, here, alongside the other steps. The search index and the wiki
+ *   browser pages both read the file it lands in (`WIKI_VAULT`), waiting if they get there first.
  */
-import { cp, rm, rename, mkdir } from 'node:fs/promises';
+import { cp, rm, rename, mkdir, writeFile } from 'node:fs/promises';
+import { fetchWikiVault, writeWikiVault } from './wiki-vault';
 
 const OUT = '.svelte-kit/cloudflare';
 const PAGEFIND = '.svelte-kit/build-pagefind';
 const STORYBOOK = '.svelte-kit/build-storybook';
+const WIKI = '.svelte-kit/build-wiki/vault.json';
+process.env.WIKI_VAULT = WIKI;
 
 type Step = { name: string; cmd: string[]; env?: Record<string, string> };
 const steps: Step[] = [
@@ -46,8 +51,21 @@ async function run(step: Step) {
 }
 
 try {
-	await Promise.all([rm(PAGEFIND, { recursive: true, force: true }), rm(STORYBOOK, { recursive: true, force: true })]);
-	await Promise.all(steps.map(run));
+	await Promise.all([PAGEFIND, STORYBOOK, '.svelte-kit/build-wiki'].map((path) => rm(path, { recursive: true, force: true })));
+	const from = performance.now();
+	const wiki = fetchWikiVault().then(
+		async (vault) => {
+			await writeWikiVault(WIKI, vault);
+			console.log(`[wiki] fetched ${vault.pages.length} pages in ${seconds(from)}`);
+		},
+		async (error: unknown) => {
+			// Tell the steps waiting on the file, so they stop too.
+			await mkdir('.svelte-kit/build-wiki', { recursive: true });
+			await writeFile(`${WIKI}.failed`, error instanceof Error ? error.message : String(error));
+			throw error;
+		}
+	);
+	await Promise.all([wiki, ...steps.map(run)]);
 	await rm(`${OUT}/pagefind`, { recursive: true, force: true });
 	await rm(`${OUT}/storybook`, { recursive: true, force: true });
 	await cp(PAGEFIND, `${OUT}/pagefind`, { recursive: true });

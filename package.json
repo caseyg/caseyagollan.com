@@ -37,6 +37,8 @@
 		"@types/d3-force": "^3",
 		"@types/d3-selection": "^3",
 		"@types/d3-transition": "^3",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
 		"@types/three": "^0.180.0",
 		"mdsvex": "^0.12.6",
 		"msw": "2.12.10",
@@ -72,9 +74,12 @@
 		"lexical": "0.40.0",
 		"marked": "^16.4.1",
 		"openai": "^4.77.0",
+		"react": "19.2.1",
+		"react-dom": "19.2.1",
 		"svelte-lexical": "0.6.5",
 		"three": "^0.180.0",
 		"three-spritetext": "^1.10.0",
+		"tldraw": "5.6.0",
 		"yaml": "^2.9.1"
 	}
 }

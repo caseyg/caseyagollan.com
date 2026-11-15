@@ -10,6 +10,9 @@
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
 	import { urlKey } from '$lib/graph-curation';
 	import { usePageCommands } from '$lib/page-commands.svelte';
+	import { goto } from '$app/navigation';
+	import { wikiHref } from '$lib/wiki/links';
+	import LinkPreviewCard, { faviconUrl, type LinkPreviewImage } from '$lib/components/ui/LinkPreviewCard.svelte';
 	import { cue } from '$lib/sound.svelte';
 
 	let {
@@ -49,14 +52,15 @@
 				value: `graph:${node.id}`,
 				label: node.type === 'citation' ? node.title || node.url || node.id : node.id,
 				icon: NODE_ICONS[node.type],
-				external: node.type === 'citation',
+				external: node.type === 'citation' && !(node.url && wikiHref(node.url)),
 				keywords: ['graph', 'topic']
 			})),
 		run: (value) => {
 			const id = value.slice('graph:'.length);
 			const node = shownNodes.find((shown) => shown.id === id);
 			if (node?.type === 'citation') {
-				if (node.url) window.open(node.url, '_blank');
+				preview = null;
+				if (node.url) openSource(node.url);
 				return;
 			}
 			if (node) cueFocus(node);
@@ -65,11 +69,29 @@
 			onTopicClick?.(id);
 		}
 	}]);
+	/** Casey's own wiki pages open in the wiki browser here; other sources open in a new tab. */
+	function openSource(url: string) {
+		// Before opening the tab, which uses up the click's permission to play sound.
+		cue('navigate');
+		const local = wikiHref(url);
+		if (local) goto(local);
+		else window.open(url, '_blank');
+	}
+
 	let svg: any;
 	let simulation: any;
 	let nodeSelection: any;
 	let linkSelection: any;
-	let tooltip: any;
+
+	// A link node's preview card. With a mouse it follows the pointer while it is over the node;
+	// on touch the first tap holds it open beside the node, and pressing the card opens the page.
+	type Preview =
+		| { mode: 'hover'; node: Node; x: number; y: number }
+		| { mode: 'tap'; node: Node; anchor: Element };
+	let preview = $state.raw<Preview | null>(null);
+	let previewImage = $state<LinkPreviewImage>('loading');
+	let previewCard = $state<HTMLAnchorElement>();
+	let previewPosition = $state<{ left: number; top: number } | null>(null);
 	let hasShownPulse = false;
 	let coachmarkTimeout: ReturnType<typeof setTimeout> | null = null;
 	let coachmarkCycleCount = 0;
@@ -160,20 +182,18 @@
 		stopCoachmarkAnimation();
 	});
 
-	// Get favicon URL from a URL
-	function getFaviconUrl(url: string): string {
-		try {
-			const urlObj = new URL(url);
-			return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`;
-		} catch {
-			return '';
+	// Fetch screenshot for a URL
+	const screenshotRequests = new Map<string, Promise<void>>();
+	function fetchScreenshot(url: string): Promise<void> {
+		let request = screenshotRequests.get(url);
+		if (!request) {
+			request = loadScreenshot(url);
+			screenshotRequests.set(url, request);
 		}
+		return request;
 	}
 
-	// Fetch screenshot for a URL
-	async function fetchScreenshot(url: string): Promise<void> {
-		if (screenshotCache.has(url)) return;
-
+	async function loadScreenshot(url: string): Promise<void> {
 		screenshotCache.set(url, 'loading');
 
 		try {
@@ -203,49 +223,95 @@
 		});
 	}
 
-	// Get display URL (hostname + path)
-	function getDisplayUrl(url: string): string {
-		try {
-			const urlObj = new URL(url);
-			const path = urlObj.pathname.length > 30
-				? urlObj.pathname.slice(0, 30) + '...'
-				: urlObj.pathname;
-			return urlObj.hostname + path;
-		} catch {
-			return url.slice(0, 40);
+	function screenshotFor(url: string): LinkPreviewImage {
+		const status = screenshotCache.get(url);
+		if (!status || status === 'loading') return 'loading';
+		if (status === 'error') return 'error';
+		return { src: status };
+	}
+
+	function showPreview(next: Preview) {
+		const url = next.node.url!;
+		preview = next;
+		previewImage = screenshotFor(url);
+		if (previewImage === 'loading') {
+			fetchScreenshot(url).then(() => {
+				if (preview?.node.url === url) previewImage = screenshotFor(url);
+			});
 		}
 	}
 
-	// Update tooltip with screenshot when loaded
-	function updateTooltipScreenshot(url: string, d: Node) {
-		const status = screenshotCache.get(url);
-		if (!status || status === 'loading') return;
+	// iOS Safari reports the click that follows a tap with pointerType "mouse", so a click
+	// is judged by the press that started it: the last pointerdown anywhere on the page.
+	let lastPressType = '';
+	$effect(() => {
+		const onPress = (event: PointerEvent) => (lastPressType = event.pointerType);
+		window.addEventListener('pointerdown', onPress, true);
+		return () => window.removeEventListener('pointerdown', onPress, true);
+	});
 
-		const screenshotHtml = status === 'error'
-			? `<div class="tooltip-screenshot-skeleton"><span class="loading-text">Loading...</span></div>`
-			: `<img src="${status}" class="tooltip-screenshot-img" alt="Screenshot" />`;
+	/** A tap or pen press, rather than a mouse click. */
+	function isTouch(): boolean {
+		if (lastPressType) return lastPressType !== 'mouse';
+		return window.matchMedia('(hover: none)').matches;
+	}
 
-		const faviconUrl = getFaviconUrl(url);
-		const displayUrl = getDisplayUrl(url);
+	// Place the card beside the pointer (hover) or the node (tap), kept inside the viewport.
+	$effect(() => {
+		const current = preview;
+		const card = previewCard;
+		void previewImage;
+		if (!current || !card) {
+			previewPosition = null;
+			return;
+		}
+		const gutter = 16;
+		const gap = 12;
+		const { innerWidth: vw, innerHeight: vh } = window;
+		const w = card.offsetWidth;
+		const h = card.offsetHeight;
+		let left: number;
+		let top: number;
+		if (current.mode === 'hover') {
+			left = current.x + gap + w > vw - gutter ? current.x - gap - w : current.x + gap;
+			top = current.y + gap + h > vh - gutter ? current.y - gap - h : current.y + gap;
+		} else {
+			const r = current.anchor.getBoundingClientRect();
+			left = r.left + r.width / 2 - w / 2;
+			top = r.bottom + gap + h <= vh - gutter ? r.bottom + gap : r.top - gap - h;
+		}
+		previewPosition = {
+			left: Math.max(gutter, Math.min(left, vw - w - gutter)),
+			top: Math.max(gutter, Math.min(top, vh - h - gutter))
+		};
+	});
 
-		tooltip.html(`<div class="tooltip-browser">
-			<div class="tooltip-titlebar">
-				<div class="tooltip-traffic-lights">
-					<span class="tooltip-light red"></span>
-					<span class="tooltip-light yellow"></span>
-					<span class="tooltip-light green"></span>
-				</div>
-				<div class="tooltip-title-text">${d.title || 'Source'}</div>
-			</div>
-			<div class="tooltip-urlbar">
-				<img src="${faviconUrl}" class="tooltip-urlbar-favicon" alt="" />
-				<span class="tooltip-urlbar-url">${displayUrl}</span>
-			</div>
-			<div class="tooltip-screenshot-container">
-				${screenshotHtml}
-			</div>
-			${d.cited_text ? `<div class="tooltip-excerpt-browser">"${d.cited_text}"</div>` : ''}
-		</div>`);
+	// A held-open card closes on a press anywhere else, on scroll, or on Escape.
+	$effect(() => {
+		if (preview?.mode !== 'tap') return;
+		const { anchor } = preview;
+		const onPointerDown = (event: PointerEvent) => {
+			const target = event.target as globalThis.Node;
+			if (previewCard?.contains(target) || anchor.contains(target)) return;
+			preview = null;
+		};
+		const close = () => (preview = null);
+		const onKey = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') close();
+		};
+		document.addEventListener('pointerdown', onPointerDown, true);
+		window.addEventListener('scroll', close, { passive: true });
+		window.addEventListener('keydown', onKey);
+		return () => {
+			document.removeEventListener('pointerdown', onPointerDown, true);
+			window.removeEventListener('scroll', close);
+			window.removeEventListener('keydown', onKey);
+		};
+	});
+
+	function portal(element: HTMLElement) {
+		document.body.appendChild(element);
+		return { destroy: () => element.remove() };
 	}
 
 	// Build dynamic nodes and links from insights data
@@ -348,6 +414,7 @@
 	// Watch for external focus requests
 	$effect(() => {
 		if (focusNodeId !== undefined && focusNodeId !== focusedNode) {
+			preview = null;
 			applyFocusMode(focusNodeId);
 		}
 	});
@@ -667,7 +734,7 @@
 				});
 			} else if (d.type === 'citation' && d.url) {
 				// Citation nodes: show only favicon
-				const faviconUrl = getFaviconUrl(d.url);
+				const favicon = faviconUrl(d.url);
 
 				// Add a white circle background
 				select(this)
@@ -678,7 +745,7 @@
 				// Add favicon image
 				select(this)
 					.append('image')
-					.attr('xlink:href', faviconUrl)
+					.attr('xlink:href', favicon)
 					.attr('x', -8)
 					.attr('y', -8)
 					.attr('width', 16)
@@ -760,7 +827,7 @@
 
 		// Attach click and hover handlers to new nodes
 		nodeSelection
-			.on('click', function (event: MouseEvent, d: Node) {
+			.on('click', function (this: SVGGElement, event: MouseEvent, d: Node) {
 				event.stopPropagation();
 
 				// Loading nodes are not clickable
@@ -768,16 +835,21 @@
 					return;
 				}
 
-				// Citation nodes don't trigger focus changes
+				// Link nodes open their page. On touch, the first tap shows the preview card instead,
+				// and a second tap (on the node or the card) opens the page.
 				if (d.type === 'citation') {
-					// Maybe open the URL in a new window?
-					if (d.url) {
-						// Before opening the tab, which uses up the click's permission to play sound.
-						cue('navigate');
-						window.open(d.url, '_blank');
+					if (!d.url) return;
+					const held = preview?.mode === 'tap' && preview.node.id === d.id;
+					if (isTouch() && !held) {
+						showPreview({ mode: 'tap', node: d, anchor: this });
+						return;
 					}
+					preview = null;
+					openSource(d.url);
 					return;
 				}
+
+				preview = null;
 
 				// Clicking the focused node does nothing
 				if (focusedNode === d.id) {
@@ -796,80 +868,20 @@
 				if (!onNodeContextMenu || d.type === 'loading') return;
 				event.preventDefault();
 				event.stopPropagation();
-				tooltip.style('opacity', 0).style('display', 'none');
+				preview = null;
 				onNodeContextMenu(d, event);
 			})
-			.on('mouseenter', function (event: MouseEvent, d: Node) {
-				// Show tooltip for citation nodes
-				if (d.type === 'citation' && d.url) {
-					const faviconUrl = getFaviconUrl(d.url);
-					const displayUrl = getDisplayUrl(d.url);
-					const cachedStatus = screenshotCache.get(d.url);
-
-					// Build screenshot section based on cache status
-					let screenshotHtml: string;
-					if (!cachedStatus || cachedStatus === 'loading') {
-						screenshotHtml = `<div class="tooltip-screenshot-skeleton">
-							<span class="loading-text">Loading screenshot</span>
-						</div>`;
-					} else if (cachedStatus === 'error') {
-						screenshotHtml = `<div class="tooltip-screenshot-skeleton">
-							<span class="loading-text">Loading...</span>
-						</div>`;
-					} else {
-						screenshotHtml = `<img src="${cachedStatus}" class="tooltip-screenshot-img" alt="Screenshot" />`;
-					}
-
-					const tooltipContent = `<div class="tooltip-browser">
-						<div class="tooltip-titlebar">
-							<div class="tooltip-traffic-lights">
-								<span class="tooltip-light red"></span>
-								<span class="tooltip-light yellow"></span>
-								<span class="tooltip-light green"></span>
-							</div>
-							<div class="tooltip-title-text">${d.title || 'Source'}</div>
-						</div>
-						<div class="tooltip-urlbar">
-							<img src="${faviconUrl}" class="tooltip-urlbar-favicon" alt="" />
-							<span class="tooltip-urlbar-url">${displayUrl}</span>
-						</div>
-						<div class="tooltip-screenshot-container">
-							${screenshotHtml}
-						</div>
-						${d.cited_text ? `<div class="tooltip-excerpt-browser">"${d.cited_text}"</div>` : ''}
-					</div>`;
-
-					tooltip
-						.html(tooltipContent)
-						.style('left', `${event.pageX + 10}px`)
-						.style('top', `${event.pageY - 10}px`)
-						.style('opacity', 1)
-						.style('display', 'block');
-
-					// Start fetching screenshot if not already cached
-					if (!cachedStatus) {
-						fetchScreenshot(d.url).then(() => {
-							// Update tooltip if still visible
-							if (tooltip.style('display') === 'block') {
-								updateTooltipScreenshot(d.url!, d);
-							}
-						});
-					}
-				}
+			.on('pointerenter', function (event: PointerEvent, d: Node) {
+				if (event.pointerType !== 'mouse' || d.type !== 'citation' || !d.url) return;
+				if (preview?.mode === 'tap') return;
+				showPreview({ mode: 'hover', node: d, x: event.clientX, y: event.clientY });
 			})
-			.on('mousemove', function (event: MouseEvent, d: Node) {
-				if (d.type === 'citation') {
-					tooltip
-						.style('left', `${event.pageX + 10}px`)
-						.style('top', `${event.pageY - 10}px`);
-				}
+			.on('pointermove', function (event: PointerEvent, d: Node) {
+				if (preview?.mode !== 'hover' || preview.node.id !== d.id) return;
+				preview = { ...preview, x: event.clientX, y: event.clientY };
 			})
-			.on('mouseleave', function (event: MouseEvent, d: Node) {
-				if (d.type === 'citation') {
-					tooltip
-						.style('opacity', 0)
-						.style('display', 'none');
-				}
+			.on('pointerleave', function (_event: PointerEvent, d: Node) {
+				if (preview?.mode === 'hover' && preview.node.id === d.id) preview = null;
 			});
 
 		// Update simulation with filtered data
@@ -919,15 +931,6 @@
 			.attr('width', '100%')
 			.attr('height', '100%')
 			.attr('viewBox', [0, 0, width, height]);
-
-		// Create tooltip
-		tooltip = select('body')
-			.append('div')
-			.attr('class', 'graph-tooltip')
-			.style('position', 'absolute')
-			.style('opacity', 0)
-			.style('display', 'none')
-			.style('pointer-events', 'none');
 
 		// Create link group
 		const linkGroup = svg.append('g');
@@ -1010,6 +1013,27 @@
 </script>
 
 <div bind:this={graphContainer} class="skills-graph"></div>
+
+{#if preview?.node.url}
+	<div
+		class="graph-link-preview"
+		use:portal
+		style:left="{previewPosition?.left ?? 0}px"
+		style:top="{previewPosition?.top ?? 0}px"
+		style:visibility={previewPosition ? 'visible' : 'hidden'}
+	>
+		<LinkPreviewCard
+			bind:element={previewCard}
+			href={preview.node.url}
+			localHref={wikiHref(preview.node.url) ?? undefined}
+			title={preview.node.title || undefined}
+			excerpt={preview.node.cited_text || undefined}
+			image={previewImage}
+			interactive={preview.mode === 'tap'}
+			onopen={() => (preview = null)}
+		/>
+	</div>
+{/if}
 
 <style>
 	.skills-graph {
@@ -1148,190 +1172,21 @@
 		fill: blue !important;
 	}
 
-	/* Tooltip styles */
-	:global(.graph-tooltip) {
-		background: rgba(20, 20, 30, 0.98);
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		border-radius: 6px;
-		padding: 0.75rem;
-		max-width: 300px;
-		z-index: 10000;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+	/* Above the page, outside the graph's own stacking. */
+	.graph-link-preview {
+		position: fixed;
+		z-index: var(--z-nav);
+		animation: preview-in 150ms var(--ease-out);
 	}
 
-	:global(.tooltip-source) {
-		margin-bottom: 0.5rem;
+	@keyframes preview-in {
+		from { opacity: 0; scale: 0.97; }
 	}
 
-	:global(.tooltip-source:last-child) {
-		margin-bottom: 0;
-	}
-
-	:global(.tooltip-title) {
-		font-weight: 600;
-		color: white;
-		font-size: 0.85rem;
-		margin-bottom: 0.25rem;
-	}
-
-	:global(.tooltip-date) {
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.6);
-		margin-bottom: 0.25rem;
-		font-style: italic;
-	}
-
-	:global(.tooltip-excerpt) {
-		font-size: 0.8rem;
-		color: rgba(255, 255, 255, 0.8);
-		line-height: 1.4;
-		font-style: italic;
-		border-left: 2px solid rgba(73, 73, 255, 0.5);
-		padding-left: 0.5rem;
-		margin-top: 0.25rem;
-	}
-
-	/* Browser-window styled tooltip */
-	:global(.graph-tooltip) {
-		padding: 0;
-		overflow: hidden;
-		max-width: 320px;
-	}
-
-	:global(.tooltip-browser) {
-		display: flex;
-		flex-direction: column;
-		width: 100%;
-		min-width: 280px;
-	}
-
-	:global(.tooltip-titlebar) {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 8px 10px;
-		background: rgba(40, 40, 50, 0.95);
-		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-	}
-
-	:global(.tooltip-traffic-lights) {
-		display: flex;
-		gap: 6px;
-	}
-
-	:global(.tooltip-light) {
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-	}
-
-	:global(.tooltip-light.red) {
-		background: #ff5f57;
-	}
-
-	:global(.tooltip-light.yellow) {
-		background: #febc2e;
-	}
-
-	:global(.tooltip-light.green) {
-		background: #28c840;
-	}
-
-	:global(.tooltip-title-text) {
-		flex: 1;
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.8);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	:global(.tooltip-urlbar) {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		padding: 6px 10px;
-		background: rgba(30, 30, 40, 0.95);
-		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-	}
-
-	:global(.tooltip-urlbar-favicon) {
-		width: 14px;
-		height: 14px;
-		border-radius: 2px;
-	}
-
-	:global(.tooltip-urlbar-url) {
-		font-size: 0.7rem;
-		color: rgba(255, 255, 255, 0.5);
-		font-family: monospace;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	:global(.tooltip-screenshot-container) {
-		width: 100%;
-		min-width: 280px;
-		height: 175px;
-		background: rgba(20, 20, 30, 1);
-		overflow: hidden;
-	}
-
-	:global(.tooltip-screenshot-img) {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		object-position: top left;
-	}
-
-	:global(.tooltip-screenshot-skeleton) {
-		width: 100%;
-		height: 100%;
-		min-height: 175px;
-		background: rgba(30, 30, 40, 1);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	:global(.tooltip-screenshot-skeleton .loading-text) {
-		font-size: 0.8rem;
-		font-style: italic;
-		background: linear-gradient(90deg, rgba(100, 100, 120, 1) 0%, rgba(180, 180, 200, 1) 50%, rgba(100, 100, 120, 1) 100%);
-		background-size: 200% 100%;
-		-webkit-background-clip: text;
-		background-clip: text;
-		-webkit-text-fill-color: transparent;
-		animation: text-shimmer 2s linear infinite;
-	}
-
-	@keyframes text-shimmer {
-		0% { background-position: 200% 0; }
-		100% { background-position: -200% 0; }
-	}
-
-	:global(.tooltip-screenshot-error) {
-		width: 100%;
-		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: rgba(255, 255, 255, 0.4);
-		font-size: 0.75rem;
-		font-style: italic;
-	}
-
-	:global(.tooltip-excerpt-browser) {
-		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.7);
-		line-height: 1.4;
-		font-style: italic;
-		padding: 10px;
-		background: rgba(30, 30, 40, 0.95);
-		border-top: 1px solid rgba(255, 255, 255, 0.1);
-		border-left: 2px solid rgba(73, 73, 255, 0.5);
-		margin: 0;
+	@media (prefers-reduced-motion: reduce) {
+		.graph-link-preview {
+			animation: none;
+		}
 	}
 
 	/* Ping ring animation - water droplet effect */

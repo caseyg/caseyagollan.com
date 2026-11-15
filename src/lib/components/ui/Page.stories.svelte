@@ -29,6 +29,18 @@
 	</Page>
 </Story>
 
+<!-- A column beside the text on wide screens, after it on narrow ones: a wiki page's outline, graph and backlinks. -->
+<Story asChild name="WithAside">
+	<Page>
+		<PageHeader trail={[{ label: 'Wiki', href: '/wiki/', icon: '📓' }, { label: 'Art Under Risk', href: '/wiki/art-under-risk', current: true }]} title="Art Under Risk" />
+		<Heading level={1} size="title">Art Under Risk</Heading>
+		<p>The text keeps its measure. Narrow the window and the aside moves below it.</p>
+		{#snippet aside()}
+			<Section title="On this page" level={3}><p>Interviews, Reading list, Presentations</p></Section>
+		{/snippet}
+	</Page>
+</Story>
+
 <Story asChild name="FormPage">
 	<Page as="main" width="wide">
 		<PageHeader trail={[{ label: 'Casey Gollan', href: '/', icon: '👋' }]} tight>

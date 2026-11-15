@@ -1,7 +1,8 @@
 import { flattenSocialSnapshots } from '../src/lib/social-snapshots';
 import { Glob } from 'bun';
 import { libraryMetadata } from '../src/lib/library-metadata';
-import { loadWikiDocuments } from './wiki-search';
+import { wikiDocuments } from './wiki-search';
+import { loadWikiVault } from './wiki-vault';
 import { readFile, rm } from 'node:fs/promises';
 import * as pagefind from 'pagefind';
 import { parsePost, isPublicPost, PLURAL_TO_SINGULAR } from '../src/lib/server/parse-post';
@@ -12,6 +13,9 @@ import { bookTags, bookAuthors, postAuthors, uniqueLabels, yearFilter } from './
 function assertSuccess(result: { errors: string[] }) {
 	if (result.errors.length) throw new Error(result.errors.join('\n'));
 }
+// Start on the wiki now; posts and books are indexed while it arrives.
+const wikiVault = loadWikiVault();
+wikiVault.catch(() => {});
 const { index, errors } = await pagefind.createIndex();
 if (!index) throw new Error(errors.join('\n'));
 let count = 0;
@@ -44,9 +48,10 @@ try {
 		const metadata = { ...(enrichment.coverUrl || cover ? { image: enrichment.coverUrl ?? `/library/${cover}`, image_alt: `Cover of ${book.i}` } : {}), author: authors.join(', '), isbn: book.n ?? '', year: book.y ?? '', pages: book.p ?? '', acquired: book.d ?? '', tags: tags.join(', ') };
 		await add(url, book.i, 'book', metadata, `<h1>${escape(book.i)}</h1><p>${escape([enrichment.description?.replace(/<[^>]*>/g, ' '), details.summary, details.publication, details.review, details.comments, Object.values(details.subject ?? {}).flat().join(', ')].filter(Boolean).join(' '))}</p><p>${escape([authors.join('; '), metadata.year, metadata.isbn, metadata.tags].filter(Boolean).join(' · '))}</p>`, { Tag: tags, Author: authors, Year: yearFilter(book.y) });
 	}
-	const wiki = await loadWikiDocuments();
+	const wiki = wikiDocuments(await wikiVault);
 	for (const page of wiki) {
-		await add(page.url, page.title, 'wiki', { author: 'Casey Gollan', tags: page.tags.join(', '), year: page.year[0] ?? '' }, `<h1>${escape(page.title)}</h1>${page.html}`, { Tag: page.tags, Author: ['Casey Gollan'], Year: page.year });
+		// `source` keeps the cag.wiki address, which the homepage graph's pins and blocks are keyed by.
+		await add(page.url, page.title, 'wiki', { author: 'Casey Gollan', tags: page.tags.join(', '), year: page.year[0] ?? '', source: page.source }, `<h1>${escape(page.title)}</h1>${page.html}`, { Tag: page.tags, Author: ['Casey Gollan'], Year: page.year });
 	}
 	// The full build writes elsewhere so it can run beside `vite build`, which copies static/.
 	const outputPath = process.env.PAGEFIND_OUTPUT || 'static/pagefind';

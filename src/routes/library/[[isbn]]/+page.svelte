@@ -1089,8 +1089,7 @@
 			else if (node && node.id !== selectedBook?.id) void selectBook(node);
 			else if (selectedBook) deselectBook();
 			else if (categoryFilter) setCategoryFilter(null);
-			else if (isGridModeActive) frameShelves();
-			else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+			// Nothing to clear: the view stays where the reader left it.
 		}, options);
 	}
 
@@ -1802,8 +1801,7 @@
 					} else if (categoryFilter) {
 						setCategoryFilter(null);
 					} else {
-						if (isGridModeActive) frameShelves();
-						else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
+						// Nothing to clear: the view stays where the reader left it.
 						lastClickedNode = null;
 					}
 				})

@@ -3,6 +3,7 @@
  import SavedSocialPost from './SavedSocialPost.svelte';
  import type { Post } from '$lib/posts-types';
  import { postDetailSnapshots, renderPostDetails } from '$lib/utils/post-details';
+ import { localizeLinks } from '$lib/wiki/links';
  // The meta line already says what was liked, reposted or replied to, so only the saved post is shown here.
  // Notes and replies draw their context inside their own card, so they get only the remaining details.
  let { post }: { post: Post } = $props();
@@ -15,7 +16,7 @@
  <SocialCard><SavedSocialPost {snapshot} /></SocialCard>
 {/each}
 {#if details}
- <div class="post-details social-card-scope">{@html details}</div>
+ <div class="post-details social-card-scope">{@html localizeLinks(details)}</div>
 {/if}
 
 <style>

@@ -1,5 +1,8 @@
 import type { StorybookConfig } from '@storybook/sveltekit';
 
+// Stories use sample pages, so a build without network access needn't fetch cag.wiki.
+process.env.WIKI_OPTIONAL ??= '1';
+
 const config: StorybookConfig = {
 	stories: ['../src/lib/components/**/*.stories.@(ts|svelte)'],
 	addons: ['@storybook/addon-docs', '@storybook/addon-svelte-csf'],
