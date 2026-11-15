@@ -29,8 +29,8 @@
  const marks = (list: ThreadReaction[]) => list.map(r => ({ icon: REACTION[r.type][0], label: REACTION[r.type][1], href: r.permalink }));
 </script>
 
-<section class="thread-group" id={anchor} aria-label="Conversation activity">
- {#each anchors.slice(1) as id (id)}<span {id} class="anchor" aria-hidden="true"></span>{/each}
+<section class="thread-group" aria-label="Conversation activity">
+ {#each anchors as id (id)}<span {id} class="anchor" aria-hidden="true"></span>{/each}
  <div class="thread-meta"><Chip href={`${getPostPermalink(post).replace(/\/[^/]+\/$/, '')}#${anchor}`}><span aria-hidden="true">{replies ? '💬' : REACTION[verbs[0] ?? 'like'][0]}</span> {summary} in a thread</Chip></div>
  <SocialCard label="Conversation">
   {#each entries as entry, i (entry.key)}
@@ -51,7 +51,8 @@
 
 
 <style>
- .thread-group { position: relative; margin-bottom: var(--space-5); scroll-margin-top: calc(var(--nav-lane) + var(--space-3)); }
+ .thread-group { position: relative; margin-bottom: var(--space-5); }
  .thread-meta { margin-left: calc(-1 * var(--space-2)); margin-bottom: var(--space-2); color: var(--text-muted); }
- .anchor { position: absolute; top: 0; scroll-margin-top: calc(var(--nav-lane) + var(--space-3)); }
+ /* See PostCard: anchors sit above the card so a jump stops below the pinned navigation. */
+ .anchor { position: absolute; top: calc(-1 * (var(--nav-lane) + var(--space-3))); }
 </style>
