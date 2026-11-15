@@ -64,8 +64,17 @@ function resolveAttachment(name: string, context: Context) {
 }
 
 /** Obsidian syntax the Markdown renderer doesn't know, rewritten into Markdown and a little HTML. */
-function preprocess(markdown: string, context: Context): { markdown: string; footnotes: { id: string; markdown: string; cited: boolean }[] } {
-	let body = markdown.replace(/^﻿?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '').replace(/%%[\s\S]*?%%/g, '');
+function preprocess(markdown: string, context: Context): { markdown: string; footnotes: { id: string; markdown: string; cited: boolean }[]; fields: { name: string; markdown: string }[] } {
+	let body = markdown.replace(/^﻿?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '');
+	// Obsidian's %% comments are hidden. A line of three or more % is a stray mark, not a comment's start, and
+	// any %% left unpaired is dropped rather than hiding the rest of the page.
+	body = outsideCode(body, (text) => text.replace(/^[ \t]*%{3,}[ \t]*$/gm, '').replace(/%%[\s\S]*?%%/g, '').replace(/%{2,}/g, ''));
+	// Dataview's `key:: value` lines are the page's details, shown with its title rather than as text.
+	const fields: { name: string; markdown: string }[] = [];
+	body = outsideCode(body, (text) => text.replace(/^[ \t]*([A-Za-z][\w -]{0,40}?)::[ \t]*(\S.*)$\n?/gm, (_match, name: string, value: string) => {
+		fields.push({ name: name.trim(), markdown: value.trim() });
+		return '';
+	}));
 	const footnotes: { id: string; markdown: string }[] = [];
 	body = outsideCode(body, (text) => text.replace(/^\[\^([^\]\s]+)\]:[ \t]*(.*(?:\n(?: {2,}|\t).*)*)/gm, (_match, id: string, note: string) => {
 		footnotes.push({ id, markdown: note.replace(/\n(?: {2,}|\t)/g, '\n') });
@@ -85,7 +94,11 @@ function preprocess(markdown: string, context: Context): { markdown: string; foo
 				.replace(/==(?=\S)([^=\n]+?)==/g, '<mark>$1</mark>')
 				.replace(/(!?)\[\[([^\]\n]+?)\]\]/g, (_match, embed: string, inner: string) => wikilink(!!embed, inner, context))
 		);
-	return { markdown: rendered, footnotes: footnotes.map((note) => ({ ...note, markdown: outsideCode(note.markdown, links), cited: cited.has(note.id) })) };
+	return {
+		markdown: rendered,
+		footnotes: footnotes.map((note) => ({ ...note, markdown: outsideCode(note.markdown, links), cited: cited.has(note.id) })),
+		fields: fields.map((field) => ({ ...field, markdown: outsideCode(field.markdown, links) }))
+	};
 }
 
 function wikilink(embed: boolean, inner: string, context: Context): string {
@@ -151,7 +164,13 @@ function rewriteLink(link: Element, context: Context): Element | Text {
 		delete link.properties.target;
 		return link;
 	}
+	// Anywhere else opens in a new tab, marked as leaving the site.
 	link.properties.href = absolute;
+	if (/^https?:/.test(absolute)) {
+		link.properties.target = '_blank';
+		link.properties.rel = ['noopener', 'noreferrer'];
+		link.properties.className = [...((link.properties.className as string[] | undefined) ?? []), 'external'];
+	}
 	return link;
 }
 
@@ -238,13 +257,17 @@ export function buildWiki(vault: WikiVault): Wiki {
 	}
 	const rendered = vault.pages.map((page) => {
 		const context: Context = { page, slug: wikiSlug(page), manifest, attachments, links: new Set() };
-		const { markdown, footnotes } = preprocess(page.markdown, context);
+		const { markdown, footnotes, fields } = preprocess(page.markdown, context);
 		const notes = footnotes.map((note, index) => `<li id="fn-${index + 1}">${renderContentSync(note.markdown).trim().replace(/^<p>([\s\S]*)<\/p>$/, '$1')}${note.cited ? ` <a href="#fnref-${index + 1}" class="footnote-back" aria-label="Back to the text">↩</a>` : ''}</li>`);
 		const html = renderContentSync(markdown) + (notes.length ? `<section class="footnotes" aria-label="Footnotes"><ol>${notes.join('')}</ol></section>` : '');
-		return { page, context, ...finish(html, context) };
+		const details = fields.map((field) => ({
+			name: field.name.charAt(0).toUpperCase() + field.name.slice(1),
+			html: finish(renderContentSync(field.markdown).trim().replace(/^<p>([\s\S]*)<\/p>$/, '$1'), context).html
+		}));
+		return { page, context, fields: details, ...finish(html, context) };
 	});
 	const html = new Map(rendered.map((entry) => [entry.context.slug, entry]));
-	const pages: WikiPage[] = rendered.map(({ page, context, html: body, headings, embeds }) => {
+	const pages: WikiPage[] = rendered.map(({ page, context, fields, html: body, headings, embeds }) => {
 		// Embeds show the other page as it renders on its own, one level deep.
 		let finished = body;
 		if (embeds.length) {
@@ -263,6 +286,7 @@ export function buildWiki(vault: WikiVault): Wiki {
 			aliases: page.aliases,
 			tags: page.tags,
 			year: page.year[0],
+			fields,
 			html: finished,
 			excerpt: excerptOf(body),
 			headings,

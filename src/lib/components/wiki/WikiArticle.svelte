@@ -3,7 +3,7 @@
 	import type { WikiPage } from '$lib/wiki/types';
 
 	interface Props {
-		page: Pick<WikiPage, 'title' | 'url' | 'tags' | 'year' | 'html'>;
+		page: Pick<WikiPage, 'title' | 'url' | 'tags' | 'year' | 'fields' | 'html'>;
 		/** Show the page's title. The wiki's home page leaves it to the trail. */
 		showTitle?: boolean;
 	}
@@ -22,6 +22,16 @@
 			<!-- The same page on cag.wiki, for anyone who wants the original. -->
 			<Chip href={page.url} class="source" target="_blank" rel="noopener" title="This page on cag.wiki, Casey's Obsidian wiki">View on cag.wiki ↗</Chip>
 		</div>
+		{#if page.fields.length}
+			<dl class="fields">
+				{#each page.fields as field, index (index)}
+					<div class="field">
+						<dt>{field.name}</dt>
+						<dd>{@html field.html}</dd>
+					</div>
+				{/each}
+			</dl>
+		{/if}
 	</header>
 	<Prose class="wiki-body">
 		{@html page.html}
@@ -48,6 +58,43 @@
 	}
 
 	.meta :global(.source) {
+		color: var(--text-muted);
+	}
+
+	/* Details such as an author, as Obsidian shows a page's properties: a quiet label beside each value. */
+	.fields {
+		display: grid;
+		grid-template-columns: max-content minmax(0, 1fr);
+		gap: var(--space-1) var(--space-3);
+		margin: 0;
+		font-size: var(--fs-sm);
+	}
+
+	.field {
+		display: contents;
+	}
+
+	.fields dt {
+		color: var(--text-muted);
+	}
+
+	.fields dd {
+		margin: 0;
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.fields :global(a) {
+		color: inherit;
+		text-decoration: underline;
+		text-decoration-color: var(--text-muted);
+		text-underline-offset: var(--underline-offset);
+	}
+
+	/* A link that leaves the site says so, as Quartz and Obsidian Publish mark them. */
+	.wiki-article :global(a.external::after) {
+		content: '\2009↗';
+		font-size: 0.85em;
 		color: var(--text-muted);
 	}
 

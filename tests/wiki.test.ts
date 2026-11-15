@@ -86,3 +86,26 @@ test('graph layout is the same every time, so the server and the browser draw it
 	const centered = layoutGraph(wiki.graph, { center: 'art-under-risk' });
 	expect(centered.nodes.find((node) => node.slug === 'art-under-risk')).toMatchObject({ x: 0, y: 0 });
 });
+
+test('Dataview fields become details, %% comments stay hidden, and the repeated title goes', () => {
+	const page = buildWiki(sampleVault).bySlug.get('nielsen-model-of-reops')!;
+	expect(page.fields.map((field) => field.name)).toEqual(['Author', 'Source']);
+	expect(page.fields[0].html).toContain('wiki-link-missing');
+	expect(page.fields[1].html).toContain('href="/wiki/research-ops"');
+	expect(page.html).not.toContain('%');
+	expect(page.html).not.toContain('::');
+	expect(page.html).not.toContain('<h1');
+	expect(page.html).not.toContain('note to self');
+	expect(page.excerpt.startsWith('ResearchOps 101')).toBe(true);
+	expect(page.links).toContain('research-ops');
+	// `%%` inside code is shown as written.
+	const code = buildWiki({ ...sampleVault, pages: [{ ...sampleVault.pages[0], markdown: 'Use `%%` for comments.\n\nkey:: value' }] }).pages[0];
+	expect(code.html).toContain('<code>%%</code>');
+	expect(code.fields).toHaveLength(1);
+});
+
+test('links off the site open in a new tab and are marked', () => {
+	const page = buildWiki(sampleVault).bySlug.get('nielsen-model-of-reops')!;
+	expect(page.html).toMatch(/<a href="https:\/\/www\.nngroup\.com[^"]*" target="_blank" rel="noopener noreferrer" class="external">/);
+	expect(buildWiki(sampleVault).bySlug.get('art-under-risk')!.html).not.toContain('external');
+});
