@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { toggleTypes, type PostType, type TypeFilterOption } from '$lib/posts-filter';
+	import { ToggleChip } from '$lib/components/ui';
 
 	interface Props {
 		options: TypeFilterOption[];
@@ -45,17 +46,16 @@
 			{#each options as option (option.type)}
 				{@const on = filtered && shown.has(option.type)}
 				<li>
-					<a
-						class="pill"
-						class:on
+					<ToggleChip
+						pressed={on}
 						href={href(toggleTypes(option.type, shown, available))}
 						title="{on ? 'Remove' : 'Show'} {option.label.toLowerCase()}{on || !filtered ? '' : ' too'}"
 						onclick={(event) => onclick(event, option.type)}
 					>
 						<span class="emoji" aria-hidden="true">{option.icon}</span>
-						{option.label}<span class="visually-hidden">{on ? ', selected' : ''}</span>
+						{option.label}
 						<span class="count" aria-label="{option.count} posts">{option.count}</span>
-					</a>
+					</ToggleChip>
 				</li>
 			{/each}
 			{#if filtered}
@@ -124,48 +124,22 @@
 		list-style: none;
 	}
 
-	.pill,
 	.reset {
 		display: inline-flex;
-		align-items: baseline;
-		gap: var(--space-2);
 		padding: var(--space-1) var(--space-3);
-		border: 1px solid transparent;
 		border-radius: var(--radius-full);
+		color: var(--text-primary);
 		font-size: var(--fs-xs);
 		font-weight: var(--fw-medium);
 		line-height: var(--lh-normal);
 		letter-spacing: 0.02em;
-		text-decoration: none;
-		white-space: nowrap;
-		user-select: none;
-		transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease), transform 160ms var(--ease-out);
+		text-decoration: underline;
+		text-underline-offset: var(--underline-offset);
+		transition: background var(--duration) var(--ease);
 	}
 
-	.pill:active {
-		transform: scale(0.97);
-	}
-
-	/* Unselected: outlined. With nothing selected, every type is shown. */
-	.pill {
-		border-color: var(--border);
-		color: var(--text-secondary);
-	}
-
-	.pill:hover {
-		border-color: var(--border-strong);
-		color: var(--text-primary);
-	}
-
-	/* Selected: filled gray. */
-	.pill.on {
-		border-color: var(--border-strong);
-		background: var(--surface-3);
-		color: var(--text-primary);
-	}
-
-	.pill.on:hover {
-		background: var(--surface-2);
+	.reset:hover {
+		background: var(--surface-1);
 	}
 
 	.emoji {
@@ -175,30 +149,5 @@
 	.count {
 		font-variant-numeric: lining-nums tabular-nums;
 		opacity: 0.7;
-	}
-
-	.reset {
-		color: var(--text-primary);
-		text-decoration: underline;
-		text-underline-offset: var(--underline-offset);
-	}
-
-	.reset:hover {
-		background: var(--surface-1);
-	}
-
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
-	}
-
-	@media (forced-colors: active) {
-		.pill.on {
-			border: 2px solid CanvasText;
-		}
 	}
 </style>

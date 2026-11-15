@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Button } from '@ui-sdk/svelte/button';
+	import { Dialog, DialogClose, DialogContent, DialogTitle } from '@ui-sdk/svelte/dialog';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 
@@ -290,19 +292,12 @@
 					<div class="empty">No keys found</div>
 				{:else}
 					{#each filteredKeys as key}
-						<div
-							class="key-item"
-							class:selected={selectedKey === key.name}
-							role="button"
-							tabindex="0"
-							on:click={() => loadValue(key.name)}
-							on:keydown={(e) => e.key === 'Enter' && loadValue(key.name)}
-						>
-							<div class="key-name">{key.name}</div>
+						<Button class="key-item {selectedKey === key.name ? 'selected' : ''}" aria-pressed={selectedKey === key.name} onclick={() => loadValue(key.name)}>
+							<span class="key-name">{key.name}</span>
 							{#if key.expiration}
-								<div class="key-meta">Expires: {formatDate(key.expiration)}</div>
+								<span class="key-meta">Expires: {formatDate(key.expiration)}</span>
 							{/if}
-						</div>
+						</Button>
 					{/each}
 				{/if}
 			</div>
@@ -371,10 +366,9 @@
 </div>
 
 <!-- New Key Modal -->
-{#if showNewKeyModal}
-	<div class="modal-overlay" role="presentation" on:click={() => showNewKeyModal = false} on:keydown={(e) => e.key === 'Escape' && (showNewKeyModal = false)}>
-		<div class="modal" role="dialog" aria-labelledby="modal-title" tabindex="-1" on:click|stopPropagation on:keydown|stopPropagation>
-			<h2 id="modal-title">Create New Key</h2>
+<Dialog bind:open={showNewKeyModal}>
+		<DialogContent class="modal">
+			<DialogTitle>Create New Key</DialogTitle>
 
 			<label>
 				Key Name
@@ -410,13 +404,10 @@
 				<button on:click={createNewKey} class="btn-primary" disabled={loading}>
 					Create
 				</button>
-				<button on:click={() => showNewKeyModal = false} class="btn-secondary">
-					Cancel
-				</button>
+				<DialogClose class="btn-secondary">Cancel</DialogClose>
 			</div>
-		</div>
-	</div>
-{/if}
+		</DialogContent>
+</Dialog>
 
 <style>
 	.editor-container {
@@ -518,23 +509,31 @@
 		overflow-y: auto;
 	}
 
-	.key-item {
+	:global(.key-item) {
+		display: block;
+		width: 100%;
 		padding: 0.75rem 1rem;
+		border: 0;
 		border-bottom: 1px solid #222;
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: start;
 		cursor: pointer;
 		transition: background 0.15s;
 	}
 
-	.key-item:hover {
+	:global(.key-item:hover) {
 		background: #1a1a1a;
 	}
 
-	.key-item.selected {
+	:global(.key-item.selected) {
 		background: #2a2a2a;
 		border-left: 3px solid #4a9eff;
 	}
 
 	.key-name {
+		display: block;
 		font-family: 'Monaco', 'Courier New', monospace;
 		font-size: 0.85rem;
 		color: #4a9eff;
@@ -542,6 +541,7 @@
 	}
 
 	.key-meta {
+		display: block;
 		font-size: 0.75rem;
 		color: #888;
 		margin-top: 0.25rem;
@@ -680,20 +680,9 @@
 	}
 
 	/* Modal */
-	.modal-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.8);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-	}
-
-	.modal {
+	:global(.modal) {
+		margin: auto;
+		color: inherit;
 		background: #1a1a1a;
 		border: 1px solid #333;
 		border-radius: 8px;
@@ -704,20 +693,24 @@
 		overflow-y: auto;
 	}
 
-	.modal h2 {
+	:global(.modal::backdrop) {
+		background: rgba(0, 0, 0, 0.8);
+	}
+
+	:global(.modal) :global(h2) {
 		margin: 0 0 1.5rem 0;
 		color: #fff;
 	}
 
-	.modal label {
+	:global(.modal) label {
 		display: block;
 		margin-bottom: 1.5rem;
 		color: #e0e0e0;
 		font-size: 0.9rem;
 	}
 
-	.modal input,
-	.modal textarea {
+	:global(.modal) input,
+	:global(.modal) textarea {
 		display: block;
 		width: 100%;
 		margin-top: 0.5rem;
@@ -730,12 +723,12 @@
 		font-size: 0.9rem;
 	}
 
-	.modal textarea {
+	:global(.modal) textarea {
 		font-family: 'Monaco', 'Courier New', monospace;
 	}
 
-	.modal input:focus,
-	.modal textarea:focus {
+	:global(.modal) input:focus,
+	:global(.modal) textarea:focus {
 		outline: none;
 		border-color: #555;
 	}

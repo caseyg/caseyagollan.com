@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Button } from '@ui-sdk/svelte/button';
 	let {
 		topic,
 		insight,
@@ -18,9 +19,9 @@
 	} = $props();
 </script>
 
-<div class="insight-item" class:active class:streaming={isStreaming} role="button" tabindex="0" {onclick} onkeydown={(e) => e.key === 'Enter' && onclick?.()}>
+<Button class="insight-item {active ? 'active' : ''} {isStreaming ? 'streaming' : ''}" aria-pressed={active} {onclick}>
 	<span class="insight-node-pill">{topic}</span>
-	<p class="insight-text" class:loading={!insight && isStreaming} class:streaming={isStreaming && insight}>
+	<span class="insight-text" class:loading={!insight && isStreaming} class:streaming={isStreaming && insight}>
 		{#if insight}
 			{insight}
 		{:else if isStreaming}
@@ -38,11 +39,16 @@
 		{:else}
 			No insight available
 		{/if}
-	</p>
-</div>
+	</span>
+</Button>
 
 <style>
-	.insight-item {
+	:global(.insight-item) {
+		box-sizing: border-box;
+		border: 0;
+		color: inherit;
+		font: inherit;
+		text-align: start;
 		padding: 0.75rem;
 		background: var(--surface-1);
 		border-radius: var(--radius-sm);
@@ -55,7 +61,7 @@
 		height: 100%;
 	}
 
-	.insight-item .insight-text {
+	:global(.insight-item) .insight-text {
 		display: -webkit-box;
 		line-clamp: 2;
 		-webkit-line-clamp: 2;
@@ -65,11 +71,11 @@
 		font-size: 0.85rem;
 	}
 
-	.insight-item:hover {
+	:global(.insight-item:hover) {
 		background: var(--surface-2);
 	}
 
-	.insight-item.active {
+	:global(.insight-item.active) {
 		background: rgba(100, 100, 255, 0.15);
 	}
 
@@ -86,7 +92,7 @@
 		transition: background 0.3s ease;
 	}
 
-	.insight-item.active .insight-node-pill {
+	:global(.insight-item.active) .insight-node-pill {
 		background: var(--accent);
 	}
 

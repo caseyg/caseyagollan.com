@@ -4,7 +4,7 @@
 	import { rememberOwner } from '$lib/owner';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
-	import ComposerButton from '$lib/components/composer/ComposerButton.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	import { Heading, Notice, Page, PageHeader } from '$lib/components/ui';
 	import PostEditor from './PostEditor.svelte';
 	import type { PageData, ActionData } from './$types';
@@ -31,9 +31,9 @@
 	{:else}
 		{#await data.editor}
 			<ComposerBar>
-				<ComposerButton variant="icon" icon="close" label="Back to the post" href={base} />
+				<Button variant="icon" icon="close" label="Back to the post" href={base} />
 				<span class="kind">Edit post</span>
-				{#snippet actions()}<ComposerButton variant="primary" disabled>Save</ComposerButton>{/snippet}
+				{#snippet actions()}<Button variant="primary" disabled>Save</Button>{/snippet}
 			</ComposerBar>
 			<div class="skeleton" role="status" aria-live="polite">
 				<span class="visually-hidden">Loading the post from GitHub…</span>
@@ -48,7 +48,7 @@
 		{:then editor}
 			{#if !('revision' in editor)}
 				<ComposerBar>
-					<ComposerButton variant="icon" icon="close" label="Back to the post" href={base} />
+					<Button variant="icon" icon="close" label="Back to the post" href={base} />
 					<span class="kind">Edit post</span>
 				</ComposerBar>
 				<Notice tone="error">{editor.error}</Notice>
@@ -62,7 +62,6 @@
 <style>
 	:global(.compose-page) { max-width: 40rem; }
 	.kind { padding: var(--space-1) var(--space-2); color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-medium); }
-	.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 	.skeleton { position: relative; display: flex; flex-direction: column; gap: var(--space-3); }
 	.bar { position: absolute; top: calc(-1 * var(--space-3)); left: 0; height: 2px; width: 30%; border-radius: var(--radius-full); background: var(--text-primary); animation: progress 1.4s var(--ease) infinite; }
 	.line { height: 0.9rem; width: 100%; border-radius: var(--radius-sm); background: var(--surface-2); animation: pulse 1.4s ease-in-out infinite; }

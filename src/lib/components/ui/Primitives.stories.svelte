@@ -88,8 +88,8 @@
 
 <Story name="Pagination">
 	<div class="form">
-		<Pagination page={2} totalPages={14} prevHref="/posts" nextHref="/posts/page/3" />
-		<Pagination page={1} totalPages={14} nextHref="/posts/page/2" />
+		<Pagination page={2} totalPages={14} href={(page) => `/posts/page/${page}/`} />
+		<Pagination page={1} totalPages={14} href={(page) => `/posts/page/${page}/`} />
 	</div>
 </Story>
 

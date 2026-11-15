@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { Avatar, AvatarFallback, AvatarImage } from '@ui-sdk/svelte/avatar';
+
 	interface Props {
 		src?: string;
-		/** Used for alt text and the initial shown when there is no image. */
+		/** Used for alt text and the initial shown while the image loads, or when there is none. */
 		name?: string;
 		size?: 'sm' | 'md';
 		class?: string;
@@ -10,35 +12,44 @@
 	let { src, name = '', size = 'md', class: className = '' }: Props = $props();
 </script>
 
-{#if src}
-	<img class="avatar avatar--{size} {className}" {src} alt={name} loading="lazy" />
-{:else}
-	<span class="avatar avatar--{size} placeholder {className}" role="img" aria-label={name || 'Unknown'}>{name.charAt(0) || '?'}</span>
-{/if}
+<Avatar class="avatar avatar--{size} {className}">
+	{#if src}<AvatarImage class="avatar-image" {src} alt={name} loading="lazy" />{/if}
+	<AvatarFallback class="avatar-fallback" role="img" aria-label={src ? undefined : name || 'Unknown'}>{name.charAt(0) || '?'}</AvatarFallback>
+</Avatar>
 
 <style>
-	.avatar {
+	:global(.avatar) {
+		position: relative;
 		display: block;
 		flex-shrink: 0;
+		overflow: hidden;
 		border-radius: var(--radius-full);
-		object-fit: cover;
+		background: var(--surface-3);
 	}
 
-	.avatar--md {
+	:global(.avatar--md) {
 		width: 2.75rem;
 		height: 2.75rem;
 	}
 
-	.avatar--sm {
+	:global(.avatar--sm) {
 		width: 2rem;
 		height: 2rem;
 	}
 
-	.placeholder {
+	:global(.avatar-image) {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	:global(.avatar-fallback) {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--surface-3);
+		width: 100%;
+		height: 100%;
 		font-size: 1.1em;
 		font-weight: var(--fw-semibold);
 		text-transform: uppercase;

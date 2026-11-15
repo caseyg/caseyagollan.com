@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import type { AuthOperations } from '$lib/server/indieauth/contracts';
-	import { Button, Checkbox, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
+	import { Button, Checkbox, CheckboxGroup, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
 	import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { passkeyError, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
@@ -161,7 +161,7 @@
 			<p>This app is requesting access to your account. Review its address and permissions before continuing.</p>
 			<dl><dt>App address</dt><dd>{request.clientId}</dd><dt>Return address</dt><dd>{request.redirectUri}</dd></dl>
 			<fieldset disabled={busy || !session?.authenticated}><legend>Permissions</legend>
-				{#each request.scope as scope}<Checkbox bind:group={selectedScopes} value={scope}><strong>{scope}</strong> — {scopes[scope] ?? 'Requested permission'}</Checkbox>{/each}
+				<CheckboxGroup label="Requested permissions" bind:value={selectedScopes}>{#each request.scope as scope (scope)}<Checkbox value={scope}><strong>{scope}</strong> — {scopes[scope] ?? 'Requested permission'}</Checkbox>{/each}</CheckboxGroup>
 				{#if !request.scope.length}<p>Confirm your identity without granting additional permissions.</p>{/if}
 			</fieldset>
 			<div class="actions">
@@ -188,7 +188,7 @@
 			</li>{/each}</ul>{:else}<p class="hint">No active access tokens.</p>{/if}
 			<Heading level={3} size="subtitle" class="subsection">Create a personal token</Heading>
 			<TextField label="Token name (optional)" id="token-name" bind:value={personalTokenName} maxlength={100} placeholder="e.g. Laptop publishing" disabled={busy} />
-			<fieldset disabled={busy}><legend>Token permissions</legend>{#each Object.entries(scopes) as [scope, description]}<Checkbox bind:group={personalScopes} value={scope}><strong>{scope}</strong> — {description}</Checkbox>{/each}</fieldset>
+			<fieldset disabled={busy}><legend>Token permissions</legend><CheckboxGroup bind:value={personalScopes}>{#each Object.entries(scopes) as [scope, description] (scope)}<Checkbox value={scope}><strong>{scope}</strong> — {description}</Checkbox>{/each}</CheckboxGroup></fieldset>
 			<Button variant="primary" disabled={busy || !personalScopes.length} onclick={createToken}>Create token</Button>
 			{#if newToken}<div class="token"><TextField multiline mono label="Copy your new token now. It will not be shown again." id="new-token" readonly value={newToken} spellcheck="false" autocomplete="off" />
 				<div class="actions"><Button disabled={busy} onclick={() => run(async () => { await navigator.clipboard.writeText(newToken); notice = 'Token copied.'; })}>Copy token</Button>
