@@ -1,3 +1,5 @@
+@layer ui-sdk;
+
 /* Global styles and design tokens - loaded before any page renders */
 
 /*
@@ -153,5 +155,20 @@ body {
 		transition-duration: 0.01ms !important;
 		animation-duration: 0.01ms !important;
 		animation-iteration-count: 1 !important;
+	}
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+@layer ui-sdk {
+	:where([data-slot][hidden]:not([hidden='until-found'])) {
+		display: none !important;
 	}
 }

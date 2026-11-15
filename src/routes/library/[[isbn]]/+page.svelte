@@ -2565,9 +2565,11 @@
 			size="md"
 			compact
 			label="Library view"
+			value={isGridModeActive ? 'shelves' : 'graph'}
+			onValueChange={(view) => { if ((view === 'shelves') !== isGridModeActive) toggleMode(true, true); }}
 			segments={[
-				{ label: 'Graph', icon: '🕸️', pressed: !isGridModeActive, onclick: () => { if (isGridModeActive) toggleMode(true, true); } },
-				{ label: 'Shelves', icon: '📚', pressed: isGridModeActive, onclick: () => { if (!isGridModeActive) toggleMode(true, true); } }
+				{ label: 'Graph', icon: '🕸️', value: 'graph' },
+				{ label: 'Shelves', icon: '📚', value: 'shelves' }
 			]}
 		/>
 		{#if isGridModeActive}

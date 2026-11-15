@@ -1,10 +1,11 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import Icon, { ICONS, type IconName } from './ComposerIcon.svelte';
+	import Icon, { ICONS, type IconName } from '../ui/Icon.svelte';
 	import ComposerBar from './ComposerBar.svelte';
-	import ComposerButton from './ComposerButton.svelte';
+	import Button from '../ui/Button.svelte';
 	import ComposerToolbar from './ComposerToolbar.svelte';
-	import ComposerChip from './ComposerChip.svelte';
+	import CheckboxGroup from '../ui/CheckboxGroup.svelte';
+	import ToggleChip from '../ui/ToggleChip.svelte';
 
 	const { Story } = defineMeta({ title: 'Composer/Parts', tags: ['!autodocs'] });
 	const names = Object.keys(ICONS) as IconName[];
@@ -18,25 +19,25 @@
 
 <Story name="Buttons">
 	<div class="row">
-		<ComposerButton variant="icon" icon="close" label="Close" />
-		<ComposerButton variant="icon" icon="hash" label="Add tags" />
-		<ComposerButton variant="icon" icon="pin" label="Location" pressed />
-		<ComposerButton variant="icon" size="sm" icon="close" label="Discard" />
-		<ComposerButton>Save draft</ComposerButton>
-		<ComposerButton icon="plus">Add leg</ComposerButton>
-		<ComposerButton variant="primary">Publish</ComposerButton>
-		<ComposerButton variant="primary" disabled>Posting…</ComposerButton>
+		<Button variant="icon" icon="close" label="Close" />
+		<Button variant="icon" icon="hash" label="Add tags" />
+		<Button variant="icon" icon="pin" label="Location" pressed />
+		<Button variant="icon" size="sm" icon="close" label="Discard" />
+		<Button variant="quiet">Save draft</Button>
+		<Button variant="quiet" icon="plus">Add leg</Button>
+		<Button variant="primary">Publish</Button>
+		<Button variant="primary" disabled>Posting…</Button>
 	</div>
 </Story>
 
 <Story name="Bar">
 	<ComposerBar>
-		<ComposerButton variant="icon" icon="close" label="Close" />
+		<Button variant="icon" icon="close" label="Close" />
 		<span class="kind"><Icon name="note" size={18} /> Edit note</span>
 		{#snippet actions()}
-			<ComposerButton variant="icon" icon="github" label="Open on GitHub" href="https://github.com/" />
-			<ComposerButton variant="icon" icon="share" label="Syndicate" />
-			<ComposerButton variant="primary">Save</ComposerButton>
+			<Button variant="icon" icon="github" label="Open on GitHub" href="https://github.com/" />
+			<Button variant="icon" icon="share" label="Syndicate" />
+			<Button variant="primary">Save</Button>
 		{/snippet}
 	</ComposerBar>
 </Story>
@@ -46,20 +47,20 @@
 </script>
 
 <Story name="Chips">
-	<div class="row" role="group" aria-label="Post to">
-		<ComposerChip name="targets" value="bluesky" bind:group={targets}>Bluesky</ComposerChip>
-		<ComposerChip name="targets" value="mastodon" bind:group={targets}>Mastodon</ComposerChip>
-		<ComposerChip value="off" disabled>Disabled</ComposerChip>
-	</div>
+	<CheckboxGroup layout="row" label="Post to" name="targets" bind:value={targets}>
+		<ToggleChip value="bluesky">Bluesky</ToggleChip>
+		<ToggleChip value="mastodon">Mastodon</ToggleChip>
+		<ToggleChip value="off" disabled>Disabled</ToggleChip>
+	</CheckboxGroup>
 </Story>
 
 <Story name="Toolbar">
 	<ComposerToolbar>
-		<ComposerButton variant="icon" icon="image" label="Add photos" />
-		<ComposerButton variant="icon" icon="pin" label="Location" pressed />
-		<ComposerButton variant="icon" icon="hash" label="Tags" />
-		<ComposerButton variant="icon" icon="sliders" label="More options" />
-		{#snippet end()}<ComposerChip value="bluesky" checked>Bluesky</ComposerChip><small>128/300</small>{/snippet}
+		<Button variant="icon" icon="image" label="Add photos" />
+		<Button variant="icon" icon="pin" label="Location" pressed />
+		<Button variant="icon" icon="hash" label="Tags" />
+		<Button variant="icon" icon="sliders" label="More options" />
+		{#snippet end()}<ToggleChip value="bluesky" pressed>Bluesky</ToggleChip><small>128/300</small>{/snippet}
 	</ComposerToolbar>
 </Story>
 

@@ -88,8 +88,8 @@
 
 <Story name="Pagination">
 	<div class="form">
-		<Pagination page={2} totalPages={14} prevHref="/posts" nextHref="/posts/page/3" />
-		<Pagination page={1} totalPages={14} nextHref="/posts/page/2" />
+		<Pagination page={2} totalPages={14} href={(page) => `/posts/page/${page}/`} />
+		<Pagination page={1} totalPages={14} href={(page) => `/posts/page/${page}/`} />
 	</div>
 </Story>
 
@@ -101,7 +101,9 @@
 			<p>Try something small, learn from it, and share what you find.</p>
 			<figure class="align-right"><img src="/author-avatar.webp" alt="Casey's avatar" /><figcaption>A right-aligned figure sits beside the text and stacks on phones.</figcaption></figure>
 			<p>Figures marked <code>align-right</code> float beside the paragraphs and lists that follow, and the next heading clears them.</p>
-			<blockquote><p>Quotations step back a little and lean.</p></blockquote>
+			<blockquote><p>Quotations step back a little and lean.</p><p>A second quoted paragraph keeps its own gap, the same as the text around it.</p></blockquote>
+			<hr />
+			<p>Three centered dots mark a section break.</p>
 			<ul><li>Lists keep their markers muted</li><li>so the words lead.</li></ul>
 			<pre><code>bun run storybook</code></pre>
 		</Prose>

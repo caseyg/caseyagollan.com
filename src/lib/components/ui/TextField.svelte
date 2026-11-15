@@ -1,47 +1,47 @@
 <script lang="ts">
+	import { Field, FieldDescription, FieldLabel } from '@ui-sdk/svelte/field';
+	import { Input } from '@ui-sdk/svelte/input';
+	import { Textarea } from '@ui-sdk/svelte/textarea';
+
 	interface Props {
 		label: string;
 		value?: string;
 		hint?: string;
-		/** Renders a textarea. */
+		/** Renders a textarea that grows with its text. */
 		multiline?: boolean;
 		/** Monospace, for tokens and other literal strings. */
 		mono?: boolean;
-		id?: string;
 		[key: string]: unknown;
 	}
 
-	let { label, value = $bindable(''), hint, multiline = false, mono = false, id, ...rest }: Props = $props();
-
-	const uid = $props.id();
-	const fieldId = $derived(id ?? uid);
+	let { label, value = $bindable(''), hint, multiline = false, mono = false, ...rest }: Props = $props();
 </script>
 
-<div class="field">
-	<label for={fieldId}>{label}</label>
+<Field class="text-field">
+	<FieldLabel class="text-field-label">{label}</FieldLabel>
 	{#if multiline}
-		<textarea id={fieldId} class="control" class:mono bind:value aria-describedby={hint ? `${fieldId}-hint` : undefined} {...rest}></textarea>
+		<Textarea class="text-field-control {mono ? 'mono' : ''}" bind:value autoResize {...rest} />
 	{:else}
-		<input id={fieldId} class="control" class:mono bind:value aria-describedby={hint ? `${fieldId}-hint` : undefined} {...rest} />
+		<Input class="text-field-control {mono ? 'mono' : ''}" bind:value {...rest} />
 	{/if}
-	{#if hint}<p class="hint" id="{fieldId}-hint">{hint}</p>{/if}
-</div>
+	{#if hint}<FieldDescription class="text-field-hint">{hint}</FieldDescription>{/if}
+</Field>
 
 <style>
-	.field {
+	:global(.text-field) {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
 		margin: var(--space-3) 0;
 	}
 
-	label {
+	:global(.text-field-label) {
 		color: var(--text-secondary);
 		font-size: var(--fs-sm);
 		line-height: var(--lh-snug);
 	}
 
-	.control {
+	:global(.text-field-control) {
 		box-sizing: border-box;
 		width: 100%;
 		padding: 0.5rem 0.65rem;
@@ -54,26 +54,27 @@
 		transition: border-color var(--duration) var(--ease);
 	}
 
-	.control:hover:not(:disabled),
-	.control:focus {
+	:global(.text-field-control:hover:not([data-disabled])),
+	:global(.text-field-control:focus) {
 		border-color: var(--text-primary);
 	}
 
-	.control:disabled {
+	:global(.text-field-control[data-disabled]) {
 		opacity: 0.5;
 	}
 
-	textarea.control {
+	:global(textarea.text-field-control) {
 		min-height: 5rem;
+		max-height: 20rem;
 		resize: vertical;
 	}
 
-	.mono {
+	:global(.text-field-control.mono) {
 		font-family: var(--font-mono);
 		font-size: 0.9em;
 	}
 
-	.hint {
+	:global(.text-field-hint) {
 		margin: 0;
 		color: var(--text-muted);
 		font-size: var(--fs-xs);

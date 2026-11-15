@@ -1,34 +1,36 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { HTMLInputAttributes } from 'svelte/elements';
+	import { Checkbox, CheckboxIndicator } from '@ui-sdk/svelte/checkbox';
 
 	interface Props {
-		/** One-way state; listen with `onchange`. Ignored when `group` is bound. */
+		/** Bind it, or listen with `onCheckedChange`. Inside a `CheckboxGroup`, the group decides. */
 		checked?: boolean;
-		/** Bind an array to collect the `value` of each checked box. */
-		group?: string[];
-		value?: string;
+		/** Some, not all, of the boxes it stands for are checked. */
 		indeterminate?: boolean;
-		onchange?: HTMLInputAttributes['onchange'];
+		onCheckedChange?: (checked: boolean) => void;
+		/** What it submits, and its entry in a `CheckboxGroup`'s value. */
+		value?: string;
+		name?: string;
+		disabled?: boolean;
+		/** The label beside the box. Without one, pass `aria-label`. */
 		children?: Snippet;
 		[key: string]: unknown;
 	}
 
-	let { checked = false, group = $bindable(), value, indeterminate = false, onchange, children, ...rest }: Props = $props();
+	let { checked = $bindable(), indeterminate = false, onCheckedChange, value, name, disabled = false, children, ...rest }: Props = $props();
+
+	const state = $derived(indeterminate ? 'indeterminate' : checked);
 </script>
 
+{#snippet box()}
+	<CheckboxIndicator class="checkbox-indicator" aria-hidden="true">{indeterminate ? '–' : '✓'}</CheckboxIndicator>
+{/snippet}
+
 <label class="checkbox">
-	{#if group !== undefined}
-		<!-- Native bind:group only groups inputs within the same component instance. -->
-		<input type="checkbox" {value} {...rest} checked={group.includes(value ?? 'on')} onchange={(event) => {
-			const selected = event.currentTarget.value;
-			group = event.currentTarget.checked
-				? [...(group ?? []).filter((item) => item !== selected), selected]
-				: (group ?? []).filter((item) => item !== selected);
-			onchange?.(event);
-		}} />
+	{#if checked === undefined && !indeterminate}
+		<Checkbox class="checkbox-box" {value} {name} {disabled} {...rest}>{@render box()}</Checkbox>
 	{:else}
-		<input type="checkbox" {checked} {indeterminate} {value} {...rest} {onchange} />
+		<Checkbox class="checkbox-box" checked={state} onCheckedChange={(next) => { checked = next === true; onCheckedChange?.(checked); }} {value} {name} {disabled} {...rest}>{@render box()}</Checkbox>
 	{/if}
 	{#if children}<span>{@render children()}</span>{/if}
 </label>
@@ -41,16 +43,40 @@
 		cursor: pointer;
 	}
 
-	input {
+	:global(.checkbox-box) {
+		display: inline-flex;
 		flex-shrink: 0;
+		align-items: center;
+		justify-content: center;
+		box-sizing: border-box;
 		width: 1em;
 		height: 1em;
 		margin: 0;
-		accent-color: var(--accent);
+		padding: 0;
+		border: 1px solid var(--border-strong);
+		border-radius: 3px;
+		background: var(--surface-sunken);
+		color: var(--text-primary);
+		font: inherit;
+		font-size: inherit;
+		line-height: 1;
+		cursor: inherit;
 		transform: translateY(0.12em);
+		transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
 	}
 
-	.checkbox:has(input:disabled) {
+	:global(.checkbox-box[data-checked]),
+	:global(.checkbox-box[data-indeterminate]) {
+		border-color: var(--accent);
+		background: var(--accent);
+	}
+
+	:global(.checkbox-indicator) {
+		font-size: 0.75em;
+		font-weight: var(--fw-semibold);
+	}
+
+	.checkbox:has(:global([data-disabled])) {
 		cursor: default;
 		opacity: 0.6;
 	}
