@@ -7,17 +7,16 @@
 	import PostContent from './PostContent.svelte';
 	import PostMedia from './PostMedia.svelte';
 	import type { Post } from '$lib/posts-types';
-	import { getPostPermalink } from '$lib/posts-types';
+	import { getPostPermalink, postAnchors } from '$lib/posts-types';
 	import { getPostAction } from '$lib/utils/post-details';
 
 	interface Props {
 		post: Post;
 		showType?: boolean;
 		activeTag?: string;
-		groupedLike?: boolean;
 	}
 
-	let { post, showType = true, activeTag, groupedLike = false }: Props = $props();
+	let { post, showType = true, activeTag }: Props = $props();
 
 	function getPreview(content: string, maxLength: number = 280): string {
 		// Strip HTML tags
@@ -39,30 +38,30 @@
 
 	const permalink = $derived(getPostPermalink(post));
 	const isArticle = $derived(post.type === 'article');
+	const anchors = $derived(postAnchors(post));
 </script>
 
-<article class="{post.microformatType ?? 'h-entry'} post" class:grouped-like={groupedLike}>
+<article class="{post.microformatType ?? 'h-entry'} post">
+	{#each anchors as id (id)}<span {id} class="anchor" aria-hidden="true"></span>{/each}
 	<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
 	<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
 
-	{#if !groupedLike}
-		<PostMeta
-			type={post.type}
-			date={post.date}
-			{permalink}
-			syndication={post.syndication}
-			{showType}
-			category={post.category}
-			{activeTag}
-			indexActivities={post.indexActivities}
-			action={getPostAction(post)}
-		/>
-	{/if}
+	<PostMeta
+		type={post.type}
+		date={post.date}
+		{permalink}
+		syndication={post.syndication}
+		{showType}
+		category={post.category}
+		{activeTag}
+		indexActivities={post.indexActivities}
+		action={getPostAction(post)}
+	/>
 
 	<PostTitle {post} href={isArticle ? permalink : undefined} />
 
 	<PostDetails {post} />
-	{#if post.indexActivities && !groupedLike}
+	{#if post.indexActivities}
 		<details class="activity-sources">
 			<summary>{post.indexActivities.length} activities</summary>
 			<ul>
@@ -88,9 +87,17 @@
 
 <style>
 	.post {
+		position: relative;
 		margin-bottom: var(--space-5);
 		padding-bottom: var(--space-5);
 		border-bottom: 1px solid var(--border-subtle);
+	}
+
+	/* Anchors sit above the card by the pinned navigation's height, so a jump to one stops just below the nav.
+	   (scroll-margin would be cleaner, but SvelteKit's client router undoes it after navigating.) */
+	.anchor {
+		position: absolute;
+		top: calc(-1 * (var(--nav-lane) + var(--space-3)));
 	}
 
 	.post:last-child {
@@ -99,17 +106,7 @@
 		border-bottom: none;
 	}
 
-	.post.grouped-like {
-		margin: 0;
-		padding: var(--space-4);
-	}
 
-	.grouped-like :global(.post-details > .social-card-scope > .social-snapshot) {
-		margin: 0;
-		padding: 0;
-		border: 0;
-		border-radius: 0;
-	}
 
 	.activity-sources {
 		margin: var(--space-3) 0;

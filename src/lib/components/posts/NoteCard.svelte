@@ -1,29 +1,15 @@
 <script lang="ts">
- import { renderLinkPreviews, renderPostQuotations, renderReplyContext } from '$lib/utils/post-details';
  import type { Post } from '$lib/posts-types';
- import { getPostPermalink } from '$lib/posts-types';
- import { siteAuthor, socialSource } from '$lib/social-card';
  import SocialCard from './SocialCard.svelte';
- import PostContent from './PostContent.svelte';
- import PostMedia from './PostMedia.svelte';
+ import SavedSocialPost from './SavedSocialPost.svelte';
+ import SiteSocialPost from './SiteSocialPost.svelte';
+ /** A note or reply. A reply shows the saved post it answers above it, joined by the thread line; the meta line above the card already names who it replies to. */
  let { post }: { post: Post } = $props();
- // Every card names its author the same way: avatar, name, then handle. On this site the handle is the domain.
- const author = { ...siteAuthor, handle: '@caseyagollan.com' };
- const replyContext=$derived(renderReplyContext(post, {omitLabel: true, omitSource: true}));
- // Links out to this post's copies sit in its own card header, where saved posts show theirs.
- const sources=$derived((post.syndication ?? []).map(link => socialSource(link, 'u-syndication')));
- const quotes=$derived(renderPostQuotations(post));
- const cards=$derived(renderLinkPreviews(post));
+ const reply = $derived(post.inReplyTo || (typeof post.properties?.['in-reply-to']?.[0] === 'string' ? post.properties['in-reply-to'][0] as string : ''));
+ const parent = $derived(reply ? post.socialSnapshots?.find(s => s.url === reply || s.sourceUrl === reply) : undefined);
 </script>
 
-<SocialCard contextHtml={replyContext} author={author} {sources} published={post.date} url={getPostPermalink(post)}>
- {#if post.summary}<p class="p-summary">{post.summary}</p>{/if}
- <PostMedia photos={post.photo} videos={post.video} />
- <PostContent content={post.content} format={post.contentFormat} />
- {#if cards}{@html cards}{/if}
- {#if quotes}<div class="social-quoted-post">{@html quotes}</div>{/if}
+<SocialCard>
+ {#if parent}<SavedSocialPost snapshot={parent} connected />{/if}
+ <SiteSocialPost {post} />
 </SocialCard>
-
-<style>
- .p-summary { margin: 0 0 var(--space-3); }
-</style>
