@@ -1,6 +1,7 @@
 import { getPostsByDay, type Post } from '$lib/posts';
 import { entryTypes, typeFilterOptions, type PostType } from '$lib/posts-filter';
 import { getFeedEntries } from './posts-feed';
+import { getPostsMenu } from './posts-menu';
 import { error } from '@sveltejs/kit';
 
 export const PAGE_SIZE = 20;
@@ -30,6 +31,7 @@ export async function loadPostsPage(pageParam = '1') {
 		page,
 		totalPages,
 		typeOptions,
+		postsMenu: await getPostsMenu(),
 		selectedTypes: typeOptions.map((option) => option.type) as PostType[]
 	};
 }

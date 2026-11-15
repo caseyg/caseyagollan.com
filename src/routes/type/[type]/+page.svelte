@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostFeed, DropdownArchiveHeader, PostsLayout } from '$lib/components/posts';
+	import { PostFeed, ArchiveHeader, PostsLayout } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 
@@ -20,12 +20,7 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<DropdownArchiveHeader
-		current={capitalizeFirst(data.typePlural)}
-		currentIcon={data.typeIcon}
-		options={data.allTypes}
-		count={data.totalPosts}
-	/>
+	<ArchiveHeader title={capitalizeFirst(data.typePlural)} icon={data.typeIcon} menuActive={data.type} count={data.totalPosts} />
 
 	<PostFeed postsByDay={data.postsByDay} showType={false} />
 </PostsLayout>

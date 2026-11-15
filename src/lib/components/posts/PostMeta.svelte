@@ -88,15 +88,18 @@
 		{#each categories as cat (cat)}
 			<Chip href="/tag/{cat.toLowerCase()}/" class="p-category" active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</Chip>
 		{/each}
-		{#if editHref}<Chip href={editHref} class="edit-post" rel="nofollow" title="Edit this post"><span aria-hidden="true">✎</span> Edit</Chip>{/if}
 	</div>
-	{#if showInteractions}
+	{#if showInteractions || editHref}
 		<div class="meta-group meta-secondary">
-			{#each metaSyndication as link (link)}
-				{@const source = socialSource(link)}
-				<Chip href={link} size="sm" class="u-syndication" title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>
-			{/each}
-			<WebmentionCounts url={permalink} />
+			{#if showInteractions}
+				{#each metaSyndication as link (link)}
+					{@const source = socialSource(link)}
+					<Chip href={link} size="sm" class="u-syndication" title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>
+				{/each}
+				<WebmentionCounts url={permalink} />
+			{/if}
+			<!-- The owner's edit link closes the row at its right edge, as an emoji like the links beside it. -->
+			{#if editHref}<Chip href={editHref} size="sm" class="edit-post" rel="nofollow" title="Edit this post" aria-label="Edit this post">✏️</Chip>{/if}
 		</div>
 	{/if}
 </div>

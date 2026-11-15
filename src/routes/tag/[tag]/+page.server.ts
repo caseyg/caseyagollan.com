@@ -1,3 +1,4 @@
+import { getPostsMenu } from '$lib/server/posts-menu';
 import { getAllPosts, getPostsByTag, getPostsByDay, getAllTags } from '$lib/posts';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -27,6 +28,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		}));
 
 	return {
+		postsMenu: await getPostsMenu(),
 		tag,
 		postsByDay: postsByDayArray,
 		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),

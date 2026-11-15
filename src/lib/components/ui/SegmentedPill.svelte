@@ -10,8 +10,10 @@
 		/** Marks the segment for the page being viewed. */
 		current?: boolean;
 		count?: number;
-		/** Sibling pages to switch between; the segment becomes a menu. */
+		/** Pages to switch between; the segment becomes a menu. */
 		menu?: MenuOption[];
+		/** Value of the menu entry for the page being viewed, when it is not the one labelled like the segment. */
+		menuActive?: string;
 		/** Makes the segment a button. */
 		onclick?: () => void;
 		/** For a button that is one of several choices: whether it is the one in effect. */
@@ -32,30 +34,32 @@
 		size?: 'sm' | 'md' | 'lg';
 		/** Accessible name for the group, e.g. "Date archive". */
 		label?: string;
-		/** On a phone, show emoji alone at a larger touch size. Every segment needs an `icon`. */
+		/** On a phone, show emoji alone. A segment with no `icon` keeps its label. */
 		compact?: boolean;
+		/** `accent` is the blue of the site navigation; `quiet` is the ground colour with a gray outline, for a page's trail. */
+		tone?: 'accent' | 'quiet';
 		/** Square the trailing corners so a control placed right after the pill completes the group. */
 		attached?: boolean;
 	}
 
-	let { segments, size = 'sm', label, compact = false, attached = false }: Props = $props();
+	let { segments, size = 'sm', label, compact = false, tone = 'accent', attached = false }: Props = $props();
 </script>
 
-<span class="pill pill--{size}" class:compact class:attached role="group" aria-label={label}>
+<span class="pill pill--{size} pill--{tone}" class:compact class:attached role="group" aria-label={label}>
 	{#each segments as segment (segment.href || segment.label)}
 		{#if segment.menu}
-			<span class="segment segment--menu">
-				<SelectMenu segment current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} />
+			<span class="segment segment--menu" class:current={segment.current}>
+				<SelectMenu segment current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} />
 			</span>
 		{:else if segment.onclick}
 			<button type="button" class="segment" class:current={segment.pressed} aria-pressed={segment.pressed} aria-label={segment.ariaLabel ?? (compact ? segment.label : undefined)} title={segment.title} onclick={segment.onclick}>
-				{#if segment.icon}<span aria-hidden="true">{segment.icon}</span>{/if}
+				{#if segment.icon}<span class="icon" aria-hidden="true">{segment.icon}</span>{/if}
 				<span class="text">{segment.label}</span>
 			</button>
 		{:else}
 			<a href={segment.href} class="segment" class:current={segment.current} aria-current={segment.current ? 'page' : undefined} aria-label={segment.ariaLabel ?? (compact ? segment.label : undefined)} title={segment.title}>
-				{#if segment.icon}<span aria-hidden="true">{segment.icon}</span>{/if}
-				<span class="text">{segment.label}</span>{#if segment.count !== undefined}<Count value={segment.count} label="{segment.count} posts" />{/if}
+				{#if segment.icon}<span class="icon" aria-hidden="true">{segment.icon}</span>{/if}
+				<span class="text">{segment.label}</span>{#if segment.count !== undefined}<span class="count"><Count value={segment.count} label="{segment.count} posts" /></span>{/if}
 			</a>
 		{/if}
 	{/each}
@@ -119,22 +123,64 @@
 		outline-offset: -2px;
 	}
 
-	/* A button group or trail: segments rest lighter and the one in effect takes the full accent. */
+	/*
+	 * A button group or trail. Every one is as tall as the site navigation, whatever it holds.
+	 * In the accent tone segments rest lighter and the one in effect takes the full accent.
+	 */
 	.pill--md {
+		--seg-bg: var(--segment);
+		--seg-hover: var(--segment-hover);
+		--seg-current: var(--segment-current);
+		--seg-divider: var(--segment-divider);
+		--menu-bg: var(--segment);
+		height: var(--nav-height);
 		background: none;
 	}
 
+	/* The quiet tone is the ground itself, outlined, so a trail reads as part of the page it names. */
+	.pill--md.pill--quiet {
+		--seg-bg: var(--bg-primary);
+		--seg-hover: color-mix(in srgb, white 15%, var(--bg-primary));
+		--seg-current: color-mix(in srgb, white 22%, var(--bg-primary));
+		--seg-divider: var(--border-strong);
+		--menu-bg: var(--bg-primary);
+		--menu-outline: 1px solid var(--border-strong);
+		position: relative;
+	}
+
+	/* The outline is drawn over the segments, which would otherwise cover it. */
+	.pill--md.pill--quiet::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border: 1px solid var(--border-strong);
+		border-radius: inherit;
+		pointer-events: none;
+	}
+
 	.pill--md .segment {
-		background: var(--segment);
+		height: 100%;
+		background: var(--seg-bg);
+	}
+
+	.pill--md .segment + .segment {
+		box-shadow: inset 1px 0 0 var(--seg-divider);
 	}
 
 	.pill--md .segment:hover {
-		background: var(--segment-hover);
+		background: var(--seg-hover);
 	}
 
-	.pill--md .segment.current,
-	.pill--md .segment--menu {
-		background: var(--segment-current);
+	.pill--md .segment.current {
+		background: var(--seg-current);
+	}
+
+	.pill--md .segment--menu:hover {
+		background: var(--seg-bg);
+	}
+
+	.pill--md .segment--menu.current:hover {
+		background: var(--seg-current);
 	}
 
 	.pill--sm {
@@ -158,9 +204,13 @@
 	}
 
 	.pill--md {
-		--segment-padding: var(--space-1) var(--space-3);
+		--segment-padding: 0 var(--space-3);
 		font-size: var(--fs-sm);
 		letter-spacing: 0.01em;
+	}
+
+	.count {
+		display: inline-flex;
 	}
 
 	.pill--lg {
@@ -168,18 +218,22 @@
 		font-size: var(--fs-lg);
 	}
 
-	/* On a phone a compact group shows its emoji alone, as tall as the site navigation. */
+	/* On a phone a compact group shows emoji alone. A segment with no emoji keeps its label, set tighter. */
 	@media (max-width: 600px) {
 		.compact {
+			--segment-padding: 0 var(--space-2);
+		}
+
+		.compact .icon {
 			font-size: var(--fs-lg);
 		}
 
-		.compact .segment {
-			height: var(--nav-height);
-			padding-block: 0;
+		.compact .segment:has(> .icon) {
+			padding-inline: 0.625rem;
 		}
 
-		.compact .text {
+		.compact .segment:has(> .icon) .text,
+		.compact .count {
 			display: none;
 		}
 	}
