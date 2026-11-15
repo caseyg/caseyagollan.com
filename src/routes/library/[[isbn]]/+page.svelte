@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import type * as Three from 'three';
 	import { browser } from '$app/environment';
 	import { pushState, replaceState } from '$app/navigation';
@@ -11,6 +12,7 @@
 	import { layoutSpine } from '$lib/library-spine';
 	import { libraryText } from '$lib/library-text';
 	import { libraryMetadata } from '$lib/library-metadata';
+	import { libraryCategoryMembers, libraryDdcClass, libraryDdcClasses } from '$lib/library-category';
 	import { shelfCoverCamera, adjacentShelfBook } from '$lib/library-selection';
 	import { orderShelfBooks, coverflowPosition, coverflowDestination, coverflowPose } from '$lib/library-coverflow';
 	import { createShelfMotion, sampleShelfMotion, type ShelfMotion, type ShelfPose } from '$lib/library-motion';
@@ -114,6 +116,15 @@
 	const sortLabels = ['Recently acquired', 'Publication year', 'Subject', 'Color'];
 	const sortIcons = ['📅', '⏳', '📖', '🌈'];
 	let lastClickedNode: Node | null = null;
+	// A category filter narrows the library to one subject or tag and the books in it.
+	let categoryFilter = $state<string | null>(null);
+	const phone = new MediaQuery('max-width: 600px', false);
+	let categoryMembers: Set<string> | null = null;
+	// How much of each graph object shows, from 0 to 1, as the filter shrinks it away or grows it back.
+	const filterVisibility = new WeakMap<object, number>();
+	let filterFrame: number | null = null;
+	// Where the camera was before filtering, so leaving the filter returns there.
+	let unfilteredCamera: { position: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null = null;
 	let originalGraphData: GraphData;
 	let shelfFramePending = false;
 	let shelfLayoutDirty = true;
@@ -250,6 +261,8 @@
 		for (const [name, force] of Object.entries(forces)) Graph.d3Force(name, force);
 		// The layout has settled; stop ticking physics instead of running it to the 15 s cooldown.
 		if (!isGridModeActive) Graph.d3AlphaMin(0.001);
+		// Switching to the shelves also ends the layout; only the graph frames the category.
+		scheduleFrame(() => { if (categoryMembers && !selectedBook && !isGridModeActive) frameCategory(); });
 		if (settle) {
 			// One more tick moves the meshes to the final positions, then the engine stops.
 			Graph.d3AlphaDecay(1);
@@ -278,6 +291,7 @@
 		let count = 0;
 		for (const link of links) {
 			if (typeof link.source !== 'object' || typeof link.target !== 'object') continue;
+			if (categoryMembers && !(categoryMembers.has(link.source.id) && categoryMembers.has(link.target.id))) continue;
 			array[count * 6] = link.source.x || 0;
 			array[count * 6 + 1] = link.source.y || 0;
 			array[count * 6 + 2] = link.source.z || 0;
@@ -936,7 +950,8 @@
 		const isbn = match[1] ? decodeURIComponent(match[1]) : null;
 		const bookId = url.searchParams.get('book');
 		if (!isbn && !bookId) return false;
-		const node = Graph.graphData().nodes.find(
+		// Filtered shelves leave other books out of the graph; selecting one clears the filter.
+		const node = [...Graph.graphData().nodes, ...(isGridModeActive ? originalGraphData.nodes : [])].find(
 			(n: Node) => n.group === 'book' && (isbn ? n.isbn === isbn : String(n.bookid) === bookId)
 		);
 		if (!node) return false;
@@ -1035,13 +1050,15 @@
 			const raycaster = new THREE.Raycaster();
 			raycaster.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1,
 				1 - (event.clientY - rect.top) / rect.height * 2), Graph.camera());
-			const books: Node[] = Graph.graphData().nodes.filter((node: Node) => node.group === 'book' && node.__threeObj?.visible);
-			const hit = raycaster.intersectObjects(books.map((node) => node.__threeObj!), true)[0];
+			const targets: Node[] = Graph.graphData().nodes.filter((node: Node) => (node.group === 'book' || node.group === 'ddc') && node.__threeObj?.visible);
+			const hit = raycaster.intersectObjects(targets.map((node) => node.__threeObj!), true)[0];
 			let object = hit?.object;
-			while (object && !books.some((node) => node.__threeObj === object)) object = object.parent || undefined;
-			const node = books.find((node) => node.__threeObj === object);
-			if (node && node.id !== selectedBook?.id) void selectBook(node);
+			while (object && !targets.some((node) => node.__threeObj === object)) object = object.parent || undefined;
+			const node = targets.find((node) => node.__threeObj === object);
+			if (node?.group === 'ddc') toggleCategory(node.id);
+			else if (node && node.id !== selectedBook?.id) void selectBook(node);
 			else if (selectedBook) deselectBook();
+			else if (categoryFilter) setCategoryFilter(null);
 			else if (isGridModeActive) frameShelves();
 			else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 		}, options);
@@ -1049,6 +1066,7 @@
 
 	// Select a book and show its details
 	function selectBook(node: Node, updateUrl = true, focus = true) {
+		if (categoryMembers && !categoryMembers.has(node.id)) setCategoryFilter(null, { frame: false });
 		clearHighResolutionCover();
 		selectedBook = node;
 		const catalogDetails = catalogDetailsFor(node);
@@ -1323,7 +1341,7 @@
 		}
 
 		const graphData = Graph.graphData();
-		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book');
+		const books: Node[] = graphData.nodes.filter((n: Node) => n.group === 'book' && (!categoryMembers || categoryMembers.has(n.id)));
 
 		if (books.length === 0) return;
 		if (isGridModeActive) {
@@ -1398,7 +1416,13 @@
 	// Handle keyboard navigation
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.target instanceof Element && event.target.closest('dialog[open]')) return;
-		if (!selectedBook) return;
+		if (!selectedBook) {
+			if (event.key === 'Escape' && categoryFilter) {
+				event.preventDefault();
+				setCategoryFilter(null);
+			}
+			return;
+		}
 
 		if (event.key === 'ArrowLeft') {
 			event.preventDefault();
@@ -1480,6 +1504,7 @@
 				Graph.controls().maxDistance = saved.maxDistance;
 				animateShelfCamera(saved.position, saved.target);
 			} else if (isGridModeActive) frameShelves();
+			else if (categoryMembers) frameCategory(1000);
 			else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
 
 		}
@@ -1731,12 +1756,16 @@
 							// No book selected, select this one
 							selectBook(node);
 						}
+					} else if (node.group === 'ddc') {
+						toggleCategory(node.id);
 					}
 				})
 				.onBackgroundClick((event) => {
 					if (event instanceof PointerEvent && event.pointerType !== 'mouse') return;
 					if (selectedBook) {
 						deselectBook();
+					} else if (categoryFilter) {
+						setCategoryFilter(null);
 					} else {
 						if (isGridModeActive) frameShelves();
 						else Graph.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 1000);
@@ -1752,7 +1781,7 @@
 				.nodeThreeObject((graphNode) => {
 					const node = graphNode as Node;
 					if (node.group === 'book') {
-						return createBookObject(node);
+						return filteredObject(node, createBookObject(node));
 					} else if (node.group === 'ddc' || node.group === 'shelf-label') {
 						// In grid mode, only show top-level DDC category labels
 						if (isGridModeActive && node.group === 'ddc' && !topLevelDdcNames.has(node.id)) {
@@ -1768,7 +1797,7 @@
 								sprite.textHeight = Math.max((node.points || 1) / 2, 3);
 								label.add(sprite);
 							});
-							return label;
+							return filteredObject(node, label);
 						}
 						const sprite = new SpriteText(node.id);
 						sprite.color = 'blue';
@@ -1972,7 +2001,7 @@
 	});
 
 	function updateLibraryUrl() {
-		const url = writeLibraryView(new URL(window.location.href), isGridModeActive, sortModes[sortIndex]);
+		const url = writeLibraryView(new URL(window.location.href), isGridModeActive, sortModes[sortIndex], categoryFilter);
 		if (url.href !== window.location.href) pushState(url, {});
 	}
 
@@ -1981,9 +2010,121 @@
 		const view = readLibraryView(new URL(window.location.href));
 		const nextSortIndex = sortModes.indexOf(view.sort);
 		const sortChanged = sortIndex !== nextSortIndex;
+		const categoryChanged = view.category !== categoryFilter;
 		sortIndex = nextSortIndex;
+		if (categoryChanged) useCategory(view.category);
 		if (isGridModeActive !== view.shelves) toggleMode(false, isLoading);
-		else if (isGridModeActive && sortChanged) applyShelfSort();
+		else if (isGridModeActive && (sortChanged || categoryChanged)) applyShelfSort();
+		else if (categoryChanged) showCategoryInGraph();
+	}
+
+	function useCategory(name: string | null) {
+		if (name && !categoryFilter && Graph && !isGridModeActive && !selectedBook && !savedForces) {
+			unfilteredCamera = { position: { ...Graph.camera().position }, target: { ...Graph.controls().target } };
+		}
+		categoryFilter = name;
+		categoryMembers = name ? libraryCategoryMembers(name, originalGraphData.nodes, originalGraphData.links,
+			(bookid) => libraryMetadata(bookid).categories) : null;
+	}
+
+	function toggleCategory(name: string) {
+		setCategoryFilter(categoryFilter === name ? null : name);
+	}
+
+	/** Narrow the library to one subject or tag, or pass null to show every book again. */
+	function setCategoryFilter(name: string | null, { frame = true } = {}) {
+		if (!Graph || name === categoryFilter) return;
+		useCategory(name);
+		updateLibraryUrl();
+		const leaving = selectedBook && categoryMembers && !categoryMembers.has(selectedBook.id);
+		// Closing the book frames what is left, so the camera moves once.
+		if (leaving) deselectBook();
+		if (isGridModeActive) applyShelfSort();
+		else showCategoryInGraph(frame && !leaving);
+	}
+
+	function showCategoryInGraph(frame = true) {
+		fadeFilteredGraph();
+		const saved = unfilteredCamera;
+		if (!categoryMembers) unfilteredCamera = null;
+		// The opening layout frames the category when it settles; an open book keeps its orbit.
+		if (!frame || savedForces || selectedBook) return;
+		if (categoryMembers) frameCategory();
+		else {
+			// A link that opened filtered returns to the graph's opening view.
+			const distance = Math.cbrt(Graph.graphData().nodes.length) * 170;
+			const view = saved ?? { position: { x: 0, y: 0, z: distance }, target: { x: 0, y: 0, z: 0 } };
+			Graph.cameraPosition(view.position, view.target, 1000);
+		}
+	}
+
+	function filteredObject<T extends Three.Object3D>(node: Node, object: T): T {
+		if (categoryMembers && !isGridModeActive && !categoryMembers.has(node.id)) {
+			filterVisibility.set(object, 0);
+			object.scale.setScalar(0.001);
+			object.visible = false;
+		}
+		return object;
+	}
+
+	// Shrink away what the filter leaves out and grow back what it keeps.
+	// Scaling leaves the shared materials and the layout alone, so nothing rebuilds.
+	function fadeFilteredGraph(duration = 360) {
+		if (!Graph || isGridModeActive) return;
+		if (filterFrame !== null) {
+			cancelAnimationFrame(filterFrame);
+			animationFrameIds.delete(filterFrame);
+			filterFrame = null;
+		}
+		const fades: { object: Three.Object3D; from: number; to: number }[] = [];
+		for (const node of Graph.graphData().nodes as Node[]) {
+			const object = node.__threeObj as Three.Object3D | undefined;
+			if (!object) continue;
+			const from = filterVisibility.get(object) ?? 1;
+			const to = !categoryMembers || categoryMembers.has(node.id) ? 1 : 0;
+			if (from !== to) fades.push({ object, from, to });
+		}
+		syncLinkLines();
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) duration = 0;
+		const started = performance.now();
+		const step = (now: number) => {
+			const p = duration ? Math.min((now - started) / duration, 1) : 1;
+			const t = 1 - Math.pow(1 - p, 3);
+			for (const fade of fades) {
+				const visibility = fade.from + (fade.to - fade.from) * t;
+				filterVisibility.set(fade.object, visibility);
+				fade.object.scale.setScalar(Math.max(visibility, 0.001));
+				fade.object.visible = visibility > 0;
+			}
+			filterFrame = p < 1 ? scheduleFrame(step) : null;
+		};
+		step(started);
+	}
+
+	// Fit the category's subject and books in view, from the side the reader is looking.
+	function frameCategory(duration = 900) {
+		if (!Graph || !categoryMembers || isGridModeActive) return;
+		const members = (Graph.graphData().nodes as Node[]).filter((node) => categoryMembers!.has(node.id));
+		if (!members.length) return;
+		const hub = members.find((node) => node.group === 'ddc');
+		const center = hub ? { x: hub.x || 0, y: hub.y || 0, z: hub.z || 0 } : {
+			x: members.reduce((sum, node) => sum + (node.x || 0), 0) / members.length,
+			y: members.reduce((sum, node) => sum + (node.y || 0), 0) / members.length,
+			z: members.reduce((sum, node) => sum + (node.z || 0), 0) / members.length
+		};
+		// Fit most of the books; a stray one far from the rest should not shrink them all.
+		const distances = members.map((node) => Math.hypot((node.x || 0) - center.x, (node.y || 0) - center.y, (node.z || 0) - center.z))
+			.sort((a, b) => a - b);
+		const radius = Math.max(30, distances[Math.floor((distances.length - 1) * 0.9)] + 15);
+		const camera = Graph.camera();
+		const halfFov = (camera.fov * Math.PI) / 360;
+		const aspect = graphContainer.clientWidth / Math.max(1, graphContainer.clientHeight);
+		const distance = radius / Math.sin(Math.min(halfFov, Math.atan(Math.tan(halfFov) * aspect)));
+		const target = Graph.controls().target;
+		const direction = new THREE.Vector3(camera.position.x - target.x, camera.position.y - target.y, camera.position.z - target.z);
+		if (direction.lengthSq() < 1e-6) direction.set(0, 0, 1);
+		direction.normalize().multiplyScalar(distance);
+		Graph.cameraPosition({ x: center.x + direction.x, y: center.y + direction.y, z: center.z + direction.z }, center, duration);
 	}
 
 	function getShelfBounds(): ShelfBounds {
@@ -2300,9 +2441,11 @@
 
 	function shelfNodes(source: Node[]): Node[] {
 		const sort = sortModes[sortIndex];
-		const books = source.filter((node) => node.group === 'book');
+		const books = source.filter((node) => node.group === 'book' && (!categoryMembers || categoryMembers.has(node.id)));
 		if (sort === 'ddc') {
-			return [...books, ...source.filter((node) => node.group === 'ddc' && topLevelDdcNames.has(node.id))];
+			// A filtered shelf keeps only the class headings that still hold books.
+			const classes = new Set(books.map((book) => libraryDdcClasses[libraryDdcClass(book.ddcCode)]));
+			return [...books, ...source.filter((node) => node.group === 'ddc' && topLevelDdcNames.has(node.id) && (!categoryMembers || classes.has(node.id)))];
 		}
 		if (sort === 'color') return books;
 		const years = [...new Set(books.map((book) => libraryShelfYear(book, sort)))];
@@ -2395,18 +2538,7 @@
 			});
 
 			// DDC class names matching actual graph data node IDs
-			const ddcClassNames: Record<string, string> = {
-				'000': 'Computer science, information & general works',
-				'100': 'Philosophy & psychology',
-				'200': 'Religion',
-				'300': 'Social sciences',
-				'400': 'Language',
-				'500': 'Science',
-				'600': 'Technology',
-				'700': 'Arts & recreation',
-				'800': 'Literature',
-				'900': 'History'
-			};
+			const ddcClassNames = libraryDdcClasses;
 
 			let currentShelfRow = 0;
 			const easing = 1;
@@ -2561,15 +2693,18 @@
 {#if !isLoading}
 	<!-- Both views are always named, with the one on screen marked, like the segments of a page trail. -->
 	<Corner side="start">
-		<SegmentedPill
-			size="md"
-			compact
-			label="Library view"
-			segments={[
-				{ label: 'Graph', icon: '🕸️', pressed: !isGridModeActive, onclick: () => { if (isGridModeActive) toggleMode(true, true); } },
-				{ label: 'Shelves', icon: '📚', pressed: isGridModeActive, onclick: () => { if (!isGridModeActive) toggleMode(true, true); } }
-			]}
-		/>
+		<!-- On a phone a filter takes the view switch's place, so the corner fits beside the site navigation. -->
+		{#if !(categoryFilter && phone.current)}
+			<SegmentedPill
+				size="md"
+				compact
+				label="Library view"
+				segments={[
+					{ label: 'Graph', icon: '🕸️', pressed: !isGridModeActive, onclick: () => { if (isGridModeActive) toggleMode(true, true); } },
+					{ label: 'Shelves', icon: '📚', pressed: isGridModeActive, onclick: () => { if (!isGridModeActive) toggleMode(true, true); } }
+				]}
+			/>
+		{/if}
 		{#if isGridModeActive}
 			<SegmentedPill
 				size="md"
@@ -2581,6 +2716,24 @@
 					title: sortModes[sortIndex] === 'dateacquired' ? 'Acquisition date, or date added to LibraryThing when unavailable' : sortLabels[sortIndex],
 					onclick: toggleSort
 				}]}
+			/>
+		{/if}
+		{#if categoryFilter}
+			<!-- Back leaves the filter; the category's own segment brings it back into view. -->
+			<SegmentedPill
+				size="md"
+				compact
+				label="Category filter"
+				segments={[
+					{ label: 'Back', icon: '⬅️', ariaLabel: 'Back to all books', title: 'Show all books', onclick: () => setCategoryFilter(null) },
+					{
+						label: libraryText(categoryFilter),
+						icon: '🏷️',
+						pressed: true,
+						title: `Showing ${libraryText(categoryFilter)}`,
+						onclick: () => (isGridModeActive ? frameShelves(600) : frameCategory())
+					}
+				]}
 			/>
 		{/if}
 	</Corner>
@@ -2617,7 +2770,10 @@
 				{#if bookDetails.categories && bookDetails.categories.length > 0}
 					<div class="book-categories">
 						{#each bookDetails.categories as category}
-							<Chip variant="soft" size="sm">{libraryText(category)}</Chip>
+							{@const active = category === categoryFilter}
+							<Chip variant="soft" size="sm" {active} aria-pressed={active}
+								title={active ? 'Show all books' : `Show only ${libraryText(category)}`}
+								onclick={() => toggleCategory(category)}>{libraryText(category)}</Chip>
 						{/each}
 					</div>
 				{/if}
