@@ -109,3 +109,12 @@ test('links off the site open in a new tab and are marked', () => {
 	expect(page.html).toMatch(/<a href="https:\/\/www\.nngroup\.com[^"]*" target="_blank" rel="noopener noreferrer" class="external">/);
 	expect(buildWiki(sampleVault).bySlug.get('art-under-risk')!.html).not.toContain('external');
 });
+
+test('link addresses with spaces stay one link, as Obsidian allows, and titles still work', () => {
+	const wiki = buildWiki(vault([page('Contact', 'Email: [me](mailto:me@example.org?subject=Making contact from cag.wiki)\n\nSee [site](https://example.org "Example") and `[a](b c)`.')]));
+	const html = wiki.pages[0].html;
+	expect(html).toContain('href="mailto:me@example.org?subject=Making%20contact%20from%20cag.wiki"');
+	expect(html).not.toContain('Making contact from cag.wiki)');
+	expect(html).toContain('title="Example"');
+	expect(html).toContain('<code>[a](b c)</code>');
+});

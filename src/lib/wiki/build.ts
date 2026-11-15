@@ -69,6 +69,8 @@ function preprocess(markdown: string, context: Context): { markdown: string; foo
 	// Obsidian's %% comments are hidden. A line of three or more % is a stray mark, not a comment's start, and
 	// any %% left unpaired is dropped rather than hiding the rest of the page.
 	body = outsideCode(body, (text) => text.replace(/^[ \t]*%{3,}[ \t]*$/gm, '').replace(/%%[\s\S]*?%%/g, '').replace(/%{2,}/g, ''));
+	// Obsidian allows spaces in a link's address, as in `[mail](mailto:me@x.org?subject=Hi there)`; Markdown doesn't, so encode them.
+	body = outsideCode(body, (text) => text.replace(/(\]\()([^()\s<>"']+(?:[ \t]+[^()\s<>"']+)+)\)/g, (_match, open: string, url: string) => `${open}${url.replace(/[ \t]/g, '%20')})`));
 	// Dataview's `key:: value` lines are the page's details, shown with its title rather than as text.
 	const fields: { name: string; markdown: string }[] = [];
 	body = outsideCode(body, (text) => text.replace(/^[ \t]*([A-Za-z][\w -]{0,40}?)::[ \t]*(\S.*)$\n?/gm, (_match, name: string, value: string) => {
