@@ -7,7 +7,7 @@
 	import PostContent from './PostContent.svelte';
 	import PostMedia from './PostMedia.svelte';
 	import type { Post } from '$lib/posts-types';
-	import { getPostPermalink } from '$lib/posts-types';
+	import { getPostPermalink, postAnchors } from '$lib/posts-types';
 	import { getPostAction } from '$lib/utils/post-details';
 
 	interface Props {
@@ -38,9 +38,11 @@
 
 	const permalink = $derived(getPostPermalink(post));
 	const isArticle = $derived(post.type === 'article');
+	const anchors = $derived(postAnchors(post));
 </script>
 
-<article class="{post.microformatType ?? 'h-entry'} post">
+<article class="{post.microformatType ?? 'h-entry'} post" id={anchors[0]}>
+	{#each anchors.slice(1) as id (id)}<span {id} class="anchor" aria-hidden="true"></span>{/each}
 	<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
 	<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
 
@@ -85,9 +87,17 @@
 
 <style>
 	.post {
+		position: relative;
+		scroll-margin-top: calc(var(--nav-lane) + var(--space-3));
 		margin-bottom: var(--space-5);
 		padding-bottom: var(--space-5);
 		border-bottom: 1px solid var(--border-subtle);
+	}
+
+	.anchor {
+		position: absolute;
+		top: 0;
+		scroll-margin-top: calc(var(--nav-lane) + var(--space-3));
 	}
 
 	.post:last-child {

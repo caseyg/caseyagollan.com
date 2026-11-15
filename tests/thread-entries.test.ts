@@ -44,3 +44,10 @@ test('thread times use compact relative units',()=>{
  const now = new Date('2026-11-15T00:00:00Z');
  expect(['2026-11-14T23:59:40Z','2026-11-14T23:55:00Z','2026-11-14T21:00:00Z','2026-11-12T00:00:00Z','2026-10-03T00:00:00Z','2024-10-03T00:00:00Z'].map(d => formatShortRelativeDate(d, now))).toEqual(['now','5m','3h','3d','1mo','2y']);
 });
+
+test('a rolled-up card answers to an anchor for every post it stands for',()=>{
+ const { postAnchors } = require('../src/lib/posts-types');
+ const like: Post = {type:'like',slug:'like',date:'2026-10-03T19:00:00-04:00',content:'',filePath:'likes/like.md',
+  indexActivities:[{type:'like',date:'2026-10-03T19:00:00-04:00',permalink:'/2026/10/03/like/'},{type:'repost',date:'2026-10-03T19:01:00-04:00',permalink:'/2026/10/03/repost/'}]};
+ expect(postAnchors({...second,indexThreadPosts:[first,like,second]})).toEqual(['post-second','post-first','post-like','post-repost']);
+});

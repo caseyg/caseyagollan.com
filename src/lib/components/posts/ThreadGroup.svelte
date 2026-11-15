@@ -5,7 +5,7 @@
  import SocialPost from './SocialPost.svelte';
  import SavedSocialPost from './SavedSocialPost.svelte';
  import SiteSocialPost from './SiteSocialPost.svelte';
- import { getPostPermalink, type Post } from '$lib/posts-types';
+ import { getPostPermalink, postAnchors, type Post } from '$lib/posts-types';
  import { buildThreadEntries, type ThreadReaction } from '$lib/utils/thread-entries';
  import { ownerHint } from '$lib/owner';
  /** A rolled-up conversation: every reply, like and repost in one card, as one thread joined by a line. */
@@ -13,8 +13,9 @@
  let { post }: {post: Post; showType?: boolean; activeTag?: string} = $props();
  const members = $derived(post.indexThreadPosts ?? []);
  const entries = $derived(buildThreadEntries(members));
- // The rollup's link goes to this thread on its day page, not just the top of the day.
- const anchor = $derived(`thread-${post.slug}`);
+ // The rollup links to this thread on its day page. The id matches PostCard's, since the day page may show only one of its posts.
+ const anchors = $derived(postAnchors(post));
+ const anchor = $derived(anchors[0]);
  const replies = $derived(members.filter(member => member.type === 'reply').length);
  const reactions = $derived(entries.reduce((n, entry) => n + (entry.kind === 'own' ? 0 : entry.reactions.length), 0));
  const verbs = $derived([...new Set(entries.flatMap(entry => entry.kind === 'own' ? [] : entry.reactions.map(r => r.type)))]);
@@ -29,6 +30,7 @@
 </script>
 
 <section class="thread-group" id={anchor} aria-label="Conversation activity">
+ {#each anchors.slice(1) as id (id)}<span {id} class="anchor" aria-hidden="true"></span>{/each}
  <div class="thread-meta"><Chip href={`${getPostPermalink(post).replace(/\/[^/]+\/$/, '')}#${anchor}`}><span aria-hidden="true">{replies ? '💬' : REACTION[verbs[0] ?? 'like'][0]}</span> {summary} in a thread</Chip></div>
  <SocialCard label="Conversation">
   {#each entries as entry, i (entry.key)}
@@ -49,6 +51,7 @@
 
 
 <style>
- .thread-group { margin-bottom: var(--space-5); scroll-margin-top: calc(var(--nav-lane) + var(--space-3)); }
+ .thread-group { position: relative; margin-bottom: var(--space-5); scroll-margin-top: calc(var(--nav-lane) + var(--space-3)); }
  .thread-meta { margin-left: calc(-1 * var(--space-2)); margin-bottom: var(--space-2); color: var(--text-muted); }
+ .anchor { position: absolute; top: 0; scroll-margin-top: calc(var(--nav-lane) + var(--space-3)); }
 </style>
