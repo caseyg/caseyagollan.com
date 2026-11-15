@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite dev",
 		"prebuild": "git submodule update --init --recursive || true",
-		"build": "bun run build:search && vite build && bun run build-storybook",
+		"build": "bun utils/build.ts",
 		"preview": "bun run build && wrangler dev",
 		"preview:remote": "bun run build && wrangler dev --remote",
 		"deploy": "bun run build && wrangler deploy",

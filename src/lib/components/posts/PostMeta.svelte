@@ -86,7 +86,7 @@
 			</Chip>
 		{/if}
 		{#each categories as cat (cat)}
-			<Chip href="/tag/{cat.toLowerCase()}/" class="p-category" active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</Chip>
+			<Chip href="/tags/{cat.toLowerCase()}/" class="p-category" active={cat.toLowerCase() === activeTag?.toLowerCase()}>#{cat}</Chip>
 		{/each}
 	</div>
 	{#if showInteractions || editHref}

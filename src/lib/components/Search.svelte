@@ -92,10 +92,7 @@
 	</pagefind-modal-trigger>
 	<pagefind-modal>
 		<pagefind-modal-header>
-			<div class="search-heading">
-				<h2>Search</h2>
-				<p>Posts, library &amp; wiki</p>
-			</div>
+			<h2 class="search-heading">Search</h2>
 			<pagefind-input placeholder="Search posts, books, and wiki…"></pagefind-input>
 		</pagefind-modal-header>
 		<pagefind-modal-body>
@@ -197,9 +194,10 @@
 	 */
 	.site-search :global(dialog.pf-modal) { border: 1px solid var(--border) !important; border-radius: var(--radius-lg) !important; }
 	.site-search :global(.pf-modal-header) { display: block !important; padding: var(--space-5) var(--space-5) var(--space-4) !important; position: relative; border-bottom: 1px solid var(--border-subtle) !important; }
-	.search-heading { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-4); color: var(--text-primary); }
-	.search-heading h2 { margin: 0; font-size: var(--fs-xl); font-weight: var(--fw-medium); line-height: var(--lh-snug); }
-	.search-heading p { margin: 0; font-size: var(--fs-sm); color: var(--text-muted); }
+	.search-heading { margin: 0 0 var(--space-4); color: var(--text-primary); font-size: var(--fs-xl); font-weight: var(--fw-medium); line-height: var(--lh-snug); }
+	/* Before anything is typed or filtered there is nothing to show, so the overlay is only the field. */
+	.site-search :global(dialog.pf-modal:has(.pf-input:placeholder-shown):not(:has(.pf-checkbox-input:checked)) .pf-modal-body) { display: none !important; }
+	.site-search :global(dialog.pf-modal:has(.pf-input:placeholder-shown):not(:has(.pf-checkbox-input:checked)) .pf-modal-header) { border-bottom: 0 !important; }
 	/* The field matches the site's text inputs. */
 	.site-search :global(.pf-input) { border: 1px solid var(--border-strong) !important; border-radius: var(--radius-sm) !important; background: var(--surface-sunken) !important; font-weight: var(--fw-regular) !important; transition: border-color var(--duration) var(--ease); }
 	.site-search :global(.pf-input:hover),
@@ -245,7 +243,7 @@
 		.site-search :global(dialog.pf-modal) { border: 0 !important; border-radius: 0 !important; }
 		.site-search :global(.pf-modal-header) { padding: var(--space-4) !important; }
 		.site-search :global(.pf-modal-close) { position: absolute !important; top: var(--space-4) !important; right: var(--space-4) !important; }
-		.search-heading { min-height: var(--nav-height); align-items: center; margin-bottom: var(--space-3); padding-right: calc(var(--nav-height) + var(--space-3)); }
+		.search-heading { display: flex; align-items: center; min-height: var(--nav-height); margin-bottom: var(--space-3); padding-right: calc(var(--nav-height) + var(--space-3)); }
 		.site-search :global(.pf-modal-body) { padding: 0 var(--space-4) !important; }
 		.site-search :global(.pf-modal-footer) { padding: var(--space-3) var(--space-4) !important; }
 		.search-layout { display: block; }

@@ -9,11 +9,44 @@
 		group?: string;
 		/** Tooltip, such as what a post type is for. */
 		title?: string;
+		/**
+		 * Makes the option a filter that can be combined with others: it shows a check box, its link
+		 * changes the page in place, and the menu stays open for the next choice.
+		 */
+		checked?: boolean;
+	}
+
+	/*
+	 * Choosing a filter can lead to another route, or to a full page load after a deploy, and either
+	 * builds a new menu. The menu of filters stays open until it is closed on purpose, so remember
+	 * that here and, for a full load, in the session for a few seconds.
+	 */
+	const STICKY_KEY = 'select-menu-open';
+	let sticky = false;
+
+	function setSticky(value: boolean) {
+		sticky = value;
+		try {
+			if (value) sessionStorage.setItem(STICKY_KEY, String(Date.now()));
+			else sessionStorage.removeItem(STICKY_KEY);
+		} catch {
+			// Storage can be unavailable; the menu then only stays open within the page.
+		}
+	}
+
+	function wasSticky(): boolean {
+		if (sticky) return true;
+		try {
+			return Date.now() - Number(sessionStorage.getItem(STICKY_KEY) ?? 0) < 10_000;
+		} catch {
+			return false;
+		}
 	}
 </script>
 
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem, MenuTrigger } from '@ui-sdk/svelte/menu';
 	import Count from './Count.svelte';
 
@@ -25,6 +58,8 @@
 		options: MenuOption[];
 		/** Value of the option for the page being viewed. Defaults to the option labelled like `current`. */
 		active?: string;
+		/** A short note after the label, e.g. the filter in effect. */
+		badge?: string;
 		/**
 		 * `title` is a page title on the accent, `segment` a segment of a `SegmentedPill` that takes its
 		 * size and colours from the pill, `quiet` a low-emphasis control in a toolbar such as the composer's.
@@ -41,10 +76,32 @@
 		columns?: 1 | 2;
 	}
 
-	let { current, currentIcon, count, options, active, variant = 'title', label, icon, reload = false, align = 'start', columns = 1 }: Props = $props();
+	let { current, currentIcon, count, options, active, badge, variant = 'title', label, icon, reload = false, align = 'start', columns = 1 }: Props = $props();
 
 	const isActive = (option: MenuOption) => (active === undefined ? option.label === current : option.value === active);
 	const selected = $derived(options.find(isActive));
+	const filters = $derived(options.some((option) => option.checked !== undefined));
+
+	// svelte-ignore state_referenced_locally
+	let open = $state(filters && sticky);
+	onMount(() => {
+		if (filters && wasSticky()) {
+			sticky = true;
+			open = true;
+		}
+	});
+	// Closing the menu, by any means, ends it.
+	$effect(() => {
+		if (filters && !open && sticky) setSticky(false);
+	});
+
+	// Without JavaScript a filter is a plain link; with it, keep the scroll position and the menu.
+	function onFilterClick(event: MouseEvent, option: MenuOption) {
+		if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		setSticky(true);
+		void goto(option.href, { noScroll: true, keepFocus: true });
+	}
 
 	// Consecutive options with the same group share one heading.
 	const groups = $derived(
@@ -59,27 +116,42 @@
 
 {#snippet item(option: MenuOption)}
 	{@const on = isActive(option)}
-	<MenuItem class="select-menu-item" label={option.label}>
+	<MenuItem class="select-menu-item" label={option.label} closeOnSelect={option.checked === undefined}>
 		{#snippet render({ props })}
-			<a {...props} href={option.href} aria-current={on ? 'page' : undefined} data-active={on || undefined} title={option.title} data-sveltekit-reload={reload || undefined}>
+			<a
+				{...props}
+				href={option.href}
+				aria-current={on ? 'page' : undefined}
+				data-active={on || undefined}
+				title={option.title}
+				data-sveltekit-reload={reload || undefined}
+				data-sveltekit-noscroll={option.checked !== undefined || undefined}
+				onclick={(event) => {
+					(props.onclick as ((event: MouseEvent) => void) | undefined)?.(event);
+					if (option.checked !== undefined) onFilterClick(event, option);
+				}}
+			>
+				{#if option.checked !== undefined}<span class="check" class:on={option.checked} aria-hidden="true">{option.checked ? '✓' : ''}</span>{/if}
 				{#if icon}{@render icon(option)}{:else if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}
-				<span class="label">{option.label}</span>
+				<span class="label">{option.label}{#if option.checked}<span class="visually-hidden">, selected</span>{/if}</span>
 				{#if option.count !== undefined}<Count value={option.count} />{/if}
 			</a>
 		{/snippet}
 	</MenuItem>
 {/snippet}
 
-<Menu>
+<!-- Collision padding stays inside the corner inset, so a menu pinned to a corner lines up with its trigger. -->
+<Menu bind:open>
 	<MenuTrigger class="select-menu-trigger select-menu-trigger--{variant}" aria-label={label}>
 		<span class="current" class:has-icon={currentIcon || icon} title={current}>
 			{#if icon && selected}{@render icon(selected)}{:else if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}
 			<span class="text">{current}</span>
 		</span>
+		{#if badge}<span class="badge">{badge}</span>{/if}
 		{#if count !== undefined}<span class="count"><Count value={count} label="{count} posts" /></span>{/if}
 		<span class="arrow" aria-hidden="true">▾</span>
 	</MenuTrigger>
-	<MenuContent class="select-menu select-menu--{variant} {columns === 2 ? 'select-menu--columns' : ''}" side="bottom" {align} sideOffset={4} collisionPadding={8}>
+	<MenuContent class="select-menu select-menu--{variant} {columns === 2 ? 'select-menu--columns' : ''}" side="bottom" {align} sideOffset={4} collisionPadding={4}>
 		{#each groups as group, i (group.label ?? i)}
 			{#if group.label}
 				<MenuGroup class="select-menu-group">
@@ -171,6 +243,31 @@
 
 	.count {
 		display: inline-flex;
+	}
+
+	.badge {
+		color: var(--text-secondary);
+		font-weight: var(--fw-regular);
+		white-space: nowrap;
+	}
+
+	.check {
+		display: inline-grid;
+		flex: none;
+		place-items: center;
+		width: 1.1em;
+		height: 1.1em;
+		margin-right: var(--space-1);
+		border: 1px solid var(--border-strong);
+		border-radius: 3px;
+		font-size: var(--fs-xs);
+		line-height: 1;
+	}
+
+	.check.on {
+		border-color: var(--text-primary);
+		background: var(--text-primary);
+		color: var(--bg-primary);
 	}
 
 	.arrow {

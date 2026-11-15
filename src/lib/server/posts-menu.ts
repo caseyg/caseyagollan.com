@@ -1,30 +1,31 @@
-import { getAllPosts, getPostsByType, POST_TYPES, POST_TYPE_PLURALS } from '$lib/posts';
-import { TYPE_ICONS } from '$lib/posts-filter';
+import { getAllTags, type Post } from '$lib/posts';
+import { facetMenu, type Facets } from '$lib/posts-filter';
 import type { MenuOption } from '$lib/components/ui';
+import { buildFeedIndex, getFeedEntries, indexFacetEntries } from './posts-feed';
 
-/** The Posts menu shown at the start of every trail in the posts section: the feed, each type, then each year. */
-export async function getPostsMenu(): Promise<MenuOption[]> {
-	const posts = await getAllPosts();
-	const types = POST_TYPES.map((type) => {
-		const plural = POST_TYPE_PLURALS[type];
-		return {
-			value: type,
-			label: plural.charAt(0).toUpperCase() + plural.slice(1),
-			href: `/type/${plural.toLowerCase()}/`,
-			count: getPostsByType(posts, type).length,
-			icon: TYPE_ICONS[type] ?? '📌',
-			group: 'By type'
-		};
-	}).filter((option) => option.count > 0);
+export interface TagCount {
+	name: string;
+	href: string;
+	count: number;
+}
 
-	const perYear = new Map<string, number>();
-	for (const post of posts) {
-		const year = post.date.slice(0, 4);
-		perYear.set(year, (perYear.get(year) ?? 0) + 1);
+/** Every tag with its post count, most used first. Tags that differ only by case share a page, so they are one entry. */
+export function getTagCounts(posts: Post[]): TagCount[] {
+	const tags = new Map<string, TagCount>();
+	for (const [name, count] of getAllTags(posts)) {
+		const key = name.toLowerCase();
+		const entry = tags.get(key);
+		if (entry) entry.count += count;
+		else tags.set(key, { name, href: `/tags/${key}/`, count });
 	}
-	const years = [...perYear.entries()]
-		.sort((a, b) => b[0].localeCompare(a[0]))
-		.map(([year, count]) => ({ value: year, label: year, href: `/${year}/`, count, group: 'By year' }));
+	return [...tags.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}
 
-	return [{ value: 'all', label: 'All posts', href: '/posts/', icon: '📡' }, ...types, ...years];
+/**
+ * The Posts menu shown at the start of every trail in the posts section. `selection` is what the page
+ * being built already stands for, e.g. its year or tag, so the menu opens with that checked.
+ */
+export async function getPostsMenu(selection: Partial<Facets> = {}): Promise<MenuOption[]> {
+	const index = buildFeedIndex(await getFeedEntries());
+	return facetMenu(indexFacetEntries(index), index.tagNames, selection);
 }
