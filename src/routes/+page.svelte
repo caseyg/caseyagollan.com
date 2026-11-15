@@ -8,6 +8,15 @@
     import InsightCard from "$lib/components/InsightCard.svelte";
 
     import type { InsightResponse } from "$lib/insight-types";
+    import { usePageCommands } from "$lib/page-commands.svelte";
+
+    // The page's sections, in the corner menu and in the command palette.
+    const pageSections = [
+        { value: 'top', label: 'Casey Gollan', href: '#top', icon: '👋' },
+        { value: 'currently', label: 'Currently', href: '#currently', icon: '📍' },
+        { value: 'exploring', label: 'Exploring', href: '#exploring', icon: '🧭' }
+    ];
+    usePageCommands(() => [{ label: 'On this page', items: pageSections.map(({ href, label, icon }) => ({ value: `go:${href}`, label, icon })) }]);
 
     interface Insight {
         topic: string;
@@ -537,11 +546,7 @@
 <Nav currentPage="home" />
 <!-- The same top-left title every other page pins, so the corner reads alike across the site. -->
 <Corner as="nav" side="start" aria-label="On this page">
-    <SegmentedPill size="md" tone="quiet" compact segments={[{ label: 'Casey Gollan', href: '#top', icon: '👋', current: true, menu: [
-        { value: 'top', label: 'Casey Gollan', href: '#top', icon: '👋' },
-        { value: 'currently', label: 'Currently', href: '#currently', icon: '📍' },
-        { value: 'exploring', label: 'Exploring', href: '#exploring', icon: '🧭' }
-    ] }]} />
+    <SegmentedPill size="md" tone="quiet" compact segments={[{ label: 'Casey Gollan', href: '#top', icon: '👋', current: true, menu: pageSections }]} />
 </Corner>
 
 <section class="hero-container" id="top">

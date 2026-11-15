@@ -8,6 +8,7 @@
 	import { easeCubicOut, easeQuadOut } from 'd3-ease';
 	import 'd3-transition';
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
+	import { usePageCommands } from '$lib/page-commands.svelte';
 
 	let {
 		onTopicClick,
@@ -23,6 +24,33 @@
 
 	let graphContainer: HTMLDivElement;
 	let focusedNode: string | null = $state(null);
+
+	// The nodes on screen are also commands in the site's command palette.
+	let shownNodes = $state<Pick<Node, 'id' | 'type' | 'url' | 'title'>[]>([]);
+	const NODE_ICONS: Partial<Record<Node['type'], string>> = { center: '👋', category: '🧭', subcategory: '📂', node: '💡', citation: '🔗' };
+	usePageCommands(() => [{
+		label: 'In the graph',
+		items: shownNodes
+			.filter((node) => node.id !== focusedNode && node.type !== 'loading')
+			.map((node) => ({
+				value: `graph:${node.id}`,
+				label: node.type === 'citation' ? node.title || node.url || node.id : node.id,
+				icon: NODE_ICONS[node.type],
+				external: node.type === 'citation',
+				keywords: ['graph', 'topic']
+			})),
+		run: (value) => {
+			const id = value.slice('graph:'.length);
+			const node = shownNodes.find((shown) => shown.id === id);
+			if (node?.type === 'citation') {
+				if (node.url) window.open(node.url, '_blank');
+				return;
+			}
+			applyFocusMode(id);
+			focusNodeId = id;
+			onTopicClick?.(id);
+		}
+	}]);
 	let svg: any;
 	let simulation: any;
 	let nodeSelection: any;
@@ -455,6 +483,8 @@
 				return visibleLinkKeys.has(linkKey);
 			});
 		}
+
+		shownNodes = filteredNodes.map(({ id, type, url, title }) => ({ id, type, url, title }));
 
 		// Update links
 		linkSelection = linkSelection.data(filteredLinks, (d: any) => {

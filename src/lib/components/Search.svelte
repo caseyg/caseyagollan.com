@@ -235,6 +235,8 @@
 	.site-search :global(.search-meta) { display: block; margin-bottom: var(--space-1); }
 
 	.site-search :global(.search-title) { display: block; color: var(--text-primary); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: var(--lh-snug); text-decoration: none; }
+	/* Wiki pages live on another site. */
+	.site-search :global(.search-title[href^="http"])::after { content: ' ↗'; color: var(--text-secondary); font-weight: var(--fw-regular); }
 	.site-search :global(.search-title:hover) { text-decoration: underline; text-underline-offset: .15em; }
 	.site-search :global(.search-author) { margin-top: var(--space-2); color: var(--text-muted); font-size: var(--fs-xs); line-height: 1.5; overflow-wrap: anywhere; }
 	.site-search :global(.search-result p) { display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-base); line-height: var(--lh-relaxed, 1.6); margin: var(--space-2) 0 0; color: var(--text-secondary); }

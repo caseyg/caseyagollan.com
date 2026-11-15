@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { COMPOSER_KINDS, type ComposerKind } from '$lib/composer-kinds';
+	import { ownerHint } from '$lib/owner';
+	import { pageCommands } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
 	import { CommandPalette, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
 
@@ -61,6 +63,12 @@
 	// The posts menu (each type and year, with counts) loads the first time the palette opens.
 	let postsMenu = $state<MenuOption[]>([]);
 	let menuRequested = false;
+	// Writing is offered only where the owner has signed in; the composer checks the session itself.
+	let owner = $state(false);
+	$effect(() => {
+		if (open) owner = ownerHint();
+	});
+
 	$effect(() => {
 		if (!open || menuRequested) return;
 		menuRequested = true;
@@ -101,6 +109,7 @@
 						label: plainText(result.meta.title) || result.url,
 						hint: plainText(result.excerpt),
 						icon: RESULT_ICONS[result.meta.type ?? ''] ?? '📄',
+						external: /^https?:/.test(result.url),
 						// The index already matched these.
 						always: true
 				}));
@@ -116,17 +125,21 @@
 
 	const term = $derived(query.trim());
 	const search: CommandOption = $derived({ value: 'search', label: 'Search posts, books, and wiki', hint: term ? `For “${term}”` : undefined, icon: '🔍', keywords: ['find'], always: !!term });
-	// Places come first, then what the search index found for the same words.
+	// The page's own commands come first, then places, then what the search index found.
+	const forPage = $derived(pageCommands());
 	const sections: CommandSection[] = $derived([
 		...(term ? [] : [{ items: [search] }]),
+		...forPage.map(({ label, items }) => ({ label, items })),
 		{ label: 'Go to', items: places },
 		{ label: 'Post types', items: postTypes },
-		{ label: 'Write', items: [write] },
+		{ label: 'Write', items: owner ? [write] : [] },
 		{ label: 'Years', items: years },
 		...(term ? [{ label: 'Posts, books, and wiki', items: results }, { items: [search] }] : [])
 	]);
 
 	function onAction(value: string) {
+		const page = forPage.find((section) => section.run && section.items.some((item) => item.value === value));
+		if (page && !value.startsWith('go:')) return page.run?.(value);
 		const [kind, ...rest] = value.split(':');
 		const target = rest.join(':');
 		if (kind === 'go') return goto(target);

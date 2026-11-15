@@ -45,6 +45,7 @@
 			label: 'Posts, books, and wiki',
 			items: [
 				{ value: 'r1', label: 'The Character of Physical Law', icon: '📚', hint: 'Richard Feynman’s 1964 Messenger Lectures at Cornell…', always: true },
+				{ value: 'r3', label: 'Art Under Risk Reading List', icon: '📓', hint: 'A wiki page, on another site, so it is marked ↗.', external: true, always: true },
 				{ value: 'r2', label: 'Why Trust a Corporation to Do a Library’s Job?', icon: '♥', hint: 'Liked post. Joanne McNeil, author of “Lurking”…', always: true }
 			]
 		}
@@ -62,7 +63,7 @@
 	<CommandPalette {sections} bind:open onAction={() => {}} />
 </Story>
 
-<!-- Results found elsewhere, such as by the site search, are marked `always` so the palette's own filter keeps them, after the commands that match. -->
+<!-- Results found elsewhere, such as by the site search, are marked `always` so the palette's own filter keeps them, after the commands that match. `external` marks a page on another site with ↗. Pages add their own sections (see `usePageCommands`). -->
 <Story asChild name="With search results">
 	<Button variant="secondary" onclick={() => (openResults = true)}>Open with results</Button>
 	<CommandPalette sections={withResults} bind:open={openResults} shortcut={null} onAction={() => {}} status="" />

@@ -6,6 +6,7 @@
 	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
 	import { Chip, Corner, SegmentedPill } from '$lib/components/ui';
+	import { usePageCommands } from '$lib/page-commands.svelte';
 	import { spineTextureSize } from '$lib/library/textures';
 	import { colorSortKey, compareColorKeys, placeholderColor, spineColor } from '$lib/library-color';
 	import { layoutSpine } from '$lib/library-spine';
@@ -1638,6 +1639,7 @@
 			}
 
 			if (isDestroyed) return;
+			categoryCounts = countCategories(graphData.nodes);
 			const bookCount = graphData.nodes.filter((n) => n.group === 'book').length;
 			loadingProgress = `Organizing ${bookCount} books…`;
 
@@ -2288,6 +2290,68 @@
 		}
 		if (updateUrl) updateLibraryUrl();
 	}
+
+	// The command palette offers this page's views, shelf orders and largest subjects.
+	const ddcClasses = [...topLevelDdcNames];
+	let categoryCounts = $state<{ name: string; count: number }[]>([]);
+	function countCategories(nodes: Node[]) {
+		const counts = new Map<string, number>();
+		for (const node of nodes) {
+			const digit = node.group === 'book' ? Number(node.ddcCode?.[0]) : NaN;
+			const name = ddcClasses[digit];
+			if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+		}
+		return [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+	}
+	function showShelves(shelves: boolean, sort = sortIndex) {
+		if (!Graph) return;
+		if (shelves !== isGridModeActive) {
+			sortIndex = sort;
+			toggleMode(true, true);
+		} else if (shelves && sort !== sortIndex) {
+			sortIndex = sort;
+			applyShelfSort();
+			updateLibraryUrl();
+		}
+	}
+	usePageCommands(() => [
+		{
+			label: 'Library view',
+			items: [
+				{ value: 'library:graph', label: 'Graph', icon: '🕸️', hint: isGridModeActive ? undefined : 'Showing now', keywords: ['network', 'map'] },
+				{ value: 'library:shelves', label: 'Shelves', icon: '📚', hint: isGridModeActive ? 'Showing now' : undefined, keywords: ['grid', 'spines'] }
+			],
+			run: (value) => showShelves(value === 'library:shelves')
+		},
+		{
+			label: 'Sort shelves by',
+			items: sortModes.map((mode, i) => ({
+				value: `library:sort:${mode}`,
+				label: sortLabels[i],
+				icon: sortIcons[i],
+				hint: isGridModeActive && i === sortIndex ? 'Showing now' : undefined,
+				keywords: ['sort', 'order', 'shelves']
+			})),
+			run: (value) => showShelves(true, sortModes.findIndex((mode) => value === `library:sort:${mode}`))
+		},
+		{
+			label: 'Subjects',
+			items: categoryCounts.map(({ name, count }) => ({
+				value: `library:category:${name}`,
+				label: name,
+				count,
+				icon: '🏷️',
+				keywords: ['category', 'subject', 'filter']
+			})),
+			// The page restores its view from the URL, as the browser's back button does.
+			run: (value) => {
+				const url = new URL(window.location.href);
+				url.searchParams.set('category', value.slice('library:category:'.length));
+				pushState(url, {});
+				window.dispatchEvent(new PopStateEvent('popstate'));
+			}
+		}
+	]);
 
 	function toggleSort() {
 		if (!Graph || !isGridModeActive) return;

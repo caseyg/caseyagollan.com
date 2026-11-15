@@ -10,6 +10,8 @@
 		count?: number;
 		/** More words that find the command, such as synonyms. */
 		keywords?: string[];
+		/** Leaves the site; marked ↗. */
+		external?: boolean;
 		/** Shown whatever is typed, such as search results that were matched elsewhere. */
 		always?: boolean;
 		/** Commands on a page of their own, opened by choosing this one. Backspace in the empty field goes back. */
@@ -77,7 +79,10 @@
 	<CommandItem class="command-item" value={item.value} label={item.label} keywords={item.keywords} page={item.items?.length ? item.value : undefined}>
 		{#if item.icon}<CommandItemIcon class="command-item-icon">{item.icon}</CommandItemIcon>{/if}
 		<span class="command-item-text">
-			<CommandItemText class="command-item-label">{item.label}</CommandItemText>
+			<span class="command-item-title">
+				<CommandItemText class="command-item-label">{item.label}</CommandItemText>
+				{#if item.external}<span class="command-item-external" aria-hidden="true">↗</span><span class="visually-hidden">(on another site)</span>{/if}
+			</span>
 			{#if item.hint}<span class="command-item-hint">{item.hint}</span>{/if}
 		</span>
 		{#if item.count !== undefined}<Count value={item.count} />{/if}
@@ -287,6 +292,17 @@
 		font-weight: var(--fw-semibold);
 		text-decoration: underline;
 		text-underline-offset: var(--underline-offset);
+	}
+
+	.command-item-title {
+		display: flex;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+
+	.command-item-external {
+		flex: none;
+		color: var(--text-secondary);
 	}
 
 	.command-item-hint {
