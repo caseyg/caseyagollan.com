@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-15T10:22:36.562Z",
+  "updatedAt": "2026-11-16T10:27:17.595Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -610,11 +610,6 @@
       "service": "mastodon",
       "handle": "ben@werd.social",
       "name": "Ben Werdmuller"
-    },
-    {
-      "service": "bluesky",
-      "handle": "benbraun.social",
-      "name": "Benjamin Braun"
     },
     {
       "service": "bluesky",
@@ -2109,6 +2104,11 @@
     {
       "service": "bluesky",
       "handle": "handle.invalid",
+      "name": "Benjamin Braun"
+    },
+    {
+      "service": "bluesky",
+      "handle": "handle.invalid",
       "name": "Zeve Sanderson"
     },
     {
@@ -3593,6 +3593,11 @@
     },
     {
       "service": "bluesky",
+      "handle": "metafilter.bsky.social",
+      "name": "MetaFilter"
+    },
+    {
+      "service": "bluesky",
       "handle": "metagov.bsky.social",
       "name": "Metagov"
     },
@@ -4084,7 +4089,7 @@
     {
       "service": "bluesky",
       "handle": "observablehq.com",
-      "name": "Observable (@ IEEE VIS)"
+      "name": "Observable"
     },
     {
       "service": "bluesky",
