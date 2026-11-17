@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-16T10:27:17.595Z",
+  "updatedAt": "2026-11-17T10:22:56.749Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -610,6 +610,11 @@
       "service": "mastodon",
       "handle": "ben@werd.social",
       "name": "Ben Werdmuller"
+    },
+    {
+      "service": "bluesky",
+      "handle": "benbraun.social",
+      "name": "Benjamin Braun"
     },
     {
       "service": "bluesky",
@@ -1229,7 +1234,7 @@
     {
       "service": "bluesky",
       "handle": "danhon.com",
-      "name": "Let the Right Hon In"
+      "name": "Dan \"copper line\" Hon"
     },
     {
       "service": "mastodon",
@@ -1345,6 +1350,11 @@
       "service": "mastodon",
       "handle": "dazinism@social.coop",
       "name": "dazinism"
+    },
+    {
+      "service": "mastodon",
+      "handle": "deathmtn@metalhead.club",
+      "name": "Jim"
     },
     {
       "service": "bluesky",
@@ -2100,11 +2110,6 @@
       "service": "mastodon",
       "handle": "hakanto@social.coop",
       "name": "H. H. Hakanto"
-    },
-    {
-      "service": "bluesky",
-      "handle": "handle.invalid",
-      "name": "Benjamin Braun"
     },
     {
       "service": "bluesky",
@@ -4934,7 +4939,7 @@
     {
       "service": "bluesky",
       "handle": "schock.cc",
-      "name": "Sasha INDICTMENTS Costanza-Chock"
+      "name": "Sasha Costanza-Chock"
     },
     {
       "service": "mastodon",
