@@ -8,7 +8,7 @@ import { createGitHubStore } from './github';
 import { updateDocument, readDocument } from './document';
 import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from './public-fetch';
 import { sendWebmention } from './webmention';
-import { syndicate, syndicationKey, type SyndicationConfig } from './syndication';
+import { syndicate, syndicationKey, type SentPart, type SyndicationConfig } from './syndication';
 
 type Service = 'mastodon' | 'bluesky';
 const services = ['mastodon', 'bluesky'] as const;
@@ -97,7 +97,11 @@ function revisionFromHtml(html: string): string | undefined {
  }
  visit(fromHtml(html)); return revision;
 }
-export interface SyndicationReceipt { status: 'sending' | 'sent'; startedAt: number; leaseUntil: number; url?: string; draft?: string }
+export interface SyndicationReceipt { status: 'sending' | 'sent'; startedAt: number; leaseUntil: number; url?: string; draft?: string;
+ /** A reviewed thread, kept like `draft` so a retry sends what was reviewed. */
+ thread?: string[];
+ /** The thread's posts sent so far, so a retry continues instead of starting over. */
+ parts?: SentPart[] }
 export async function syndicationReceiptKey(source: string, service: Service): Promise<string> {
  return `private/syndication/${await hash(`${source}\0${service}`)}.json`;
 }
@@ -111,12 +115,12 @@ export async function readSyndicationReceipt(bucket: R2Bucket, source: string, s
   if (sent?.status === 'sent' && sent.url) return sent;
  }
 }
-export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, service: Service, config: SyndicationConfig, fetcher: PublicFetcher, now: () => number, draft?: string): Promise<string> {
+/** Send once per post and network. `draft` is a reviewed post, or a thread as a list of posts. */
+export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, service: Service, config: SyndicationConfig, fetcher: PublicFetcher, now: () => number, draft?: string | string[]): Promise<string> {
  const identity = await hash(`${event.source}\0${service}`);
  const key = `private/syndication/${identity}.json`;
  const stored = await bucket.get(key);
  const receipt = stored ? await stored.json<SyndicationReceipt>() : undefined;
- const originalDraft = receipt?.draft ?? draft;
  if (receipt?.status === 'sent' && receipt.url) return receipt.url;
  if (!receipt && event.previousSources?.length) {
   // Never send a renamed post again: a receipt under an old address is this post's receipt.
@@ -127,13 +131,24 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
   }
  }
  if (receipt && receipt.leaseUntil > now()) throw new DeliveryError('Syndication is leased', true);
+ // The first reviewed text wins through retries, whether a post or a thread.
+ const offered = Array.isArray(draft) ? (draft.length > 1 ? { thread: draft } : { draft: draft[0] }) : { draft };
+ const original = receipt?.thread?.length ? { thread: receipt.thread } : receipt?.draft !== undefined ? { draft: receipt.draft } : offered;
  // Mastodon keeps idempotency keys for one hour. Never risk a duplicate outside that window.
  const startedAt = receipt?.startedAt ?? now();
  if (service === 'mastodon' && now() - startedAt >= 45 * 60_000) throw new DeliveryError('Mastodon outcome requires manual reconciliation', false);
- const claim = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, draft: originalDraft }), { onlyIf: stored ? { etagMatches: stored.etag } : { etagDoesNotMatch: '*' } });
+ let parts = receipt?.parts ?? [];
+ let claim = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, ...original, ...(parts.length ? { parts } : {}) }), { onlyIf: stored ? { etagMatches: stored.etag } : { etagDoesNotMatch: '*' } });
  if (!claim) throw new DeliveryError('Syndication claim raced', true);
- const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, draft: originalDraft }, config, fetcher);
- const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url, draft: originalDraft }), { onlyIf: { etagMatches: claim.etag } });
+ const progress = { parts, async save(sent: SentPart[]) {
+  parts = sent;
+  // Each saved post also renews the lease, so a long thread is not claimed twice.
+  const saved = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, ...original, parts }), { onlyIf: { etagMatches: claim!.etag } });
+  if (!saved) throw new DeliveryError('Syndication receipt raced', true);
+  claim = saved;
+ } };
+ const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, ...original }, config, fetcher, progress);
+ const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url, ...original, ...(parts.length ? { parts } : {}) }), { onlyIf: { etagMatches: claim.etag } });
  if (!saved) throw new DeliveryError('Syndication receipt raced', true);
  return url;
 }

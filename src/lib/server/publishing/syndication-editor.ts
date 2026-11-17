@@ -6,7 +6,7 @@ import { ProtocolError } from './auth';
 import type { PublishingConfig } from './micropub';
 import { publicationForPost } from './publication';
 import { readSyndicationReceipt, recordSyndicationResults, syndicationOnce } from './delivery';
-import { syndicationKey, syndicationText } from './syndication';
+import { maxThreadPosts, syndicationKey, syndicationText, syndicationThread } from './syndication';
 import { safePublicFetch, type PublicFetcher } from './public-fetch';
 import type { DeliveryEvent, DeliveryProgress } from './outbox';
 
@@ -14,7 +14,11 @@ export type Service = 'bluesky' | 'mastodon';
 const services: Service[] = ['bluesky', 'mastodon'];
 const names = { bluesky: 'Bluesky', mastodon: 'Mastodon' };
 export interface Destination {
- service: Service; name: string; links: string[]; draft: string; limit: number;
+ service: Service; name: string; links: string[]; limit: number;
+ /** The first post's text; `thread` holds every post. */
+ draft: string;
+ /** The posts to send, one or more. A retry shows the thread that was reviewed. */
+ thread: string[];
  available: boolean; pending: boolean;
  /** A send recorded here whose link is not yet saved on the post. */
  unrecorded: boolean;
@@ -61,14 +65,23 @@ export async function editorDestinations(config: PublishingConfig, post: Post): 
   // The receipt keeps the URL as sent; the post may store another form of it (Bluesky DID vs handle).
   const links = recordedLinks({ ...post, syndication: [...saved, ...sent] }, service, config);
   const limit = service === 'bluesky' ? 300 : 500;
+  const thread = receipt?.thread?.length ? receipt.thread : [receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity)];
   return { service, name: names[service], links, unrecorded: links.length > saved.length, available: !!config.state && !!config.syndication?.[service],
-   pending: receipt?.status === 'sending', limit,
-   draft: receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity) };
+   pending: receipt?.status === 'sending', limit, draft: thread[0], thread };
  }));
 }
 
+/** The whole post as plain text with its link, for splitting into a thread on the page. */
+export async function threadSource(config: PublishingConfig, post: Post): Promise<{ text: string; link: string }> {
+ const publication = await publicationForPost(post, config.me);
+ return { text: [publication.title, publication.text].filter(Boolean).join('\n\n').trim(), link: publication.url };
+}
+
+/** A submitted draft as its list of posts; a single string is a one-post thread. */
+const threadOf = (draft: string | string[] | undefined): string[] => draft === undefined ? [] : Array.isArray(draft) ? draft : [draft];
+
 /** Manual sends share automatic delivery's per-source receipts and GitHub writeback. */
-export async function sendEditorDrafts(config: PublishingConfig, post: Post, revision: string, selected: unknown[], drafts: Partial<Record<Service, string>>, dependencies: { publicFetch?: PublicFetcher; gitFetch?: typeof fetch; now?: () => number; syncOnly?: boolean } = {}): Promise<string> {
+export async function sendEditorDrafts(config: PublishingConfig, post: Post, revision: string, selected: unknown[], drafts: Partial<Record<Service, string | string[]>>, dependencies: { publicFetch?: PublicFetcher; gitFetch?: typeof fetch; now?: () => number; syncOnly?: boolean } = {}): Promise<string> {
  assertSyndicatable(post);
  if (!config.state) throw new ProtocolError(503, 'temporarily_unavailable', 'Syndication storage is unavailable.');
  const publication = await publicationForPost(post, config.me);
@@ -80,11 +93,12 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
  for (const target of chosen) {
   if (target.links.length) continue;
   if (!target.available || target.pending) throw new ProtocolError(409, 'invalid_request', `${target.name} is unavailable or a previous send needs review.`);
-  const draft = drafts[target.service];
+  const posts = threadOf(drafts[target.service]);
+  if (posts.length > maxThreadPosts) throw new ProtocolError(422, 'invalid_request', `A ${target.name} thread can have at most ${maxThreadPosts} posts.`);
   try {
-   if (typeof draft !== 'string' || draft.length > 10000) throw new Error();
-   syndicationText({ ...publication, idempotencyKey: 'validate', draft }, target.limit, target.service === 'bluesky' ? 3000 : Infinity, target.service);
-  } catch { throw new ProtocolError(422, 'invalid_request', `The ${target.name} draft must contain 1–${target.limit} characters.`); }
+   if (!posts.length || posts.some(draft => typeof draft !== 'string' || draft.length > 10000)) throw new Error();
+   syndicationThread({ ...publication, idempotencyKey: 'validate', draft: posts[0], thread: posts }, target.service);
+  } catch { throw new ProtocolError(422, 'invalid_request', posts.length > 1 ? `Each ${target.name} post must contain 1–${target.limit} characters.` : `The ${target.name} draft must contain 1–${target.limit} characters.`); }
  }
  const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}) };
  const progress: DeliveryProgress = { webmentions: [], syndication: {}, syndicationStartedAt: {} };
@@ -92,7 +106,7 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
  for (const target of chosen) {
   if (target.links.length) { messages.push(`${target.name} already syndicated.`); continue; }
   try {
-   progress.syndication[target.service] = await syndicationOnce(config.state, event, target.service, config.syndication ?? {}, dependencies.publicFetch ?? safePublicFetch, dependencies.now ?? Date.now, drafts[target.service]);
+   progress.syndication[target.service] = await syndicationOnce(config.state, event, target.service, config.syndication ?? {}, dependencies.publicFetch ?? safePublicFetch, dependencies.now ?? Date.now, threadOf(drafts[target.service]));
    messages.push(`${target.name} sent.`);
   } catch { messages.push(`${target.name}: the send could not be confirmed. Check your social account before retrying.`); }
  }

@@ -184,3 +184,56 @@ test('a renamed post reuses the receipt from its old address instead of posting 
  expect(sends).toBe(0);
  expect(app.rows.has(await syndicationReceiptKey(event.source, 'mastodon'))).toBe(true);
 });
+
+test('a thread is sent as one reply chain on each network, and the first post stands for it', async () => {
+ const app = setup(), publication = await publicationForPost(post, app.config.me);
+ const statuses: URLSearchParams[] = []; const keys: string[] = []; const records: { rkey: string; record: { text: string; reply?: { root: { uri: string; cid: string }; parent: { uri: string; cid: string } } } }[] = [];
+ const publicFetch = async (url: string, init?: RequestInit) => {
+  if (url.endsWith('/api/v1/statuses')) {
+   const body = new URLSearchParams(String(init?.body)); statuses.push(body); keys.push(new Headers(init?.headers).get('Idempotency-Key')!);
+   return Response.json({ id: `m${statuses.length}`, url: `https://social.coop/@caseyg/${statuses.length}` });
+  }
+  if (url.endsWith('createSession')) return Response.json({ did: 'did:plc:test', accessJwt: 'fake', handle: 'caseyagollan.com' });
+  const body = JSON.parse(String(init?.body)); records.push(body);
+  return Response.json({ uri: `at://did:plc:test/app.bsky.feed.post/${body.rkey}`, cid: `cid${records.length}` });
+ };
+ const message = await sendEditorDrafts(app.config, post, publication.revision, ['bluesky', 'mastodon'], { bluesky: ['One', 'Two', 'Three'], mastodon: ['Uno', 'Dos'] }, { publicFetch, gitFetch: app.gitFetch });
+ expect(message).toContain('Bluesky sent'); expect(message).toContain('Mastodon sent');
+ expect(statuses.map(s => [s.get('status'), s.get('in_reply_to_id')])).toEqual([['Uno', null], ['Dos', 'm1']]);
+ expect(new Set(keys).size).toBe(2);
+ expect(records.map(r => r.record.text)).toEqual(['One', 'Two', 'Three']);
+ expect(new Set(records.map(r => r.rkey)).size).toBe(3);
+ expect(records[0].record.reply).toBeUndefined();
+ const root = { uri: `at://did:plc:test/app.bsky.feed.post/${records[0].rkey}`, cid: 'cid1' };
+ expect(records[1].record.reply).toEqual({ root, parent: root });
+ expect(records[2].record.reply).toEqual({ root, parent: { uri: `at://did:plc:test/app.bsky.feed.post/${records[1].rkey}`, cid: 'cid2' } });
+ // Only the first post of each thread is saved on the original post.
+ expect(readDocument(app.content()).properties.syndication).toEqual([`https://bsky.app/profile/caseyagollan.com/post/${records[0].rkey}`, 'https://social.coop/@caseyg/1']);
+});
+
+test('a thread that fails partway continues after its last sent post, with the reviewed text', async () => {
+ const app = setup(), publication = await publicationForPost(post, app.config.me);
+ const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: ['mastodon'], text: 'Original', published: publication.published };
+ const sent: string[] = []; let fail = true;
+ const fetcher = async (_url: string, init?: RequestInit) => {
+  const body = new URLSearchParams(String(init?.body));
+  if (sent.length === 1 && fail) { fail = false; throw Error('timeout'); }
+  sent.push(`${body.get('status')}<${body.get('in_reply_to_id') ?? ''}`);
+  return Response.json({ id: `m${sent.length}`, url: `https://social.coop/@caseyg/${sent.length}` });
+ };
+ await expect(syndicationOnce(app.bucket, event, 'mastodon', app.config.syndication!, fetcher, () => 1, ['A', 'B', 'C'])).rejects.toThrow();
+ const pending = (await editorDestinations(app.config, post)).find(d => d.service === 'mastodon')!;
+ expect(pending.pending).toBe(true); expect(pending.thread).toEqual(['A', 'B', 'C']);
+ const url = await syndicationOnce(app.bucket, event, 'mastodon', app.config.syndication!, fetcher, () => 300002, ['changed']);
+ expect(url).toBe('https://social.coop/@caseyg/1');
+ expect(sent).toEqual(['A<', 'B<m1', 'C<m2']);
+});
+
+test('threads are validated post by post before anything is sent', async () => {
+ const app = setup(), publication = await publicationForPost(post, app.config.me);
+ const dependencies = { publicFetch: async () => { throw Error('must not send'); }, gitFetch: app.gitFetch };
+ await expect(sendEditorDrafts(app.config, post, publication.revision, ['bluesky'], { bluesky: ['fine', ''] }, dependencies)).rejects.toMatchObject({ status: 422 });
+ await expect(sendEditorDrafts(app.config, post, publication.revision, ['bluesky'], { bluesky: ['fine', 'x'.repeat(301)] }, dependencies)).rejects.toMatchObject({ status: 422 });
+ await expect(sendEditorDrafts(app.config, post, publication.revision, ['bluesky'], { bluesky: Array(21).fill('x') }, dependencies)).rejects.toMatchObject({ status: 422 });
+ expect(app.rows.size).toBe(0);
+});

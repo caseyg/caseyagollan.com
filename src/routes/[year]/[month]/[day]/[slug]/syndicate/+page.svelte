@@ -9,7 +9,9 @@
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
 	import SyndicationList from '$lib/components/composer/SyndicationList.svelte';
 	import { Heading, Notice, Page, PageHeader, CheckboxGroup, ToggleChip } from '$lib/components/ui';
+	import ThreadComposer from '$lib/components/composer/ThreadComposer.svelte';
 	import { characterCount, mentionQuery, type SocialService, type FollowedAccount } from '$lib/social-text';
+	import { maxThreadPosts, splitIntoThread } from '$lib/social-thread';
 	import follows from '$lib/data/social-follows.json';
 	import type { PageData, ActionData } from './$types';
 
@@ -26,46 +28,66 @@
 	// Networks still open to send to are chosen in the toolbar, so the list only shows what already happened.
 	const settled = $derived(destinations.filter(d => !ready.includes(d)));
 
-	const initial = untrack(() => form?.drafts ?? Object.fromEntries(destinations.map(d => [d.service, d.draft])));
+	const initial = untrack(() => form?.drafts ?? Object.fromEntries(destinations.map(d => [d.service, d.thread])));
 	// Start with every open network chosen: sending is what this page is for, and Post confirms it.
 	let targets = $state<string[]>(untrack(() => form?.targets ?? ready.map(d => d.service)));
 	let linked = $state(untrack(() => (form && 'linked' in form ? form.linked : true) ?? true));
-	let drafts = $state<Record<string, string>>(untrack(() => ({ ...initial, ...(linked ? { mastodon: initial.bluesky ?? initial.mastodon ?? '' } : {}) })));
+	// Each network's thread, one entry per post. Linked, both start from Bluesky's, the shorter limit.
+	let threads = $state<Record<string, string[]>>(untrack(() => {
+		const own = Object.fromEntries(Object.entries(initial).map(([service, posts]) => [service, posts.length ? [...posts] : ['']]));
+		const first = own.bluesky ?? own.mastodon ?? [''];
+		return linked ? { ...own, bluesky: [...first], mastodon: [...first] } : own;
+	}));
 	const chosen = $derived(ready.filter(d => targets.includes(d.service)));
-	// One shared draft while linked; it starts from Bluesky's, the shorter limit.
+	// One shared thread while linked: the first chosen network's, sent to every chosen network.
 	const shared = $derived(linked && chosen.length > 1);
 	const editors = $derived(shared ? [chosen[0]] : chosen);
+	// Networks a thread goes to: all chosen ones when shared.
+	const reach = (service: SocialService) => shared ? chosen : chosen.filter(d => d.service === service);
+	const limitOf = (service: SocialService) => Math.min(...reach(service).map(d => d.limit));
+	// A shared post counts as the network it is closest to outgrowing would count it.
+	const countFor = (service: SocialService) => (text: string) => Math.max(...reach(service).map(d => characterCount(text, d.service) * limitOf(service) / d.limit));
+	const fitsFor = (service: SocialService) => (text: string) => countFor(service)(text) <= limitOf(service);
 
-	let active = $state<SocialService | null>(null);
+	let active = $state<{ service: SocialService; index: number } | null>(null);
 	let query = $state<ReturnType<typeof mentionQuery>>(null);
 	let field: HTMLTextAreaElement | null = null;
-	const suggestions = $derived(query && active ? (follows.accounts as FollowedAccount[]).filter(a => a.service === active && `${a.handle} ${a.name}`.toLowerCase().includes(query!.query)).slice(0, 8) : []);
-	function set(service: SocialService, value: string) {
-		drafts[service] = value;
-		if (shared) for (const other of chosen) drafts[other.service] = value;
-	}
-	function track(service: SocialService, event: Event) {
+	const suggestions = $derived(query && active ? (follows.accounts as FollowedAccount[]).filter(a => a.service === active!.service && `${a.handle} ${a.name}`.toLowerCase().includes(query!.query)).slice(0, 8) : []);
+	function track(service: SocialService, index: number, event: Event) {
+		if (event instanceof KeyboardEvent && event.key === 'Escape') { query = null; return; }
 		field = event.currentTarget as HTMLTextAreaElement;
-		active = service; query = mentionQuery(field.value, field.selectionStart);
+		active = { service, index }; query = mentionQuery(field.value, field.selectionStart);
 	}
 	function insert(account: FollowedAccount) {
 		if (!query || !active || !field) return;
 		const end = query.start + account.handle.length + 2;
-		set(active, drafts[active].slice(0, query.start) + '@' + account.handle + ' ' + drafts[active].slice(query.end));
+		const posts = threads[active.service], text = posts[active.index];
+		posts[active.index] = text.slice(0, query.start) + '@' + account.handle + ' ' + text.slice(query.end);
 		const target = field;
 		query = null;
 		setTimeout(() => { target.focus(); target.setSelectionRange(end, end); });
 	}
 	function toggleLinked() {
+		// Both ways, every chosen network starts from the thread that was showing.
+		const showing = chosen[0] ? [...threads[chosen[0].service]] : null;
 		linked = !linked;
-		if (linked && chosen[0]) for (const other of chosen) drafts[other.service] = drafts[chosen[0].service];
+		if (showing) for (const other of chosen) threads[other.service] = [...showing];
 	}
-	const counts = $derived(chosen.map(d => ({ ...d, count: characterCount(drafts[d.service] ?? '', d.service) })));
-	// A shared draft shows one count: the network it is closest to outgrowing.
-	// Separate drafts show their counts beside their own labels instead.
-	const shown = $derived(shared ? [counts.reduce((a, b) => b.count / b.limit > a.count / a.limit ? b : a)] : counts.length === 1 ? counts : []);
-	const countOf = (service: string) => counts.find(d => d.service === service);
-	const over = $derived(counts.some(d => d.count > d.limit || !d.count));
+	// Splitting: long posts break where they are; a single post can become the whole text as a thread.
+	const fullText = $derived(data.signedIn ? data.source : { text: '', link: '' });
+	const tooLong = (service: SocialService) => threads[service].some(text => !fitsFor(service)(text));
+	const canThreadAll = (service: SocialService) => threads[service].length === 1 && !!fullText.text && !fitsFor(service)(`${fullText.text}\n\n${fullText.link}`);
+	function split(service: SocialService) {
+		const fits = fitsFor(service);
+		threads[service] = tooLong(service)
+			? threads[service].flatMap(text => fits(text) ? [text] : splitIntoThread(text, fits)).slice(0, maxThreadPosts)
+			: splitIntoThread(fullText.text, fits, fullText.link);
+	}
+	const thread = (service: SocialService) => threads[service] ?? [''];
+	const counts = $derived(editors.map(d => ({ ...d, posts: thread(d.service).length, count: countFor(d.service)(thread(d.service)[0] ?? ''), limit: limitOf(d.service) })));
+	// A single post shows its count in the toolbar; a thread shows each post's count beside it.
+	const shown = $derived(counts.length === 1 && counts[0].posts === 1 ? counts : []);
+	const over = $derived(editors.some(d => thread(d.service).some(text => !text.trim() || !fitsFor(d.service)(text))));
 
 	let sending = $state(false);
 	onMount(() => { if (data.signedIn) rememberOwner(true); });
@@ -105,24 +127,28 @@
 
 			{#if ready.length}
 				{#each chosen as destination (destination.service)}
-					<!-- Every chosen network submits its draft, even while one shared field is shown. -->
-					{#if shared && destination !== chosen[0]}<input type="hidden" name={destination.service} value={drafts[destination.service]} />{/if}
+					<!-- Every chosen network submits its thread, even while one shared thread is shown. -->
+					{#if shared && destination !== chosen[0]}{#each thread(chosen[0].service) as text, index (index)}<input type="hidden" name={destination.service} value={text} />{/each}{/if}
 				{/each}
 				{#each editors as destination (destination.service)}
 					<div class="draft">
-						{#if !shared && chosen.length > 1}{@const own = countOf(destination.service)}<div class="label"><label for="draft-{destination.service}">{destination.name}</label>{#if own}<span class="count" class:over={own.count > own.limit}>{own.count}/{own.limit}</span>{/if}</div>{/if}
-						<textarea id="draft-{destination.service}" class="body" name={destination.service} rows="4"
-							aria-label={shared ? 'Post text' : `${destination.name} post text`}
-							value={drafts[destination.service]}
-							oninput={(event) => { set(destination.service, event.currentTarget.value); track(destination.service, event); }}
-							onclick={(event) => track(destination.service, event)}
-							onkeyup={(event) => { if (event.key === 'Escape') { query = null; return; } track(destination.service, event); }}></textarea>
-						{#if active === destination.service && query}
-							<div class="mentions" role="group" aria-label="Mention suggestions">
-								{#each suggestions as account (account.handle)}<Button variant="quiet" onclick={() => insert(account)}>{account.name} <span class="handle">@{account.handle}</span></Button>{/each}
-								{#if !suggestions.length}<p class="hint">No matching followed accounts. You can type a full handle.</p>{/if}
-							</div>
-						{/if}
+						{#if !shared && chosen.length > 1}<div class="label"><label for="draft-{destination.service}-0">{destination.name}</label></div>{/if}
+						<ThreadComposer bind:posts={threads[destination.service]} name={destination.service} id="draft-{destination.service}"
+							label={shared || chosen.length === 1 ? 'Post text' : `${destination.name} post text`}
+							limit={limitOf(destination.service)} count={countFor(destination.service)} max={maxThreadPosts}
+							counts={!shared && chosen.length > 1 ? true : undefined}
+							onsplit={tooLong(destination.service) || canThreadAll(destination.service) ? () => split(destination.service) : undefined}
+							oninput={(index, event) => track(destination.service, index, event)}
+							ontrack={(index, event) => track(destination.service, index, event)}>
+							{#snippet below(index)}
+								{#if active?.service === destination.service && active.index === index && query}
+									<div class="mentions" role="group" aria-label="Mention suggestions">
+										{#each suggestions as account (account.handle)}<Button variant="quiet" onclick={() => insert(account)}>{account.name} <span class="handle">@{account.handle}</span></Button>{/each}
+										{#if !suggestions.length}<p class="hint">No matching followed accounts. You can type a full handle.</p>{/if}
+									</div>
+								{/if}
+							{/snippet}
+						</ThreadComposer>
 					</div>
 				{:else}
 					<p class="hint">Choose where to post.</p>
@@ -143,7 +169,7 @@
 			{/if}
 		</form>
 		<p class="hint footer">
-			{#if ready.length}Posts share text and a link back; photos stay on the original page. Mentions use each network’s handles.{/if}
+			{#if ready.length}Posts share text and a link back; photos stay on the original page. A thread goes out as replies to its first post, which is the link saved on the post. Mentions use each network’s handles.{/if}
 			Only sends from this site and links saved on the post appear here.
 		</p>
 	{/if}
@@ -157,8 +183,6 @@
 	@media (hover: hover) { .title:hover { text-decoration: underline; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); } }
 	.draft { display: flex; flex-direction: column; gap: var(--space-1); }
 	.label { display: flex; justify-content: space-between; align-items: baseline; color: var(--text-muted); font-size: var(--fs-xs); letter-spacing: var(--tracking-wide); text-transform: uppercase; }
-	.body { box-sizing: border-box; width: 100%; min-height: 6rem; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-lg); line-height: var(--lh-normal); resize: none; outline: none; field-sizing: content; }
-	.body::placeholder { color: var(--text-muted); opacity: 1; }
 	.mentions { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 	.handle { color: var(--text-muted); }
 	.count { min-width: 2.5rem; color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
