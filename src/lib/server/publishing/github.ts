@@ -136,8 +136,14 @@ export function createGitHubStore(config: Config, fetcher: Fetcher = fetch) {
 			}
 			return files;
 		},
-		async write(path: string, content: string, options: { sha?: string; expectedHead?: string; message: string }): Promise<{ sha: string; commit: string }> {
+		/** With `from`, the file moves: the new path is added and the old one deleted in one commit. */
+		async write(path: string, content: string, options: { sha?: string; expectedHead?: string; message: string; from?: string }): Promise<{ sha: string; commit: string }> {
 			validatePath(path);
+			const from = options.from !== undefined && options.from !== path ? options.from : undefined;
+			if (from !== undefined) {
+				validatePath(from);
+				if (options.expectedHead === undefined) throw new Error('Moving a file requires the expected head');
+			}
 			if (!options.message.trim() || (options.sha !== undefined && !options.sha.trim())) throw new Error('Commit message and supplied revision must not be empty');
 			if (options.expectedHead !== undefined) {
 				if (!options.expectedHead.trim()) throw new Error('Expected head must not be empty');
@@ -147,7 +153,7 @@ export function createGitHubStore(config: Config, fetcher: Fetcher = fetch) {
 						variables: { input: {
 							branch: { repositoryNameWithOwner: `${config.owner}/${config.repo}`, branchName: config.branch },
 							expectedHeadOid: options.expectedHead, message: { headline: options.message },
-							fileChanges: { additions: [{ path, contents: encode(content) }] }
+							fileChanges: { additions: [{ path, contents: encode(content) }], ...(from !== undefined ? { deletions: [{ path: from }] } : {}) }
 						} }
 					})
 				}, true);

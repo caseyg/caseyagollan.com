@@ -1,4 +1,5 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, isRedirect, redirect } from '@sveltejs/kit';
+import { renamedPermalink } from '$lib/server/renamed-posts';
 import type { Actions, PageServerLoad } from './$types';
 import { validPostParams } from '$lib/server/github-posts';
 import { publishingConfig } from '$lib/server/publishing/config';
@@ -13,10 +14,13 @@ const postUrl = (params: Params, me: string) => new URL(`/${params.year}/${param
 // Micropub accepts 128 KiB of JSON; form encoding can triple the size of the same text.
 const FORM_LIMIT = 512 * 1024;
 
-export const load: PageServerLoad = async ({ request, params, platform, setHeaders }) => {
+export const load: PageServerLoad = async ({ request, params, platform, setHeaders, url }) => {
 	// Native form POSTs send Origin: null under no-referrer; preserve same-site origins.
 	setHeaders({ 'cache-control': 'no-store', 'content-security-policy': "frame-ancestors 'none'; base-uri 'self'; form-action 'self'", 'referrer-policy': 'same-origin', 'x-robots-tag': 'noindex, nofollow' });
 	if (!validPostParams(params)) error(404, 'Post not found');
+	// An old address of a renamed post opens the editor at its new one.
+	const renamed = await renamedPermalink(params, 'edit/');
+	if (renamed) redirect(308, renamed);
 	const session = await editorSession(request, platform?.env ?? {});
 	if (!session) return { signedIn: false as const };
 	const config = publishingConfig(platform?.env);
@@ -30,7 +34,9 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
 		if (!(cause instanceof ProtocolError)) console.warn(JSON.stringify({ event: 'post_editor_load_failed' }));
 		return { error: cause instanceof ProtocolError ? cause.message : 'The post could not be loaded. Reload to try again.' };
 	});
-	return { signedIn: true as const, csrf: session.csrf, editor };
+	// Set after a save that moved the post here from its old address.
+	const moved = url.searchParams.has('moved');
+	return { signedIn: true as const, csrf: session.csrf, editor, moved };
 };
 
 /** The properties panel posts its rows as JSON: { key: [values] }. Anything else is ignored. */
@@ -76,15 +82,19 @@ export const actions: Actions = {
 			content: values.get('content') ?? '', format: (['text', 'markdown', 'html'].includes(format ?? '') ? format : 'markdown') as ContentFormat,
 			status: values.get('status') === 'draft' ? 'draft' : 'published',
 			properties: frontmatter(values.get('properties')),
-			photoAlts: photoAlts(values.get('photo-alts'))
+			photoAlts: photoAlts(values.get('photo-alts')),
+			slug: values.get('slug') ?? undefined
 		};
 		try {
 			await validateEditorSubmission(request, session, values.get('csrf'));
 			const config = publishingConfig(platform?.env);
 			if (!config) error(503, 'Publishing is unavailable.');
 			const saved = await saveEditorPost(config, postUrl(params, config.me), values.get('revision') ?? '', fields);
+			// A new slug moved the post: continue editing at its new address.
+			if (typeof saved === 'string') redirect(303, `${new URL(saved).pathname}edit/?moved`);
 			return { saved, message: saved ? 'Saved. The public page updates after the site rebuilds, usually within a few minutes.' : 'No changes to save.' };
 		} catch (cause) {
+			if (isRedirect(cause)) throw cause;
 			if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, fields });
 			console.warn(JSON.stringify({ event: 'post_editor_failed' }));
 			return fail(503, { message: 'The post could not be saved. Reload before trying again.', fields });

@@ -21,6 +21,8 @@ export interface EditorFields {
 	properties?: Record<string, string[]>;
 	/** Alt text for each attached photo, in order. Undefined leaves the photos untouched. */
 	photoAlts?: string[];
+	/** The last segment of the post's address. A new slug moves the post; the old address redirects. */
+	slug?: string;
 }
 /** A photo attached in frontmatter, as the editor shows it. */
 export interface EditorPhoto { url: string; alt: string }
@@ -162,13 +164,18 @@ export async function loadEditorSource(config: PublishingConfig, url: string, de
 	};
 }
 
-/** Returns false when the form matches the stored post. Stale forms are rejected. */
-export async function saveEditorPost(config: PublishingConfig, url: string, revision: string, submitted: EditorFields, dependencies: Dependencies = {}): Promise<boolean> {
+/**
+ * Returns false when the form matches the stored post, and the post's new address when
+ * the slug changed. Stale forms are rejected.
+ */
+export async function saveEditorPost(config: PublishingConfig, url: string, revision: string, submitted: EditorFields, dependencies: Dependencies = {}): Promise<boolean | string> {
 	const micropub = ownerMicropub(config, dependencies);
 	const current = await source(micropub, url);
 	if (!revision || revision !== current.revision) throw new ProtocolError(412, 'invalid_request', 'The post changed since you opened it. Reload to edit the latest version.');
 	const operations = editorOperations(current.properties, submitted);
-	if (!Object.keys(operations).length) return false;
-	await micropub('', { method: 'POST', headers: { 'Content-Type': 'application/json', 'If-Match': revision }, body: JSON.stringify({ action: 'update', url, ...operations }) });
-	return true;
+	const slug = submitted.slug?.trim();
+	const moving = !!slug && slug !== decodeURIComponent(new URL(url).pathname.split('/')[4] ?? '');
+	if (!Object.keys(operations).length && !moving) return false;
+	const response = await micropub('', { method: 'POST', headers: { 'Content-Type': 'application/json', 'If-Match': revision }, body: JSON.stringify({ action: 'update', url, ...operations, ...(moving ? { 'mp-slug': [slug] } : {}) }) });
+	return moving ? response.headers.get('Location') ?? true : true;
 }

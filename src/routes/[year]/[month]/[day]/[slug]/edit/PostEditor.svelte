@@ -16,8 +16,11 @@
 		form?: { message?: string; saved?: boolean; fields?: EditorFields } | null;
 		/** The post's own address, such as /2026/11/14/slug/. */
 		base: string;
+		/** Set when the last save moved the post here from another slug. */
+		moved?: boolean;
 	}
-	let { editor, csrf, form, base }: Props = $props();
+	let { editor, csrf, form, base, moved = false }: Props = $props();
+	const savedSlug = $derived(decodeURIComponent(base.split('/')[4] ?? ''));
 
 	// Content folders, named and drawn as in the composer's post-type menu.
 	const KINDS: Record<string, [string, IconName]> = {
@@ -37,6 +40,7 @@
 	let properties = $state<Record<string, string[]>>(untrack(() => structuredClone(initial.properties ?? {})));
 	// Photos are shown as on the post; only their alt text is edited here.
 	let photos = $state(untrack(() => editor.photos.map((photo, index) => ({ ...photo, alt: initial.photoAlts?.[index] ?? photo.alt }))));
+	let slug = $state(untrack(() => initial.slug ?? decodeURIComponent(base.split('/')[4] ?? '')));
 	let showOptions = $state(untrack(() => initial.format !== 'markdown'));
 	// The textarea stays the form field; the rich editor is a view over it, loaded in the browser only.
 	let Editor = $state<typeof import('$lib/components/MarkdownEditor.svelte').default>();
@@ -65,14 +69,15 @@
 		<Button variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
 	{/snippet}
 </ComposerBar>
-{#if form?.message}<Notice tone={form.saved ? 'info' : 'error'}>{form.message}</Notice>{/if}
+{#if form?.message}<Notice tone={form.saved ? 'info' : 'error'}>{form.message}</Notice>
+{:else if moved}<Notice tone="info">Saved at this new address. The old one redirects here once the site rebuilds, usually within a few minutes.</Notice>{/if}
 <form id="editor" class="composer" method="POST" onsubmit={() => { saving = true; }}>
 	<input type="hidden" name="csrf" value={csrf} />
 	<input type="hidden" name="revision" value={editor.revision} />
 	{#if !reaction}
 		<input class="title" class:small={!name && kindLabel !== 'article'} name="name" bind:value={name} placeholder={kindLabel === 'article' ? 'Title' : 'Title (optional)'} aria-label="Title" autocomplete="off" />
 	{/if}
-	<FrontmatterProperties bind:properties bind:status readOnly={editor.readOnly} published={editor.published} updated={editor.updated} />
+	<FrontmatterProperties bind:properties bind:status bind:slug {savedSlug} address={base.slice(0, base.lastIndexOf('/', base.length - 2) + 1)} suggestedSlug={name} readOnly={editor.readOnly} published={editor.published} updated={editor.updated} />
 	<AttachedPhotos bind:photos />
 	{#if rich && Editor}
 		<div class="rich"><Editor bind:value={content} label="Content" bare /></div>
@@ -93,7 +98,7 @@
 	</ComposerToolbar>
 </form>
 <p class="hint footer">
-	The date and address of a post stay fixed.
+	The date of a post stays fixed; a new slug keeps the old address as a redirect.
 	Drafts leave the public site, but their source stays visible in the content repository{#if editor.github}, where you can <a href={editor.github} target="_blank" rel="noopener noreferrer">edit the file directly</a>{/if}.
 </p>
 
