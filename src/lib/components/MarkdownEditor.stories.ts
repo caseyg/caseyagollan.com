@@ -18,3 +18,15 @@ export const WithImage: Story = {
 		value: 'A paragraph before the image.\n\n![Casey in front of an ice cream cone sculpture](/author-avatar.webp)\n\nA paragraph after it.'
 	}
 };
+/** A quote of several paragraphs, with a heading, a rule and a list inside, shows as one quote. Enter on its empty last line leaves it; Backspace at its start unquotes the first line. */
+export const WithLongQuote: Story = {
+	args: {
+		value: "Here's the \"Not AI\" system prompt I got back:\n\n> Based on the Wikipedia page about AI writing patterns, here's a system prompt:\n>\n> ---\n>\n> ## Writing Style Instructions\n>\n> **Be specific, not symbolic.** State facts directly without inflating their importance.\n>\n> - Promotional language (breathtaking, must-see, nestled)\n> - Em dashes where commas or parentheses would work better\n\nI mean, it's not _wrong_. But it is melodramatic!"
+	}
+};
+/** Italics that run across a link are written back as one run, `*The [shelves](…), by year.*`. */
+export const WithItalicLinks: Story = {
+	args: {
+		value: '*The [recently acquired shelves](https://caseyagollan.com/library?view=shelves), with books grouped by year.*'
+	}
+};
