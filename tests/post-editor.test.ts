@@ -164,6 +164,27 @@ describe('on-site post editor', () => {
 		}
 	});
 
+	test('attached photos load with their alt text and save new alt text in place', async () => {
+		const photoPost = '---\n_micropubContentFormat: markdown\nphoto:\n  - url: https://files.example/a.jpg\n    alt: ""\n  - https://files.example/b.jpg\ndate: 2026-11-06T20:00:00-05:00\n---\nWow\n';
+		const app = setup('photos/2026-11-06-post.md', photoPost);
+		const source = await loadEditorSource(config, url, app.dependencies);
+		expect(source.photos).toEqual([{ url: 'https://files.example/a.jpg', alt: '' }, { url: 'https://files.example/b.jpg', alt: '' }]);
+		expect(source.readOnly.map(row => row.key)).not.toContain('photo');
+		expect(await saveEditorPost(config, url, source.revision, { ...source.fields, photoAlts: ['', ''] }, app.dependencies)).toBe(false);
+		expect(await saveEditorPost(config, url, source.revision, { ...source.fields, photoAlts: ['A  stamp\non a postcard ', 'The back'] }, app.dependencies)).toBe(true);
+		const saved = app.read();
+		expect(saved).toContain('photo:\n  - url: https://files.example/a.jpg\n    alt: A stamp on a postcard\n  - url: https://files.example/b.jpg\n    alt: The back\n');
+		expect(saved.endsWith('---\nWow\n')).toBe(true);
+	});
+
+	test('photo alt text must match the photos the form was opened with', () => {
+		const properties = { content: ['Body'], photo: [{ value: 'https://a.example/p.jpg', alt: 'Old' }] };
+		const fields = { content: 'Body', format: 'text' as const, status: 'published' as const };
+		expect(editorOperations(properties, { ...fields, photoAlts: ['New'] })).toEqual({ replace: { photo: [{ value: 'https://a.example/p.jpg', alt: 'New' }] } });
+		expect(editorOperations(properties, { ...fields, photoAlts: ['Old'] })).toEqual({});
+		expect(() => editorOperations(properties, { ...fields, photoAlts: ['One', 'Two'] })).toThrow();
+	});
+
 	test('HTML posts open as Markdown and are stored as Markdown when saved', async () => {
 		const app = setup('notes/2026-11-06-post.md', '---\n_micropubContentFormat: html\ndate: 2026-11-06T20:00:00-05:00\n---\n<p>Hi <a href="https://bsky.app/profile/did:plc:abc">@a.bsky.social</a> &quot;quoted&quot;</p>');
 		const source = await loadEditorSource(config, url, app.dependencies);

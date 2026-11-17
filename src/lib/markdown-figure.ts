@@ -79,3 +79,23 @@ export function sanitizeCaption(root: Node): string {
 	walk(root);
 	return out.join('').replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * A Markdown image on a line of its own, `![alt](src)`, shown in the rich editor
+ * with its alt text editable. Titles and other forms stay literal text.
+ */
+const IMAGE = /^!\[((?:[^\]\\\n]|\\.)*)\]\(([^()\s<>]+)\)$/;
+
+/** Whether a Markdown line is one image and nothing else. */
+export const isImageLine = (line: string) => IMAGE.test(line.trim());
+
+export function parseImage(markdown: string): Figure | null {
+	const match = markdown.trim().match(IMAGE);
+	if (!match) return null;
+	return { src: match[2], alt: match[1].replace(/\\([\\[\]])/g, '$1'), caption: '', align: 'full' };
+}
+
+export function serializeImage(figure: Pick<Figure, 'src' | 'alt'>): string {
+	const alt = figure.alt.replace(/\s+/g, ' ').trim().replace(/[\\[\]]/g, '\\$&');
+	return `![${alt}](${figure.src})`;
+}

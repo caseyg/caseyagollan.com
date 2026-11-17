@@ -5,6 +5,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
 	import FrontmatterProperties from '$lib/components/editor/FrontmatterProperties.svelte';
+	import AttachedPhotos from '$lib/components/editor/AttachedPhotos.svelte';
 	import { Notice } from '$lib/components/ui';
 	import type { EditorFields, EditorSource } from '$lib/server/publishing/post-editor';
 
@@ -37,6 +38,8 @@
 	let format = $state(untrack(() => initial.format));
 	let status = $state<'published' | 'draft'>(untrack(() => initial.status));
 	let properties = $state<Record<string, string[]>>(untrack(() => structuredClone(initial.properties ?? {})));
+	// Photos are shown as on the post; only their alt text is edited here.
+	let photos = $state(untrack(() => editor.photos.map((photo, index) => ({ ...photo, alt: initial.photoAlts?.[index] ?? photo.alt }))));
 	let slug = $state(untrack(() => initial.slug ?? decodeURIComponent(base.split('/')[4] ?? '')));
 	let showOptions = $state(untrack(() => initial.format !== 'markdown'));
 	// The textarea stays the form field; the rich editor is a view over it, loaded in the browser only.
@@ -75,6 +78,7 @@
 		<input class="title" class:small={!name && kindLabel !== 'article'} name="name" bind:value={name} placeholder={kindLabel === 'article' ? 'Title' : 'Title (optional)'} aria-label="Title" autocomplete="off" />
 	{/if}
 	<FrontmatterProperties bind:properties bind:status bind:slug {savedSlug} address={base.slice(0, base.lastIndexOf('/', base.length - 2) + 1)} suggestedSlug={name} readOnly={editor.readOnly} published={editor.published} updated={editor.updated} />
+	<AttachedPhotos bind:photos />
 	{#if rich && Editor}
 		<div class="rich"><Editor bind:value={content} label="Content" bare /></div>
 	{/if}
@@ -95,7 +99,6 @@
 </form>
 <p class="hint footer">
 	The date of a post stays fixed; a new slug keeps the old address as a redirect.
-	{#if editor.photos}{editor.photos} attached {editor.photos === 1 ? 'photo stays' : 'photos stay'} as {editor.photos === 1 ? 'it is' : 'they are'}.{/if}
 	Drafts leave the public site, but their source stays visible in the content repository{#if editor.github}, where you can <a href={editor.github} target="_blank" rel="noopener noreferrer">edit the file directly</a>{/if}.
 </p>
 

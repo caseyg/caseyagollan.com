@@ -13,6 +13,8 @@
 	let right = $state<Figure>({ src: image, alt: "Casey's avatar", caption: 'A right-aligned figure sits beside the text and stacks on phones.', align: 'right' });
 	let selected = $state<Figure>({ src: image, alt: "Casey's avatar", caption: 'The <a href="/library/">recently acquired shelves</a>.', align: 'narrow' });
 	let full = $state<Figure>({ src: image, alt: '', caption: '', align: 'full' });
+	let markdownImage = $state<Figure>({ src: image, alt: "Casey's avatar", caption: '', align: 'full' });
+	let photo = $state<Figure>({ src: image, alt: '', caption: '', align: 'full' });
 	const update = (figure: Figure, changes: Partial<Figure>) => Object.assign(figure, changes);
 </script>
 
@@ -31,4 +33,12 @@
 
 <Story asChild name="Full width without a caption">
 	<Prose><p>&nbsp;</p><EditableFigure figure={full} selected onchange={changes => update(full, changes)} />{@render text()}</Prose>
+</Story>
+
+<Story asChild name="Markdown image, selected">
+	<Prose><p>&nbsp;</p><EditableFigure variant="image" figure={markdownImage} selected onchange={changes => update(markdownImage, changes)} /><p>A Markdown image on its own line has alt text but no caption or placement.</p></Prose>
+</Story>
+
+<Story asChild name="Attached photo">
+	<Prose><EditableFigure variant="photo" figure={photo} onchange={changes => update(photo, changes)} /><p>An attached photo shows its alt text beneath it, as the post does. Click beneath the photo to write it.</p></Prose>
 </Story>

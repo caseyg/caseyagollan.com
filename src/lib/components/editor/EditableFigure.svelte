@@ -4,6 +4,12 @@
 
 	interface Props {
 		figure: Figure;
+		/**
+		 * `figure` is a captioned figure block with a placement. `image` is a Markdown
+		 * image: alt text only, no caption. `photo` is a photo attached to the post,
+		 * whose alt text shows beneath it as it does on the post, and is edited there.
+		 */
+		variant?: 'figure' | 'image' | 'photo';
 		/** Shows the figure's controls: placement, alt text and remove. */
 		selected?: boolean;
 		/** Called with the fields that changed. */
@@ -13,7 +19,7 @@
 		onselect?: () => void;
 	}
 
-	let { figure, selected = false, onchange, onremove, onselect }: Props = $props();
+	let { figure, variant = 'figure', selected = false, onchange, onremove, onselect }: Props = $props();
 
 	let editingAlt = $state(false);
 	let caption: HTMLElement | undefined = $state();
@@ -25,16 +31,23 @@
 	];
 	const segments = placements.map(({ align, label, title }) => ({ label, title, value: align }));
 
-	// The caption is edited in place. Write its HTML only when it changed from outside,
+	const photo = $derived(variant === 'photo');
+	// A photo's alt text is plain text; a figure's caption is HTML.
+	const read = (element: HTMLElement) => (photo ? (element.textContent ?? '').replace(/\s+/g, ' ') : sanitizeCaption(element));
+	const stored = $derived(photo ? figure.alt : figure.caption);
+
+	// The caption is edited in place. Write it only when it changed from outside,
 	// so typing never resets the cursor.
 	$effect(() => {
-		if (caption && sanitizeCaption(caption) !== figure.caption) caption.innerHTML = figure.caption;
+		if (!caption || read(caption).trim() === stored.trim()) return;
+		if (photo) caption.textContent = stored;
+		else caption.innerHTML = stored;
 	});
 
 	function captionInput() {
 		if (!caption) return;
-		const next = sanitizeCaption(caption);
-		if (next !== figure.caption) onchange?.({ caption: next });
+		const next = read(caption);
+		if (next !== stored) onchange?.(photo ? { alt: next } : { caption: next });
 	}
 
 	function captionKeydown(event: KeyboardEvent) {
@@ -53,31 +66,38 @@
 	}
 </script>
 
-<figure class="editable-figure" class:align-right={figure.align !== 'full'} class:narrow={figure.align === 'narrow'} class:selected>
-	{#if selected}
-		<div class="controls" role="toolbar" aria-label="Figure">
-			<SegmentedPill size="sm" label="Placement" {segments} value={figure.align} onValueChange={(align) => onchange?.({ align: align as FigureAlign })} />
+<figure class="editable-figure {variant}" class:align-right={variant === 'figure' && figure.align !== 'full'} class:narrow={variant === 'figure' && figure.align === 'narrow'} class:selected>
+	{#if selected && !photo}
+		<div class="controls" role="toolbar" aria-label={variant === 'image' ? 'Image' : 'Figure'}>
+			{#if variant === 'figure'}<SegmentedPill size="sm" label="Placement" {segments} value={figure.align} onValueChange={(align) => onchange?.({ align: align as FigureAlign })} />{/if}
 			<Button size="sm" variant="quiet" aria-pressed={editingAlt} onclick={() => (editingAlt = !editingAlt)}>Alt text</Button>
 			<Button size="sm" variant="quiet" onclick={() => onremove?.()}>Remove</Button>
 		</div>
 	{/if}
-	<button type="button" class="image" aria-label="Select figure" onclick={() => onselect?.()}>
-		<img src={figure.src} alt={figure.alt} />
-	</button>
-	{#if selected && editingAlt}
+	{#if photo}
+		<img class="photo-image" src={figure.src} alt={figure.alt} />
+	{:else}
+		<button type="button" class="image" aria-label={variant === 'image' ? 'Select image' : 'Select figure'} onclick={() => onselect?.()}>
+			<img src={figure.src} alt={figure.alt} />
+		</button>
+	{/if}
+	{#if selected && editingAlt && !photo}
 		<div class="alt">
 			<TextField label="Alt text" multiline rows={3} value={figure.alt} oninput={(event: Event) => onchange?.({ alt: (event.currentTarget as HTMLTextAreaElement).value })} onkeydown={(event: KeyboardEvent) => event.stopPropagation()} />
 		</div>
 	{/if}
-	<figcaption
-		bind:this={caption}
-		contenteditable="true"
-		aria-label="Caption"
-		data-placeholder="Add a caption"
-		oninput={captionInput}
-		onkeydown={captionKeydown}
-		onpaste={captionPaste}
-	></figcaption>
+	{#if variant !== 'image'}
+		<figcaption
+			bind:this={caption}
+			contenteditable={photo ? 'plaintext-only' : 'true'}
+			role={photo ? 'textbox' : undefined}
+			aria-label={photo ? 'Alt text' : 'Caption'}
+			data-placeholder={photo ? 'Add alt text' : 'Add a caption'}
+			oninput={captionInput}
+			onkeydown={captionKeydown}
+			onpaste={captionPaste}
+		></figcaption>
+	{/if}
 </figure>
 
 <style>
@@ -99,8 +119,34 @@
 		cursor: pointer;
 	}
 
-	.image img {
+	.image img,
+	.photo-image {
 		max-width: 100%;
+	}
+
+	/* Attached photos sit as they do on the post, with their alt text beneath. */
+	.photo-image {
+		display: block;
+		height: auto;
+		border-radius: var(--radius-sm);
+	}
+
+	.photo figcaption {
+		margin-top: var(--space-2);
+		padding: var(--space-1) 0;
+		border-bottom: 1px solid transparent;
+		color: var(--text-muted);
+		font-size: var(--fs-sm);
+		line-height: var(--lh-snug);
+	}
+
+	.photo figcaption:hover {
+		border-bottom-color: var(--border);
+	}
+
+	.photo figcaption:focus {
+		border-bottom-color: var(--border-strong);
+		color: var(--text-primary);
 	}
 
 	.editable-figure.selected .image img {
@@ -141,11 +187,11 @@
 		color: var(--text-muted);
 	}
 
-	.editable-figure:not(.selected) figcaption:empty:not(:focus) {
+	.editable-figure.figure:not(.selected) figcaption:empty:not(:focus) {
 		display: none;
 	}
 
-	figcaption:focus-visible {
+	.figure figcaption:focus-visible {
 		box-shadow: 0 1px 0 var(--border-strong);
 	}
 </style>

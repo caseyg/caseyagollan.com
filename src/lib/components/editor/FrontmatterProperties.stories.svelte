@@ -22,7 +22,7 @@
 
 <Story asChild name="Imported note">
 	<FrontmatterProperties bind:properties={note} bind:status published="2026-11-14T15:24:13-05:00"
-		readOnly={[{ key: 'photo', values: [{ value: 'https://files.caseyagollan.com/example.jpg', alt: 'A photo' }] }, { key: 'draft', values: [false] }]} />
+		readOnly={[{ key: 'location', values: [{ type: ['h-geo'], properties: { latitude: ['40.7'], longitude: ['-74'] } }] }, { key: 'draft', values: [false] }]} />
 </Story>
 
 <Story asChild name="Reply">

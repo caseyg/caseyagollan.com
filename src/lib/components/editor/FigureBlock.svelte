@@ -5,10 +5,10 @@
 	import { getEditor } from 'svelte-lexical';
 	import type { Figure } from '$lib/markdown-figure';
 	import EditableFigure from './EditableFigure.svelte';
-	import { $isFigureNode as isFigureNode } from './figure-node';
+	import { $isFigureNode as isFigureNode, type FigureKind } from './figure-node';
 
 	/** The rich editor's view of a FigureNode: edits go back to the node, and from there to Markdown. */
-	let { nodeKey, figure }: { nodeKey: NodeKey; figure: Figure } = $props();
+	let { nodeKey, figure, kind = 'figure' }: { nodeKey: NodeKey; figure: Figure; kind?: FigureKind } = $props();
 
 	const editor = getEditor();
 	let selected = $state(false);
@@ -62,4 +62,4 @@
 	});
 </script>
 
-<EditableFigure {figure} {selected} onremove={remove} onchange={changes => withNode(node => node.setFigure(changes))} />
+<EditableFigure {figure} variant={kind} {selected} onremove={remove} onchange={changes => withNode(node => node.setFigure(changes))} />

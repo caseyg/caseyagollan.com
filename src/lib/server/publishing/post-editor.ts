@@ -8,7 +8,7 @@ export type ContentFormat = 'text' | 'markdown' | 'html';
 /** Reference URLs that define a post's type, labelled as in Quill. */
 export const URL_FIELDS = [['in-reply-to', 'Reply To'], ['bookmark-of', 'Bookmark URL'], ['like-of', 'Like of'], ['repost-of', 'Repost of']] as const;
 /** Properties with their own controls in the editor, never shown as frontmatter rows. */
-const OWN_CONTROLS = new Set(['content', 'p3k-content-type', 'name', 'post-status', 'published', 'updated']);
+const OWN_CONTROLS = new Set(['content', 'photo', 'p3k-content-type', 'name', 'post-status', 'published', 'updated']);
 /** Properties the Micropub endpoint keeps to itself. They are shown but cannot be edited. */
 const LOCKED = new Set(['draft', 'deleted', 'syndicationTargets', 'url', 'visibility', 'mp-channel']);
 const PROPERTY_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
@@ -19,13 +19,19 @@ export interface EditorFields {
 	status: 'published' | 'draft';
 	/** Frontmatter properties whose values are plain text. Undefined leaves them all untouched. */
 	properties?: Record<string, string[]>;
+	/** Alt text for each attached photo, in order. Undefined leaves the photos untouched. */
+	photoAlts?: string[];
 	/** The last segment of the post's address. A new slug moves the post; the old address redirects. */
 	slug?: string;
 }
+/** A photo attached in frontmatter, as the editor shows it. */
+export interface EditorPhoto { url: string; alt: string }
 /** A frontmatter property shown but not editable here, such as photos or bookkeeping. */
 export interface ReadOnlyProperty { key: string; values: Json[] }
 export interface EditorSource {
-	revision: string; published: string; updated?: string; photos: number;
+	revision: string; published: string; updated?: string;
+	/** Photos attached in frontmatter, edited for their alt text only. */
+	photos: EditorPhoto[];
 	/** The post's file in the content repository. */
 	path?: string;
 	fields: EditorFields; readOnly: ReadOnlyProperty[];
@@ -40,6 +46,28 @@ const tags = (values: string[]) => [...new Set(values.flatMap(value => value.spl
 const textValues = (values: Json[] | undefined): values is string[] => !!values?.length && values.every(value => typeof value === 'string');
 const editable = (key: string, values: Json[] | undefined) => !OWN_CONTROLS.has(key) && !LOCKED.has(key) && !key.startsWith('mp-') && textValues(values);
 const clean = (key: string, values: string[]) => key === 'category' ? tags(values) : values.map(value => lines(value).trim()).filter(Boolean);
+const record = (value: Json): value is { [key: string]: Json } => !!value && typeof value === 'object' && !Array.isArray(value);
+/** Alt text is one line of plain text. */
+const altText = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+/** Frontmatter photos are URLs, or objects with a url (or Micropub value) and alt text. */
+export function editorPhotos(properties: Properties): EditorPhoto[] {
+	return (properties.photo ?? []).map(photo => {
+		if (typeof photo === 'string') return { url: photo, alt: '' };
+		const url = record(photo) ? photo.url ?? photo.value : undefined;
+		const alt = record(photo) ? photo.alt : undefined;
+		return { url: typeof url === 'string' ? url : '', alt: typeof alt === 'string' ? alt : '' };
+	});
+}
+
+/** The stored photos with new alt text, keeping each photo's own shape and fields. */
+function photosWithAlts(photos: Json[], alts: string[]): Json[] {
+	return photos.map((photo, index): Json => {
+		const alt = altText(alts[index] ?? '');
+		if (typeof photo === 'string') return alt ? { url: photo, alt } : photo;
+		return record(photo) ? { ...photo, alt } : photo;
+	});
+}
 
 /**
  * Send one Micropub request as the signed-in owner. The session stands in for a
@@ -105,6 +133,12 @@ export function editorOperations(properties: Properties, submitted: EditorFields
 		if (content.trim() && submitted.format === 'markdown') replace['p3k-content-type'] = ['text/markdown'];
 		else if (properties['p3k-content-type']) remove.push('p3k-content-type');
 	}
+	if (submitted.photoAlts) {
+		const photos = properties.photo ?? [];
+		if (submitted.photoAlts.length !== photos.length || submitted.photoAlts.some(alt => typeof alt !== 'string')) throw new ProtocolError(422, 'invalid_request', 'The photos changed since you opened the post. Reload to edit the latest version.');
+		const before = editorPhotos(properties).map(photo => photo.alt);
+		if (submitted.photoAlts.some((alt, index) => altText(alt) !== before[index])) replace.photo = photosWithAlts(photos, submitted.photoAlts);
+	}
 	if (submitted.status !== current.status) replace['post-status'] = [submitted.status];
 	return { ...(Object.keys(replace).length ? { replace } : {}), ...(remove.length ? { delete: remove } : {}) };
 }
@@ -124,7 +158,7 @@ export async function loadEditorSource(config: PublishingConfig, url: string, de
 	const markdown = fields.format === 'html' ? htmlToMarkdown(fields.content) : undefined;
 	const converted = markdown !== undefined && sameRendering(fields.content, markdown) === true;
 	return {
-		revision, published: single(properties.published) ?? '', updated: single(properties.updated), photos: properties.photo?.length ?? 0, path,
+		revision, published: single(properties.published) ?? '', updated: single(properties.updated), photos: editorPhotos(properties), path,
 		fields: converted ? { ...fields, content: markdown, format: 'markdown' } : fields,
 		readOnly: readOnlyProperties(properties), ...(converted ? { convertedFromHtml: true } : {})
 	};
