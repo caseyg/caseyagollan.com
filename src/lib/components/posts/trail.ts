@@ -1,5 +1,7 @@
 import { page } from '$app/state';
 import type { MenuOption, Segment } from '$lib/components/ui';
+import type { Facets } from '$lib/posts-filter';
+import { postsMenuFor } from './posts-menu.svelte';
 
 /** The first segment of every trail in the posts section; its emoji matches the corner navigation. */
 export const POSTS_CRUMB: Segment = { label: 'Posts', href: '/posts/', icon: '📡' };
@@ -13,6 +15,7 @@ export const TAGS_CRUMB: Segment = { label: 'Tags', href: '/tags/', icon: '🏷�
  * filters are in effect when the trail does not already.
  */
 export function postsCrumb(active?: string, badge?: string): Segment {
-	const menu = page.data.postsMenu as MenuOption[] | undefined;
+	// The filtered feed builds its own menu; prerendered pages name their selection and the menu loads after.
+	const menu = (page.data.postsMenu as MenuOption[] | undefined) ?? postsMenuFor(page.data.postsMenuSelection as Partial<Facets> | undefined);
 	return menu?.length ? { ...POSTS_CRUMB, menu, menuActive: active ?? '', menuBadge: badge } : POSTS_CRUMB;
 }

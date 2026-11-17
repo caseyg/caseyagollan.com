@@ -1,4 +1,4 @@
-import { getPostsMenu } from '$lib/server/posts-menu';
+import type { Facets } from '$lib/posts-filter';
 import type { PageServerLoad } from './$types';
 import { getAllPosts, getPostsByDay } from '$lib/posts';
 import { error } from '@sveltejs/kit';
@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	);
 
 	return {
-		postsMenu: await getPostsMenu({ years: [year] }),
+		postsMenuSelection: { years: [year] } as Partial<Facets>,
 		year,
 		postsByDay: postsByDayArray,
 		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)

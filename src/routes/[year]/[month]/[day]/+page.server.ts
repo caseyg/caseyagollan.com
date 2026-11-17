@@ -1,4 +1,4 @@
-import { getPostsMenu } from '$lib/server/posts-menu';
+import type { Facets } from '$lib/posts-filter';
 import type { PageServerLoad } from './$types';
 import { getAllPosts, rollupIndexPosts } from '$lib/posts';
 import { error } from '@sveltejs/kit';
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	}
 
 	return {
-		postsMenu: await getPostsMenu({ years: [params.year] }),
+		postsMenuSelection: { years: [params.year] } as Partial<Facets>,
 		year,
 		month,
 		day,
