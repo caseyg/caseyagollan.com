@@ -3,6 +3,8 @@ import type { Json, Properties } from './document';
 import { createMicropubHandler, type PublishingConfig } from './micropub';
 import { htmlToMarkdown } from '../../utils/htmlToMarkdown';
 import { sameRendering } from '../../utils/sameRendering';
+import { altText, editorPhotos, photosWithAlts } from './photo-properties';
+export { editorPhotos } from './photo-properties';
 
 export type ContentFormat = 'text' | 'markdown' | 'html';
 /** Reference URLs that define a post's type, labelled as in Quill. */
@@ -24,8 +26,8 @@ export interface EditorFields {
 	/** The last segment of the post's address. A new slug moves the post; the old address redirects. */
 	slug?: string;
 }
-/** A photo attached in frontmatter, as the editor shows it. */
-export interface EditorPhoto { url: string; alt: string }
+export type { EditorPhoto } from './photo-properties';
+import type { EditorPhoto } from './photo-properties';
 /** A frontmatter property shown but not editable here, such as photos or bookkeeping. */
 export interface ReadOnlyProperty { key: string; values: Json[] }
 export interface EditorSource {
@@ -46,29 +48,6 @@ const tags = (values: string[]) => [...new Set(values.flatMap(value => value.spl
 const textValues = (values: Json[] | undefined): values is string[] => !!values?.length && values.every(value => typeof value === 'string');
 const editable = (key: string, values: Json[] | undefined) => !OWN_CONTROLS.has(key) && !LOCKED.has(key) && !key.startsWith('mp-') && textValues(values);
 const clean = (key: string, values: string[]) => key === 'category' ? tags(values) : values.map(value => lines(value).trim()).filter(Boolean);
-const record = (value: Json): value is { [key: string]: Json } => !!value && typeof value === 'object' && !Array.isArray(value);
-/** Alt text is one line of plain text. */
-const altText = (value: string) => value.replace(/\s+/g, ' ').trim();
-
-/** Frontmatter photos are URLs, or objects with a url (or Micropub value) and alt text. */
-export function editorPhotos(properties: Properties): EditorPhoto[] {
-	return (properties.photo ?? []).map(photo => {
-		if (typeof photo === 'string') return { url: photo, alt: '' };
-		const url = record(photo) ? photo.url ?? photo.value : undefined;
-		const alt = record(photo) ? photo.alt : undefined;
-		return { url: typeof url === 'string' ? url : '', alt: typeof alt === 'string' ? alt : '' };
-	});
-}
-
-/** The stored photos with new alt text, keeping each photo's own shape and fields. */
-function photosWithAlts(photos: Json[], alts: string[]): Json[] {
-	return photos.map((photo, index): Json => {
-		const alt = altText(alts[index] ?? '');
-		if (typeof photo === 'string') return alt ? { url: photo, alt } : photo;
-		return record(photo) ? { ...photo, alt } : photo;
-	});
-}
-
 /**
  * Send one Micropub request as the signed-in owner. The session stands in for a
  * client token: a credential minted for this call is accepted by this handler only.

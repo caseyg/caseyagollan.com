@@ -46,6 +46,11 @@
 		"enabled": true
 	},
 	/**
+	 * Cloudflare Images shrinks photos too large for a social network (Bluesky takes
+	 * 1 MB per image) when a post is syndicated.
+	 */
+	"images": { "binding": "IMAGES" },
+	/**
 	 * Enable preview URLs for branch deployments
 	 */
 	"preview_urls": true,
