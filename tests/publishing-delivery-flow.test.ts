@@ -98,3 +98,16 @@ test('manifest recovery reuses the durable Micropub transition instead of sendin
  const canonical=[...files.entries()].filter(([key])=>key.startsWith('private/outbox/'));
  expect(canonical).toHaveLength(1);expect(JSON.parse(canonical[0][1].data).event.generation).toBe('git-commit-1');
 });
+
+test('a renamed post is the same publication: no removal of the old address and no second social post',async()=>{
+ const {bucket,files}=setup();
+ const before=await publicationForPost(parsePost(markdown,'notes','2026-11-06-note.md'),'https://example.com');before.targets=event.targets;
+ await reconcilePublications(bucket,[before],0);
+ const renamed='---\ndate: 2026-11-06T12:00:00-05:00\n_micropubPreviousUrls:\n  - /2026/11/06/note/\n---\nHello';
+ const after=await publicationForPost(parsePost(renamed,'notes','2026-11-06-better.md'),'https://example.com');after.targets=event.targets;
+ expect(after.previousUrls).toEqual(['https://example.com/2026/11/06/note/']);
+ await reconcilePublications(bucket,[after],1);
+ const jobs=await Promise.all([...files.keys()].filter(k=>k.startsWith('private/outbox/')).map(async key=>JSON.parse(files.get(key)!.data) as OutboxJob));
+ expect(jobs.map(job=>[job.event.action,job.event.source])).toEqual([['publish','https://example.com/2026/11/06/better/']]);
+ expect(jobs[0].event.previousSources).toEqual(['https://example.com/2026/11/06/note/']);
+});

@@ -29,7 +29,7 @@ const splitPath = (path: string) => { const index = path.indexOf('/'); return [p
 const visible = (post: ReturnType<typeof parsePost>) => !post.draft && isPublicPost(post);
 const hash = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), byte => byte.toString(16).padStart(2,'0')).join('');
 function eventFor(publication: Publication, previous?: Publication, action: 'publish' | 'remove' = 'publish', generation?: string): DeliveryEvent {
- return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath };
+ return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}) };
 }
 
 /** The request path and manifest recovery share a durable transition before enqueue.
@@ -52,11 +52,11 @@ async function queueTransition(bucket: R2Bucket, event: DeliveryEvent, now = Dat
 }
 
 /** Git is authoritative; a failed immediate enqueue is recovered from the next public manifest. */
-export async function queuePublication(config: PublishingConfig, path: string, markdown: string, previous?: string, generation?: string): Promise<boolean> {
+export async function queuePublication(config: PublishingConfig, path: string, markdown: string, previous?: string, generation?: string, previousPath = path): Promise<boolean> {
  if (!config.state) return true;
  const [folder,file] = splitPath(path);
  const post = parsePost(markdown, folder, file);
- const old = previous === undefined ? undefined : parsePost(previous, folder, file);
+ const old = previous === undefined ? undefined : parsePost(previous, ...splitPath(previousPath));
  if (!visible(post) && (!old || !visible(old))) return true;
  const current = await publicationForPost(post, config.me);
  const before = old ? await publicationForPost(old, config.me) : undefined;
@@ -75,9 +75,10 @@ export async function reconcilePublications(bucket: R2Bucket, current: Publicati
  const previous = snapshot ? (Array.isArray(snapshot) ? snapshot : snapshot.publications) : [];
  const generation = (snapshot && !Array.isArray(snapshot) ? snapshot.generation : 0) + 1;
  const prior = new Map(previous.map(publication => [publication.url, publication]));
- const present = new Set(current.map(publication => publication.url));
+ // A renamed post's old address redirects; it is the same publication, not a removal.
+ const present = new Set(current.flatMap(publication => [publication.url, ...(publication.previousUrls ?? [])]));
  for (const publication of current) {
-  const old = prior.get(publication.url);
+  const old = prior.get(publication.url) ?? (publication.previousUrls ?? []).map(url => prior.get(url)).find(Boolean);
   if ((!stored && publication.syndicateTo.length) || (stored && (!old || old.revision !== publication.revision || JSON.stringify(old.syndicateTo) !== JSON.stringify(publication.syndicateTo)))) {
    const event = eventFor(publication, old, 'publish', `scan:${generation}`);
    if (event.targets.length || event.syndicateTo.length) await queueTransition(bucket, event, now);
@@ -100,9 +101,15 @@ export interface SyndicationReceipt { status: 'sending' | 'sent'; startedAt: num
 export async function syndicationReceiptKey(source: string, service: Service): Promise<string> {
  return `private/syndication/${await hash(`${source}\0${service}`)}.json`;
 }
-export async function readSyndicationReceipt(bucket: R2Bucket, source: string, service: Service): Promise<SyndicationReceipt | undefined> {
+export async function readSyndicationReceipt(bucket: R2Bucket, source: string, service: Service, previousSources: string[] = []): Promise<SyndicationReceipt | undefined> {
  const stored = await bucket.get(await syndicationReceiptKey(source, service));
- return stored ? stored.json<SyndicationReceipt>() : undefined;
+ if (stored) return stored.json<SyndicationReceipt>();
+ // A post sent before its slug changed was sent under its old address.
+ for (const previous of previousSources) {
+  const receipt = await bucket.get(await syndicationReceiptKey(previous, service));
+  const sent = receipt ? await receipt.json<SyndicationReceipt>() : undefined;
+  if (sent?.status === 'sent' && sent.url) return sent;
+ }
 }
 export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, service: Service, config: SyndicationConfig, fetcher: PublicFetcher, now: () => number, draft?: string): Promise<string> {
  const identity = await hash(`${event.source}\0${service}`);
@@ -111,6 +118,14 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
  const receipt = stored ? await stored.json<SyndicationReceipt>() : undefined;
  const originalDraft = receipt?.draft ?? draft;
  if (receipt?.status === 'sent' && receipt.url) return receipt.url;
+ if (!receipt && event.previousSources?.length) {
+  // Never send a renamed post again: a receipt under an old address is this post's receipt.
+  const moved = await readSyndicationReceipt(bucket, event.source, service, event.previousSources);
+  if (moved?.status === 'sent' && moved.url) {
+   await bucket.put(key, JSON.stringify(moved), { onlyIf: { etagDoesNotMatch: '*' } });
+   return moved.url;
+  }
+ }
  if (receipt && receipt.leaseUntil > now()) throw new DeliveryError('Syndication is leased', true);
  // Mastodon keeps idempotency keys for one hour. Never risk a duplicate outside that window.
  const startedAt = receipt?.startedAt ?? now();
@@ -149,6 +164,7 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
  const now = dependencies.now ?? Date.now;
  const { event, progress } = job;
  let imported = false;
+ let linked = new Set<Service>();
  const source = publicUrl(event.source);
  if (source.origin !== new URL(config.me).origin || !/^[a-f0-9]{64}$/.test(event.revision)) throw new DeliveryError('Invalid source identity', false);
  if (event.sourcePath) {
@@ -157,6 +173,8 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
   else {
    const [folder,name] = splitPath(file.path); const post = parsePost(file.content, folder, name);
    imported = !!post.properties?.['pesos-source']?.length;
+   // A renamed post that already links its social copies is not sent again.
+   if (event.previousSources?.length) linked = new Set(services.filter(service => (post.syndication ?? []).some(link => { try { return new URL(link).origin === (service === 'bluesky' ? 'https://bsky.app' : new URL(config.syndication?.mastodon?.instance ?? 'https://social.coop').origin); } catch { return false; } })));
    if (event.action === 'publish' ? (!visible(post) || await publicationRevision(post) !== event.revision) : visible(post)) return 'superseded';
   }
  }
@@ -178,7 +196,7 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
   progress.webmentions.push(target); await checkpoint(progress);
  }
  for (const service of event.action === 'publish' && !imported ? event.syndicateTo : []) {
-  if (progress.syndication[service]) continue;
+  if (progress.syndication[service] || linked.has(service)) continue;
   if (!config.syndication?.[service]) throw new DeliveryError('Provider credentials are not configured', true);
   progress.syndicationStartedAt[service] ??= now(); await checkpoint(progress);
   progress.syndication[service] = await syndicationOnce(bucket, event, service, config.syndication ?? {}, fetcher, now);

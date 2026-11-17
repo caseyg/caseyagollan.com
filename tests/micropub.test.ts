@@ -34,6 +34,7 @@ function setup(scope = 'create update delete undelete', options: Partial<Publish
         const input = JSON.parse(init.body as string).variables.input;
         if (input.expectedHeadOid !== `head-${writes}`) return Response.json({ errors: [{ type: 'STALE_DATA' }] });
         for (const file of input.fileChanges.additions) files.set(file.path, { content: unb64(file.contents), sha: `revision-${writes + 1}` });
+        for (const file of input.fileChanges.deletions ?? []) files.delete(file.path);
         return Response.json({ data: { createCommitOnBranch: { commit: { oid: `commit-${++writes}` } } } });
       }
       const path = decodeURIComponent(new URL(url).pathname.split('/contents/')[1]);
@@ -98,6 +99,38 @@ describe('Micropub HTTP flow', () => {
     expect(edited.status).toBe(204);
     const response = await app.query(`q=source&url=${encodeURIComponent(url)}&properties[]=content&properties[]=category`);
     expect(await response.json()).toEqual({ properties: { content: ['Changed'], category: ['two'] } });
+  });
+
+  test('a new slug moves the post in one commit and keeps the old address as a redirect', async () => {
+    const app = setup();
+    await app.send({ properties: { content: ['Moving'], 'mp-slug': ['moving-abc123'] } });
+    const url = 'https://example.com/2026/11/06/moving-abc123/';
+    const response = await app.send({ action: 'update', url, 'mp-slug': ['moving'] });
+    expect(response.status).toBe(201);
+    expect(response.headers.get('Location')).toBe('https://example.com/2026/11/06/moving/');
+    expect(app.files.has('notes/2026-11-06-moving-abc123.md')).toBe(false);
+    const moved = app.files.get('notes/2026-11-06-moving.md')!.content;
+    expect(moved).toContain('_micropubPreviousUrls:\n  - /2026/11/06/moving-abc123/');
+    expect(readDocument(moved).properties.content).toEqual(['Moving']);
+    expect(app.writes()).toBe(2);
+    // Moving back drops the address it returns to.
+    expect((await app.send({ action: 'update', url: 'https://example.com/2026/11/06/moving/', 'mp-slug': ['moving-abc123'], replace: { content: ['Back'] } })).status).toBe(201);
+    const back = app.files.get('notes/2026-11-06-moving-abc123.md')!.content;
+    expect(back).toContain('_micropubPreviousUrls:\n  - /2026/11/06/moving/\n');
+    expect(back).not.toContain('- /2026/11/06/moving-abc123/');
+    expect(readDocument(back).properties.content).toEqual(['Back']);
+  });
+
+  test('a new slug cannot take another post\'s address or use unsafe characters', async () => {
+    const app = setup();
+    await app.send({ properties: { content: ['One'], 'mp-slug': ['one'] } });
+    await app.send({ properties: { content: ['Two'], 'mp-slug': ['two'] } });
+    const url = 'https://example.com/2026/11/06/one/';
+    expect((await app.send({ action: 'update', url, 'mp-slug': ['two'] })).status).toBe(409);
+    for (const slug of ['a/b', '../x', 'with space', '', '-lead']) expect((await app.send({ action: 'update', url, 'mp-slug': [slug] })).status).toBe(400);
+    // The same slug is not a move.
+    expect((await app.send({ action: 'update', url, 'mp-slug': ['one'], replace: { content: ['Same'] } })).status).toBe(204);
+    expect(app.files.has('notes/2026-11-06-one.md')).toBe(true);
   });
 
   test('soft-deletes and restores the same URL and rejects edits while deleted', async () => {

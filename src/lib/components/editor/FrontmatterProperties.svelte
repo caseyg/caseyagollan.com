@@ -6,6 +6,7 @@
 <script lang="ts">
 	import { formatAbsoluteDate } from '$lib/utils/formatDate';
 	import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
+	import { SLUG_PATTERN, slugify } from '$lib/post-slug';
 
 	interface Props {
 		/** Editable text properties, as { key: [values] }. Bound, and posted as JSON under `name`. */
@@ -17,9 +18,20 @@
 		status: 'published' | 'draft';
 		/** Hidden field that carries the properties to the server. */
 		name?: string;
+		/** The last segment of the post's address, posted as `slug`. Leave undefined to hide the row. */
+		slug?: string;
+		/** The slug the post is saved under, so a change can say where the old address goes. */
+		savedSlug?: string;
+		/** The address before the slug, such as /2026/11/14/. */
+		address?: string;
+		/** A better slug to offer, usually made from the title. */
+		suggestedSlug?: string;
 	}
 
-	let { properties = $bindable(), readOnly = [], published, updated, status = $bindable('published'), name = 'properties' }: Props = $props();
+	let { properties = $bindable(), readOnly = [], published, updated, status = $bindable('published'), name = 'properties', slug = $bindable(), savedSlug, address = '', suggestedSlug }: Props = $props();
+	const slugInvalid = $derived(slug !== undefined && !SLUG_PATTERN.test(slug) && slug !== savedSlug);
+	const slugMoved = $derived(slug !== undefined && savedSlug !== undefined && slug !== savedSlug && !slugInvalid);
+	const suggestion = $derived(suggestedSlug ? slugify(suggestedSlug, 80) : '');
 
 	/** Properties that are lists even with one value. */
 	const LISTS = new Set(['category', 'syndication', 'pesos-source', 'pesos-date-source', 'quotation-of', 'photo', 'video', 'audio']);
@@ -99,6 +111,27 @@
 				<div class="row">
 					<dt>{@render icon('date')}updated</dt>
 					<dd class="static" title={updated}>{formatAbsoluteDate(updated)}</dd>
+				</div>
+			{/if}
+			{#if slug !== undefined}
+				<div class="row slug">
+					<dt><label for="property-slug">{@render icon('url')}slug</label></dt>
+					<dd>
+						<div class="single address">
+							<span class="prefix" aria-hidden="true">{address}</span>
+							<input id="property-slug" class="inline mono" name="slug" bind:value={slug} aria-describedby="property-slug-note" aria-invalid={slugInvalid} autocomplete="off" autocapitalize="off" spellcheck="false"
+								onblur={() => { if (slug !== savedSlug) slug = slugify(slug ?? '') || savedSlug; }} />
+						</div>
+						<p id="property-slug-note" class="note" class:shown={slugMoved || slugInvalid} aria-live="polite">
+							{#if slugInvalid}Use letters, numbers and hyphens.
+							{:else if slugMoved}Saving moves the post. {address}{savedSlug}/ will redirect here.
+								<button type="button" class="text-button" onclick={() => { slug = savedSlug; }}>Keep {savedSlug}</button>
+							{/if}
+						</p>
+						{#if suggestion && suggestion !== slug && suggestion !== savedSlug}
+							<p class="note suggest"><button type="button" class="text-button" onclick={() => { slug = suggestion; }}>Use {suggestion}</button></p>
+						{/if}
+					</dd>
 				</div>
 			{/if}
 			<div class="row">
@@ -202,6 +235,14 @@
 	.text-button { padding: 0.3rem var(--space-1); border: 0; border-radius: var(--radius-sm); background: none; color: var(--text-muted); font: inherit; cursor: pointer; }
 	.text-button:hover { background: var(--surface-1); color: var(--text-primary); }
 	.add-property { margin-top: var(--space-1); }
+	.address { gap: 0; }
+	.prefix { flex: none; padding-left: var(--space-1); color: var(--text-muted); font-family: var(--font-mono); font-size: var(--fs-xs); }
+	.address .inline { padding-left: 1px; }
+	.inline[aria-invalid='true'] { border-color: var(--border-strong); }
+	/* Notes under the slug: what saving does, and a title-based slug while the row has focus. */
+	.note { display: none; margin: 0; padding: 0 var(--space-1) var(--space-1); color: var(--text-muted); font-size: var(--fs-xs); line-height: var(--lh-snug); overflow-wrap: anywhere; }
+	.note.shown, .slug:focus-within .suggest { display: block; }
+	.note .text-button { padding: 0 var(--space-1); color: var(--text-secondary); font-size: inherit; text-decoration: underline; text-underline-offset: var(--underline-offset); }
 	.error { margin: var(--space-1) 0 0; color: var(--text-primary); font-size: var(--fs-xs); }
 	@media (hover: none) { .remove { opacity: 1; } }
 	@media (max-width: 30rem) {

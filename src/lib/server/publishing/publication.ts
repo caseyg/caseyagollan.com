@@ -15,6 +15,8 @@ export interface Publication {
  published: string;
  syndicateTo: string[];
  sourcePath?: string;
+ /** Addresses the post had before its slug changed. They redirect to `url`. */
+ previousUrls?: string[];
 }
 const CANONICAL = 'https://caseyagollan.com';
 
@@ -63,6 +65,7 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
   url: new URL(getPostPermalink(post), site).href,
   revision: await publicationRevision(post), targets: [...targets], text,
   title: post.title, published: post.date, sourcePath: post.filePath,
+  ...(post.previousUrls?.length ? { previousUrls: post.previousUrls.map(path => new URL(path, site).href) } : {}),
   // Imported activities may carry historical destination metadata. Never let a
   // polling import or later snapshot refresh trigger another automatic POSSE send.
   syndicateTo: post.properties?.['pesos-source']?.length ? [] : [...new Set(post.syndicationTargets ?? [])]
