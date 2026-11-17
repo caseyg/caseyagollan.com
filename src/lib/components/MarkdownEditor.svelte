@@ -6,12 +6,14 @@
 	import { $insertNodes as insertNodes } from 'lexical';
 	import { $createFigureNode as createFigureNode } from '$lib/components/editor/figure-node';
 	import FigurePlugin from '$lib/components/editor/FigurePlugin.svelte';
+	import QuotePlugin from '$lib/components/editor/QuotePlugin.svelte';
+	import { $unquoteSelection as unquoteSelection } from '$lib/components/editor/quote-node';
 	import {
 		Composer, ContentEditable, RichTextPlugin, HistoryPlugin, ListPlugin, LinkPlugin, HorizontalRulePlugin, MarkdownShortcutPlugin, OnChangePlugin,
 		toggleBold, toggleItalic, toggleStrikethrough, formatParagraph, formatHeading, formatBulletList, formatNumberedList, formatQuote, formatCode, undo, redo,
 		type EditorState, type LexicalEditor
 	} from 'svelte-lexical';
-	import { exportMarkdown, importMarkdown, nodes, transformers } from '$lib/markdown-editor';
+	import { exportMarkdown, importMarkdown, nodes, transformersFor } from '$lib/markdown-editor';
 	import { Prose } from '$lib/components/ui';
 
 	interface Props {
@@ -24,18 +26,20 @@
 
 	let { value = $bindable(''), label, bare = false }: Props = $props();
 
+	// Written back with the Markdown marks this post already uses.
+	const transformers = transformersFor(untrack(() => value));
 	const initialConfig = {
 		namespace: 'post-content',
 		theme: { text: { strikethrough: 'md-strikethrough' }, list: { nested: { listitem: 'md-nested' } } },
 		nodes,
 		onError: (error: Error) => { throw error; },
-		editorState: () => importMarkdown(untrack(() => value))
+		editorState: () => importMarkdown(untrack(() => value), transformers)
 	};
 
 	let composer: { getEditor: () => LexicalEditor } | undefined = $state();
 	const run = (action: (editor: LexicalEditor) => void) => { if (composer) action(composer.getEditor()); };
 	function onChange(state: EditorState) {
-		value = exportMarkdown(state);
+		value = exportMarkdown(state, transformers);
 	}
 	function link(editor: LexicalEditor) {
 		const url = window.prompt('Link URL (leave empty to remove the link)', 'https://');
@@ -47,6 +51,13 @@
 		const src = window.prompt('Image URL', 'https://')?.trim();
 		if (!src || !/^(https?:\/\/|\/)\S+$/.test(src)) return;
 		editor.update(() => insertNodes([createFigureNode({ src, alt: '', caption: '', align: 'full' })]));
+	}
+
+	/** Quotes the selected blocks, or takes them out of a quote that holds several. */
+	function quote(editor: LexicalEditor) {
+		let unquoted = false;
+		editor.update(() => { unquoted = unquoteSelection(); });
+		if (!unquoted) formatQuote(editor, '');
 	}
 
 	type Tool = { title: string; action: (editor: LexicalEditor) => void; icon?: IconName; text?: string };
@@ -64,7 +75,7 @@
 			{ text: 'H3', title: 'Subheading', action: editor => formatHeading(editor, '', 'h3') },
 			{ icon: 'list', title: 'Bulleted list', action: editor => formatBulletList(editor, '') },
 			{ icon: 'list-ordered', title: 'Numbered list', action: editor => formatNumberedList(editor, '') },
-			{ icon: 'quote', title: 'Quote', action: editor => formatQuote(editor, '') },
+			{ icon: 'quote', title: 'Quote', action: quote },
 			{ icon: 'code', title: 'Code block', action: editor => formatCode(editor, '') }
 		] },
 		{ label: 'Insert', tools: [{ icon: 'image', title: 'Add an image with a caption', action: figure }] },
@@ -99,6 +110,7 @@
 		<LinkPlugin />
 		<HorizontalRulePlugin />
 		<FigurePlugin />
+		<QuotePlugin />
 		<MarkdownShortcutPlugin {transformers} />
 		<OnChangePlugin {onChange} ignoreSelectionChange ignoreHistoryMergeTagChange />
 	</Composer>
