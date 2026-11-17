@@ -43,6 +43,15 @@ function frontmatter(value: string | null): Record<string, string[]> | undefined
 	} catch { return; }
 }
 
+/** The photos panel posts alt text as a JSON list of strings, one per photo. */
+function photoAlts(value: string | null): string[] | undefined {
+	if (!value) return;
+	try {
+		const parsed: unknown = JSON.parse(value);
+		return Array.isArray(parsed) && parsed.every(item => typeof item === 'string') ? parsed : undefined;
+	} catch { return; }
+}
+
 export const actions: Actions = {
 	default: async ({ request, params, platform }) => {
 		if (!validPostParams(params)) error(404, 'Post not found');
@@ -66,7 +75,8 @@ export const actions: Actions = {
 			name: values.get('name') ?? undefined,
 			content: values.get('content') ?? '', format: (['text', 'markdown', 'html'].includes(format ?? '') ? format : 'markdown') as ContentFormat,
 			status: values.get('status') === 'draft' ? 'draft' : 'published',
-			properties: frontmatter(values.get('properties'))
+			properties: frontmatter(values.get('properties')),
+			photoAlts: photoAlts(values.get('photo-alts'))
 		};
 		try {
 			await validateEditorSubmission(request, session, values.get('csrf'));

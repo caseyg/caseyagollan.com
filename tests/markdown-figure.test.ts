@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { parseFigure, serializeFigure } from '../src/lib/markdown-figure';
+import { isImageLine, parseFigure, parseImage, serializeFigure, serializeImage } from '../src/lib/markdown-figure';
 
 const narrow = '<figure class="align-right narrow"><img src="https://files.caseyagollan.com/a.webp" alt="The composer on a phone: close, a Note menu."><figcaption>The composer opens straight into a note.</figcaption></figure>';
 const linked = '<figure class="align-right"><img src="https://files.caseyagollan.com/b.webp" alt="Book spines"><figcaption>The <a href="https://caseyagollan.com/library?view=shelves">recently acquired shelves</a>.</figcaption></figure>';
@@ -29,4 +29,12 @@ test('figures the editor cannot write back stay as source', () => {
 		'<figure><img src="/a.png"><figcaption><p>block</p></figcaption></figure>',
 		'<figure id="x"><img src="/a.png"></figure>'
 	]) expect(parseFigure(source)).toBeNull();
+});
+
+test('Markdown images on their own line read and write back', () => {
+	const image = parseImage('![Book spines \\[2026\\]](https://files.example/a.png)');
+	expect(image).toEqual({ src: 'https://files.example/a.png', alt: 'Book spines [2026]', caption: '', align: 'full' });
+	expect(serializeImage(image!)).toBe('![Book spines \\[2026\\]](https://files.example/a.png)');
+	expect(serializeImage({ src: '/a.png', alt: 'Two\nlines ' })).toBe('![Two lines](/a.png)');
+	for (const line of ['![a](/a.png "title")', 'Text ![a](/a.png)', '![a](/a.png) text', '![a](<a b.png>)']) expect(isImageLine(line)).toBe(false);
 });

@@ -12,3 +12,9 @@ export const WithFigures: Story = {
 		value: '## Publishing\n\n<figure class="align-right narrow"><img src="/author-avatar.webp" alt="Casey\'s avatar"><figcaption>The composer opens <a href="/new/">straight into a note</a>.</figcaption></figure>\n\n- New post composer at `/new`, with every post type Quill offers.\n- Redesigned it around a single writing surface, like a social app\'s compose box.\n- Drafts are saved to a separate private GitHub repo.\n\nA paragraph that wraps beside the figure, the way it does on the published post.'
 	}
 };
+/** A Markdown image on its own line shows as the image. Select it to edit its alt text; it is written back as `![alt](src)`. */
+export const WithImage: Story = {
+	args: {
+		value: 'A paragraph before the image.\n\n![Casey in front of an ice cream cone sculpture](/author-avatar.webp)\n\nA paragraph after it.'
+	}
+};

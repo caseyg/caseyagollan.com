@@ -4,10 +4,10 @@ import {
 	HEADING, QUOTE, CODE, UNORDERED_LIST, ORDERED_LIST, LINK, HR, TEXT_FORMAT_TRANSFORMERS,
 	convertFromMarkdownString, convertToMarkdownString
 } from 'svelte-lexical';
-import { FIGURE, FigureNode } from '$lib/components/editor/figure-node';
+import { FIGURE, IMAGE, FigureNode } from '$lib/components/editor/figure-node';
 
 /** Markdown the rich editor reads and writes back. Anything else stays literal text. */
-export const transformers = [FIGURE, HEADING, QUOTE, CODE, UNORDERED_LIST, ORDERED_LIST, HR, ...TEXT_FORMAT_TRANSFORMERS, LINK];
+export const transformers = [FIGURE, IMAGE, HEADING, QUOTE, CODE, UNORDERED_LIST, ORDERED_LIST, HR, ...TEXT_FORMAT_TRANSFORMERS, LINK];
 export const nodes = [HeadingNode, QuoteNode, ListNode, ListItemNode, LinkNode, CodeNode, HorizontalRuleNode, FigureNode];
 
 export function importMarkdown(markdown: string): void {
