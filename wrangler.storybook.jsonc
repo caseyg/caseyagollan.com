@@ -1,0 +1,17 @@
+/**
+ * Storybook as its own static-assets Worker, so content publishes don't rebuild it.
+ * The site Worker forwards caseyagollan.com/storybook/ here through its STORYBOOK binding,
+ * which is why the files sit under dist-storybook/storybook/.
+ *
+ * Workers Builds: build `bun run build-storybook`, deploy `npx wrangler deploy -c wrangler.storybook.jsonc`,
+ * non-production `npx wrangler versions upload -c wrangler.storybook.jsonc`, and build watch paths that
+ * exclude `content` so only code changes rebuild it.
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "caseyagollan-storybook",
+	"compatibility_date": "2025-01-19",
+	"assets": { "directory": "dist-storybook" },
+	"workers_dev": true,
+	"preview_urls": true
+}

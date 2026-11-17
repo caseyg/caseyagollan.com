@@ -45,3 +45,6 @@ vite.config.ts.timestamp-*
 
 # Generated search index
 static/pagefind/
+
+# Storybook Worker output (wrangler.storybook.jsonc)
+dist-storybook/
