@@ -39,18 +39,16 @@
 			{@const count = altLength(photo.alt)}
 			<div class="photo" class:left-off={!included(photo)}>
 				<EditableFigure variant="photo" figure={{ src: photo.url, alt: photo.alt, caption: '', align: 'full' }} onchange={changes => { if (changes.alt !== undefined) photos[index].alt = changes.alt; }} />
-				{#if removable || (altLimit && count > altLimit * 0.8)}
-					<div class="meta">
-						{#if altLimit && count > altLimit * 0.8}<span class="count" class:over={count > altLimit}>{count}/{altLimit}</span>{/if}
-						{#if removable}
-							{#if included(photo)}
-								<Button size="sm" variant="quiet" icon="close" onclick={() => (photos[index].included = false)}>Leave off</Button>
-							{:else}
-								<Button size="sm" variant="quiet" icon="plus" disabled={full} title={full ? `Up to ${max} photos` : undefined} onclick={() => (photos[index].included = true)}>Add back</Button>
-							{/if}
+				{#if removable}
+					<div class="toggle">
+						{#if included(photo)}
+							<Button variant="icon" size="sm" icon="close" label="Leave this photo off" onclick={() => (photos[index].included = false)} />
+						{:else}
+							<Button variant="icon" size="sm" icon="plus" label={full ? `Up to ${max} photos can go` : 'Add this photo back'} disabled={full} onclick={() => (photos[index].included = true)} />
 						{/if}
 					</div>
 				{/if}
+				{#if altLimit && count > altLimit * 0.8}<span class="count" class:over={count > altLimit}>{count}/{altLimit}</span>{/if}
 			</div>
 		{/each}
 		{#if missing || (removable && left)}
@@ -82,10 +80,24 @@
 	}
 
 	.photo {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
 		min-width: 0;
+	}
+
+	.photo :global(figure) {
+		margin: 0;
+	}
+
+	/* Leave off and add back sit on the photo's corner, as in social composers. */
+	.toggle {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--space-2);
+		border-radius: var(--radius-full);
+		background: var(--bg-primary);
 	}
 
 	/* A photo left off stays in view, faded, so it can be added back. */
@@ -93,15 +105,8 @@
 		opacity: 0.4;
 	}
 
-	.meta {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		gap: var(--space-2);
-	}
-
 	.count {
-		margin-right: auto;
+		align-self: flex-end;
 		color: var(--text-muted);
 		font-size: var(--fs-xs);
 		font-variant-numeric: tabular-nums;
