@@ -36,6 +36,8 @@ export interface Post {
 	indexActivities?: { type: 'like' | 'repost'; date: string; permalink: string; target?: string; network?: string; author?: string; dateSource?: string }[];
 	/** Presentation-only conversation members; original records remain intact. */
 	indexThreadPosts?: Post[];
+	/** Paths the post had before its slug changed, such as /2026/11/14/old-slug/. They redirect here. */
+	previousUrls?: string[];
 	filePath: string;
 }
 
@@ -179,7 +181,7 @@ function rollupThreadPosts(posts: Post[]): Post[] {
    ...(post.properties?.['in-reply-to'] ?? []), ...(post.inReplyTo ? [post.inReplyTo] : [])];
   if (post.type !== 'reply' && !post.indexActivities && targets.length !== 1) continue;
   targets.forEach(add);
-  if (post.type === 'reply') { add(`https://caseyagollan.com${getPostPermalink(post)}`); post.syndication?.forEach(add); }
+  if (post.type === 'reply') { add(`https://caseyagollan.com${getPostPermalink(post)}`); post.previousUrls?.forEach(path => add(`https://caseyagollan.com${path}`)); post.syndication?.forEach(add); }
   for (const snapshot of post.socialSnapshots ?? []) {
    if (!targets.some(target => typeof target === 'string' && targetSnapshot(snapshot, indexContentUrl(target) ?? ''))) continue;
    add(snapshot.url); add(snapshot.sourceUrl);

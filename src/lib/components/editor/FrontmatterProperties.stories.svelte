@@ -14,6 +14,10 @@
 	let reply = $state<Record<string, string[]>>({ 'in-reply-to': ['https://example.com/a-post/'], summary: ['A short summary'] });
 	let empty = $state<Record<string, string[]>>({});
 	let status = $state<'published' | 'draft'>('published');
+	let article = $state<Record<string, string[]>>({ category: ['writing'] });
+	let slug = $state('writing-again-7e155168');
+	let renamed = $state('writing-again');
+	let invalid = $state('writing again?');
 </script>
 
 <Story asChild name="Imported note">
@@ -27,4 +31,16 @@
 
 <Story asChild name="Empty">
 	<FrontmatterProperties bind:properties={empty} status="draft" />
+</Story>
+
+<Story asChild name="Slug">
+	<FrontmatterProperties bind:properties={article} bind:status bind:slug savedSlug="writing-again-7e155168" address="/2026/11/14/" suggestedSlug="Writing again" published="2026-11-14T10:00:00-05:00" />
+</Story>
+
+<Story asChild name="Slug changed">
+	<FrontmatterProperties bind:properties={article} bind:status bind:slug={renamed} savedSlug="writing-again-7e155168" address="/2026/11/14/" published="2026-11-14T10:00:00-05:00" />
+</Story>
+
+<Story asChild name="Slug invalid">
+	<FrontmatterProperties bind:properties={article} bind:status bind:slug={invalid} savedSlug="writing-again-7e155168" address="/2026/11/14/" published="2026-11-14T10:00:00-05:00" />
 </Story>

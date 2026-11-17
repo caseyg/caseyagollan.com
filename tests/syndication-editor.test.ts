@@ -172,3 +172,15 @@ test('Bluesky sends link by handle, falling back to the DID', async () => {
  expect(await send({ did: 'did:plc:test', handle: 'handle.invalid' })).toStartWith('https://bsky.app/profile/did:plc:test/post/');
  expect(await send({ did: 'did:plc:test' })).toStartWith('https://bsky.app/profile/did:plc:test/post/');
 });
+
+test('a renamed post reuses the receipt from its old address instead of posting again', async () => {
+ const app = setup();
+ const old = 'https://example.com/2026/11/06/note/';
+ await app.bucket.put(await syndicationReceiptKey(old, 'mastodon'), JSON.stringify({ status: 'sent', startedAt: 0, leaseUntil: 0, url: 'https://social.coop/@casey/1' }));
+ const event: DeliveryEvent = { source: 'https://example.com/2026/11/06/better/', revision: 'a'.repeat(64), action: 'publish', targets: [], syndicateTo: ['mastodon'], text: 'Original post', published: post.date, previousSources: [old] };
+ let sends = 0;
+ const url = await syndicationOnce(app.bucket, event, 'mastodon', app.config.syndication!, async () => { sends++; return Response.json({ url: 'https://social.coop/@casey/2' }); }, () => 0);
+ expect(url).toBe('https://social.coop/@casey/1');
+ expect(sends).toBe(0);
+ expect(app.rows.has(await syndicationReceiptKey(event.source, 'mastodon'))).toBe(true);
+});

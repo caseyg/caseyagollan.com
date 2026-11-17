@@ -55,7 +55,7 @@ export async function editorDestinations(config: PublishingConfig, post: Post): 
  assertSyndicatable(post);
  const publication = await publicationForPost(post, config.me);
  return Promise.all(services.map(async service => {
-  const receipt = config.state ? await readSyndicationReceipt(config.state, publication.url, service) : undefined;
+  const receipt = config.state ? await readSyndicationReceipt(config.state, publication.url, service, publication.previousUrls) : undefined;
   const saved = recordedLinks(post, service, config);
   const sent = receipt?.url ? recordedLinks({ ...post, syndication: [receipt.url] }, service, config) : [];
   // The receipt keeps the URL as sent; the post may store another form of it (Bluesky DID vs handle).
@@ -86,7 +86,7 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
    syndicationText({ ...publication, idempotencyKey: 'validate', draft }, target.limit, target.service === 'bluesky' ? 3000 : Infinity, target.service);
   } catch { throw new ProtocolError(422, 'invalid_request', `The ${target.name} draft must contain 1–${target.limit} characters.`); }
  }
- const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath };
+ const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}) };
  const progress: DeliveryProgress = { webmentions: [], syndication: {}, syndicationStartedAt: {} };
  const messages: string[] = [];
  for (const target of chosen) {
@@ -98,7 +98,7 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
  }
  // Include prior successful sends so a failed GitHub write can be retried without posting again.
  for (const service of services) {
-  const receipt = await readSyndicationReceipt(config.state, publication.url, service);
+  const receipt = await readSyndicationReceipt(config.state, publication.url, service, publication.previousUrls);
   if (receipt?.status === 'sent' && receipt.url) progress.syndication[service] = receipt.url;
  }
  try {

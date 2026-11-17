@@ -1,12 +1,13 @@
 import type { PageServerLoad } from './$types';
-import { getAllPosts } from '$lib/posts';
+import { getAllPosts, getPostPermalink } from '$lib/posts';
 import { building } from '$app/environment';
 import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publicationRevision } from '$lib/server/publishing/publication';
 import { isPublicPost } from '$lib/server/parse-post';
 import { publishingConfig } from '$lib/server/publishing/config';
 import { getPostsMenu } from '$lib/server/posts-menu';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { movedPost } from '$lib/server/renamed-posts';
 
 // Keep generated posts static, but retain this route in the Worker for new URLs.
 export const prerender = 'auto';
@@ -18,7 +19,11 @@ export const load: PageServerLoad = async (event) => {
 	if (!validPostParams(params)) error(404, 'Not found');
 
 	const dateKey = `${year}-${month}-${day}`;
-	let post = (await getAllPosts()).find(p => p.date.startsWith(dateKey) && p.slug === slug);
+	const posts = await getAllPosts();
+	let post = posts.find(p => p.date.startsWith(dateKey) && p.slug === slug);
+	// A post whose slug changed keeps its old address as a permanent redirect.
+	const moved = post ? undefined : movedPost(posts, params);
+	if (moved) redirect(301, encodeURI(getPostPermalink(moved)));
 	if (!post && !building) {
 		try {
 			const publishing = publishingConfig(event.platform?.env);

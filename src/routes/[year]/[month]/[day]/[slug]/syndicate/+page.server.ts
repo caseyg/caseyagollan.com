@@ -1,4 +1,5 @@
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
+import { renamedPermalink } from '$lib/server/renamed-posts';
 import type { Actions, PageServerLoad } from './$types';
 import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publishingConfig } from '$lib/server/publishing/config';
@@ -18,7 +19,11 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
  if (!config) error(503, 'Publishing is unavailable.');
  try {
   const post = await getGitHubPost(params, fetch, config.token, config);
-  if (!post) error(404, 'Post not found');
+  if (!post) {
+   const moved = await renamedPermalink(params, 'syndicate/');
+   if (moved) redirect(308, moved);
+   error(404, 'Post not found');
+  }
   return { signedIn: true as const, csrf: session.csrf, revision: await publicationRevision(post), title: post.title, kind: post.type,
    postUrl: new URL(`/${params.year}/${params.month}/${params.day}/${params.slug}/`, config.me).href,
    destinations: await editorDestinations(config, post) };

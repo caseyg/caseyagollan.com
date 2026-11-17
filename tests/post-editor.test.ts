@@ -27,6 +27,7 @@ function setup(path: string, content: string, tree = true) {
 				const input = JSON.parse(init.body as string).variables.input;
 				if (input.expectedHeadOid !== `head-${writes}`) return Response.json({ errors: [{ type: 'STALE_DATA' }] });
 				for (const added of input.fileChanges.additions) files.set(added.path, { content: unb64(added.contents), sha: `revision-${writes + 1}` });
+				for (const removed of input.fileChanges.deletions ?? []) files.delete(removed.path);
 				return Response.json({ data: { createCommitOnBranch: { commit: { oid: `commit-${++writes}` } } } });
 			}
 			const file = decodeURIComponent(new URL(url).pathname.split('/contents/')[1]);
@@ -34,7 +35,7 @@ function setup(path: string, content: string, tree = true) {
 			return found ? Response.json({ type: 'file', path: file, sha: found.sha, encoding: 'base64', content: b64(found.content) }) : new Response(null, { status: 404 });
 		}
 	};
-	return { dependencies, read: () => files.get(path)!.content, writes: () => writes, requests };
+	return { dependencies, files, read: () => files.get(path)!.content, writes: () => writes, requests };
 }
 const url = 'https://example.com/2026/11/06/post/';
 const legacy = '---\ndate: 2026-11-06T20:00:00-05:00\ntitle: Old title\ncategory: changelog\ndraft: false\n---\n\n## Heading\n\n* **Markdown** stays\n';
@@ -67,6 +68,18 @@ describe('on-site post editor', () => {
 		const fields = { ...source.fields, content: source.fields.content.trimStart().replaceAll('\n', '\r\n') };
 		expect(await saveEditorPost(config, url, source.revision, fields, app.dependencies)).toBe(false);
 		expect(app.writes()).toBe(0);
+	});
+
+	test('a new slug moves the post and returns its new address; the same slug writes nothing', async () => {
+		const app = setup('articles/2026-11-06-post.md', legacy);
+		const source = await loadEditorSource(config, url, app.dependencies);
+		expect(await saveEditorPost(config, url, source.revision, { ...source.fields, slug: 'post' }, app.dependencies)).toBe(false);
+		expect(await saveEditorPost(config, url, source.revision, { ...source.fields, slug: 'better-name' }, app.dependencies)).toBe('https://example.com/2026/11/06/better-name/');
+		expect(app.files.has('articles/2026-11-06-post.md')).toBe(false);
+		const moved = app.files.get('articles/2026-11-06-better-name.md')!.content;
+		expect(moved.endsWith('---\n\n## Heading\n\n* **Markdown** stays\n')).toBe(true);
+		expect(moved).toContain('- /2026/11/06/post/');
+		expect(app.writes()).toBe(1);
 	});
 
 	test('metadata edits leave the Markdown body byte-for-byte intact', async () => {

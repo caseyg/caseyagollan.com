@@ -6,7 +6,8 @@ import { sanitizePublishingHtml } from '../../utils/sanitizeHtml';
 import { queuePublication, requestedSyndication, syndicationTargets } from './delivery';
 import type { SyndicationConfig } from './syndication';
 import { authorize, profileUrl, ProtocolError, type AuthConfig, type Fetcher } from './auth';
-import { createDocument, readDocument, updateDocument, documentMetadata, type Properties, type UpdateOperations } from './document';
+import { createDocument, readDocument, updateDocument, documentMetadata, documentPreviousUrls, setDocumentPreviousUrls, type Properties, type UpdateOperations } from './document';
+import { postPath, SLUG_PATTERN } from '../../post-slug';
 import { createGitHubStore, GitHubStoreError } from './github';
 import { validPostParams } from '../github-posts';
 import { POST_TYPE_PLURALS } from '../../posts-types';
@@ -265,13 +266,15 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				return new Response(null, { status: 202, headers: { ...headers, Location: target.url, ...(!queued ? { Warning: '199 - "Post saved; delivery will retry after publication"' } : {}) } });
 			}
 
-			const { file } = await find(input.url);
+			const { file, target } = await find(input.url);
 			if (!file) throw new ProtocolError(404, 'invalid_request', 'Post not found');
 			const expectedRevision = request.headers.get('If-Match');
 			if (expectedRevision && expectedRevision !== `"${file.sha}"`) throw new ProtocolError(412, 'invalid_request', 'Post changed; fetch source before editing');
 			const doc = readDocument(file.content);
 			const deleted = doc.properties.deleted?.[0] === true;
 			let next: string;
+			/** A new slug moves the post to a new address; the old one is kept so it redirects. */
+			let slug: string | undefined;
 			if (action === 'delete') next = updateDocument(file.content, { replace: { deleted: [true] } });
 			else if (action === 'undelete') next = updateDocument(file.content, { delete: ['deleted'] });
 			else {
@@ -297,7 +300,13 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 					operations.replace = { ...operations.replace, syndicationTargets: [...new Set([...(doc.properties.syndicationTargets ?? []), ...requested])] };
 				}
 				const selectedChannel = channelValue(input['mp-channel'] ?? formProperties['mp-channel']);
-				if (!Object.keys(operations).length && selectedChannel === undefined) throw bad('No update operations');
+				const slugValue = input['mp-slug'] ?? formProperties['mp-slug'];
+				if (slugValue !== undefined) {
+					const value = Array.isArray(slugValue) ? (slugValue.length === 1 ? slugValue[0] : undefined) : slugValue;
+					if (typeof value !== 'string' || !SLUG_PATTERN.test(value)) throw bad('Use letters, numbers and hyphens in the slug');
+					if (value !== target.slug) slug = value;
+				}
+				if (!Object.keys(operations).length && selectedChannel === undefined && slug === undefined) throw bad('No update operations');
 				const status = operations.replace?.['post-status']?.[0];
 				if (status === 'draft') await authorize(request, 'draft', config, upstream, parsed.bodyToken);
 				if (status === 'published' && (doc.properties['post-status']?.[0] === 'draft' || doc.properties.draft?.[0] === true)) await authorize(request, 'create', config, upstream, parsed.bodyToken);
@@ -314,12 +323,24 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				if (afterDraft && !beforeDraft) await authorize(request, 'draft', config, upstream, parsed.bodyToken);
 				if (beforeDraft && !afterDraft) await authorize(request, 'create', config, upstream, parsed.bodyToken);
 			}
+			let path = file.path;
+			let moved: string | undefined;
+			if (slug !== undefined) {
+				const destination = location(`${new URL(me).origin}/${target.year}/${target.month}/${target.day}/${encodeURIComponent(slug)}/`, me);
+				const [, folder, fileDate] = file.path.match(/^([^/]+)\/(\d{4}-\d{2}-\d{2})-/)!;
+				path = `${folder}/${fileDate}-${slug}.md`;
+				if ((await find(destination.url)).file || await store.read(path)) throw new ProtocolError(409, 'invalid_request', 'Another post already uses that address');
+				next = setDocumentPreviousUrls(next, [...documentPreviousUrls(next), postPath(target.date, target.slug)], postPath(target.date, slug));
+				moved = destination.url;
+			}
 			if (next !== file.content) {
 				if (action === 'update') next = await enrichSocialSnapshots(next, dependencies.snapshotFetcher, {storeImage:socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl)});
 				next = updateDocument(next, { replace: { updated: [timestamp(now, config.timeZone)] } });
-				const saved = await store.write(file.path, next, { sha: file.sha, expectedHead, message: `${action} post` });
-				await queuePublication(config, file.path, next, file.content, saved.commit);
+				const saved = await store.write(path, next, { sha: file.sha, expectedHead, message: moved ? `Move ${target.slug} to ${slug}` : `${action} post`, from: file.path });
+				await queuePublication(config, path, next, file.content, saved.commit, file.path);
 			}
+			// Micropub answers 201 with the new address when an update changes a post's URL.
+			if (moved) return new Response(null, { status: 201, headers: { ...headers, Location: moved } });
 			return new Response(null, { status: 204, headers });
 		} catch (error) {
 			if (error instanceof ProtocolError) return json({ error: error.code, error_description: error.message }, error.status, error.status === 401 ? { 'WWW-Authenticate': 'Bearer' } : {});

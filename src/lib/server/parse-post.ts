@@ -89,6 +89,7 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		video: normalizeMedia(data.video),
 		microformatType: data._micropubType ?? (type === 'events' ? 'h-event' : type === 'reviews' ? 'h-review' : 'h-entry'),
 		channel: data._micropubChannel,
+		...(Array.isArray(data._micropubPreviousUrls) && data._micropubPreviousUrls.length ? { previousUrls: data._micropubPreviousUrls.filter((value: unknown): value is string => typeof value === 'string' && value.startsWith('/')) } : {}),
 		properties: Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith('_')).map(([key,value]) => [key, Array.isArray(value) ? value : [value]])),
 		filePath: `${type}/${file}`
 	};

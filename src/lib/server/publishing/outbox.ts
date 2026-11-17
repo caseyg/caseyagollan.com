@@ -2,6 +2,8 @@
 export type DeliveryEvent = {
  source: string; revision: string; generation?: string; action: 'publish' | 'remove'; targets: string[];
  syndicateTo: ('mastodon' | 'bluesky')[]; text: string; title?: string; published: string; sourcePath?: string;
+ /** Earlier addresses of a renamed post; their syndication receipts still count. */
+ previousSources?: string[];
 };
 export interface DeliveryProgress {
  webmentions: string[];

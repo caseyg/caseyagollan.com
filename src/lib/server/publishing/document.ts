@@ -160,3 +160,17 @@ export function documentMetadata(markdown: string, type: string, channel?: strin
  if (channel !== undefined) yaml.set('_micropubChannel', channel);
  return `---\n${yaml.toString()}---\n${body}`;
 }
+
+const previousKey = '_micropubPreviousUrls';
+/** Paths the post was published at before its slug changed, such as /2026/11/14/old-slug/. */
+export function documentPreviousUrls(markdown: string): string[] {
+ const value = parse(markdown).data[previousKey];
+ return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+/** Records the post's earlier paths so they redirect; a path the post moves back to is dropped. */
+export function setDocumentPreviousUrls(markdown: string, paths: string[], current: string): string {
+ const { yaml, body } = parse(markdown);
+ const kept = [...new Set(paths)].filter(path => path !== current);
+ if (kept.length) yaml.set(previousKey, kept); else yaml.delete(previousKey);
+ return `---\n${yaml.toString()}---\n${body}`;
+}
