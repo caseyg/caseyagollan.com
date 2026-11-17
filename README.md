@@ -49,10 +49,10 @@ the app must verify state and issuer before exchanging the code.
 ```sh
 bun run build:search   # Generate the real search index for local Search/Nav stories
 bun run storybook      # Development on http://localhost:6006
-bun run build-storybook # Static output in .svelte-kit/cloudflare/storybook/
+bun run build-storybook # Static output in dist-storybook/storybook/
 ```
 
-`bun run build` builds the site first, then adds Storybook to the same Worker asset directory. Cloudflare's static asset routing serves `/storybook` with a redirect to `/storybook/`; relative Storybook bundle URLs support this subdirectory. Generated files stay in the ignored `.svelte-kit/` directory. Storybook is public and excluded from search engines through its HTML metadata.
+Storybook is deployed as its own Worker, `caseyagollan-storybook` (`wrangler.storybook.jsonc`), with Workers Builds watch paths that skip content-only commits, so publishing a post never rebuilds it. The site Worker forwards `/storybook/` to it through the `STORYBOOK` service binding, and its static-assets routing redirects `/storybook` to `/storybook/`. Branch builds of the Storybook Worker get their own preview URLs. Storybook is public and excluded from search engines through its HTML metadata.
 
 The preview loads the site's global styles and uses readable component-scale typography. PostsLayout demonstrates the full feed layout. Webmention requests use MSW fixtures scoped to the Storybook service worker; Search uses the site's generated Pagefind index. No Worker bindings or API credentials are bundled into the stories.
 

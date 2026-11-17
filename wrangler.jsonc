@@ -61,6 +61,7 @@
 	 */
 	"previews": {
 		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }] },
+		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }],
 		"vars": {
 			"AUTH_ENABLED": "false",
 			"PUBLISHING_ENABLED": "false",
@@ -77,6 +78,11 @@
 			{ "binding": "SCREENSHOTS", "bucket_name": "caseyagollan-content" }
 		]
 	},
+	/**
+	 * Storybook is its own Worker (wrangler.storybook.jsonc), built only when code changes,
+	 * and worker.mjs forwards /storybook/ to it. Content publishes skip building it.
+	 */
+	"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }],
 	/**
 	 * Custom domain routing
 	 */
