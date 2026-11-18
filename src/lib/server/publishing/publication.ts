@@ -5,6 +5,7 @@ import type { Post } from '../../posts-types';
 import { getPostPermalink } from '../../posts-types';
 import { renderContentSync } from '../../utils/renderContent';
 import { isPublicPost } from '../parse-post';
+import { storedPhotoPosts, storedThread } from './syndication-thread';
 
 export interface Publication {
  url: string;
@@ -17,8 +18,10 @@ export interface Publication {
  sourcePath?: string;
  /** Addresses the post had before its slug changed. They redirect to `url`. */
  previousUrls?: string[];
- /** Photos attached to the post, with their alt text, for social copies. */
- photos?: { url: string; alt: string }[];
+ /** Photos attached to the post, with their alt text and the thread post each goes on, for social copies. */
+ photos?: { url: string; alt: string; post?: number }[];
+ /** The social copy as a thread of posts, from the post's `syndication-thread`. */
+ thread?: string[];
 }
 const CANONICAL = 'https://caseyagollan.com';
 
@@ -61,7 +64,9 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
   return node.type === 'element' && ['p', 'div', 'li', 'br', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'pre', 'section', 'article', 'tr'].includes(node.tagName) ? `${text}\n` : text;
  }
  const text = read(tree).replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
- const photos = (post.photo ?? []).filter(photo => /^https:\/\//.test(photo.url)).map(photo => ({ url: photo.url, alt: (photo.alt ?? '').replace(/\s+/g, ' ').trim() }));
+ const photoPosts = storedPhotoPosts(post.properties);
+ const photos = (post.photo ?? []).map((photo, index) => ({ photo, post: photoPosts[index] ?? 0 })).filter(({ photo }) => /^https:\/\//.test(photo.url)).map(({ photo, post }) => ({ url: photo.url, alt: (photo.alt ?? '').replace(/\s+/g, ' ').trim(), ...(post ? { post } : {}) }));
+ const thread = storedThread(post.properties);
  if (post.inReplyTo) addTarget(post.inReplyTo);
  if (post.bookmarkOf) addTarget(post.bookmarkOf);
  return {
@@ -69,6 +74,7 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
   revision: await publicationRevision(post), targets: [...targets], text,
   title: post.title, published: post.date, sourcePath: post.filePath,
   ...(photos.length ? { photos } : {}),
+  ...(thread && thread.length > 1 ? { thread } : {}),
   ...(post.previousUrls?.length ? { previousUrls: post.previousUrls.map(path => new URL(path, site).href) } : {}),
   // Imported activities may carry historical destination metadata. Never let a
   // polling import or later snapshot refresh trigger another automatic POSSE send.

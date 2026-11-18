@@ -13,6 +13,7 @@ import { validPostParams } from '../github-posts';
 import { POST_TYPE_PLURALS } from '../../posts-types';
 import { channels, channelValue, postFolder, QUILL_TYPES, validateQuill } from './quill';
 import { decodeCursor, encodeCursor, listedFiles, listPosts, postTypeFolders, type ReadPost } from './micropub-list';
+import { invalidThreadProperty, threadConfig } from './syndication-thread';
 
 export interface PublishingConfig extends AuthConfig {
 	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaBucket?: R2Bucket; mediaEnabled?: boolean; images?: ImagesBinding; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
@@ -99,6 +100,8 @@ function publicProperties(properties: Properties, removing = false) {
 			}
 		}
 		if (key === 'published' && (values.length !== 1 || typeof values[0] !== 'string')) throw bad('Use one published timestamp');
+		const thread = invalidThreadProperty(key, values);
+		if (thread) throw bad(thread);
 		if (['category', 'summary'].includes(key) && values.some(value => typeof value !== 'string')) throw bad(`Use text values for ${key}`);
 		if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'photo', 'video', 'syndication'].includes(key)) {
 			for (const value of values) {
@@ -200,7 +203,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 			if (request.method === 'GET') {
 				const q = url.searchParams.get('q');
 				if (q === 'channels') return json({ channels });
-				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video'].includes(type)).map(type => ({ type, name: type })) });
+				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), ...(syndicationTargets(config).length ? { 'syndication-thread': threadConfig() } : {}), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video'].includes(type)).map(type => ({ type, name: type })) });
 				if (q === 'syndicate-to') return json({ 'syndicate-to': syndicationTargets(config) });
 				if (q !== 'source') throw bad('Unsupported query');
 				const filter = url.searchParams.getAll('properties[]');

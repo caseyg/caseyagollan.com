@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { Avatar, Chip } from '$lib/components/ui';
-	import type { SocialCardAuthor, SocialCardSource } from '$lib/social-card';
+	import { firstPerNetwork, type SocialCardAuthor, type SocialCardSource } from '$lib/social-card';
 	import { formatAbsoluteDate, formatShortRelativeDate } from '$lib/utils/formatDate';
 
 	/**
@@ -52,8 +52,9 @@
 			</span>
 			{#if sources.length || editHref}
 				<span class="links">
-					{#each sources as source (source.url)}
-						<Chip href={source.url} size="sm" class={source.className} title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>
+					{#each firstPerNetwork(sources) as source (source.url)}
+						{#if source.hidden}<a class={source.className} href={source.url} hidden aria-hidden="true" tabindex="-1">{source.title}</a>
+						{:else}<Chip href={source.url} size="sm" class={source.className} title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>{/if}
 					{/each}
 					{#if editHref}<Chip href={editHref} size="sm" class="edit-post" rel="nofollow" title="Edit this post" aria-label="Edit this post">✏️</Chip>{/if}
 				</span>

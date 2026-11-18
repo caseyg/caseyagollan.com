@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Chip } from '$lib/components/ui';
-	import { socialSource } from '$lib/social-card';
+	import { firstPerNetwork, socialSource } from '$lib/social-card';
 	import WebmentionCounts from '$lib/components/WebmentionCounts.svelte';
 	import { POST_TYPE_PLURALS } from '$lib/posts-types';
 	import { formatRelativeDate, formatAbsoluteDate } from '$lib/utils/formatDate';
@@ -97,9 +97,9 @@
 	{#if showInteractions || editHref}
 		<div class="meta-group meta-secondary">
 			{#if showInteractions}
-				{#each metaSyndication as link (link)}
-					{@const source = socialSource(link)}
-					<Chip href={link} size="sm" class="u-syndication" title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>
+				{#each firstPerNetwork(metaSyndication.map(link => socialSource(link))) as source (source.url)}
+					{#if source.hidden}<a class="u-syndication" href={source.url} hidden aria-hidden="true" tabindex="-1">{source.title}</a>
+					{:else}<Chip href={source.url} size="sm" class="u-syndication" title={source.title} aria-label={source.title} target="_blank" rel="noopener">{source.label}</Chip>{/if}
 				{/each}
 				<WebmentionCounts url={permalink} />
 			{/if}

@@ -8,6 +8,8 @@
 		alt: string;
 		/** With `removable`: whether the photo goes with the post. Undefined counts as included. */
 		included?: boolean;
+		/** In a thread: the post it goes on, counted from 0. */
+		post?: number;
 	}
 	interface Props {
 		/** The post's attached photos. Bound: editing alt text, or leaving a photo off, changes them. */
@@ -20,9 +22,12 @@
 		max?: number;
 		/** The longest alt text allowed. Its count shows as the text gets close. */
 		altLimit?: number;
+		/** In a thread: moves a photo to the post before (-1) or after (1). Left out, or returning false for a step, hides that button. */
+		onmove?: (photo: Photo, step: -1 | 1) => void;
+		canMove?: (photo: Photo, step: -1 | 1) => boolean;
 	}
 
-	let { photos = $bindable(), name = 'photo-alts', removable = false, max = Infinity, altLimit }: Props = $props();
+	let { photos = $bindable(), name = 'photo-alts', removable = false, max = Infinity, altLimit, onmove, canMove = () => true }: Props = $props();
 
 	const json = $derived(JSON.stringify(photos.map(photo => photo.alt)));
 	const included = (photo: Photo) => !removable || photo.included !== false;
@@ -46,6 +51,12 @@
 						{:else}
 							<Button variant="icon" size="sm" icon="plus" label={full ? `Up to ${max} photos can go` : 'Add this photo back'} disabled={full} onclick={() => (photos[index].included = true)} />
 						{/if}
+					</div>
+				{/if}
+				{#if onmove && (canMove(photo, -1) || canMove(photo, 1))}
+					<div class="move">
+						{#if canMove(photo, -1)}<Button variant="icon" size="sm" icon="chevron-up" label="Move to the post before" onclick={() => onmove(photo, -1)} />{/if}
+						{#if canMove(photo, 1)}<Button variant="icon" size="sm" icon="chevron" label="Move to the post after" onclick={() => onmove(photo, 1)} />{/if}
 					</div>
 				{/if}
 				{#if altLimit && count > altLimit * 0.8}<span class="count" class:over={count > altLimit}>{count}/{altLimit}</span>{/if}
@@ -96,6 +107,16 @@
 		position: absolute;
 		top: var(--space-2);
 		right: var(--space-2);
+		border-radius: var(--radius-full);
+		background: var(--bg-primary);
+	}
+
+	/* In a thread, a photo moves between posts from its other top corner. */
+	.move {
+		position: absolute;
+		top: var(--space-2);
+		left: var(--space-2);
+		display: flex;
 		border-radius: var(--radius-full);
 		background: var(--bg-primary);
 	}

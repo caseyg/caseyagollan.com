@@ -3,9 +3,11 @@ import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from '.
 import { checkDeliveryResponse } from './webmention';
 
 /** A photo of the post, as chosen for a social copy. */
-export interface SyndicationPhoto { url: string; alt: string }
+export interface SyndicationPhoto { url: string; alt: string;
+ /** The post of a thread it goes on, counted from 0; the first when left out. */
+ post?: number }
 /** A photo read and fitted to one network's limits, ready to upload. */
-export interface PreparedPhoto { bytes: Uint8Array<ArrayBuffer>; type: string; alt: string; width?: number; height?: number }
+export interface PreparedPhoto { bytes: Uint8Array<ArrayBuffer>; type: string; alt: string; width?: number; height?: number; post?: number }
 /** Where photos are read from, and what can shrink them. */
 export interface PhotoSources {
  /** The media bucket behind `mediaBaseUrl`; photos there are read without a network fetch. */
@@ -99,7 +101,10 @@ async function shrink(bytes: Uint8Array<ArrayBuffer>, maximum: number, images: I
 export function checkPhotos(service: SocialService, photos: SyndicationPhoto[]): void {
  const limits = PHOTO_LIMITS[service];
  const name = service === 'bluesky' ? 'Bluesky' : 'Mastodon';
- if (photos.length > limits.count) throw new DeliveryError(`${name} takes up to ${limits.count} photos`, false);
+ // The limit is per post: a thread can carry more, a few on each post.
+ const perPost = new Map<number, number>();
+ for (const photo of photos) perPost.set(photo.post ?? 0, (perPost.get(photo.post ?? 0) ?? 0) + 1);
+ if ([...perPost.values()].some(count => count > limits.count)) throw new DeliveryError(`${name} takes up to ${limits.count} photos per post`, false);
  for (const photo of photos) if (altLength(photo.alt) > limits.alt) throw new DeliveryError(`${name} alt text is limited to ${limits.alt} characters`, false);
 }
 
@@ -112,7 +117,7 @@ export async function preparePhotos(service: SocialService, photos: SyndicationP
   let type = sniffImageType(bytes);
   if (!type) throw new DeliveryError('A photo is not an image either network accepts', false);
   if (bytes.length > limits.bytes || !limits.types.includes(type)) { bytes = await shrink(bytes, limits.bytes, sources.images, service); type = 'image/jpeg'; }
-  return { bytes, type, alt: photo.alt.trim(), ...imageSize(bytes) };
+  return { bytes, type, alt: photo.alt.trim(), ...imageSize(bytes), ...(photo.post ? { post: photo.post } : {}) };
  }));
 }
 

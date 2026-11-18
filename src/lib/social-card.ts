@@ -10,7 +10,14 @@ export const siteAuthor: SocialCardAuthor = {
 };
 const escape = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 /** An outbound link to a copy of a post on another network. */
-export interface SocialCardSource { url: string; label: string; title: string; className?: string }
+export interface SocialCardSource { url: string; label: string; title: string; className?: string;
+ /** A later post of the same thread: kept as a hidden link for microformats, not drawn. */
+ hidden?: boolean }
+/** One visible mark per network: a thread saves every post's link, and its first post stands for the rest. */
+export function firstPerNetwork(sources: SocialCardSource[]): SocialCardSource[] {
+ const seen = new Set<string>();
+ return sources.map(source => { const hidden = seen.has(source.label) && source.label !== '🔗'; seen.add(source.label); return hidden ? { ...source, hidden } : source; });
+}
 /** Networks are always shown as their mark (🦋, 🐘), never spelled out; the name is kept for assistive tech. */
 export function socialSource(url: string, className?: string): SocialCardSource {
  let host = url;

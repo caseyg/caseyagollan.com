@@ -5,7 +5,7 @@ import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publishingConfig } from '$lib/server/publishing/config';
 import { publicationRevision } from '$lib/server/publishing/publication';
 import { ProtocolError } from '$lib/server/publishing/auth';
-import { editorSession, editorDestinations, postPhotos, sendEditorDrafts, validateEditorSubmission, type ChosenPhoto } from '$lib/server/publishing/syndication-editor';
+import { editorSession, editorDestinations, postPhotos, saveEditorThread, sendEditorDrafts, threadSource, validateEditorSubmission, type ChosenPhoto } from '$lib/server/publishing/syndication-editor';
 
 export const prerender = false;
 
@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
   }
   return { signedIn: true as const, csrf: session.csrf, revision: await publicationRevision(post), title: post.title, kind: post.type,
    postUrl: new URL(`/${params.year}/${params.month}/${params.day}/${params.slug}/`, config.me).href,
-   destinations: await editorDestinations(config, post), photos: await postPhotos(config, post) };
+   destinations: await editorDestinations(config, post), photos: await postPhotos(config, post), source: await threadSource(config, post) };
  } catch (cause) {
   if (cause instanceof ProtocolError) error(cause.status, cause.message);
   throw cause;
@@ -40,7 +40,7 @@ function photoChoice(value: string | null): unknown {
 }
 /** Chosen photos as the page shows them again after a failed send. */
 function formPhotos(value: unknown): ChosenPhoto[] | undefined {
- return Array.isArray(value) && value.every(item => item && typeof item.url === 'string' && typeof item.alt === 'string') ? value.map(item => ({ url: item.url, alt: item.alt })) : undefined;
+ return Array.isArray(value) && value.every(item => item && typeof item.url === 'string' && typeof item.alt === 'string') ? value.map(item => ({ url: item.url, alt: item.alt, ...(Number.isInteger(item.post) && item.post > 0 ? { post: item.post } : {}) })) : undefined;
 }
 
 export const actions: Actions = {
@@ -48,20 +48,21 @@ export const actions: Actions = {
   if (!validPostParams(params)) error(404, 'Post not found');
   const session = await editorSession(request, platform?.env ?? {});
   if (!session) return fail(401, { message: 'Sign in to syndicate this post.' });
-  // The form has at most two 10 kB drafts and four photos' alt text, plus session and revision fields.
+  // The form has two threads of at most 20 posts and the photos' alt text, plus session and revision fields.
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) while (true) {
    const { done, value } = await reader.read(); if (done) break;
    size += value.byteLength;
-   if (size > 65536) { await reader.cancel(); return fail(413, { message: 'The drafts are too large.' }); }
+   if (size > 262144) { await reader.cancel(); return fail(413, { message: 'The drafts are too large.' }); }
    chunks.push(value);
   }
   const bytes = new Uint8Array(size); let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
   if (request.headers.get('content-type')?.split(';')[0] !== 'application/x-www-form-urlencoded') return fail(415, { message: 'Submit the syndication form.' });
   const values = new URLSearchParams(new TextDecoder().decode(bytes));
-  const drafts = { bluesky: values.get('bluesky') ?? '', mastodon: values.get('mastodon') ?? '' };
+  // Each network's field repeats once per post of its thread.
+  const drafts = { bluesky: values.getAll('bluesky'), mastodon: values.getAll('mastodon') };
   const photos = photoChoice(values.get('photos'));
   try {
    await validateEditorSubmission(request, session, values.get('csrf'));
@@ -69,7 +70,11 @@ export const actions: Actions = {
    if (!config) error(503, 'Publishing is unavailable.');
    const post = await getGitHubPost(params, fetch, config.token, config);
    if (!post) error(404, 'Post not found');
-   const message = await sendEditorDrafts(config, post, values.get('revision') ?? '', values.getAll('targets'), drafts, { gitFetch: fetch, syncOnly: values.get('intent') === 'sync', photos });
+   // Save keeps the thread on the post for other clients without sending: the first chosen network's thread.
+   const shown = (values.getAll('targets')[0] ?? 'bluesky') === 'mastodon' ? drafts.mastodon : drafts.bluesky;
+   const message = values.get('intent') === 'save'
+    ? await saveEditorThread(config, post, values.get('revision') ?? '', shown, photos, fetch)
+    : await sendEditorDrafts(config, post, values.get('revision') ?? '', values.getAll('targets'), drafts, { gitFetch: fetch, syncOnly: values.get('intent') === 'sync', photos });
    return { message, drafts, photos: formPhotos(photos), linked: values.has('linked'), targets: values.getAll('targets') };
   } catch (cause) {
    if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, drafts, photos: formPhotos(photos), linked: values.has('linked'), targets: values.getAll('targets') });

@@ -504,3 +504,16 @@ test('Imported posts are stored as Markdown unless Markdown would render them di
  // A bare YouTube link would become an embedded player in Markdown, so it stays HTML.
  expect(importedContent('<p><a href="https://www.youtube.com/watch?v=D99nPVXWtPc">https://www.youtube.com/watch?v=D99nPVXWtPc</a></p>').content![0]).toHaveProperty('html');
 });
+test('later posts of a syndicated thread are not imported as separate notes',async()=>{
+ // From the receipt, before the links are saved on the post.
+ const h=harness({existing:'---\ndate: 2026-11-06T20:00:00-05:00\n---\nSite original'});
+ const source='https://caseyagollan.com/2026/11/06/0/';
+ const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${source}\0mastodon`))),b=>b.toString(16).padStart(2,'0')).join('');
+ h.files.set(`private/syndication/${hash}.json`,{etag:'receipt',value:JSON.stringify({status:'sent',url:'https://social.coop/@caseyg/1',parts:[{url:'https://social.coop/@caseyg/1',id:'1'},{url:mastodon.url,id:'2'}]})});
+ expect((await processPesos(h.env,{fetcher:h.fetcher})).imported).toBe(0);
+ expect(h.writes).toHaveLength(0);
+ // From the post's saved syndication links.
+ const saved=harness({existing:`---\ndate: 2026-11-06T20:00:00-05:00\nsyndication:\n - https://social.coop/@caseyg/1\n - ${mastodon.url}\n---\nSite original`});
+ expect((await processPesos(saved.env,{fetcher:saved.fetcher})).imported).toBe(0);
+ expect(saved.writes).toHaveLength(0);
+});

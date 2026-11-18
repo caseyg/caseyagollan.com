@@ -468,4 +468,23 @@ describe('Micropub post list (q=source without url)', () => {
     expect((await app.handler(new Request('https://example.com/micropub?q=source'))).status).toBe(401);
     expect((await setup('create').query('q=source')).status).toBe(403);
   });
+  test('stores a syndication thread and photo placement, and refuses malformed ones', async () => {
+    const app = setup();
+    const created = await app.send({ type: ['h-entry'], properties: { content: ['Long post'], 'mp-slug': ['thread'], 'syndication-thread': ['First post', 'Second post'], 'syndication-photo-post': [0, '1'] } });
+    expect(created.status).toBe(202);
+    const properties = readDocument(app.files.get('notes/2026-11-06-thread.md')!.content).properties;
+    expect(properties['syndication-thread']).toEqual(['First post', 'Second post']);
+    const url = 'https://example.com/2026/11/06/thread/';
+    expect((await app.send({ action: 'update', url, replace: { 'syndication-thread': ['One', 'Two', 'Three'] } })).status).toBe(204);
+    const source = await (await app.query(`q=source&url=${encodeURIComponent(url)}&properties[]=syndication-thread`)).json() as { properties: Record<string, unknown> };
+    expect(source.properties['syndication-thread']).toEqual(['One', 'Two', 'Three']);
+    for (const bad of [{ 'syndication-thread': [''] }, { 'syndication-thread': Array(21).fill('x') }, { 'syndication-thread': [{ html: 'x' }] }, { 'syndication-photo-post': [-1] }, { 'syndication-photo-post': ['first'] }])
+      expect((await app.send({ properties: { content: ['x'], ...bad } })).status).toBe(400);
+  });
+
+  test('advertises syndication threads in q=config when syndication is configured', async () => {
+    const response = await setup('create', { syndication: { bluesky: { service: 'https://bsky.social', identifier: 'test', password: 'fake' } }, state: {} as R2Bucket }).query('q=config');
+    const body = await response.json() as Record<string, { property?: string; 'max-posts'?: number }>;
+    expect(body['syndication-thread']).toMatchObject({ property: 'syndication-thread', 'max-posts': 20 });
+  });
 });
