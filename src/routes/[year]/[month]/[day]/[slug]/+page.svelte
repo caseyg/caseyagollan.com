@@ -4,6 +4,7 @@
 	import Webmentions from '$lib/components/Webmentions.svelte';
 	import HCard from '$lib/components/HCard.svelte';
 	import { fediverseHandle } from '$lib/identity';
+	import { jsonLdScript, postJsonLd } from '$lib/json-ld';
 	import { PostsLayout, DateArchiveHeader, PostMeta, PostTitle, PostContent, PostMedia, PostDetails, NoteCard, RespondBar } from '$lib/components/posts';
 
 	import { getPostAction } from '$lib/utils/post-details';
@@ -19,6 +20,8 @@
 		.replace(/&#x([0-9a-f]+);|&#(\d+);|&(amp|lt|gt|quot|nbsp);/gi, (match, hex: string, dec: string, name: string) => hex || dec ? String.fromCodePoint(parseInt(hex ?? dec, hex ? 16 : 10)) : entities[name.toLowerCase()] ?? match)
 		.replace(/\s+/g, ' ').trim();
 	const description = $derived(data.post.summary || plain(renderContentSync(data.post.content, data.post.contentFormat)).slice(0, 160));
+	// Recipes keep their full steps; other posts use the short description.
+	const jsonLd = $derived(jsonLdScript(postJsonLd(data.post, { url: `https://caseyagollan.com${permalink}`, description: data.post.type === 'recipe' ? plain(renderContentSync(data.post.content, data.post.contentFormat)) : description })));
 </script>
 
 <svelte:head>
@@ -28,6 +31,8 @@
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />
 	<!-- Mastodon credits links to this post to the author's account. -->
 	{#if creator}<meta name="fediverse:creator" content={creator} />{/if}
+	<!-- schema.org for search engines; the page's microformats carry the same data for IndieWeb tools. -->
+	{@html jsonLd}
 </svelte:head>
 
 <Nav currentPage="posts" />
