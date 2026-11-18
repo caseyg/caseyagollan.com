@@ -3,6 +3,7 @@ import { fromHtml } from 'hast-util-from-html';
 import { toHtml } from 'hast-util-to-html';
 import type { Element, Root, RootContent } from 'hast';
 import { sanitizePublishingHtml } from './sanitizeHtml';
+import { SITE_FEEDS, SITE_URL } from '$lib/feeds';
 
 // Configure Markdown formatting; the final HTML is sanitized below.
 marked.setOptions({
@@ -26,6 +27,8 @@ marked.use({ extensions: [{
 const OEMBED_PATTERNS: Array<{
 	pattern: RegExp;
 	getEmbed: (match: RegExpMatchArray) => string;
+	/** Only a link on a line of its own embeds; in a sentence it stays a link. */
+	block?: boolean;
 }> = [
 	// YouTube - various URL formats
 	{
@@ -41,6 +44,17 @@ const OEMBED_PATTERNS: Array<{
 		getEmbed: (match) => {
 			const href = `https://caseyagollan.com/tables/${match[1]}`;
 			return `<div class="embed embed-table"><iframe src="${href}/embed" title="A table by Casey Gollan" loading="lazy"></iframe><p class="embed-caption"><a href="${href}">Open the table</a></p></div>`;
+		}
+	},
+	// The site's subscribe page on a line of its own: a sentence with every way to follow, which
+	// Prose draws as the signup form and feed links (subscribeEmbeds). Feeds and email keep the sentence.
+	{
+		pattern: /^https:\/\/(?:www\.)?caseyagollan\.com\/subscribe\/?$/g,
+		block: true,
+		getEmbed: () => {
+			const feeds = SITE_FEEDS.map((feed) => `<a href="${SITE_URL}${feed.path}">${feed.label}</a>`);
+			const list = feeds.length > 1 ? `${feeds.slice(0, -1).join(', ')} or ${feeds.at(-1)}` : feeds.join('');
+			return `<div class="embed embed-subscribe"><p><a href="${SITE_URL}/subscribe/">Get new posts by email</a>, or follow with ${list}.</p></div>`;
 		}
 	},
 	// Vimeo
@@ -62,10 +76,11 @@ const BLUESKY_HANDLE_PATTERN = /(?<![a-zA-Z0-9@])@([a-zA-Z0-9][a-zA-Z0-9.-]*\.bs
 /**
  * Process oEmbed URLs in content
  */
-function processOembeds(content: string): string {
+function processOembeds(content: string, inline = false): string {
 	let result = content;
 
-	for (const { pattern, getEmbed } of OEMBED_PATTERNS) {
+	for (const { pattern, getEmbed, block } of OEMBED_PATTERNS) {
+		if (block && inline) continue;
 		pattern.lastIndex = 0;
 		result = result.replace(pattern, (fullMatch, ...groups) => {
 			// Check if this URL is already inside a link or other HTML
@@ -105,11 +120,16 @@ function enhanceMarkdown(node: Root | Element): void {
  if (node.type === 'element' && ['a', 'code', 'pre', 'script', 'style', 'iframe'].includes(node.tagName)) return;
  node.children = node.children.flatMap((child): RootContent[] => {
   if (child.type === 'element') {
+   // An embed on a line of its own takes the paragraph's place rather than sitting inside it.
+   const only = child.tagName === 'p' && child.children.length === 1 ? child.children[0] : undefined;
+   if (only?.type === 'element' && only.tagName === 'a') {
+    const embedded = embedLink(only, false);
+    if (embedded) return embedded;
+   }
    // Marked autolinks bare URLs. Embed those while preserving descriptive link labels.
-   if (child.tagName === 'a' && child.children.length === 1 && child.children[0].type === 'text' && child.children[0].value === child.properties.href) {
-    const url = child.children[0].value;
-    const embedded = processOembeds(url);
-    if (embedded !== url) return fromHtml(embedded, { fragment: true }).children;
+   if (child.tagName === 'a') {
+    const embedded = embedLink(child);
+    if (embedded) return embedded;
    }
    enhanceMarkdown(child);
   } else if (child.type === 'text') {
@@ -119,6 +139,14 @@ function enhanceMarkdown(node: Root | Element): void {
   }
   return [child];
  });
+}
+
+/** The embed for a bare autolinked URL, or nothing for a link with its own label. */
+function embedLink(link: Element, inline = true): RootContent[] | undefined {
+ const [text] = link.children;
+ if (link.children.length !== 1 || text.type !== 'text' || text.value !== link.properties.href) return undefined;
+ const embedded = processOembeds(text.value, inline);
+ return embedded === text.value ? undefined : fromHtml(embedded, { fragment: true }).children;
 }
 
 function escapeText(value: string): string {

@@ -9,6 +9,9 @@ export const POSTS_CRUMB: Segment = { label: 'Posts', href: '/posts/', icon: '�
 /** Leads from a tag's page to the page of all tags. */
 export const TAGS_CRUMB: Segment = { label: 'Tags', href: '/tags/', icon: '🏷️' };
 
+/** The page with every way to follow the posts: email and the feeds. */
+export const SUBSCRIBE_CRUMB: Segment = { label: 'Subscribe', href: '/subscribe/', icon: '✉️' };
+
 /**
  * The Posts segment as the menu the page loaded: the feed, then post types, tags and years to combine.
  * `active` marks a plain entry as the page being viewed (`all` or `tags`), and `badge` says which
