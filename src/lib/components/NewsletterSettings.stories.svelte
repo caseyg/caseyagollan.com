@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import NewsletterSettings, { type NewsletterState } from './NewsletterSettings.svelte';
 
-	const keys = ['archive_theme', 'web_css', 'css', 'tint_color', 'subscription_redirect_url', 'subscription_confirmation_redirect_url'];
+	const keys = ['archive_theme', 'theme_configuration', 'web_css', 'css', 'tint_color', 'subscription_redirect_url', 'subscription_confirmation_redirect_url'];
 	const newsletter = (on: boolean) => ({ username: 'caseyagollan', name: 'Casey Gollan', url: 'https://buttondown.com/caseyagollan', applied: Object.fromEntries(keys.map((key) => [key, on])) });
 	const later = (state: NewsletterState) => () => new Promise<NewsletterState>((resolve) => setTimeout(() => resolve(state), 500));
 
@@ -13,6 +13,9 @@
 <Story name="Not yet styled" args={{ load: later({ configured: true, newsletter: newsletter(false) }), apply: later({ configured: true, newsletter: newsletter(true) }) }} />
 
 <Story name="Matches the site" args={{ load: later({ configured: true, newsletter: newsletter(true) }), apply: later({ configured: true, newsletter: newsletter(true) }) }} />
+
+<!-- A free Buttondown plan: custom CSS is refused, everything else applies. -->
+<Story name="Free plan" args={{ load: later({ configured: true, newsletter: newsletter(false) }), apply: later({ configured: true, newsletter: { ...newsletter(true), applied: { ...newsletter(true).applied, web_css: false, css: false }, refused: { web_css: 'Your current plan doesn’t allow for customizing CSS.', css: 'Your current plan doesn’t allow for customizing CSS.' } } }) }} />
 
 <Story name="No key" args={{ load: later({ configured: false }) }} />
 
