@@ -79,6 +79,12 @@ Mastodon `card` and Bluesky external embeds are saved with their title,
 description, site name (when supplied), and archived preview image. Existing
 snapshots can be refreshed with
 `bun run backfill-social-snapshots --refresh --write --remote-media`.
+Videos in liked, reposted and quoted posts are saved with their poster frame:
+Bluesky videos (up to 100 MB) stream from the author's PDS straight into R2,
+which checks the bytes against the blob CID's SHA-256, and Mastodon videos and
+GIFs (up to 40 MB) are read whole and hashed. A video that is too large keeps
+its poster frame, linked to the original post; a temporary failure keeps the
+last saved snapshot, and a later `--refresh` saves the video.
 No metadata or image requests are made during page rendering.
 
 ## Backfill and archive behavior

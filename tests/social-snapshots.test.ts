@@ -369,10 +369,9 @@ test('Bluesky GIF presentations archive MP4 bytes and survive the full render sa
   const saved=await enrichSocialSnapshots(source(),async url=>{
    requests.push(url);
    return url.includes('plc.directory')?Response.json({id:'did:plc:grant',service:[{id:'#atproto_pds',type:'AtprotoPersonalDataServer',serviceEndpoint:'https://custom-pds.example'}]}):url.includes('getPostThread')?Response.json({thread:{post}}):new Response(mp4,{headers:{'content-type':'video/mp4'}});
-  },{storeImage:async(bytes,type)=>{expect(type).toBe('video/mp4');expect(bytes).toEqual(mp4);return videoUrl;}});
+  },{storeImage:async()=>imageUrl,storeVideo:async(url,sha256)=>{expect(sha256).toBeUndefined();expect(url).toBe('https://custom-pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Agrant&cid=bafkreivideo');return videoUrl;}});
   const parsed=parsePost(saved,'likes','2026-11-06-video.md');
   expect(parsed.socialSnapshots![0].video).toEqual({src:videoUrl,alt:viewMedia.alt,...(gif?{presentation:'gif'}:{})});
-  expect(requests).toContain('https://custom-pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Agrant&cid=bafkreivideo');
   const html=renderPostDetails(parsed);
   expect(html).toContain('<video');expect(html).toContain(`src="${videoUrl}"`);
   expect(html).toContain('controls');expect(html).toContain('playsinline');
@@ -418,4 +417,90 @@ test('own posts render saved link cards and drop unsaved thumbnails', async () =
  // Notes show the card inside their own card; other post types get it from the shared details.
  expect(renderPostDetails({...post,type:'photo'})).toContain('social-link-preview');
  expect(renderPostDetails(post,{omitLinkPreviews:true})).not.toContain('social-link-preview');
+});
+
+test('Bluesky blob CIDs give the SHA-256 of their bytes',async()=>{
+ const {blobSha256}=await import('../src/lib/server/publishing/social-media');
+ const bytes=new TextEncoder().encode('a video');
+ const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+ const cid=[1,0x55,0x12,0x20,...digest];
+ const alphabet='abcdefghijklmnopqrstuvwxyz234567';let bits=0,value=0,encoded='b';
+ for(const byte of cid){value=(value<<8|byte)&0xffff;bits+=8;while(bits>=5){bits-=5;encoded+=alphabet[value>>bits&31];}}
+ if(bits)encoded+=alphabet[value<<(5-bits)&31];
+ expect(blobSha256(encoded)).toBe(Array.from(digest,b=>b.toString(16).padStart(2,'0')).join(''));
+ // grant's 57.7 MB tabletop video
+ expect(blobSha256('bafkreibxtglnet45axyadp2t7t4j5zc5kdx7lkacwuhqq4efnm2r6o4b7q')).toMatch(/^[a-f0-9]{64}$/);
+ expect(blobSha256('bafyreicbymip3mt2jldxmbi5lpmqr5sgviok3wtkat4cpxb5eh57x3otva')).toBeUndefined();
+ expect(blobSha256('bafkreivideo')).toBeUndefined();
+});
+
+test('large Bluesky videos stream into storage checked against their CID',async()=>{
+ const {socialVideoStore}=await import('../src/lib/server/publishing/social-media');
+ const mp4=new Uint8Array(200_000);mp4.set([0,0,0,24,...new TextEncoder().encode('ftypisom')]);
+ const sha='b'.repeat(64);let put:any;
+ const bucket={head:async()=>null,put:async(key:string,body:ReadableStream,options:any)=>{put={key,options,bytes:new Uint8Array(await new Response(body).arrayBuffer())};return {key};}} as unknown as R2Bucket;
+ const store=socialVideoStore(bucket,'https://caseyagollan.com/','https://files.caseyagollan.com/',async()=>new Response(mp4,{headers:{'content-type':'video/mp4','content-length':String(mp4.length)}}))!;
+ expect(await store('https://pds.example/xrpc/com.atproto.sync.getBlob?cid=x',sha)).toBe(`https://files.caseyagollan.com/publishing/social/${sha}.mp4`);
+ expect(put.key).toBe(`publishing/social/${sha}.mp4`);expect(put.options.sha256).toBe(sha);expect(put.bytes).toEqual(mp4);
+ // Already saved: no download.
+ let fetched=false;
+ const saved=socialVideoStore({head:async()=>({}),put:async()=>{throw new Error('no');}} as unknown as R2Bucket,'https://caseyagollan.com/',undefined,async()=>{fetched=true;return new Response();})!;
+ expect(await saved('https://pds.example/blob',sha)).toBe(`https://caseyagollan.com/media/social/${sha}.mp4`);expect(fetched).toBe(false);
+ // Not an MP4.
+ const png=new Uint8Array(100);png.set([137,80,78,71]);
+ const wrong=socialVideoStore({head:async()=>null,put:async(_k:string,body:ReadableStream)=>{await new Response(body).arrayBuffer();return {};}} as unknown as R2Bucket,'https://caseyagollan.com/',undefined,async()=>new Response(png,{headers:{'content-type':'video/mp4'}}))!;
+ await expect(wrong('https://pds.example/blob',sha)).rejects.toThrow('Not an MP4');
+});
+
+test('public streams require a declared length within the limit',async()=>{
+ const {safePublicStream}=await import('../src/lib/server/publishing/public-fetch');
+ const dns=()=>Response.json({Status:0,Answer:[{type:1,data:'93.184.216.34'}]});
+ const fake=(headers:Record<string,string>,body='abcd')=>(async(url:string)=>url.includes('cloudflare-dns.com')?dns():new Response(body,{headers})) as unknown as typeof fetch;
+ const ok=await safePublicStream('https://media.example/v.mp4',{},fake({'content-length':'4'}),10);
+ expect(await ok.text()).toBe('abcd');
+ await expect(safePublicStream('https://media.example/v.mp4',{},fake({'content-length':'40'}),10)).rejects.toThrow('exceeds');
+ await expect(safePublicStream('https://media.example/v.mp4',{},fake({}),10)).rejects.toThrow('declared length');
+ const lying=await safePublicStream('https://media.example/v.mp4',{},fake({'content-length':'2'}),10);
+ await expect(lying.text()).rejects.toThrow();
+});
+
+const did={id:'did:plc:grant',service:[{id:'#atproto_pds',type:'AtprotoPersonalDataServer',serviceEndpoint:'https://pds.example'}]};
+const videoPost={...blueskyPost,record:{...blueskyPost.record,text:'Revamped printing',embed:{$type:'app.bsky.embed.video',video:{ref:{$link:'bafkreibxtglnet45axyadp2t7t4j5zc5kdx7lkacwuhqq4efnm2r6o4b7q'}}}},embed:{$type:'app.bsky.embed.video#view',alt:'A tabletop',thumbnail:'https://video.bsky.app/watch/x/thumbnail.jpg'}};
+const jpeg=Uint8Array.from([255,216,255,0]);
+const videoFetch=async(url:string)=>url.includes('getProfile')?Response.json({did:'did:plc:grant'}):url.includes('plc.directory')?Response.json(did):url.includes('getPostThread')?Response.json({thread:{post:videoPost}}):new Response(jpeg,{headers:{'content-type':'image/jpeg'}});
+const posterUrl='https://files.caseyagollan.com/publishing/social/'+'c'.repeat(64)+'.jpg';
+const savedVideo='https://files.caseyagollan.com/publishing/social/'+'d'.repeat(64)+'.mp4';
+
+test('Bluesky videos save with their poster frame and CID digest',async()=>{
+ let asked:any;
+ const saved=await enrich(source(),videoFetch,{storeImage:async(_b,type)=>type==='image/jpeg'?posterUrl:imageUrl,storeVideo:async(url,sha256)=>{asked={url,sha256};return savedVideo;}});
+ expect(asked.url).toBe('https://pds.example/xrpc/com.atproto.sync.getBlob?did=did%3Aplc%3Agrant&cid=bafkreibxtglnet45axyadp2t7t4j5zc5kdx7lkacwuhqq4efnm2r6o4b7q');
+ expect(asked.sha256).toMatch(/^[a-f0-9]{64}$/);
+ const post=parsePost(saved,'likes','2026-11-17-video.md');
+ expect(post.socialSnapshots![0].video).toEqual({src:savedVideo,poster:posterUrl,alt:'A tabletop'});
+ const html=renderPostDetails(post);
+ expect(html).toContain(`poster="${posterUrl}"`);expect(html).toContain(`src="${savedVideo}"`);
+});
+
+test('a video too large to save keeps its poster, linked to the original',async()=>{
+ const {DeliveryError}=await import('../src/lib/server/publishing/public-fetch');
+ const saved=await enrich(source(),videoFetch,{storeImage:async()=>posterUrl,storeVideo:async()=>{throw new DeliveryError('Response exceeds body limit',false);}});
+ const post=parsePost(saved,'likes','2026-11-17-video.md');
+ expect(post.socialSnapshots![0].video).toEqual({poster:posterUrl,alt:'A tabletop'});
+ const html=renderPostDetails(post);
+ expect(html).not.toContain('<video');expect(html).toContain('Watch on Bluesky');expect(html).toContain(`src="${posterUrl}"`);
+ // A later refresh that can save it upgrades the poster to the video.
+ const refreshed=await enrich(saved,videoFetch,{refresh:true,storeImage:async()=>posterUrl,storeVideo:async()=>savedVideo});
+ expect(parsePost(refreshed,'likes','2026-11-17-video.md').socialSnapshots![0].video?.src).toBe(savedVideo);
+ // A temporary failure keeps what was saved.
+ const kept=await enrich(refreshed,videoFetch,{refresh:true,storeImage:async()=>posterUrl,storeVideo:async()=>{throw new DeliveryError('Video unavailable',true);}});
+ expect(kept).toBe(refreshed);
+});
+
+test('Mastodon videos and GIFs are saved too',async()=>{
+ const status={url:'https://mastodon.example/@friend/1',visibility:'public',content:'<p>Clip</p>',created_at:'2026-11-06T12:00:00Z',account:{acct:'friend',display_name:'Friend',url:'https://mastodon.example/@friend',locked:false},media_attachments:[{type:'gifv',url:'https://media.example/clip.mp4',preview_url:'https://media.example/clip.png',description:'A cat'}]};
+ let asked:any;
+ const saved=await enrich(source('like-of','https://mastodon.example/@friend/1'),async url=>url.includes('/api/v1/statuses/')?Response.json(status):new Response(png,{headers:{'content-type':'image/png'}}),{storeImage:async()=>imageUrl,storeVideo:async(url,sha256)=>{asked={url,sha256};return savedVideo;}});
+ expect(asked).toEqual({url:'https://media.example/clip.mp4',sha256:undefined});
+ expect(parsePost(saved,'likes','2026-11-06-clip.md').socialSnapshots![0].video).toEqual({src:savedVideo,poster:imageUrl,alt:'A cat',presentation:'gif'});
 });
