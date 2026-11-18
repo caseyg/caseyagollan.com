@@ -150,3 +150,68 @@ describe('publishing from the composer', () => {
 		expect(readDocument(markdown).properties).toMatchObject({ 'bookmark-of': ['https://a.example/'], name: ['A site'], content: ['Worth a read'], category: ['links'], 'post-status': ['published'] });
 	});
 });
+
+describe('composer kinds for every post type', () => {
+	const zone = 'America/New_York';
+	const entry = (kind: Parameters<typeof entryFromFields>[0], fields: Record<string, unknown>) => entryFromFields(kind, fields as never, zone);
+	const fails = (kind: Parameters<typeof entryFromFields>[0], fields: Record<string, unknown>) => expect(() => entry(kind, fields)).toThrow();
+
+	test('quotation cites the passage, its author and source', () => {
+		expect(entry('quotation', { quote: 'Less is more.', 'cite-author': 'Mies', 'cite-url': 'https://example.org/q', content: 'Agreed.' }).properties['quotation-of']).toEqual([{ type: ['h-cite'], properties: { content: ['Less is more.'], author: ['Mies'], url: ['https://example.org/q'] } }]);
+		expect(entry('quotation', { 'cite-url': 'https://example.org/q' }).properties['quotation-of']).toEqual(['https://example.org/q']);
+		fails('quotation', {});
+	});
+
+	test('issue needs a repository, a title and a body', () => {
+		expect(entry('issue', { 'in-reply-to': 'https://github.com/a/b', name: 'Bug', content: 'Steps' }).properties).toMatchObject({ 'in-reply-to': ['https://github.com/a/b'], name: ['Bug'], content: ['Steps'] });
+		fails('issue', { 'in-reply-to': 'https://github.com/a/b', content: 'Steps' });
+	});
+
+	test('collection lists links', () => {
+		expect(entry('collection', { name: 'Links', children: ['https://a.example/', 'https://b.example/'] }).properties.children).toEqual(['https://a.example/', 'https://b.example/']);
+		fails('collection', { name: 'Links', children: [] });
+		fails('collection', { name: 'Links', children: ['not a url'] });
+	});
+
+	test('audio attaches uploaded files', () => {
+		expect(entry('audio', { audio: ['https://example.com/media/a.mp3'], name: 'Memo' }).properties).toMatchObject({ audio: ['https://example.com/media/a.mp3'], name: ['Memo'] });
+		fails('audio', {});
+	});
+
+	test('checkin and venue describe a place', () => {
+		const place = { 'venue-url': 'https://cafe.example/', 'street-address': '1 Main St', locality: 'Brooklyn', location: 'geo:40.7,-73.9;u=10' };
+		expect(entry('checkin', { ...place, 'venue-name': 'Cafe' }).properties.checkin).toEqual([{ type: ['h-card'], properties: { name: ['Cafe'], url: ['https://cafe.example/'], 'street-address': ['1 Main St'], locality: ['Brooklyn'], latitude: [40.7], longitude: [-73.9] } }]);
+		expect(entry('checkin', { ...place, 'venue-name': 'Cafe' }).properties.location).toBeUndefined();
+		const venue = entry('venue', { ...place, name: 'Cafe' });
+		expect(venue.type).toEqual(['h-card']);
+		expect(venue.properties).toMatchObject({ name: ['Cafe'], locality: ['Brooklyn'], latitude: [40.7] });
+		fails('checkin', place);
+	});
+
+	test('reads, watches, listens, plays and jams cite a work', () => {
+		expect(entry('read', { 'cite-name': 'Piranesi', 'cite-author': 'Susanna Clarke', 'read-status': 'reading' }).properties).toMatchObject({ 'read-of': [{ type: ['h-cite'], properties: { name: ['Piranesi'], author: ['Susanna Clarke'] } }], 'read-status': ['reading'] });
+		fails('read', { 'cite-name': 'Piranesi' });
+		for (const kind of ['watch', 'listen', 'play', 'jam'] as const) {
+			expect(entry(kind, { 'cite-name': 'Title', 'cite-url': 'https://example.org/t' }).properties[`${kind}-of`]).toEqual([{ type: ['h-cite'], properties: { name: ['Title'], url: ['https://example.org/t'] } }]);
+			fails(kind, {});
+		}
+	});
+
+	test('exercise turns minutes into a duration', () => {
+		expect(entry('exercise', { activity: 'Run', distance: '5 km', duration: '95' }).properties.exercise).toEqual([{ type: ['h-exercise'], properties: { activity: ['run'], distance: ['5 km'], duration: ['PT1H35M'] } }]);
+		fails('exercise', { activity: 'run', duration: 'soon' });
+	});
+
+	test('recipe lists one ingredient per line', () => {
+		const recipe = entry('recipe', { name: 'Toast', ingredients: '- Bread\n\n- Butter\n', yield: '1', duration: '5', content: 'Toast it.' });
+		expect(recipe.type).toEqual(['h-recipe']);
+		expect(recipe.properties).toMatchObject({ name: ['Toast'], ingredient: ['Bread', 'Butter'], yield: ['1'], duration: ['PT5M'] });
+		fails('recipe', { name: 'Toast', content: 'Toast it.' });
+	});
+
+	test('reads the new fields from the form, and share links fill the cited title', () => {
+		const fields = fieldsFromForm(new URLSearchParams('cite-name=Piranesi&read-status=finished&child=https://a.example/&child=&audio=https://x.example/a.mp3'));
+		expect(fields).toMatchObject({ 'cite-name': 'Piranesi', 'read-status': 'finished', children: ['https://a.example/'], audio: ['https://x.example/a.mp3'] });
+		expect(fieldsFromQuery('quotation', new URLSearchParams('url=https://example.org/a&title=An+essay&selection=A+line'))).toMatchObject({ 'cite-url': 'https://example.org/a', 'cite-name': 'An essay', quote: 'A line' });
+	});
+});

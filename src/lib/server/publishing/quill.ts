@@ -3,7 +3,45 @@ import type { Json, Properties } from './document';
 import { ProtocolError } from './auth';
 import { sanitizePublishingHtml } from '../../utils/sanitizeHtml';
 
-export const QUILL_TYPES = ['note', 'article', 'bookmark', 'like', 'repost', 'reply', 'photo', 'video', 'event', 'review', 'itinerary', 'food', 'drink'] as const;
+export const QUILL_TYPES = ['note', 'article', 'bookmark', 'like', 'repost', 'quotation', 'reply', 'rsvp', 'photo', 'video', 'audio', 'event', 'checkin', 'venue', 'review', 'itinerary', 'food', 'drink', 'read', 'watch', 'listen', 'play', 'jam', 'collection', 'issue', 'exercise', 'recipe'] as const;
+export type QuillType = (typeof QUILL_TYPES)[number];
+/**
+ * What q=config advertises for each type (the post-types extension): its microformat
+ * root, the properties it uses and the ones it cannot do without.
+ */
+export const POST_TYPE_SPECS: Record<QuillType, { name: string; h: string; properties: string[]; required: string[] }> = {
+ note: { name: 'Note', h: 'entry', properties: ['content', 'category', 'location', 'photo'], required: ['content'] },
+ article: { name: 'Article', h: 'entry', properties: ['name', 'summary', 'content', 'category', 'photo'], required: ['name', 'content'] },
+ bookmark: { name: 'Bookmark', h: 'entry', properties: ['bookmark-of', 'name', 'content', 'category'], required: ['bookmark-of'] },
+ like: { name: 'Like', h: 'entry', properties: ['like-of', 'category'], required: ['like-of'] },
+ repost: { name: 'Repost', h: 'entry', properties: ['repost-of', 'content', 'category'], required: ['repost-of'] },
+ quotation: { name: 'Quotation', h: 'entry', properties: ['quotation-of', 'content', 'category'], required: ['quotation-of'] },
+ reply: { name: 'Reply', h: 'entry', properties: ['in-reply-to', 'content', 'category', 'photo'], required: ['in-reply-to', 'content'] },
+ rsvp: { name: 'RSVP', h: 'entry', properties: ['in-reply-to', 'rsvp', 'content'], required: ['in-reply-to', 'rsvp'] },
+ photo: { name: 'Photo', h: 'entry', properties: ['photo', 'content', 'category', 'location'], required: ['photo'] },
+ video: { name: 'Video', h: 'entry', properties: ['video', 'content', 'category'], required: ['video'] },
+ audio: { name: 'Audio', h: 'entry', properties: ['audio', 'name', 'content', 'category'], required: ['audio'] },
+ event: { name: 'Event', h: 'event', properties: ['name', 'start', 'end', 'location', 'content', 'category'], required: ['name', 'start'] },
+ checkin: { name: 'Checkin', h: 'entry', properties: ['checkin', 'content', 'category', 'photo'], required: ['checkin'] },
+ venue: { name: 'Venue', h: 'card', properties: ['name', 'url', 'street-address', 'locality', 'region', 'country-name', 'latitude', 'longitude', 'note'], required: ['name'] },
+ review: { name: 'Review', h: 'review', properties: ['item', 'rating', 'best', 'worst', 'name', 'content', 'category'], required: ['item'] },
+ itinerary: { name: 'Itinerary', h: 'entry', properties: ['itinerary', 'content'], required: ['itinerary'] },
+ food: { name: 'Food', h: 'entry', properties: ['ate', 'content', 'photo'], required: ['ate'] },
+ drink: { name: 'Drink', h: 'entry', properties: ['drank', 'content', 'photo'], required: ['drank'] },
+ read: { name: 'Read', h: 'entry', properties: ['read-of', 'read-status', 'content', 'category'], required: ['read-of'] },
+ watch: { name: 'Watch', h: 'entry', properties: ['watch-of', 'content', 'category'], required: ['watch-of'] },
+ listen: { name: 'Listen', h: 'entry', properties: ['listen-of', 'content', 'category'], required: ['listen-of'] },
+ play: { name: 'Play', h: 'entry', properties: ['play-of', 'content', 'category'], required: ['play-of'] },
+ jam: { name: 'Jam', h: 'entry', properties: ['jam-of', 'content'], required: ['jam-of'] },
+ collection: { name: 'Collection', h: 'entry', properties: ['name', 'children', 'content', 'category'], required: ['name', 'children'] },
+ issue: { name: 'Issue', h: 'entry', properties: ['in-reply-to', 'name', 'content', 'category'], required: ['in-reply-to', 'name', 'content'] },
+ exercise: { name: 'Exercise', h: 'entry', properties: ['exercise', 'content', 'category', 'photo'], required: ['exercise'] },
+ recipe: { name: 'Recipe', h: 'recipe', properties: ['name', 'ingredient', 'yield', 'duration', 'content', 'photo', 'category'], required: ['name', 'ingredient'] }
+};
+/** Microformat roots a create may use. */
+export const ROOT_TYPES = ['h-entry', 'h-event', 'h-review', 'h-recipe', 'h-card'];
+/** Properties that point at a thing: a URL, or an h-cite describing it. */
+export const CITATIONS = ['quotation-of', 'read-of', 'watch-of', 'listen-of', 'play-of', 'jam-of', 'children'];
 export const channels = QUILL_TYPES.map(type => {
  const uid = POST_TYPE_PLURALS[type];
  return { uid, name: uid[0].toUpperCase() + uid.slice(1) };
@@ -36,8 +74,8 @@ export function validateQuill(p: Properties, root = 'h-entry', depth = 0): void 
   if (!Array.isArray(values)) bad('Property values must be arrays');
   if (key === 'weight') bad('Weight posts are not supported');
   if (key === 'visibility' && (values.length !== 1 || values[0] !== 'public')) bad('Private visibility is not supported');
-  if (['name', 'summary', 'rsvp', 'p3k-content-type', 'slides', 'slides-embed', 'video-link', 'video-embed', 'start', 'end', 'transit-type', 'operator', 'number', 'origin', 'destination', 'departure', 'arrival', 'locality', 'region', 'country-name'].includes(key)) singleText(p, key);
-  if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'slides', 'video-link', 'url'].includes(key) && values.some(value => !http(value))) bad(`Invalid ${key} URL`);
+  if (['name', 'summary', 'rsvp', 'read-status', 'activity', 'duration', 'distance', 'yield', 'street-address', 'postal-code', 'p3k-content-type', 'slides', 'slides-embed', 'video-link', 'video-embed', 'start', 'end', 'transit-type', 'operator', 'number', 'origin', 'destination', 'departure', 'arrival', 'locality', 'region', 'country-name'].includes(key)) singleText(p, key);
+  if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'slides', 'video-link'].includes(key) && values.some(value => !http(value))) bad(`Invalid ${key} URL`);
   if (['start', 'end', 'departure', 'arrival'].includes(key) && values.some(value => !date(value))) bad(`Invalid ${key} date`);
   if (['slides-embed', 'video-embed'].includes(key)) p[key] = values.map(value => sanitizePublishingHtml(value as string));
   if (key === 'content') for (const value of values) {
@@ -54,14 +92,24 @@ export function validateQuill(p: Properties, root = 'h-entry', depth = 0): void 
    } else nested(value, 'h-card', depth);
   }
   if (['latitude', 'longitude'].includes(key) && (values.length !== 1 || !Number.isFinite(Number(values[0])) || !['number','string'].includes(typeof values[0]) || Math.abs(Number(values[0])) > (key === 'latitude' ? 90 : 180))) bad(`Invalid ${key}`);
-  const types: Record<string,string> = { item: 'h-product', conference: 'h-event', itinerary: 'h-leg', ate: 'h-food', drank: 'h-food' };
+  const types: Record<string,string> = { item: 'h-product', conference: 'h-event', itinerary: 'h-leg', ate: 'h-food', drank: 'h-food', exercise: 'h-exercise' };
   if (types[key]) for (const value of values) nested(value, types[key], depth);
+  if (CITATIONS.includes(key)) for (const value of values) if (typeof value === 'string' ? !http(value) : (nested(value, 'h-cite', depth), false)) bad(`Invalid ${key} URL`);
+  if (key === 'checkin') for (const value of values) if (typeof value === 'string' ? !http(value) : (nested(value, 'h-card', depth), false)) bad('Invalid checkin URL');
+  if (key === 'author') for (const value of values) if (typeof value !== 'string') nested(value, 'h-card', depth);
+  if (['ingredient', 'note'].includes(key) && values.some(value => typeof value !== 'string' || !value.trim())) bad(`Use text values for ${key}`);
  }
+ if (p.url && p.url.some(value => !http(value))) bad('Invalid url URL');
  if (p.rsvp && !['yes','no','maybe','interested'].includes(String(p.rsvp[0]))) bad('Invalid RSVP');
+ if (p['read-status'] && !['to-read','reading','finished'].includes(String(p['read-status'][0]))) bad('Use to-read, reading or finished for read-status');
  if (p['p3k-content-type'] && p['p3k-content-type'][0] !== 'text/markdown') bad('Unsupported content type');
  if (p['p3k-content-type'] && p.content?.some(value => typeof value !== 'string')) bad('Markdown content must be text');
  if (root === 'h-event') { singleText(p, 'name', true); singleText(p, 'start', depth === 0); }
- if (root === 'h-product' || root === 'h-food') singleText(p, 'name', true);
+ if (['h-product', 'h-food', 'h-recipe'].includes(root) || (root === 'h-card' && depth === 0)) singleText(p, 'name', true);
+ if (root === 'h-cite' && !p.name && !p.url && !p.uid) bad('A citation needs a name or URL');
+ if (root === 'h-exercise') singleText(p, 'activity', true);
+ if (root === 'h-recipe' && depth === 0 && !p.ingredient?.length) bad('A recipe needs at least one ingredient');
+ if (p.children && p.children.length > 100) bad('A collection holds at most 100 items');
  if (root === 'h-leg') for (const key of ['origin', 'destination', 'departure', 'arrival']) singleText(p, key, true);
  if (root === 'h-review') {
   if (!p.item || p.item.length !== 1) bad('A review needs one item');
@@ -76,9 +124,12 @@ export function channelValue(value: unknown): string | undefined {
  if (!Array.isArray(value) || value.length !== 1 || !channels.some(channel => channel.uid === value[0])) bad('Unknown channel');
  return (value as string[])[0];
 }
+/** Which content folder a new post goes in: Post Type Discovery, from the most specific property down. */
 export function postFolder(p: Properties, root: string): string {
- if (root === 'h-event') return 'events';
- if (root === 'h-review') return 'reviews';
- for (const [key, folder] of [['like-of','likes'],['repost-of','reposts'],['in-reply-to','replies'],['bookmark-of','bookmarks'],['itinerary','itineraries'],['ate','foods'],['drank','drinks'],['video','videos'],['photo','photos'],['name','articles']]) if (p[key]?.length) return folder;
+ const byRoot: Record<string, string> = { 'h-event': 'events', 'h-review': 'reviews', 'h-recipe': 'recipes', 'h-card': 'venues' };
+ if (byRoot[root]) return byRoot[root];
+ if (p.rsvp?.length && p['in-reply-to']?.length) return 'rsvps';
+ if (p['in-reply-to']?.length && p.name?.length) return 'issues';
+ for (const [key, folder] of [['checkin','checkins'],['like-of','likes'],['repost-of','reposts'],['quotation-of','quotations'],['in-reply-to','replies'],['bookmark-of','bookmarks'],['read-of','reads'],['watch-of','watches'],['listen-of','listens'],['play-of','plays'],['jam-of','jams'],['exercise','exercises'],['children','collections'],['itinerary','itineraries'],['ate','foods'],['drank','drinks'],['video','videos'],['audio','audio'],['photo','photos'],['name','articles']]) if (p[key]?.length) return folder;
  return 'notes';
 }

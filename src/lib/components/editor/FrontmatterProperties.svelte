@@ -34,7 +34,7 @@
 	const suggestion = $derived(suggestedSlug ? slugify(suggestedSlug, 80) : '');
 
 	/** Properties that are lists even with one value. */
-	const LISTS = new Set(['category', 'syndication', 'pesos-source', 'pesos-date-source', 'quotation-of', 'photo', 'video', 'audio']);
+	const LISTS = new Set(['category', 'syndication', 'pesos-source', 'pesos-date-source', 'quotation-of', 'photo', 'video', 'audio', 'children', 'ingredient']);
 	const LABELS: Record<string, string> = { category: 'tags' };
 	const SUGGESTIONS = ['summary', 'category', 'syndication', 'in-reply-to', 'bookmark-of', 'like-of', 'repost-of', 'quotation-of', 'location', 'rsvp'];
 

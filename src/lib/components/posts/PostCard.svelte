@@ -80,7 +80,7 @@
 	{:else if post.type === 'note' || post.type === 'reply'}
 		<NoteCard {post} />
 	{:else}
-		<PostMedia photos={post.photo} videos={post.video} />
+		<PostMedia photos={post.photo} videos={post.video} audio={post.audio} />
 		<PostContent content={post.content} format={post.contentFormat} />
 	{/if}
 </article>

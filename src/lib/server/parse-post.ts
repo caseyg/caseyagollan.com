@@ -1,6 +1,6 @@
 import { parse } from 'yaml';
 import { linkPreviews, socialSnapshots } from '../social-snapshots';
-import type { Post, MediaItem } from '../posts-types';
+import { POST_TYPE_PLURALS, type Post, type MediaItem } from '../posts-types';
 
 function normalizeMedia(
 	value: unknown,
@@ -36,22 +36,7 @@ function normalizeMedia(
 }
 
 // Mapping from plural folder names to singular type names
-export const PLURAL_TO_SINGULAR: Record<string, Post['type']> = {
-	notes: 'note',
-	articles: 'article',
-	bookmarks: 'bookmark',
-	photos: 'photo',
-	videos: 'video',
-	replies: 'reply',
-	media: 'media',
-	likes: 'like',
-	reposts: 'repost',
-	events: 'event',
-	reviews: 'review',
-	itineraries: 'itinerary',
-	foods: 'food',
-	drinks: 'drink'
-};
+export const PLURAL_TO_SINGULAR: Record<string, Post['type']> = Object.fromEntries(Object.entries(POST_TYPE_PLURALS).map(([type, folder]) => [folder, type as Post['type']]));
 
 export function parsePost(fileContent: string, type: string, file: string): Post {
 	const frontmatter = fileContent.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
@@ -87,7 +72,8 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		syndication: data.syndication,
 		photo: normalizeMedia(data.photo, data['mp-photo-alt']),
 		video: normalizeMedia(data.video),
-		microformatType: data._micropubType ?? (type === 'events' ? 'h-event' : type === 'reviews' ? 'h-review' : 'h-entry'),
+		audio: normalizeMedia(data.audio),
+		microformatType: data._micropubType ?? ({ events: 'h-event', reviews: 'h-review', recipes: 'h-recipe', venues: 'h-card' } as Record<string, string>)[type] ?? 'h-entry',
 		channel: data._micropubChannel,
 		...(Array.isArray(data._micropubPreviousUrls) && data._micropubPreviousUrls.length ? { previousUrls: data._micropubPreviousUrls.filter((value: unknown): value is string => typeof value === 'string' && value.startsWith('/')) } : {}),
 		properties: Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith('_')).map(([key,value]) => [key, Array.isArray(value) ? value : [value]])),

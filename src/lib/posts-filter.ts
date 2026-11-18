@@ -1,6 +1,6 @@
 // Client-safe helpers for the facets of the Posts menu: post type, tag and year.
 import type { MenuOption } from './components/ui/SelectMenu.svelte';
-import { POST_TYPES, POST_TYPE_PLURALS, type Post } from './posts-types';
+import { POST_TYPE_EMOJI, POST_TYPES, POST_TYPE_PLURALS, type Post } from './posts-types';
 
 export type PostType = Post['type'];
 
@@ -9,22 +9,7 @@ export const FEED_CHUNK_SIZE = 10;
 export const FILTER_PATH = '/posts/filter';
 
 /** Shared with the type archive pages so each type keeps one emoji everywhere. */
-export const TYPE_ICONS: Record<PostType, string> = {
-	note: '📝',
-	article: '📄',
-	bookmark: '🔖',
-	photo: '📷',
-	video: '🎬',
-	reply: '💬',
-	media: '🎵',
-	like: '♥',
-	repost: '🔁',
-	event: '📅',
-	review: '⭐',
-	itinerary: '✈',
-	food: '🍽',
-	drink: '☕'
-};
+export const TYPE_ICONS: Record<PostType, string> = POST_TYPE_EMOJI;
 
 /** Every type a feed entry stands for: rolled-up reactions and threads carry their members' types. */
 export function entryTypes(post: Post): PostType[] {

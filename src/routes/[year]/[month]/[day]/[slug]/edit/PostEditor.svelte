@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
 	import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
+	import { COMPOSER_KINDS } from '$lib/composer-kinds';
+	import { POST_TYPE_PLURALS } from '$lib/posts-types';
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
@@ -24,9 +26,8 @@
 
 	// Content folders, named and drawn as in the composer's post-type menu.
 	const KINDS: Record<string, [string, IconName]> = {
-		notes: ['note', 'note'], articles: ['article', 'article'], replies: ['reply', 'reply'], bookmarks: ['bookmark', 'bookmark'], likes: ['like', 'heart'],
-		reposts: ['repost', 'repost'], photos: ['photo', 'image'], videos: ['video', 'video'], events: ['event', 'calendar'], reviews: ['review', 'star'],
-		itineraries: ['itinerary', 'plane'], foods: ['food', 'food'], drinks: ['drink', 'drink'], media: ['post', 'image']
+		...Object.fromEntries(Object.entries(COMPOSER_KINDS).map(([kind, details]) => [POST_TYPE_PLURALS[kind], [details.label.toLowerCase(), details.icon]])),
+		media: ['post', 'image']
 	};
 	// A failed save keeps what was typed; otherwise show the stored post.
 	const initial = untrack(() => form?.fields ?? editor.fields);
