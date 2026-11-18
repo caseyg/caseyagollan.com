@@ -1,4 +1,4 @@
-export type Section = 'home' | 'library' | 'posts' | 'wiki' | 'tables';
+export type Section = 'home' | 'library' | 'posts' | 'wiki' | 'tables' | 'chat';
 
 /**
  * The site's top-level sections, in the order the nav shows them. The nav and the ⌘K palette's
@@ -10,5 +10,6 @@ export const SECTIONS: { id: Section; href: string; label: string; icon: string;
 	{ id: 'library', href: '/library/', label: 'Library', icon: '📚', keywords: ['books', 'reading', 'graph'] },
 	{ id: 'posts', href: '/posts/', label: 'Posts', icon: '📡', keywords: ['feed', 'blog', 'notes'] },
 	{ id: 'wiki', href: '/wiki/', label: 'Wiki', icon: '📓', keywords: ['cag.wiki', 'pages', 'garden'] },
-	{ id: 'tables', href: '/tables/', label: 'Tables', icon: '🗂️', keywords: ['canvas', 'boards', 'collections', 'tldraw'] }
+	{ id: 'tables', href: '/tables/', label: 'Tables', icon: '🗂️', keywords: ['canvas', 'boards', 'collections', 'tldraw'] },
+	{ id: 'chat', href: '/chat', label: 'Chat', icon: '💬', keywords: ['ai', 'assistant', 'ask', 'agent'] }
 ];
