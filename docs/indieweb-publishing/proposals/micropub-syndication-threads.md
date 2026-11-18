@@ -1,6 +1,6 @@
 # Proposal: syndication threads in Micropub
 
-Status: draft, implemented on caseyagollan.com (2026-11). Written as an extension proposal for the [Micropub extensions](https://indieweb.org/Micropub-extensions) list, in the style of `post-types` and `syndicate-to` additions.
+Status: draft, implemented on caseyagollan.com (2026-11). See also [micropub-syndication-quotes.md](micropub-syndication-quotes.md). Written as an extension proposal for the [Micropub extensions](https://indieweb.org/Micropub-extensions) list, in the style of `post-types` and `syndicate-to` additions.
 
 ## Problem
 
