@@ -8,7 +8,12 @@
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
 	import { pagePieces } from '$lib/table-pieces';
 	import { wikiHref } from '$lib/wiki/links';
-	import type { Block } from '$lib/tables';
+	import { blockKey, linkBlock, type Block } from '$lib/tables';
+	import { ChatOverlay, type ChatOverlayMode } from '$lib/components/chat';
+	import { LiveThread } from '$lib/chat-client.svelte';
+	import { chatHref } from '$lib/chat';
+	import { goto } from '$app/navigation';
+	import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
 
@@ -36,11 +41,57 @@
 		!editable ? undefined : status === 'failed' ? 'Couldn’t save' : status === 'saving' || status === 'unsaved' ? 'Saving…' : session?.mode === 'demo' ? 'Saved in this browser' : 'Saved'
 	);
 
+	// The table's chat: anyone reads along; Casey's page also makes the changes the assistant asks for.
+	const CHAT_MODE_KEY = 'table-chat';
+	let chatMode = $state<ChatOverlayMode>('minimized');
+	// svelte-ignore state_referenced_locally
+	const live = data.chat ? new LiveThread(data.chat.snapshot, data.chat.viewer, undefined, { onnavigate: (path) => void goto(path), ontableop: data.chat.viewer?.owner ? tableOp : undefined }) : undefined;
+	const chatHereHref = `/tables/${data.id}`;
+
+	$effect(() => {
+		try { localStorage.setItem(CHAT_MODE_KEY, chatMode); } catch { /* private window */ }
+	});
+
+	/** What the assistant asked of the table, done here so it animates, saves and undoes like Casey's own edits. */
+	async function tableOp(event: TableOpEvent): Promise<TableOpResult> {
+		if (!api || !editable) return { ok: false, error: 'The table isn’t ready to edit yet.' };
+		const { type: _type, id: _id, ...op } = event;
+		if (chatMode === 'minimized') chatMode = 'floating';
+		switch (op.op) {
+			case 'add_from_search': {
+				const placed = new Set(view.placed);
+				const found = ((await ownerSearch(op.query, op.filter ?? 'all')) ?? []).filter((block) => !placed.has(blockKey(block))).slice(0, op.limit ?? 6);
+				if (!found.length) return { ok: true, result: { added: [], note: 'Nothing new matched.' } };
+				const ids = api.addBlocks(found, op.at, { columns: op.columns ?? Math.min(found.length, 3), page: !!op.at, select: true });
+				return { ok: true, result: { added: ids.map((shapeId, index) => ({ id: shapeId.replace(/^shape:/, ''), title: found[index]?.title, url: found[index]?.url })) } };
+			}
+			case 'add_links': {
+				const blocks = op.urls.map((url) => linkBlock(url, location.origin)).filter((block): block is Block => !!block);
+				if (!blocks.length) return { ok: false, error: 'None of those were links.' };
+				const ids = api.addBlocks(blocks, op.at, { columns: op.columns ?? Math.min(blocks.length, 3), page: !!op.at, select: true });
+				return { ok: true, result: { added: ids.map((shapeId) => shapeId.replace(/^shape:/, '')) } };
+			}
+			case 'rename': {
+				const next = op.name.trim();
+				if (!next) return { ok: false, error: 'A table needs a name.' };
+				await rename(next);
+				return { ok: true, result: { name } };
+			}
+			default:
+				return { ok: true, result: api.perform(op) };
+		}
+	}
+
 	name = data.table?.name ?? '';
 	published = data.table?.published !== false;
 	document = data.table?.document ?? null;
 
 	onMount(() => {
+		try {
+			const saved = localStorage.getItem(CHAT_MODE_KEY);
+			if (saved === 'floating' || saved === 'docked' || saved === 'minimized') chatMode = saved;
+		} catch { /* private window */ }
+		live?.connect();
 		void (async () => {
 			session = await tablesSession();
 			if (!data.table) {
@@ -60,7 +111,10 @@
 			if (status === 'unsaved' || status === 'saving') event.preventDefault();
 		};
 		window.addEventListener('beforeunload', warn);
-		return () => window.removeEventListener('beforeunload', warn);
+		return () => {
+			window.removeEventListener('beforeunload', warn);
+			live?.close();
+		};
 	});
 
 	function onready(ready: TableApi) {
@@ -172,7 +226,7 @@
 
 <PageHeader trail={[{ ...TABLES_CRUMB, href: listHref }, nameSegment]} title={name || 'Table'} />
 
-<main class="stage">
+<main class="stage" class:chat-docked={live && chatMode === 'docked'}>
 	{#if !session && !missing}
 		<!-- Sent with the page, so the table's outline is there from the first paint. -->
 		<TableWireframe {document} />
@@ -210,6 +264,25 @@
 		{/if}
 	{/if}
 </main>
+
+{#if live && session && !missing}
+	<div class="dock--chat" data-mode={chatMode}>
+		<ChatOverlay
+			bind:mode={chatMode}
+			title={live.snapshot.thread.title}
+			messages={live.messages}
+			viewer={live.viewer}
+			tools={live.tools}
+			onsend={live.status === 'live' ? (text) => live.say(text) : undefined}
+			action={chatHref(live.snapshot.thread.id)}
+			returnTo={chatHereHref}
+			href={chatHref(live.snapshot.thread.id)}
+			error={live.error}
+			signinError={data.chat?.signinError}
+			offline={live.status === 'offline'}
+		/>
+	</div>
+{/if}
 
 {#if editable}<RenameTable {name} anchor={renameAnchor} bind:open={renaming} onrename={rename} />{/if}
 
@@ -252,6 +325,62 @@
 			bottom: calc(3rem + 3.5rem);
 			width: auto;
 			height: 60vh;
+		}
+	}
+
+	/* The chat: a pill or a floating panel at bottom left, or a sidebar the canvas makes room for. */
+	.dock--chat {
+		position: fixed;
+		z-index: var(--z-sticky);
+		left: var(--space-4);
+		bottom: var(--space-4);
+	}
+
+	.dock--chat[data-mode='floating'] {
+		bottom: calc(var(--space-4) + 4rem);
+	}
+
+	@media (min-width: 900px) {
+		.stage.chat-docked {
+			right: 24rem;
+		}
+
+		.dock--chat[data-mode='docked'] {
+			inset: var(--nav-lane) 0 0 auto;
+			width: 24rem;
+		}
+	}
+
+	@media (max-width: 899px) {
+		/* Too narrow to sit beside the canvas: docked floats like a sheet. */
+		.dock--chat[data-mode='docked'] {
+			bottom: calc(var(--space-4) + 4rem);
+		}
+
+		.dock--chat[data-mode='docked'] :global(.chat-overlay) {
+			width: min(24rem, calc(100vw - 2 * var(--space-2)));
+			height: min(36rem, 70vh);
+			border: 1px solid var(--border);
+			border-radius: var(--radius-lg);
+			overflow: hidden;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.dock--chat {
+			left: var(--space-2);
+			right: var(--space-2);
+		}
+
+		.dock--chat[data-mode='minimized'] {
+			left: auto;
+			bottom: auto;
+			top: calc(var(--nav-lane) + var(--space-2));
+		}
+
+		.dock--chat[data-mode='floating'],
+		.dock--chat[data-mode='docked'] {
+			bottom: calc(3rem + 3.5rem);
 		}
 	}
 

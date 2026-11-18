@@ -36,3 +36,17 @@ export const threads: ChatThreadSummary[] = [
 	{ id: 'f6g7h8i9j0', title: 'Books in the library about cooperatives', createdAt: at - 86400_000 * 3, updatedAt: at - 86400_000 * 2, messageCount: 12, startedBy: jo, participants: [casey, jo] },
 	{ id: 'k1l2m3n4o5', title: 'A very long question that someone asked about the library graph, how it loads, and why the selected book holds still while the rest settle', createdAt: at - 86400_000 * 40, updatedAt: at - 86400_000 * 40, messageCount: 2, startedBy: ana, participants: [ana] }
 ];
+
+/** A table's chat: Casey asks, the assistant changes the table and shows a page. */
+export const tableAsk: ChatMessage = { id: 't1', role: 'user', author: casey, content: 'Add my posts about cooperatives and set them out in a grid', status: 'done', createdAt: at + 200_000 };
+export const tableAnswer: ChatMessage = {
+	id: 't2', role: 'assistant', model: 'glm-flash-green', status: 'done', createdAt: at + 215_000,
+	tools: [
+		{ tool: 'table_read', label: 'Looked at the table', status: 'done' },
+		{ tool: 'table_add_from_search', label: 'Added results for “cooperatives”', status: 'done' },
+		{ tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' },
+		{ tool: 'show_page', label: 'Showed Platform cooperativism', status: 'done', peek: { url: 'https://caseyagollan.com/wiki/platform-cooperativism', title: 'Platform cooperativism', excerpt: 'Notes on worker- and user-owned platforms, and the reading list that goes with them.' } }
+	],
+	content: 'Added six posts and set everything out in a three-column grid. The wiki page above has the reading list they come from.'
+};
+export const tableConversation: ChatMessage[] = [tableAsk, tableAnswer];

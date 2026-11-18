@@ -42,6 +42,8 @@ export interface ChatThreadStub {
 	snapshot(): Promise<import('../../chat').ChatSnapshot | null>;
 	start(id: string, origin: string, viewer: import('../../chat').ChatViewer, text: string): Promise<{ ok: true } | { error: string }>;
 	say(viewer: import('../../chat').ChatViewer | null, text: string): Promise<{ ok: true } | { error: string }>;
+	/** A table's thread, made on first ask; null when the thread id isn't that table's. */
+	openTable(tableId: string, origin: string, name: string): Promise<import('../../chat').ChatSnapshot | null>;
 }
 
 export function threadStub(env: { ChatThread?: DurableObjectNamespace }, id: string): ChatThreadStub | undefined {

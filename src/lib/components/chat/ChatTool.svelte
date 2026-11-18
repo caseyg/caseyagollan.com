@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ChatToolUse } from '$lib/chat';
-	import { Icon, type IconName } from '$lib/components/ui';
+	import { Icon, LinkPreviewCard, type IconName } from '$lib/components/ui';
 
 	interface Props {
 		step: ChatToolUse;
@@ -8,13 +8,17 @@
 
 	let { step }: Props = $props();
 
-	const ICON: Record<string, IconName> = { search_site: 'search', fetch_page: 'globe' };
-	const icon = $derived<IconName>(ICON[step.tool] ?? (step.tool.startsWith('micropub_') ? 'article' : 'sparkle'));
+	const ICON: Record<string, IconName> = { search_site: 'search', fetch_page: 'globe', show_page: 'globe', go_to: 'arrow', table_add_note: 'sticky', table_move: 'hand', table_arrange: 'fit', table_select: 'pointer', table_remove: 'eraser' };
+	const icon = $derived<IconName>(ICON[step.tool] ?? (step.tool.startsWith('micropub_') ? 'article' : step.tool.startsWith('table_') || step.tool === 'create_table' ? 'box' : 'sparkle'));
 	const hasLinks = $derived(!!step.links?.length);
 </script>
 
-<!-- One step the agent took, in gray: what it searched or read. Links open on demand. -->
-{#if hasLinks}
+<!-- One step the agent took, in gray: what it searched or read. Links open on demand; a page it showed is a card. -->
+{#if step.peek}
+	<div class="chat-tool chat-tool--peek" data-status={step.status}>
+		<LinkPreviewCard class="peek" href={step.peek.url} title={step.peek.title} excerpt={step.peek.excerpt} />
+	</div>
+{:else if hasLinks}
 	<details class="chat-tool" data-status={step.status}>
 		<summary>
 			<Icon name={icon} size={13} />
@@ -38,6 +42,11 @@
 {/if}
 
 <style>
+	/* A page the assistant showed sits in the reply, so it needs no popover shadow. */
+	.chat-tool--peek :global(.peek) {
+		box-shadow: none;
+	}
+
 	.chat-tool {
 		color: var(--text-muted);
 		font-size: var(--fs-xs);

@@ -98,6 +98,10 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 				const links = linksFrom(result.toolName, textOf(result.content));
 				if (links.length) call.use.links = links;
 			}
+			if (!result.isError && result.toolName === 'show_page') {
+				const peek = peekFrom(textOf(result.content));
+				if (peek) { call.use.peek = peek; call.use.label = `Showed ${peek.title}`.slice(0, 100); }
+			}
 		}
 	}
 
@@ -138,7 +142,30 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'micropub_list_posts') return 'Looked through recent posts';
 	if (name === 'micropub_get_post') return 'Opened a post';
 	if (name === 'micropub_config') return 'Checked the Micropub setup';
+	if (name === 'show_page') return `Opened a preview of ${String(args.url ?? '').replace(/^https?:\/\//, '').slice(0, 80)}`;
+	if (name === 'go_to') return `Took you to ${String(args.path ?? '').slice(0, 80)}`;
+	if (name === 'create_table') return `Made a table, “${String(args.name ?? '').slice(0, 60)}”`;
+	if (name === 'table_read') return 'Looked at the table';
+	if (name === 'table_add_from_search') return `Added results for “${String(args.query ?? '').slice(0, 60)}”`;
+	if (name === 'table_add_links') return `Added ${count(args.urls, 'link')}`;
+	if (name === 'table_add_note') return 'Added a note';
+	if (name === 'table_move') return `Moved ${count(args.moves, 'item')}`;
+	if (name === 'table_arrange') return `Arranged ${args.ids ? count(args.ids, 'item') : 'the table'} ${args.layout === 'pack' ? 'packed together' : `in a ${args.layout === 'row' || args.layout === 'column' ? args.layout : 'grid'}`}`;
+	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
+	if (name === 'table_select') return `Pointed out ${count(args.ids, 'item')}`;
+	if (name === 'table_rename') return `Renamed the table “${String(args.name ?? '').slice(0, 60)}”`;
 	return name.replace(/_/g, ' ');
+}
+
+const count = (list: unknown, noun: string) => { const n = Array.isArray(list) ? list.length : 0; return `${n} ${noun}${n === 1 ? '' : 's'}`; };
+
+/** The preview `show_page` made: a page's address, title and opening lines. */
+export function peekFrom(output: string): ChatToolUse['peek'] | undefined {
+	try {
+		const { url, title, excerpt } = JSON.parse(output) as { url?: unknown; title?: unknown; excerpt?: unknown };
+		if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return undefined;
+		return { url, title: typeof title === 'string' && title ? title.slice(0, 200) : url, ...(typeof excerpt === 'string' && excerpt ? { excerpt: excerpt.slice(0, 240) } : {}) };
+	} catch { return undefined; }
 }
 
 /** Public links from a public tool's output, for the reader to follow. Never Micropub output. */

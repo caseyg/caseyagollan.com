@@ -44,7 +44,7 @@
 		if (event.key === 'Escape' && !value) open = false;
 	}
 
-	const TOOL_NAMES: Record<string, string> = { search_site: 'search the site', fetch_page: 'read pages', micropub: 'post to your site (drafts)' };
+	const TOOL_NAMES: Record<string, string> = { search_site: 'search the site', fetch_page: 'read pages', show_page: 'show page previews', table_read: 'look at this table', table: 'change this table', micropub: 'post to your site (drafts)' };
 	const toolText = $derived(tools.map((tool) => TOOL_NAMES[tool] ?? tool).join(', '));
 </script>
 

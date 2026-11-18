@@ -8,3 +8,4 @@ export const CHAT_CRUMB = { label: 'Chat', href: '/chat', icon: '💬' };
 export { default as ChatLayout } from './ChatLayout.svelte';
 export { default as ChatSidebar } from './ChatSidebar.svelte';
 export { default as ChatSidebarToggle } from './ChatSidebarToggle.svelte';
+export { default as ChatOverlay, type ChatOverlayMode } from './ChatOverlay.svelte';
