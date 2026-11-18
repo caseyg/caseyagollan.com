@@ -7,6 +7,7 @@
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
 	import { passkeyError, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
 	import { rememberOwner } from '$lib/owner';
+	import NewsletterSettings from '$lib/components/NewsletterSettings.svelte';
 
 	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean };
 	type Request = { clientId: string; redirectUri: string; scope: string[] };
@@ -173,6 +174,7 @@
 	{#if session?.authenticated}
 		<p><a href="/new/">Write a new post →</a></p>
 		<p><a href="/readwise">Review Readwise bookmarks →</a></p>
+		<NewsletterSettings csrf={session.csrf} />
 		<Section title="Passkeys">
 			<p>Keep a second passkey so you can sign in if a device is unavailable.</p>
 			<Button disabled={busy || !passkeysSupported} onclick={register}>Add passkey</Button>
