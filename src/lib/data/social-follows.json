@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-17T10:22:56.749Z",
+  "updatedAt": "2026-11-18T10:23:07.098Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -4312,6 +4312,11 @@
       "name": "Alex Good"
     },
     {
+      "service": "bluesky",
+      "handle": "paulrobertlloyd.com",
+      "name": "Paul Robert Lloyd"
+    },
+    {
       "service": "mastodon",
       "handle": "paulrobertlloyd@mastodon.social",
       "name": "Paul Robert Lloyd 🐢"
@@ -4728,7 +4733,7 @@
     },
     {
       "service": "mastodon",
-      "handle": "roeldobbe@akademienl.social",
+      "handle": "roeldobbe@social.edu.nl",
       "name": "Roel Dobbe"
     },
     {
