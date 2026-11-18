@@ -3,6 +3,7 @@
     import { browser } from "$app/environment";
     import Nav from "$lib/components/Nav.svelte";
     import HCard from "$lib/components/HCard.svelte";
+    import { homeJsonLd, jsonLdScript } from "$lib/json-ld";
     import { Corner, SegmentedPill } from "$lib/components/ui";
     import SkillsGraph from "$lib/components/SkillsGraph.svelte";
     import PersistentDocument from "$lib/components/PersistentDocument.svelte";
@@ -640,6 +641,7 @@
 
 <svelte:head>
     <title>👋 Hi, I'm Casey Gollan!</title>
+    {@html jsonLdScript(homeJsonLd())}
     <meta
         name="description"
         content="Senior Manager of Engineering at IBM, building AI productivity platforms. Previously co-founded the School for Poetic Computation."
