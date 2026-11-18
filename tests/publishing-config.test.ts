@@ -23,3 +23,11 @@ test('keeps same-origin form protection outside the token-authenticated Micropub
   expect(forbiddenForm(form('https://quill.example'), '/api/other/media')).toBe(true);
   expect(forbiddenForm(new Request('https://example.com/'), '/')).toBe(false);
 });
+
+test("accepts Safari's Origin: null on same-origin form posts only when fetch metadata says same-origin", () => {
+  const form = (headers: Record<string, string>) => new Request('https://example.com/2026/11/17/post/syndicate', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...headers }, body: 'x=y' });
+  expect(forbiddenForm(form({ Origin: 'null', 'Sec-Fetch-Site': 'same-origin' }), '/[year]/[month]/[day]/[slug]/syndicate')).toBe(false);
+  expect(forbiddenForm(form({ Origin: 'null' }), '/[year]/[month]/[day]/[slug]/syndicate')).toBe(true);
+  expect(forbiddenForm(form({ Origin: 'null', 'Sec-Fetch-Site': 'cross-site' }), '/[year]/[month]/[day]/[slug]/syndicate')).toBe(true);
+  expect(forbiddenForm(form({ Origin: 'https://evil.example', 'Sec-Fetch-Site': 'same-origin' }), '/[year]/[month]/[day]/[slug]/syndicate')).toBe(true);
+});
