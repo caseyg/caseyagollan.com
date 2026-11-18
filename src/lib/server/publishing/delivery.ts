@@ -154,7 +154,13 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
 }
 
 export async function recordSyndicationResults(config: PublishingConfig, event: DeliveryEvent, progress: DeliveryProgress, fetcher: typeof fetch): Promise<boolean> {
- const urls = Object.values(progress.syndication);
+ // A thread is saved as every one of its posts, first post first, so the post links the whole thread.
+ const urls: string[] = [];
+ for (const [service, url] of Object.entries(progress.syndication) as [Service, string][]) {
+  const receipt = config.state ? await readSyndicationReceipt(config.state, event.source, service, event.previousSources) : undefined;
+  const parts = receipt?.status === 'sent' && receipt.url === url ? receipt.parts?.map(part => part.url) ?? [] : [];
+  urls.push(url, ...parts.filter(part => part !== url));
+ }
  if (!urls.length) return true;
  if (!event.sourcePath) return false;
  const store = createGitHubStore(config, fetcher);

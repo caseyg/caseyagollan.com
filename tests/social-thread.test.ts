@@ -34,3 +34,9 @@ test('a link that does not fit the last post gets its own', () => {
 test('threads stop at the longest the server accepts', () => {
 	expect(splitIntoThread('word '.repeat(1000), fits(10)).length).toBe(maxThreadPosts);
 });
+
+test('a syndicated thread shows one mark per network, linking its first post', async () => {
+	const { firstPerNetwork, socialSource } = await import('../src/lib/social-card');
+	const shown = firstPerNetwork(['https://bsky.app/profile/a/post/1', 'https://bsky.app/profile/a/post/2', 'https://social.coop/@a/1', 'https://social.coop/@a/2'].map(url => socialSource(url)));
+	expect(shown.map(s => [s.label, !!s.hidden])).toEqual([['🦋', false], ['🦋', true], ['🐘', false], ['🐘', true]]);
+});

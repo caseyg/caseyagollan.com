@@ -207,8 +207,11 @@ test('a thread is sent as one reply chain on each network, and the first post st
  const root = { uri: `at://did:plc:test/app.bsky.feed.post/${records[0].rkey}`, cid: 'cid1' };
  expect(records[1].record.reply).toEqual({ root, parent: root });
  expect(records[2].record.reply).toEqual({ root, parent: { uri: `at://did:plc:test/app.bsky.feed.post/${records[1].rkey}`, cid: 'cid2' } });
- // Only the first post of each thread is saved on the original post.
- expect(readDocument(app.content()).properties.syndication).toEqual([`https://bsky.app/profile/caseyagollan.com/post/${records[0].rkey}`, 'https://social.coop/@caseyg/1']);
+ // Every post of each thread is saved on the original post, first post first.
+ expect(readDocument(app.content()).properties.syndication).toEqual([...records.map(r => `https://bsky.app/profile/caseyagollan.com/post/${r.rkey}`), 'https://social.coop/@caseyg/1', 'https://social.coop/@caseyg/2']);
+ // Saved links count as sent: the page lists them all and nothing is left to sync.
+ const after = await editorDestinations(app.config, parsePost(app.content(), 'notes', '2026-11-06-note.md'));
+ expect(after.map(d => [d.links.length, d.unrecorded])).toEqual([[3, false], [2, false]]);
 });
 
 test('a thread that fails partway continues after its last sent post, with the reviewed text', async () => {
