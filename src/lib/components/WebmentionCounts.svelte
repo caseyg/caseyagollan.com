@@ -1,42 +1,34 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
+	import { liveCounts, mentionCounts } from '$lib/webmentions-client';
+	import { targetPath, type MentionCounts } from '$lib/webmentions';
 	import Chip from '$lib/components/ui/Chip.svelte';
 
 	interface Props {
 		url: string;
+		/** Counts already known, such as in Storybook; otherwise they're loaded. */
+		counts?: MentionCounts;
 	}
 
-	let { url }: Props = $props();
+	let { url, counts: given }: Props = $props();
 
-	let likes = $state(0);
-	let reposts = $state(0);
-	let replies = $state(0);
-	let loaded = $state(false);
+	let likes = $state(given?.like ?? 0);
+	let reposts = $state(given?.repost ?? 0);
+	let replies = $state(given?.reply ?? 0);
+	let loaded = $state(!!given);
 
-	async function fetchCounts() {
-		if (!browser) return;
-
-		const targetUrl = `https://caseyagollan.com${url}`;
-		const apiUrl = `https://webmention.io/api/count.json?target=${encodeURIComponent(targetUrl)}`;
-
-		try {
-			const response = await fetch(apiUrl);
-			if (!response.ok) return;
-
-			const data = await response.json() as { type?: Partial<Record<'like' | 'repost' | 'reply' | 'mention', number>> };
-			likes = data.type?.like || 0;
-			reposts = data.type?.repost || 0;
-			replies = (data.type?.reply || 0) + (data.type?.mention || 0);
-		} catch (e) {
-			console.error('Failed to fetch webmention counts:', e);
-		} finally {
-			loaded = true;
-		}
-	}
-
+	// Feeds share one request for every post's counts, read from the site's own copy.
 	onMount(() => {
-		fetchCounts();
+		if (given) return;
+		const path = targetPath(url) ?? url;
+		void mentionCounts()
+			.then((all) => (all ? (all[path] ?? null) : liveCounts(path)))
+			.then((counts) => {
+				likes = counts?.like ?? 0;
+				reposts = counts?.repost ?? 0;
+				replies = counts?.reply ?? 0;
+			})
+			.finally(() => (loaded = true));
 	});
 </script>
 

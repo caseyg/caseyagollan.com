@@ -56,7 +56,7 @@
 			<PostContent content={data.post.content} format={data.post.contentFormat} />
 		{/if}
 
-		<Webmentions url={permalink} />
+		<Webmentions url={permalink} previous={data.post.previousUrls} />
 	</article>
 </PostsLayout>
 
