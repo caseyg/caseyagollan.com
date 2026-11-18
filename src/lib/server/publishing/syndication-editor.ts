@@ -3,6 +3,7 @@ import { isPublicPost } from '../parse-post';
 import type { AuthRPC, IndieAuthEnvironment, SessionInfo } from '../indieauth/contracts';
 import { authSettings, authStore } from '../indieauth/contracts';
 import { ProtocolError } from './auth';
+import { sameOrigin } from '../form-origin';
 import type { PublishingConfig } from './micropub';
 import { publicationForPost } from './publication';
 import { photoSources, readSyndicationReceipt, recordSyndicationResults, syndicationOnce } from './delivery';
@@ -36,7 +37,7 @@ export async function editorSession(request: Request, env: IndieAuthEnvironment,
 }
 export async function validateEditorSubmission(request: Request, session: SessionInfo | null, csrf: unknown): Promise<void> {
  if (!session) throw new ProtocolError(401, 'invalid_token', 'Sign in to syndicate this post.');
- if (request.headers.get('origin') !== new URL(request.url).origin || typeof csrf !== 'string' || csrf.length > 4096) throw new ProtocolError(403, 'invalid_request', 'Reload the page and try again.');
+ if (!sameOrigin(request) || typeof csrf !== 'string' || csrf.length > 4096) throw new ProtocolError(403, 'invalid_request', 'Reload the page and try again.');
  const hashes = await Promise.all([csrf, session.csrf].map(value => crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))));
  const a = new Uint8Array(hashes[0]), b = new Uint8Array(hashes[1]);
  let difference = 0;
