@@ -6,7 +6,7 @@ const post = (extra: Partial<Post> = {}): Post => ({ slug: 'hello', type: 'note'
 const locs = (xml: string) => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
 
 describe('sitemap', () => {
-	test('lists final addresses (no trailing slash) for sections, public posts with lastmod, and their type and tag pages', () => {
+	test('lists final addresses (listings without a trailing slash, posts with one) for sections, public posts with lastmod, and their type and tag pages', () => {
 		const xml = serializeSitemap([
 			post({ category: ['IndieWeb', 'a & b'], updated: '2026-11-07T10:00:00Z' }),
 			post({ slug: 'older', type: 'article', date: '2025-01-02T09:00:00Z', category: 'indieweb' }),
@@ -24,10 +24,10 @@ describe('sitemap', () => {
 		expect(urls).toContain('https://caseyagollan.com/tags/indieweb');
 		expect(urls).toContain('https://caseyagollan.com/tags/a%20&amp;%20b');
 		expect(urls.filter((url) => url.endsWith('/tags/indieweb'))).toHaveLength(1);
-		expect(urls).toContain('https://caseyagollan.com/2026/11/05/hello');
-		expect(urls).toContain('https://caseyagollan.com/2025/01/02/older');
+		expect(urls).toContain('https://caseyagollan.com/2026/11/05/hello/');
+		expect(urls).toContain('https://caseyagollan.com/2025/01/02/older/');
 		for (const slug of ['secret', 'draft', 'gone', 'broken']) expect(urls.some((url) => url.includes(slug))).toBe(false);
-		expect(xml).toContain('<loc>https://caseyagollan.com/2026/11/05/hello</loc><lastmod>2026-11-07T10:00:00.000Z</lastmod>');
+		expect(xml).toContain('<loc>https://caseyagollan.com/2026/11/05/hello/</loc><lastmod>2026-11-07T10:00:00.000Z</lastmod>');
 		expect(xml).not.toContain('/wiki/some');
 	});
 

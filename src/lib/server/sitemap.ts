@@ -22,9 +22,10 @@ function lastModified(post: Post): string | undefined {
 export function serializeSitemap(posts: Post[]): string {
 	const visible = posts.filter((post) => isPublicPost(post) && Number.isFinite(Date.parse(post.date)));
 	const urls = new Map<string, string | undefined>();
-	const add = (path: string, modified?: string) => {
-		// Pages are served without the trailing slash (a slash redirects), so list the final address.
-		const href = new URL(path.length > 1 ? path.replace(/\/+$/, '') : path, SITE_URL).href;
+	const add = (path: string, modified?: string, slash = false) => {
+		// Listings are served without the trailing slash and posts with it (the other form redirects),
+		// so list the final address.
+		const href = new URL(slash || path === '/' ? path : path.replace(/\/+$/, ''), SITE_URL).href;
 		const known = urls.get(href);
 		if (!urls.has(href) || (modified && (!known || modified > known))) urls.set(href, modified);
 	};
@@ -35,7 +36,7 @@ export function serializeSitemap(posts: Post[]): string {
 	}
 	// Tag pages are keyed by the lowercased tag, as in getTagCounts ($lib/server/posts-menu).
 	for (const post of visible) for (const tag of [post.category ?? []].flat()) add(`/tags/${tag.toLowerCase()}/`);
-	for (const post of visible.sort((a, b) => Date.parse(b.date) - Date.parse(a.date))) add(getPostPermalink(post), lastModified(post));
+	for (const post of visible.sort((a, b) => Date.parse(b.date) - Date.parse(a.date))) add(getPostPermalink(post), lastModified(post), true);
 	const entries = [...urls].map(([loc, modified]) => `<url><loc>${xml(loc)}</loc>${modified ? `<lastmod>${modified}</lastmod>` : ''}</url>`);
 	return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</urlset>\n`;
 }
