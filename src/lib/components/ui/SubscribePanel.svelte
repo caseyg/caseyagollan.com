@@ -47,33 +47,34 @@
 </div>
 
 <style>
+	/* Selectors start at the panel so it keeps its spacing inside Prose, whose p, ul and a rules are as specific. */
 	.subscribe-panel {
 		min-width: 0;
 	}
 
-	.email {
+	.subscribe-panel .email {
 		padding: var(--space-2) var(--space-2) var(--space-3);
 		border-bottom: 1px solid var(--border);
 	}
 
-	.or {
+	.subscribe-panel .or {
 		margin: var(--space-3) var(--space-2) var(--space-1);
 		color: var(--text-secondary);
 		font-size: var(--fs-sm);
 		line-height: var(--lh-snug);
 	}
 
-	.feeds {
+	.subscribe-panel .feeds {
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
 
-	.feeds li {
+	.subscribe-panel .feeds li {
 		margin: 0;
 	}
 
-	.feeds a {
+	.subscribe-panel .feeds a {
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
@@ -86,22 +87,22 @@
 		transition: background var(--duration) var(--ease);
 	}
 
-	.feeds a:focus-visible {
+	.subscribe-panel .feeds a:focus-visible {
 		background: var(--surface-2);
 	}
 
 	@media (hover: hover) {
-		.feeds a:hover {
+		.subscribe-panel .feeds a:hover {
 			background: var(--surface-2);
 		}
 	}
 
-	.label {
+	.subscribe-panel .label {
 		flex: 1;
 		min-width: 0;
 	}
 
-	.detail {
+	.subscribe-panel .detail {
 		display: block;
 		color: var(--text-secondary);
 		font-size: var(--fs-xs);
