@@ -152,7 +152,7 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
   try { prepared[target.service] = await preparePhotos(target.service, photos, photoSources(config)); }
   catch (cause) { throw new ProtocolError(422, 'invalid_request', cause instanceof DeliveryError ? `${cause.message}. Nothing was posted.` : `The photos could not be read for ${target.name}. Nothing was posted.`); }
  }
- const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}) };
+ const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(publication.document ? { document: publication.document } : {}) };
  const progress: DeliveryProgress = { webmentions: [], syndication: {}, syndicationStartedAt: {} };
  const messages: string[] = [];
  for (const target of chosen) {

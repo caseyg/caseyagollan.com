@@ -6,6 +6,21 @@ import { getPostPermalink } from '../../posts-types';
 import { renderContentSync } from '../../utils/renderContent';
 import { isPublicPost } from '../parse-post';
 import { storedPhotoPosts, storedThread } from './syndication-thread';
+import { documentRkey, isStandardDocument } from '../../standard-site';
+
+/** What a Standard.site document record says about an article (see `standard-site.ts`). */
+export interface StandardDocument {
+ rkey: string;
+ /** The page's path, joined to the publication URL. */
+ path: string;
+ title: string;
+ description?: string;
+ tags?: string[];
+ publishedAt: string;
+ updatedAt?: string;
+ /** The article's Bluesky post, once it has one, so readers can find the conversation. */
+ bskyPost?: string;
+}
 
 export interface Publication {
  url: string;
@@ -22,6 +37,8 @@ export interface Publication {
  photos?: { url: string; alt: string; post?: number }[];
  /** The social copy as a thread of posts, from the post's `syndication-thread`. */
  thread?: string[];
+ /** Articles only: the post's Standard.site document. */
+ document?: StandardDocument;
 }
 const CANONICAL = 'https://caseyagollan.com';
 
@@ -41,6 +58,26 @@ export async function publicationRevision(post: Post): Promise<string> {
  });
  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(state));
  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+const iso = (value?: string) => { const time = value ? Date.parse(value) : NaN; return Number.isFinite(time) ? new Date(time).toISOString() : undefined; };
+/** A description for cards: the summary, or the opening of the text cut at a word. */
+function excerpt(text: string, limit = 300): string {
+ const flat = text.replace(/\s+/g, ' ').trim();
+ if (flat.length <= limit) return flat;
+ const cut = flat.slice(0, limit); const space = cut.lastIndexOf(' ');
+ return `${(space > limit / 2 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?-]+$/, '')}…`;
+}
+export function standardDocument(post: Post, text: string): StandardDocument | undefined {
+ if (!isStandardDocument(post)) return;
+ const tags = [post.category ?? []].flat().map(tag => String(tag).replace(/^#/, '').trim()).filter(Boolean);
+ const description = post.summary?.trim() ? post.summary.replace(/\s+/g, ' ').trim() : text ? excerpt(text) : '';
+ const bskyPost = post.syndication?.find(url => url.startsWith('https://bsky.app/'));
+ const updatedAt = iso(post.updated);
+ return {
+  rkey: documentRkey(post), path: getPostPermalink(post), title: post.title!.trim(), publishedAt: iso(post.date)!,
+  ...(description ? { description } : {}), ...(tags.length ? { tags } : {}), ...(updatedAt ? { updatedAt } : {}), ...(bskyPost ? { bskyPost } : {})
+ };
 }
 
 export async function publicationForPost(post: Post, origin = CANONICAL): Promise<Publication> {
@@ -67,6 +104,7 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
  const photoPosts = storedPhotoPosts(post.properties);
  const photos = (post.photo ?? []).map((photo, index) => ({ photo, post: photoPosts[index] ?? 0 })).filter(({ photo }) => /^https:\/\//.test(photo.url)).map(({ photo, post }) => ({ url: photo.url, alt: (photo.alt ?? '').replace(/\s+/g, ' ').trim(), ...(post ? { post } : {}) }));
  const thread = storedThread(post.properties);
+ const document = standardDocument(post, text);
  if (post.inReplyTo) addTarget(post.inReplyTo);
  if (post.bookmarkOf) addTarget(post.bookmarkOf);
  return {
@@ -75,6 +113,7 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
   title: post.title, published: post.date, sourcePath: post.filePath,
   ...(photos.length ? { photos } : {}),
   ...(thread && thread.length > 1 ? { thread } : {}),
+  ...(document ? { document } : {}),
   ...(post.previousUrls?.length ? { previousUrls: post.previousUrls.map(path => new URL(path, site).href) } : {}),
   // Imported activities may carry historical destination metadata. Never let a
   // polling import or later snapshot refresh trigger another automatic POSSE send.

@@ -13,6 +13,7 @@ import { PHOTO_LIMITS } from '../../social-text';
 import { preparePhotos, type PhotoSources, type PreparedPhoto, type SyndicationPhoto } from './syndication-photos';
 import { editorPhotos, photosWithAlts } from './photo-properties';
 import { storedPhotoPosts, storedThread, threadUpdate } from './syndication-thread';
+import { standardSiteCard, syncStandardSite } from './standard-site';
 
 type Service = 'mastodon' | 'bluesky';
 const services = ['mastodon', 'bluesky'] as const;
@@ -33,7 +34,7 @@ const splitPath = (path: string) => { const index = path.indexOf('/'); return [p
 const visible = (post: ReturnType<typeof parsePost>) => !post.draft && isPublicPost(post);
 const hash = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), byte => byte.toString(16).padStart(2,'0')).join('');
 function eventFor(publication: Publication, previous?: Publication, action: 'publish' | 'remove' = 'publish', generation?: string): DeliveryEvent {
- return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(action === 'publish' && publication.photos?.length ? { photos: publication.photos } : {}), ...(action === 'publish' && publication.thread ? { thread: publication.thread } : {}) };
+ return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(action === 'publish' && publication.photos?.length ? { photos: publication.photos } : {}), ...(action === 'publish' && publication.thread ? { thread: publication.thread } : {}), ...(action === 'publish' && publication.document ? { document: publication.document } : {}) };
 }
 
 /** The request path and manifest recovery share a durable transition before enqueue.
@@ -157,6 +158,13 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
  const original = receipt?.thread?.length ? { thread: receipt.thread } : receipt?.draft !== undefined ? { draft: receipt.draft } : offered;
  // Read and fit the photos before claiming, so a photo that cannot be sent leaves nothing to review.
  const media = photos.length ? (choice.prepared && choice.photos === photos ? choice.prepared : await preparePhotos(service, photos, choice.sources ?? {})) : undefined;
+ // An article's Bluesky post carries a card naming its Standard.site records, written first.
+ // If the records can't be written, the post still goes out with a plain link card.
+ const article = service === 'bluesky' && config.standardSite && event.document && !receipt?.parts?.length ? event.document : undefined;
+ const standard = article ? await standardSiteCard(bucket, config, { url: event.source, text: event.text, document: article }, { fetcher }).catch(() => {
+  console.warn(JSON.stringify({ event: 'standard_site_card_fallback' }));
+  return { card: { uri: event.source, title: article.title, description: article.description ?? '' }, session: undefined };
+ }) : undefined;
  const kept = { ...original, ...(photos.length ? { photos } : {}) };
  let parts = receipt?.parts ?? [];
  let claim = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, ...kept, ...(parts.length ? { parts } : {}) }), { onlyIf: stored ? { etagMatches: stored.etag } : { etagDoesNotMatch: '*' } });
@@ -168,7 +176,7 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
   if (!saved) throw new DeliveryError('Syndication receipt raced', true);
   claim = saved;
  } };
- const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, ...original, media }, config, fetcher, progress);
+ const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, ...original, media, ...(standard ? { card: standard.card } : {}) }, config, fetcher, progress, standard?.session);
  const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url, ...kept, ...(parts.length ? { parts } : {}) }), { onlyIf: { etagMatches: claim.etag } });
  if (!saved) throw new DeliveryError('Syndication receipt raced', true);
  return url;
@@ -280,6 +288,10 @@ export async function processPublishing(config?: PublishingConfig, dependencies:
   const manifest = await response.json() as { version: number; publications: Publication[] };
   if (manifest.version !== 1 || !Array.isArray(manifest.publications) || manifest.publications.some(item => !item || new URL(item.url).origin !== new URL(config.me).origin || !/^[a-f0-9]{64}$/.test(item.revision) || !Array.isArray(item.targets) || !Array.isArray(item.syndicateTo))) throw new Error();
   await reconcilePublications(config.state, manifest.publications, dependencies.now?.());
+  if (config.syndication?.standardSite && config.syndication.bluesky) {
+   try { console.log(JSON.stringify({ event: 'standard_site_sync', ...await syncStandardSite(config.state, config.syndication, manifest.publications, { fetcher }) })); }
+   catch { console.warn(JSON.stringify({ event: 'standard_site_sync_retry' })); }
+  }
  } catch { console.warn(JSON.stringify({ event: 'publishing_manifest_retry' })); }
  return processOutbox(config.state, (job, checkpoint) => deliverPublication(config, config.state!, job, checkpoint, dependencies), { now: dependencies.now, limit: 3, maxAttempts: 20 });
 }

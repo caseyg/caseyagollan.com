@@ -7,6 +7,7 @@
 
 	import { getPostAction } from '$lib/utils/post-details';
 	import { renderContentSync } from '$lib/utils/renderContent';
+	import { documentUri, isStandardDocument } from '$lib/standard-site';
 
 	let { data }: { data: PageData } = $props();
 
@@ -24,6 +25,10 @@
 	<title>{data.post.title || data.post.type} - Casey Gollan</title>
 	<meta name="description" content={description} />
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />
+	{#if isStandardDocument(data.post)}
+		<!-- Standard.site: the article's AT Protocol record; Bluesky shows a richer card for it -->
+		<link rel="site.standard.document" href={documentUri(data.post)} />
+	{/if}
 </svelte:head>
 
 <Nav currentPage="posts" />

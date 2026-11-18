@@ -33,6 +33,11 @@ const config = {
 		// The hook retains form-origin checks everywhere except the token-only Micropub API.
 		csrf: { trustedOrigins: ['*'] },
 		prerender: {
+			// Standard.site <link> tags name AT Protocol records (at://did:plc:…), which aren't pages to crawl.
+			handleInvalidUrl: ({ href, message }) => {
+				if (href.startsWith('at://')) return;
+				throw new Error(message);
+			},
 			handleHttpError: ({ path, referrer, message }) => {
 				// Ignore 404s for pages we haven't migrated yet
 				if (path.startsWith('/posts') || path === '/feed.xml' || path === '/index-accessible.html') {

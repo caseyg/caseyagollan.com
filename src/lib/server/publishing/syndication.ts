@@ -5,12 +5,21 @@ import { blueskyImagesEmbed, uploadMastodonMedia, type PreparedPhoto } from './s
 export interface SyndicationConfig {
  mastodon?: {instance:string;token:string};
  bluesky?: {service:string;identifier:string;password:string};
+ /** Write Standard.site records for articles, and give their Bluesky posts the card that names them. */
+ standardSite?: boolean;
 }
 export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string;
  /** A reviewed thread: each entry is one post, sent as a reply to the one before. */
  thread?:string[];
  /** Photos fitted to this network, uploaded with their alt text, each on the post of the thread it names. */
- media?:PreparedPhoto[]}
+ media?:PreparedPhoto[];
+ /** Bluesky only: a link card on the first post. `associatedRefs` name the Standard.site records behind it. */
+ card?:LinkCard}
+/** A record's address and content hash, as AT Protocol strong references carry them. */
+export interface StrongRef {uri:string;cid:string}
+export interface LinkCard {uri:string;title:string;description:string;associatedRefs?:StrongRef[]}
+/** A signed-in Bluesky account: its PDS entryway, DID, handle for links, and access token. */
+export interface BlueskySession {base:string;did:string;handle:string;accessJwt:string}
 /**
  * One key per social post. Bluesky links name the same post by DID or by handle
  * (bsky.app/profile/did:plc:…/post/X and bsky.app/profile/caseyagollan.com/post/X),
@@ -111,17 +120,33 @@ async function blueskyRecordKey(key:string,published:number):Promise<string> {
  for(let i=0;i<13;i++){rkey=alphabet[Number(tid&31n)]+rkey;tid>>=5n;}
  return rkey;
 }
+/** A link card. Bluesky draws a Standard.site card when `associatedRefs` name a verified document. */
+function externalEmbed(card:LinkCard) {
+ return {$type:'app.bsky.embed.external',external:{uri:card.uri,title:card.title,description:card.description,...(card.associatedRefs?.length?{associatedRefs:card.associatedRefs}:{})}};
+}
 /** A thread post's photos: those naming it, with any past the end on the last post. */
 const mediaFor=(post:SyndicationPost,index:number,count:number)=>(post.media ?? []).filter(photo=>Math.min(photo.post ?? 0,count-1)===index);
 /** The first post keeps the job's key; later posts of a thread add their position. */
 const partKey=(key:string,index:number)=>index?`${key}:${index}`:key;
 
+/** Sign in to Bluesky with the app password. */
+export async function blueskySession(config:SyndicationConfig,fetcher:PublicFetcher=safePublicFetch):Promise<BlueskySession> {
+ const account=config.bluesky;if(!account)throw new DeliveryError('Bluesky is not configured',false);
+ const base=origin(account.service);
+ const session=await request(fetcher,base+'/xrpc/com.atproto.server.createSession',{identifier:account.identifier,password:account.password});
+ if(typeof session.did!=='string' || !blueskyDid.test(session.did) || typeof session.accessJwt!=='string') throw new DeliveryError('Invalid Bluesky session',true);
+ // Bridgy and readers expect handle URLs; the DID form is the fallback when the handle is unverified.
+ const handle=typeof session.handle==='string' && session.handle!=='handle.invalid' && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(session.handle) ? session.handle : session.did;
+ return {base,did:session.did,handle,accessJwt:session.accessJwt};
+}
+
 /**
  * Send a post, or a thread as one reply chain. Each later post replies to the one before it.
  * With progress, every sent post is saved before the next goes out, and a retry continues
  * after the last saved one. Returns the first post's URL, which stands for the thread.
+ * A Bluesky send can reuse a session already signed in for the same account.
  */
-export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPost,config:SyndicationConfig,fetcher:PublicFetcher=safePublicFetch,progress?:ThreadProgress):Promise<string> {
+export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPost,config:SyndicationConfig,fetcher:PublicFetcher=safePublicFetch,progress?:ThreadProgress,signedIn?:BlueskySession):Promise<string> {
  if(!post.idempotencyKey || !Number.isFinite(Date.parse(post.published))) throw new DeliveryError('Invalid publication metadata',false);
  const texts=syndicationThread(post,service);
  const parts=[...(progress?.parts ?? [])].slice(0,texts.length);
@@ -147,12 +172,7 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
   }
   return parts[0].url;
  }
- const account=config.bluesky;if(!account)throw new DeliveryError('Bluesky is not configured',false);
- const base=origin(account.service);
- const session=await request(fetcher,base+'/xrpc/com.atproto.server.createSession',{identifier:account.identifier,password:account.password});
- if(typeof session.did!=='string' || !blueskyDid.test(session.did) || typeof session.accessJwt!=='string') throw new DeliveryError('Invalid Bluesky session',true);
- // Bridgy and readers expect handle URLs; the DID form is the fallback when the handle is unverified.
- const handle=typeof session.handle==='string' && session.handle!=='handle.invalid' && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(session.handle) ? session.handle : session.did;
+ const {base,handle,...session}=signedIn ?? await blueskySession(config,fetcher);
  const resolved=new Map<string,string>();
  const published=Date.parse(post.published);
  for(let index=parts.length;index<texts.length;index++) {
@@ -163,7 +183,8 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
   const reply=index?{root:{uri:parts[0].id,cid:parts[0].cid},parent:{uri:parts[index-1].id,cid:parts[index-1].cid}}:undefined;
   const createdAt=index?new Date(published+index).toISOString():post.published;
   const media=mediaFor(post,index,texts.length);
-  const embed=media.length ? await blueskyImagesEmbed(base,session.accessJwt,media,fetcher) : undefined;
+  // Photos chosen for the first post win over the link card, since only one embed fits.
+  const embed=media.length ? await blueskyImagesEmbed(base,session.accessJwt,media,fetcher) : !index && post.card ? externalEmbed(post.card) : undefined;
   const result=await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt,facets,...(reply?{reply}:{}),...(embed?{embed}:{})}},{authorization:`Bearer ${session.accessJwt}`});
   if(index<texts.length-1 && typeof result.cid!=='string') throw new DeliveryError('Bluesky did not return a record CID',true);
   parts.push({url:`https://bsky.app/profile/${handle}/post/${rkey}`,id:`at://${session.did}/app.bsky.feed.post/${rkey}`,...(typeof result.cid==='string'?{cid:result.cid}:{})});

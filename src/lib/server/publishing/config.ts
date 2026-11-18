@@ -17,6 +17,8 @@ export interface PublishingEnvironment extends IndieAuthEnvironment {
 	PUBLISHING_BLUESKY_SERVICE?: string;
 	PUBLISHING_BLUESKY_IDENTIFIER?: string;
 	PUBLISHING_BLUESKY_PASSWORD?: string;
+	/** "true" writes Standard.site records for articles to the Bluesky account's repository. */
+	PUBLISHING_STANDARD_SITE?: string;
 	PUBLISHING_ME?: string;
 	PUBLISHING_INTROSPECTION_ENDPOINT?: string;
 	PUBLISHING_INTROSPECTION_TOKEN?: string;
@@ -60,7 +62,7 @@ export function publishingConfig(env: PublishingEnvironment = {}): PublishingCon
 	if (Object.values(config).some(value => !value?.trim())) return;
 	const syndication = {
 		...(env.PUBLISHING_MASTODON_TOKEN?.trim() ? { mastodon: { instance: env.PUBLISHING_MASTODON_INSTANCE ?? 'https://social.coop', token: env.PUBLISHING_MASTODON_TOKEN } } : {}),
-		...(env.PUBLISHING_BLUESKY_IDENTIFIER?.trim() && env.PUBLISHING_BLUESKY_PASSWORD?.trim() ? { bluesky: { service: env.PUBLISHING_BLUESKY_SERVICE ?? 'https://bsky.social', identifier: env.PUBLISHING_BLUESKY_IDENTIFIER, password: env.PUBLISHING_BLUESKY_PASSWORD } } : {})
+		...(env.PUBLISHING_BLUESKY_IDENTIFIER?.trim() && env.PUBLISHING_BLUESKY_PASSWORD?.trim() ? { bluesky: { service: env.PUBLISHING_BLUESKY_SERVICE ?? 'https://bsky.social', identifier: env.PUBLISHING_BLUESKY_IDENTIFIER, password: env.PUBLISHING_BLUESKY_PASSWORD }, ...(env.PUBLISHING_STANDARD_SITE === 'true' ? { standardSite: true } : {}) } : {})
 	};
 	return { ...config, ...(store ? { introspect: (token: string) => store.invoke('introspectToken', { token }) } : {}), state: env.PUBLISHING_STATE, syndication, deliveryEnabled: env.PUBLISHING_DELIVERY_ENABLED === 'true', mediaBucket: env.PUBLISHING_MEDIA, mediaEnabled: Boolean(env.PUBLISHING_MEDIA), mediaBaseUrl: env.PUBLISHING_MEDIA_BASE_URL, images: env.IMAGES, introspectionToken: env.PUBLISHING_INTROSPECTION_TOKEN } as PublishingConfig;
 }

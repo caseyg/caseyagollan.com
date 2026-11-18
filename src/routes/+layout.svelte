@@ -3,6 +3,7 @@
 	import '../app.css';
 	import { SITE_FEEDS, SITE_URL } from '$lib/feeds';
 	import { SITE_IDENTITY } from '$lib/identity';
+	import { PUBLICATION_URI } from '$lib/standard-site';
 	import WikiPreviews from '$lib/components/wiki/WikiPreviews.svelte';
 
 	let { children } = $props();
@@ -21,6 +22,8 @@
 	{#each SITE_IDENTITY.profiles as profile (profile.href)}
 		<link rel="me" href={profile.href} />
 	{/each}
+	<!-- Standard.site: the AT Protocol record for this site, verified by /.well-known/site.standard.publication -->
+	<link rel="site.standard.publication" href={PUBLICATION_URI} />
 	<!-- Webmention -->
 	<link rel="webmention" href="https://webmention.io/caseyagollan.com/webmention" />
 	<link rel="pingback" href="https://webmention.io/caseyagollan.com/xmlrpc" />

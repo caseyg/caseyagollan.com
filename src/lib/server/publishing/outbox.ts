@@ -1,4 +1,5 @@
 /** Private delivery state: bind only to the private publishing-state bucket. */
+import type { StandardDocument } from './publication';
 export type DeliveryEvent = {
  source: string; revision: string; generation?: string; action: 'publish' | 'remove'; targets: string[];
  syndicateTo: ('mastodon' | 'bluesky')[]; text: string; title?: string; published: string; sourcePath?: string;
@@ -8,6 +9,8 @@ export type DeliveryEvent = {
  photos?: { url: string; alt: string; post?: number }[];
  /** The post's stored thread; automatic sends post it as a reply chain. */
  thread?: string[];
+ /** Articles: the Standard.site document, which their Bluesky post's card names. */
+ document?: StandardDocument;
 };
 export interface DeliveryProgress {
  webmentions: string[];
