@@ -29,17 +29,31 @@
 </script>
 
 <!--
-	The gray control of the feed it offers, like the date pills and filters. A Popover rather than a
-	menu, since it holds a form (SubscribePanel).
+	Pinned beside the page's trail (PageHeader's `pinned`), outlined in the trail's quiet gray so it
+	reads as part of the page it subscribes to. A Popover rather than a menu, since it holds a form
+	(SubscribePanel). On a phone it shows the feed icon alone.
 -->
-<Popover label="{label} to {scope ?? 'posts'}" align="end" bind:open triggerClass="feed-menu-trigger" panelClass="feed-menu">
-	{#snippet trigger()}<Icon name="rss" size={16} /><span>{label}</span><span class="arrow" aria-hidden="true">▾</span>{/snippet}
+<Popover label="{label} to {scope ?? 'posts'}" align="start" bind:open triggerClass="feed-menu-trigger" panelClass="feed-menu">
+	{#snippet trigger()}<Icon name="rss" size={16} /><span class="label">{label}</span><span class="arrow" aria-hidden="true">▾</span>{/snippet}
 	<SubscribePanel {feeds} {scope} {email} {submit} {initial} />
 </Popover>
 
 <style>
-	:global(.feed-menu-trigger) {
-		padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
+	/* The size and outline of the trail beside it (SegmentedPill, md and quiet). */
+	:global(.popover-trigger.feed-menu-trigger) {
+		box-sizing: border-box;
+		height: var(--nav-height);
+		padding: 0 var(--space-2) 0 var(--space-3);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-primary);
+		letter-spacing: 0.01em;
+		white-space: nowrap;
+	}
+
+	:global(.popover-trigger.feed-menu-trigger:hover),
+	:global(.popover-trigger.feed-menu-trigger[data-open]) {
+		background: color-mix(in srgb, white 15%, var(--bg-primary));
 	}
 
 	.arrow {
@@ -53,6 +67,17 @@
 
 	:global(.feed-menu) {
 		width: min(22rem, calc(100vw - 2rem));
+	}
+
+	@media (max-width: 600px) {
+		:global(.popover-trigger.feed-menu-trigger) {
+			padding-inline: 0.625rem;
+		}
+
+		.label,
+		.arrow {
+			display: none;
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
