@@ -1,6 +1,6 @@
 # Plan: a plugin-based IndieWeb starter
 
-Status: planning only, written 2026-11-17. Nothing here is built yet.
+Status: planning only, written 2026-11-17. Nothing here is built yet. The alternative, extending IndieKit instead, is in [INDIEKIT-ALTERNATIVE.md](INDIEKIT-ALTERNATIVE.md).
 
 ## Was there an earlier plan?
 
