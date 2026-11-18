@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { CHAT_CRUMB, ChatPromptInput, ChatSignIn, ChatThreadList } from '$lib/components/chat';
+	import { CHAT_CRUMB, ChatPromptInput, ChatSidebarToggle, ChatSignIn, ChatThreadList } from '$lib/components/chat';
 	import { Notice, Page, PageHeader, Section } from '$lib/components/ui';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -18,7 +18,9 @@
 <Nav currentPage="chat" />
 
 <Page as="main" width="reading">
-	<PageHeader trail={[{ ...CHAT_CRUMB, current: true }]} title="Chat" description="Ask an assistant about anything on this site, or anything it can find on the web. Every chat is public." />
+	<PageHeader trail={[{ ...CHAT_CRUMB, current: true }]} title="Chat" description="Ask an assistant about anything on this site, or anything it can find on the web. Every chat is public.">
+		{#snippet pinned()}<ChatSidebarToggle />{/snippet}
+	</PageHeader>
 
 	{#if !data.available}<Notice>Chat isn’t available here.</Notice>{/if}
 	{#if form?.error}<Notice tone="error">{form.error}</Notice>{/if}
@@ -31,13 +33,22 @@
 		<ChatSignIn returnTo="/chat" error={data.signinError} open={!!data.signinError} />
 	{/if}
 
-	<Section title="Recent chats">
-		<ChatThreadList threads={data.threads} />
-	</Section>
+	<!-- The sidebar lists chats beside the page; narrow screens (and no JavaScript) get the list here too. -->
+	<div class="narrow-list">
+		<Section title="Recent chats">
+			<ChatThreadList threads={data.threads} />
+		</Section>
+	</div>
 </Page>
 
 <style>
 	.start {
 		margin-bottom: var(--space-5);
+	}
+
+	@media (min-width: 900px) {
+		.narrow-list {
+			display: none;
+		}
 	}
 </style>

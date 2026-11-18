@@ -2,15 +2,15 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { chatHref } from '$lib/chat';
 import { chatViewer } from '$lib/server/chat/identity';
-import { listThreads, newThreadId, threadStub } from '$lib/server/chat/threads';
+import { newThreadId, threadStub } from '$lib/server/chat/threads';
 
 export const prerender = false;
 
 export const load: PageServerLoad = async ({ request, platform, url, setHeaders }) => {
 	const env = (platform?.env ?? {}) as NonNullable<App.Platform['env']>;
 	setHeaders({ 'cache-control': 'private, no-store' });
-	const [threads, viewer] = await Promise.all([listThreads(env.PUBLISHING_STATE).catch(() => []), chatViewer(request, env).catch(() => null)]);
-	return { threads, viewer, signinError: url.searchParams.get('signin')?.slice(0, 200) ?? null, available: !!env.ChatThread };
+	const viewer = await chatViewer(request, env).catch(() => null);
+	return { viewer, signinError: url.searchParams.get('signin')?.slice(0, 200) ?? null, available: !!env.ChatThread };
 };
 
 export const actions: Actions = {

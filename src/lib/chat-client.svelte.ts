@@ -18,9 +18,13 @@ export class LiveThread {
 	#timer?: ReturnType<typeof setTimeout>;
 	#closed = false;
 
-	constructor(snapshot: ChatSnapshot, viewer: ChatViewer | null) {
+	#onchange?: () => void;
+
+	/** `onchange` runs when the thread's place in a list would move: a new message, a new title, or a finished answer. */
+	constructor(snapshot: ChatSnapshot, viewer: ChatViewer | null, onchange?: () => void) {
 		this.snapshot = snapshot;
 		this.viewer = viewer;
+		this.#onchange = onchange;
 	}
 
 	get messages(): ChatMessage[] { return this.snapshot.messages; }
@@ -63,11 +67,11 @@ export class LiveThread {
 		try { event = JSON.parse(data); } catch { return; }
 		switch (event.type) {
 			case 'chat:snapshot': this.snapshot = event.snapshot; this.viewer = event.viewer ?? this.viewer; this.tools = event.tools; break;
-			case 'chat:message': if (!this.#find(event.message.id)) this.snapshot.messages.push(event.message); break;
+			case 'chat:message': if (!this.#find(event.message.id)) { this.snapshot.messages.push(event.message); if (event.message.role === 'user') this.#onchange?.(); } break;
 			case 'chat:delta': { const message = this.#find(event.id); if (message) message.content += event.text; break; }
 			case 'chat:tools': { const message = this.#find(event.id); if (message) message.tools = event.tools; break; }
-			case 'chat:done': { const message = this.#find(event.id); if (message) { message.status = event.status; message.content = event.content; } break; }
-			case 'chat:title': this.snapshot.thread.title = event.title; break;
+			case 'chat:done': { const message = this.#find(event.id); if (message) { message.status = event.status; message.content = event.content; } this.#onchange?.(); break; }
+			case 'chat:title': this.snapshot.thread.title = event.title; this.#onchange?.(); break;
 			case 'chat:error': this.error = event.error; break;
 		}
 	}

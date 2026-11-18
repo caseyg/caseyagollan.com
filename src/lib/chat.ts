@@ -94,6 +94,23 @@ export function chatTitle(text: string): string {
 	return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 40)).trimEnd()}…`;
 }
 
+/** A model-written title, cleaned up: no thinking, quotes, Markdown or full stop, at most about sixty characters. */
+export function threadTitle(text: string): string {
+	const line = text.replace(/<think>[\s\S]*?(<\/think>|$)/gi, '').split('\n').map((part) => part.trim()).find(Boolean) ?? '';
+	const clean = line.replace(/[*_`#>]/g, '').replace(/^\s*title:\s*/i, '').replace(/^["'“‘«]+|["'”’»]+$/g, '').replace(/[.。]+$/, '').trim();
+	return clean.length >= 3 ? chatTitle(clean) : '';
+}
+
+/** When a thread last moved, briefly: “just now”, “5 min ago”, “3 h ago”, then the date. */
+export function chatAgo(at: number, now = Date.now()): string {
+	const minutes = Math.round((now - at) / 60_000);
+	if (minutes < 1) return 'just now';
+	if (minutes < 60) return `${minutes} min ago`;
+	const hours = Math.round(minutes / 60);
+	if (hours < 24) return `${hours} h ago`;
+	return new Date(at).toLocaleDateString([], { month: 'short', day: 'numeric', year: new Date(at).getFullYear() === new Date(now).getFullYear() ? undefined : 'numeric' });
+}
+
 export const PROVIDER_LABELS: Record<ChatProvider, string> = {
 	owner: 'Casey',
 	indieauth: 'Your website',
