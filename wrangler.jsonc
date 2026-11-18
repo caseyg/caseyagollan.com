@@ -6,8 +6,17 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "caseyagollan",
 	"main": "worker.mjs",
-	"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }] },
-	"migrations": [{ "tag": "v1-indieauth", "new_sqlite_classes": ["IndieAuthStore"] }],
+	"durable_objects": {
+		"bindings": [
+			{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" },
+			// Live cursors and cursor chat, one object per page (src/lib/server/cursors/room.ts).
+			{ "name": "CURSORS", "class_name": "CursorRoom" }
+		]
+	},
+	"migrations": [
+		{ "tag": "v1-indieauth", "new_sqlite_classes": ["IndieAuthStore"] },
+		{ "tag": "v2-cursors", "new_sqlite_classes": ["CursorRoom"] }
+	],
 	"compatibility_date": "2025-01-19",
 	"compatibility_flags": [
 		"nodejs_als"
@@ -66,7 +75,12 @@
 	 * Media, screenshots, and the insight cache are read from production.
 	 */
 	"previews": {
-		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }] },
+		"durable_objects": {
+			"bindings": [
+				{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" },
+				{ "name": "CURSORS", "class_name": "CursorRoom" }
+			]
+		},
 		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }],
 		"vars": {
 			"AUTH_ENABLED": "false",

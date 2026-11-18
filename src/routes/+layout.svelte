@@ -6,6 +6,7 @@
 	import { SITE_IDENTITY } from '$lib/identity';
 	import { OPENSEARCH_PATH, OPENSEARCH_TITLE } from '$lib/opensearch';
 	import WikiPreviews from '$lib/components/wiki/WikiPreviews.svelte';
+	import CursorPresence from '$lib/components/cursors/CursorPresence.svelte';
 
 	let { children } = $props();
 
@@ -42,3 +43,6 @@
 
 <!-- Hovering a link to a wiki page, anywhere on the site, previews it. -->
 <WikiPreviews />
+
+<!-- Other visitors' cursors on this page, and chat by your own (press C). -->
+<CursorPresence />
