@@ -147,10 +147,11 @@ export async function uploadMastodonMedia(base: string, token: string, photos: P
 }
 
 /** Upload photos as Bluesky blobs and describe them as an images embed. */
-export async function blueskyImagesEmbed(base: string, accessJwt: string, photos: PreparedPhoto[], fetcher: PublicFetcher): Promise<Record<string, unknown>> {
+export async function blueskyImagesEmbed(base: string, send: (url: string, init: RequestInit & { method: string }) => Promise<Response>, photos: PreparedPhoto[]): Promise<Record<string, unknown>> {
  const images = [];
  for (const photo of photos) {
-  const response = await fetcher(base + '/xrpc/com.atproto.repo.uploadBlob', { method: 'POST', redirect: 'manual', headers: { authorization: `Bearer ${accessJwt}`, 'content-type': photo.type }, body: photo.bytes });
+  // `send` authorizes the request: the OAuth agent (DPoP) or an app-password session.
+  const response = await send(base + '/xrpc/com.atproto.repo.uploadBlob', { method: 'POST', headers: { 'content-type': photo.type }, body: photo.bytes });
   checkDeliveryResponse(response);
   let result: { blob?: unknown };
   try { result = await response.json() as typeof result; } catch { throw new DeliveryError('Invalid Bluesky blob response', true); }
