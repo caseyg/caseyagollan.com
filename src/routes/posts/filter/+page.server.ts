@@ -89,7 +89,9 @@ export const load: PageServerLoad = async ({ url, platform }) => {
 		totalPosts: matches.length,
 		page,
 		totalPages,
+		// Rendered on request, so its menu is built here rather than in the browser.
 		postsMenu: facetMenu(entries, index.tagNames, facets),
+		postsMenuSelection: facets,
 		facets,
 		filterLabels: facetLabels(facets, index.tagNames)
 	};

@@ -1,7 +1,6 @@
 import { getPostsByDay, type Post } from '$lib/posts';
 import type { Facets } from '$lib/posts-filter';
 import { getFeedEntries } from './posts-feed';
-import { getPostsMenu } from './posts-menu';
 import { error } from '@sveltejs/kit';
 
 export const PAGE_SIZE = 20;
@@ -29,7 +28,7 @@ export async function loadPostsPage(pageParam = '1') {
 		totalPosts: posts.length,
 		page,
 		totalPages,
-		postsMenu: await getPostsMenu(),
+		postsMenuSelection: {} as Partial<Facets>,
 		facets: { types: [], tags: [], years: [] } as Facets,
 		filterLabels: [] as string[]
 	};

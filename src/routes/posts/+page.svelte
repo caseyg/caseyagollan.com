@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostFeed, PostsLayout } from '$lib/components/posts';
+	import { FeedMenu, PostFeed, PostsLayout } from '$lib/components/posts';
 	import { PageHeader, Pagination } from '$lib/components/ui';
 	import { postsCrumb } from '$lib/components/posts/trail';
 	import { facetsHref } from '$lib/posts-filter';
@@ -29,7 +29,9 @@
 	<PageHeader
 		trail={[{ ...postsCrumb(filtered ? undefined : 'all', badge), current: true }]}
 		title={filtered ? shownLabel : 'Posts'}
-	/>
+	>
+		{#snippet actions()}<div class="feeds"><FeedMenu /></div>{/snippet}
+	</PageHeader>
 	{#if data.totalPosts === 0}
 		<p class="empty">No posts match these filters.</p>
 	{/if}
@@ -43,6 +45,11 @@
 </PostsLayout>
 
 <style>
+	.feeds {
+		display: flex;
+		justify-content: flex-end;
+	}
+
 	.empty {
 		color: var(--text-muted);
 	}

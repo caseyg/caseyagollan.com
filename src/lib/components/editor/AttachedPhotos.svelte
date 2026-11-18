@@ -1,27 +1,73 @@
 <script lang="ts">
 	import EditableFigure from './EditableFigure.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import { altLength } from '$lib/social-text';
 
-	interface Photo { url: string; alt: string }
+	interface Photo {
+		url: string;
+		alt: string;
+		/** With `removable`: whether the photo goes with the post. Undefined counts as included. */
+		included?: boolean;
+		/** In a thread: the post it goes on, counted from 0. */
+		post?: number;
+	}
 	interface Props {
-		/** The post's attached photos. Bound: editing alt text changes them. */
+		/** The post's attached photos. Bound: editing alt text, or leaving a photo off, changes them. */
 		photos: Photo[];
-		/** Hidden field that carries the alt text, one per photo, as JSON. */
-		name?: string;
+		/** Hidden field that carries the alt text, one per photo, as JSON. Null leaves the field out. */
+		name?: string | null;
+		/** Lets each photo be left off, as when sending the post to a network. */
+		removable?: boolean;
+		/** With `removable`: the most photos that can go at once. The rest wait, left off. */
+		max?: number;
+		/** The longest alt text allowed. Its count shows as the text gets close. */
+		altLimit?: number;
+		/** In a thread: moves a photo to the post before (-1) or after (1). Left out, or returning false for a step, hides that button. */
+		onmove?: (photo: Photo, step: -1 | 1) => void;
+		canMove?: (photo: Photo, step: -1 | 1) => boolean;
 	}
 
-	let { photos = $bindable(), name = 'photo-alts' }: Props = $props();
+	let { photos = $bindable(), name = 'photo-alts', removable = false, max = Infinity, altLimit, onmove, canMove = () => true }: Props = $props();
 
 	const json = $derived(JSON.stringify(photos.map(photo => photo.alt)));
-	const missing = $derived(photos.filter(photo => !photo.alt.trim()).length);
+	const included = (photo: Photo) => !removable || photo.included !== false;
+	const sending = $derived(photos.filter(included));
+	const missing = $derived(sending.filter(photo => !photo.alt.trim()).length);
+	const full = $derived(sending.length >= max);
+	const left = $derived(photos.length - sending.length);
 </script>
 
 {#if photos.length}
 	<section class="attached-photos" class:grid={photos.length > 1} aria-label="Photos">
-		<input type="hidden" {name} value={json} />
+		{#if name}<input type="hidden" {name} value={json} />{/if}
 		{#each photos as photo, index (index)}
-			<EditableFigure variant="photo" figure={{ src: photo.url, alt: photo.alt, caption: '', align: 'full' }} onchange={changes => { if (changes.alt !== undefined) photos[index].alt = changes.alt; }} />
+			{@const count = altLength(photo.alt)}
+			<div class="photo" class:left-off={!included(photo)}>
+				<EditableFigure variant="photo" figure={{ src: photo.url, alt: photo.alt, caption: '', align: 'full' }} onchange={changes => { if (changes.alt !== undefined) photos[index].alt = changes.alt; }} />
+				{#if removable}
+					<div class="toggle">
+						{#if included(photo)}
+							<Button variant="icon" size="sm" icon="close" label="Leave this photo off" onclick={() => (photos[index].included = false)} />
+						{:else}
+							<Button variant="icon" size="sm" icon="plus" label={full ? `Up to ${max} photos can go` : 'Add this photo back'} disabled={full} onclick={() => (photos[index].included = true)} />
+						{/if}
+					</div>
+				{/if}
+				{#if onmove && (canMove(photo, -1) || canMove(photo, 1))}
+					<div class="move">
+						{#if canMove(photo, -1)}<Button variant="icon" size="sm" icon="chevron-up" label="Move to the post before" onclick={() => onmove(photo, -1)} />{/if}
+						{#if canMove(photo, 1)}<Button variant="icon" size="sm" icon="chevron" label="Move to the post after" onclick={() => onmove(photo, 1)} />{/if}
+					</div>
+				{/if}
+				{#if altLimit && count > altLimit * 0.8}<span class="count" class:over={count > altLimit}>{count}/{altLimit}</span>{/if}
+			</div>
 		{/each}
-		{#if missing}<p class="hint">{photos.length === 1 ? 'This photo has' : missing === 1 ? 'One photo has' : `${missing} photos have`} no alt text yet. Describe {missing === 1 ? 'it' : 'them'} for people who can't see {missing === 1 ? 'it' : 'them'}.</p>{/if}
+		{#if missing || (removable && left)}
+			<p class="hint">
+				{#if missing}{sending.length === 1 ? 'This photo has' : missing === 1 ? 'One photo has' : `${missing} photos have`} no alt text yet. Describe {missing === 1 ? 'it' : 'them'} for people who can't see {missing === 1 ? 'it' : 'them'}.{/if}
+				{#if removable && left}{left === 1 ? 'One photo is' : `${left} photos are`} left off{photos.length > max ? `; up to ${max} can go` : ''}.{/if}
+			</p>
+		{/if}
 	</section>
 {/if}
 
@@ -42,6 +88,55 @@
 	/* In a grid, photos fill their column, as thumbnails do. */
 	.grid :global(.photo-image) {
 		width: 100%;
+	}
+
+	.photo {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+
+	.photo :global(figure) {
+		margin: 0;
+	}
+
+	/* Leave off and add back sit on the photo's corner, as in social composers. */
+	.toggle {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--space-2);
+		border-radius: var(--radius-full);
+		background: var(--bg-primary);
+	}
+
+	/* In a thread, a photo moves between posts from its other top corner. */
+	.move {
+		position: absolute;
+		top: var(--space-2);
+		left: var(--space-2);
+		display: flex;
+		border-radius: var(--radius-full);
+		background: var(--bg-primary);
+	}
+
+	/* A photo left off stays in view, faded, so it can be added back. */
+	.left-off :global(.photo-image) {
+		opacity: 0.4;
+	}
+
+	.count {
+		align-self: flex-end;
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.count.over {
+		color: var(--text-primary);
+		text-decoration: underline wavy;
+		font-weight: var(--fw-semibold);
 	}
 
 	.hint {

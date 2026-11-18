@@ -240,3 +240,15 @@ test('threads are validated post by post before anything is sent', async () => {
  await expect(sendEditorDrafts(app.config, post, publication.revision, ['bluesky'], { bluesky: Array(21).fill('x') }, dependencies)).rejects.toMatchObject({ status: 422 });
  expect(app.rows.size).toBe(0);
 });
+
+test('photos in a thread go on the post they name, and past the end on the last post', async () => {
+ const photo = (alt: string, post?: number) => ({ bytes: new Uint8Array([1]), type: 'image/jpeg', alt, ...(post ? { post } : {}) });
+ const statuses: [string | null, string[]][] = []; const uploads: string[] = [];
+ await syndicate('mastodon', { url: 'https://example.com/a/', text: '', published: '2026-11-17T00:00:00Z', idempotencyKey: 'photos', thread: ['One', 'Two', 'Three'], media: [photo('first'), photo('second', 1), photo('late', 7)] }, { mastodon: { instance: 'https://social.coop', token: 'fake' } }, async (url, init) => {
+  if (url.endsWith('/api/v2/media')) { uploads.push(String((init?.body as FormData).get('description'))); return Response.json({ id: `p${uploads.length}`, url: 'https://files/x' }); }
+  const body = new URLSearchParams(String(init?.body)); statuses.push([body.get('status'), body.getAll('media_ids[]')]);
+  return Response.json({ id: `m${statuses.length}`, url: `https://social.coop/@caseyg/${statuses.length}` });
+ });
+ expect(statuses).toEqual([['One', ['p1']], ['Two', ['p2']], ['Three', ['p3']]]);
+ expect(uploads).toEqual(['first', 'second', 'late']);
+});

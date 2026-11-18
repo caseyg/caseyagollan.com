@@ -1,3 +1,4 @@
+import type { Facets } from '$lib/posts-filter';
 import type { PageServerLoad } from './$types';
 import { getAllPosts, getPostPermalink } from '$lib/posts';
 import { building } from '$app/environment';
@@ -5,7 +6,6 @@ import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publicationRevision } from '$lib/server/publishing/publication';
 import { isPublicPost } from '$lib/server/parse-post';
 import { publishingConfig } from '$lib/server/publishing/config';
-import { getPostsMenu } from '$lib/server/posts-menu';
 import { error, redirect } from '@sveltejs/kit';
 import { movedPost } from '$lib/server/renamed-posts';
 
@@ -36,5 +36,5 @@ export const load: PageServerLoad = async (event) => {
 
 	if (!post) error(404, 'Post not found');
 	if (!isPublicPost(post)) error(post.deleted ? 410 : 404, post.deleted ? 'Post deleted' : 'Post not found');
-	return { year, month, day, post, postsMenu: await getPostsMenu(), revision: await publicationRevision(post) };
+	return { year, month, day, post, postsMenuSelection: {} as Partial<Facets>, revision: await publicationRevision(post) };
 };

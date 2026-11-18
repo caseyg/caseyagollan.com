@@ -8,9 +8,10 @@
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
 	import SyndicationList from '$lib/components/composer/SyndicationList.svelte';
+	import AttachedPhotos from '$lib/components/editor/AttachedPhotos.svelte';
 	import { Heading, Notice, Page, PageHeader, CheckboxGroup, ToggleChip } from '$lib/components/ui';
 	import ThreadComposer from '$lib/components/composer/ThreadComposer.svelte';
-	import { characterCount, mentionQuery, type SocialService, type FollowedAccount } from '$lib/social-text';
+	import { characterCount, mentionQuery, altLength, PHOTO_LIMITS, type SocialService, type FollowedAccount } from '$lib/social-text';
 	import { maxThreadPosts, splitIntoThread } from '$lib/social-thread';
 	import follows from '$lib/data/social-follows.json';
 	import type { PageData, ActionData } from './$types';
@@ -89,6 +90,27 @@
 	const shown = $derived(counts.length === 1 && counts[0].posts === 1 ? counts : []);
 	const over = $derived(editors.some(d => thread(d.service).some(text => !text.trim() || !fitsFor(d.service)(text))));
 
+	// The post's photos go with the copies, up to each network's limit; after a failed send, the ones chosen then.
+	const maxPhotos = Math.min(PHOTO_LIMITS.bluesky.count, PHOTO_LIMITS.mastodon.count);
+	let photos = $state(untrack(() => (data.signedIn ? data.photos : []).map((photo, index) => {
+		const chosen = form?.photos?.find(item => item.url === photo.url);
+		// Photos start on the first post of a thread; each can move to another post.
+		return { ...photo, alt: chosen?.alt ?? photo.alt, included: form?.photos ? !!chosen : index < maxPhotos, post: chosen?.post ?? 0 };
+	})));
+	// Alt text fits every network it goes to.
+	const altLimit = $derived(Math.min(...(chosen.length ? chosen : ready).map(d => PHOTO_LIMITS[d.service].alt)));
+	// Photos of a post past the end of the thread go on its last post.
+	const postCount = $derived(editors.length ? thread(editors[0].service).length : 1);
+	const postOf = (photo: { post?: number }) => Math.min(photo.post ?? 0, postCount - 1);
+	const photoField = $derived(JSON.stringify(photos.filter(photo => photo.included).map(photo => ({ url: photo.url, alt: photo.alt, post: postOf(photo) }))));
+	const onPost = (index: number) => photos.filter(photo => postOf(photo) === index);
+	const canMove = (photo: { post?: number; included?: boolean }, step: -1 | 1) => {
+		const to = postOf(photo) + step;
+		return to >= 0 && to < postCount && (!photo.included || onPost(to).filter(other => other.included).length < maxPhotos);
+	};
+	function move(photo: { post?: number }, step: -1 | 1) { photo.post = postOf(photo) + step; }
+	const altOver = $derived(photos.some(photo => photo.included && altLength(photo.alt.trim()) > altLimit));
+
 	let sending = $state(false);
 	onMount(() => { if (data.signedIn) rememberOwner(true); });
 </script>
@@ -106,7 +128,7 @@
 			{#snippet actions()}
 				<Button variant="icon" icon="article" label="Edit {kind}" href="{postHref}edit/" />
 				{#if ready.length}
-					<Button variant="primary" type="submit" form="syndicate" name="intent" value="send" disabled={sending || !chosen.length || over}>{sending ? 'Posting…' : 'Post'}</Button>
+					<Button variant="primary" type="submit" form="syndicate" name="intent" value="send" disabled={sending || !chosen.length || over || altOver}>{sending ? 'Posting…' : 'Post'}</Button>
 				{/if}
 			{/snippet}
 		</ComposerBar>
@@ -148,11 +170,19 @@
 									</div>
 								{/if}
 							{/snippet}
+							{#snippet attachments(index)}
+								<!-- Photos are shared by every network; they show under the first one's posts. -->
+								{#if destination === editors[0] && onPost(index).length}
+									<AttachedPhotos bind:photos={() => onPost(index), () => {}} name={null} removable max={maxPhotos} {altLimit}
+										onmove={postCount > 1 ? move : undefined} {canMove} />
+								{/if}
+							{/snippet}
 						</ThreadComposer>
 					</div>
 				{:else}
 					<p class="hint">Choose where to post.</p>
 				{/each}
+				{#if photos.length}<input type="hidden" name="photos" value={photoField} />{/if}
 				<ComposerToolbar label="Post to">
 					<CheckboxGroup layout="row" label="Post to" name="targets" bind:value={targets}>
 						{#each ready as destination (destination.service)}
@@ -169,7 +199,7 @@
 			{/if}
 		</form>
 		<p class="hint footer">
-			{#if ready.length}Posts share text and a link back; photos stay on the original page. A thread goes out as replies to its first post, which is the link saved on the post. Mentions use each network’s handles.{/if}
+			{#if ready.length}Posts share text, up to {maxPhotos} photos each and a link back. A thread goes out as replies to its first post, and every post’s link is saved on the post. Alt text edited here is saved to the post too. Mentions use each network’s handles.{/if}
 			Only sends from this site and links saved on the post appear here.
 		</p>
 	{/if}

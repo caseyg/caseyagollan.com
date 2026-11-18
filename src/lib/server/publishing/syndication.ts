@@ -1,13 +1,16 @@
 import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from './public-fetch';
 import { characterCount } from '../../social-text';
 import { checkDeliveryResponse } from './webmention';
+import { blueskyImagesEmbed, uploadMastodonMedia, type PreparedPhoto } from './syndication-photos';
 export interface SyndicationConfig {
  mastodon?: {instance:string;token:string};
  bluesky?: {service:string;identifier:string;password:string};
 }
 export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string;
  /** A reviewed thread: each entry is one post, sent as a reply to the one before. */
- thread?:string[]}
+ thread?:string[];
+ /** Photos fitted to this network, uploaded with their alt text, each on the post of the thread it names. */
+ media?:PreparedPhoto[]}
 /**
  * One key per social post. Bluesky links name the same post by DID or by handle
  * (bsky.app/profile/did:plc:…/post/X and bsky.app/profile/caseyagollan.com/post/X),
@@ -108,6 +111,8 @@ async function blueskyRecordKey(key:string,published:number):Promise<string> {
  for(let i=0;i<13;i++){rkey=alphabet[Number(tid&31n)]+rkey;tid>>=5n;}
  return rkey;
 }
+/** A thread post's photos: those naming it, with any past the end on the last post. */
+const mediaFor=(post:SyndicationPost,index:number,count:number)=>(post.media ?? []).filter(photo=>Math.min(photo.post ?? 0,count-1)===index);
 /** The first post keeps the job's key; later posts of a thread add their position. */
 const partKey=(key:string,index:number)=>index?`${key}:${index}`:key;
 
@@ -126,6 +131,9 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
   for(let index=parts.length;index<texts.length;index++) {
    const body=new URLSearchParams({status:texts[index],visibility:'public'});
    if(index) body.set('in_reply_to_id',parts[index-1].id);
+   // Text is checked before photos upload, so a draft that is too long uploads nothing.
+   const media=mediaFor(post,index,texts.length);
+   for(const id of media.length ? await uploadMastodonMedia(base,account.token,media,fetcher) : []) body.append('media_ids[]',id);
    const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':partKey(post.idempotencyKey,index)},body});
    checkDeliveryResponse(response);
    let result:{url?:unknown;id?:unknown};try{result=await response.json() as {url?:unknown;id?:unknown};}catch{throw new DeliveryError('Invalid Mastodon response',true);}
@@ -154,7 +162,9 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
   // Replies point at the thread's first post and the post right before them.
   const reply=index?{root:{uri:parts[0].id,cid:parts[0].cid},parent:{uri:parts[index-1].id,cid:parts[index-1].cid}}:undefined;
   const createdAt=index?new Date(published+index).toISOString():post.published;
-  const result=await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt,facets,...(reply?{reply}:{})}},{authorization:`Bearer ${session.accessJwt}`});
+  const media=mediaFor(post,index,texts.length);
+  const embed=media.length ? await blueskyImagesEmbed(base,session.accessJwt,media,fetcher) : undefined;
+  const result=await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt,facets,...(reply?{reply}:{}),...(embed?{embed}:{})}},{authorization:`Bearer ${session.accessJwt}`});
   if(index<texts.length-1 && typeof result.cid!=='string') throw new DeliveryError('Bluesky did not return a record CID',true);
   parts.push({url:`https://bsky.app/profile/${handle}/post/${rkey}`,id:`at://${session.did}/app.bsky.feed.post/${rkey}`,...(typeof result.cid==='string'?{cid:result.cid}:{})});
   if(texts.length>1) await progress?.save(parts);

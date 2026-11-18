@@ -1,10 +1,16 @@
 <script module lang="ts">
+	import type { IconName } from './Icon.svelte';
+
 	export interface MenuOption {
 		value: string;
 		label: string;
 		href: string;
 		count?: number;
 		icon?: string;
+		/** A drawn icon from `Icon`, for options no emoji fits. */
+		iconName?: IconName;
+		/** A second, quieter line under the label, such as an address. */
+		detail?: string;
 		/** Options that share a group sit together under it as a heading. */
 		group?: string;
 		/** Tooltip, such as what a post type is for. */
@@ -80,11 +86,14 @@
 	import { goto } from '$app/navigation';
 	import { Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem, MenuTrigger } from '@ui-sdk/svelte/menu';
 	import Count from './Count.svelte';
+	import Icon from './Icon.svelte';
 
 	interface Props {
 		/** Label of the selected option, shown on the trigger. */
 		current: string;
 		currentIcon?: string;
+		/** A drawn icon on the trigger, in place of `currentIcon`. */
+		currentIconName?: IconName;
 		count?: number;
 		options: MenuOption[];
 		/** Value of the option for the page being viewed. Defaults to the option labelled like `current`. */
@@ -107,7 +116,7 @@
 		columns?: 1 | 2;
 	}
 
-	let { current, currentIcon, count, options, active, badge, variant = 'title', label, icon, reload = false, align = 'start', columns = 1 }: Props = $props();
+	let { current, currentIcon, currentIconName, count, options, active, badge, variant = 'title', label, icon, reload = false, align = 'start', columns = 1 }: Props = $props();
 
 	const isActive = (option: MenuOption) => (active === undefined ? option.label === current : option.value === active);
 	const selected = $derived(options.find(isActive));
@@ -165,8 +174,8 @@
 				}}
 			>
 				{#if option.checked !== undefined}<span class="check" class:on={option.checked} aria-hidden="true">{option.checked ? '✓' : ''}</span>{/if}
-				{#if icon}{@render icon(option)}{:else if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}
-				<span class="label">{option.label}{#if option.checked}<span class="visually-hidden">, selected</span>{/if}</span>
+				{#if icon}{@render icon(option)}{:else if option.iconName}<Icon name={option.iconName} size={18} />{:else if option.icon}<span class="icon" aria-hidden="true">{option.icon}</span>{/if}
+				<span class="label">{option.label}{#if option.checked}<span class="visually-hidden">, selected</span>{/if}{#if option.detail}<span class="detail">{option.detail}</span>{/if}</span>
 				{#if option.count !== undefined}<Count value={option.count} />{/if}
 			</a>
 		{/snippet}
@@ -178,8 +187,8 @@
 	<MenuTrigger class="select-menu-trigger select-menu-trigger--{variant}" aria-label={label}>
 		<!-- Shown in place of the emoji and arrow where a pill asks for it: the menu that leads a compact trail on a phone. -->
 		<span class="burger" aria-hidden="true"></span>
-		<span class="current" class:has-icon={currentIcon || icon} title={current}>
-			{#if icon && selected}{@render icon(selected)}{:else if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}
+		<span class="current" class:has-icon={currentIcon || currentIconName || icon} title={current}>
+			{#if icon && selected}{@render icon(selected)}{:else if currentIconName}<Icon name={currentIconName} size={16} />{:else if currentIcon}<span class="icon" aria-hidden="true">{currentIcon}</span>{/if}
 			<span class="text">{current}</span>
 		</span>
 		{#if badge}<span class="badge">{badge}</span>{/if}
@@ -467,6 +476,12 @@
 	.label {
 		flex: 1;
 		min-width: 0;
+	}
+
+	.detail {
+		display: block;
+		color: var(--text-secondary);
+		font-size: var(--fs-xs);
 	}
 
 	@media (prefers-reduced-motion: reduce) {

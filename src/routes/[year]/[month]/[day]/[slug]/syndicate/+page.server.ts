@@ -5,7 +5,7 @@ import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publishingConfig } from '$lib/server/publishing/config';
 import { publicationRevision } from '$lib/server/publishing/publication';
 import { ProtocolError } from '$lib/server/publishing/auth';
-import { editorSession, editorDestinations, sendEditorDrafts, threadSource, validateEditorSubmission } from '$lib/server/publishing/syndication-editor';
+import { editorSession, editorDestinations, postPhotos, sendEditorDrafts, threadSource, validateEditorSubmission, type ChosenPhoto } from '$lib/server/publishing/syndication-editor';
 
 export const prerender = false;
 
@@ -26,19 +26,29 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
   }
   return { signedIn: true as const, csrf: session.csrf, revision: await publicationRevision(post), title: post.title, kind: post.type,
    postUrl: new URL(`/${params.year}/${params.month}/${params.day}/${params.slug}/`, config.me).href,
-   destinations: await editorDestinations(config, post), source: await threadSource(config, post) };
+   destinations: await editorDestinations(config, post), photos: await postPhotos(config, post), source: await threadSource(config, post) };
  } catch (cause) {
   if (cause instanceof ProtocolError) error(cause.status, cause.message);
   throw cause;
  }
 };
 
+/** The photos field is JSON: [{ url, alt, post }], the photos chosen for the social copies. */
+function photoChoice(value: string | null): unknown {
+ if (value === null) return undefined;
+ try { return JSON.parse(value); } catch { return 'invalid'; }
+}
+/** Chosen photos as the page shows them again after a failed send. */
+function formPhotos(value: unknown): ChosenPhoto[] | undefined {
+ return Array.isArray(value) && value.every(item => item && typeof item.url === 'string' && typeof item.alt === 'string') ? value.map(item => ({ url: item.url, alt: item.alt })) : undefined;
+}
+
 export const actions: Actions = {
  default: async ({ request, params, platform, fetch }) => {
   if (!validPostParams(params)) error(404, 'Post not found');
   const session = await editorSession(request, platform?.env ?? {});
   if (!session) return fail(401, { message: 'Sign in to syndicate this post.' });
-  // The form has two threads of at most 20 posts, plus session and revision fields.
+  // The form has two threads of at most 20 posts and the photos' alt text, plus session and revision fields.
   const reader = request.body?.getReader();
   const chunks: Uint8Array[] = []; let size = 0;
   if (reader) while (true) {
@@ -53,18 +63,19 @@ export const actions: Actions = {
   const values = new URLSearchParams(new TextDecoder().decode(bytes));
   // Each network's field repeats once per post of its thread.
   const drafts = { bluesky: values.getAll('bluesky'), mastodon: values.getAll('mastodon') };
+  const photos = photoChoice(values.get('photos'));
   try {
    await validateEditorSubmission(request, session, values.get('csrf'));
    const config = publishingConfig(platform?.env);
    if (!config) error(503, 'Publishing is unavailable.');
    const post = await getGitHubPost(params, fetch, config.token, config);
    if (!post) error(404, 'Post not found');
-   const message = await sendEditorDrafts(config, post, values.get('revision') ?? '', values.getAll('targets'), drafts, { gitFetch: fetch, syncOnly: values.get('intent') === 'sync' });
-   return { message, drafts, linked: values.has('linked'), targets: values.getAll('targets') };
+   const message = await sendEditorDrafts(config, post, values.get('revision') ?? '', values.getAll('targets'), drafts, { gitFetch: fetch, syncOnly: values.get('intent') === 'sync', photos });
+   return { message, drafts, photos: formPhotos(photos), linked: values.has('linked'), targets: values.getAll('targets') };
   } catch (cause) {
-   if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, drafts, linked: values.has('linked'), targets: values.getAll('targets') });
+   if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, drafts, photos: formPhotos(photos), linked: values.has('linked'), targets: values.getAll('targets') });
    console.warn(JSON.stringify({ event: 'syndication_editor_failed' }));
-   return fail(503, { message: 'Syndication is temporarily unavailable. Reload before trying again.', drafts, linked: values.has('linked'), targets: values.getAll('targets') });
+   return fail(503, { message: 'Syndication is temporarily unavailable. Reload before trying again.', drafts, photos: formPhotos(photos), linked: values.has('linked'), targets: values.getAll('targets') });
   }
  }
 };

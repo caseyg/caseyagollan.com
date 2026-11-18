@@ -9,6 +9,9 @@ import { updateDocument, readDocument } from './document';
 import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from './public-fetch';
 import { sendWebmention } from './webmention';
 import { syndicate, syndicationKey, type SentPart, type SyndicationConfig } from './syndication';
+import { PHOTO_LIMITS } from '../../social-text';
+import { preparePhotos, type PhotoSources, type PreparedPhoto, type SyndicationPhoto } from './syndication-photos';
+import { editorPhotos, photosWithAlts } from './photo-properties';
 
 type Service = 'mastodon' | 'bluesky';
 const services = ['mastodon', 'bluesky'] as const;
@@ -29,7 +32,7 @@ const splitPath = (path: string) => { const index = path.indexOf('/'); return [p
 const visible = (post: ReturnType<typeof parsePost>) => !post.draft && isPublicPost(post);
 const hash = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), byte => byte.toString(16).padStart(2,'0')).join('');
 function eventFor(publication: Publication, previous?: Publication, action: 'publish' | 'remove' = 'publish', generation?: string): DeliveryEvent {
- return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}) };
+ return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(action === 'publish' && publication.photos?.length ? { photos: publication.photos } : {}) };
 }
 
 /** The request path and manifest recovery share a durable transition before enqueue.
@@ -97,11 +100,17 @@ function revisionFromHtml(html: string): string | undefined {
  }
  visit(fromHtml(html)); return revision;
 }
-export interface SyndicationReceipt { status: 'sending' | 'sent'; startedAt: number; leaseUntil: number; url?: string; draft?: string;
+export interface SyndicationReceipt {
+ status: 'sending' | 'sent'; startedAt: number; leaseUntil: number; url?: string; draft?: string;
  /** A reviewed thread, kept like `draft` so a retry sends what was reviewed. */
  thread?: string[];
  /** The thread's posts sent so far, so a retry continues instead of starting over. */
- parts?: SentPart[] }
+ parts?: SentPart[];
+ /** The photos chosen for this copy, so a retry sends the same ones. */
+ photos?: SyndicationPhoto[];
+}
+/** What a manual send chose: its text, its photos, and the photos already read for it. */
+export interface SyndicationChoice { draft?: string | string[]; photos?: SyndicationPhoto[]; prepared?: PreparedPhoto[] }
 export async function syndicationReceiptKey(source: string, service: Service): Promise<string> {
  return `private/syndication/${await hash(`${source}\0${service}`)}.json`;
 }
@@ -115,12 +124,13 @@ export async function readSyndicationReceipt(bucket: R2Bucket, source: string, s
   if (sent?.status === 'sent' && sent.url) return sent;
  }
 }
-/** Send once per post and network. `draft` is a reviewed post, or a thread as a list of posts. */
-export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, service: Service, config: SyndicationConfig, fetcher: PublicFetcher, now: () => number, draft?: string | string[]): Promise<string> {
+export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, service: Service, config: SyndicationConfig, fetcher: PublicFetcher, now: () => number, draft?: string | string[], choice: SyndicationChoice & { sources?: PhotoSources } = {}): Promise<string> {
  const identity = await hash(`${event.source}\0${service}`);
  const key = `private/syndication/${identity}.json`;
  const stored = await bucket.get(key);
  const receipt = stored ? await stored.json<SyndicationReceipt>() : undefined;
+ // A retry keeps the photos of the first attempt; automatic sends take the post's first four.
+ const photos = receipt?.photos ?? choice.photos ?? (event.photos ?? []).slice(0, PHOTO_LIMITS[service].count);
  if (receipt?.status === 'sent' && receipt.url) return receipt.url;
  if (!receipt && event.previousSources?.length) {
   // Never send a renamed post again: a receipt under an old address is this post's receipt.
@@ -131,29 +141,37 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
   }
  }
  if (receipt && receipt.leaseUntil > now()) throw new DeliveryError('Syndication is leased', true);
- // The first reviewed text wins through retries, whether a post or a thread.
- const offered = Array.isArray(draft) ? (draft.length > 1 ? { thread: draft } : { draft: draft[0] }) : { draft };
- const original = receipt?.thread?.length ? { thread: receipt.thread } : receipt?.draft !== undefined ? { draft: receipt.draft } : offered;
  // Mastodon keeps idempotency keys for one hour. Never risk a duplicate outside that window.
  const startedAt = receipt?.startedAt ?? now();
  if (service === 'mastodon' && now() - startedAt >= 45 * 60_000) throw new DeliveryError('Mastodon outcome requires manual reconciliation', false);
+ // The first reviewed text wins through retries, whether a post or a thread.
+ const chosen = choice.draft ?? draft;
+ const offered = Array.isArray(chosen) ? (chosen.length > 1 ? { thread: chosen } : { draft: chosen[0] }) : { draft: chosen };
+ const original = receipt?.thread?.length ? { thread: receipt.thread } : receipt?.draft !== undefined ? { draft: receipt.draft } : offered;
+ // Read and fit the photos before claiming, so a photo that cannot be sent leaves nothing to review.
+ const media = photos.length ? (choice.prepared && choice.photos === photos ? choice.prepared : await preparePhotos(service, photos, choice.sources ?? {})) : undefined;
+ const kept = { ...original, ...(photos.length ? { photos } : {}) };
  let parts = receipt?.parts ?? [];
- let claim = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, ...original, ...(parts.length ? { parts } : {}) }), { onlyIf: stored ? { etagMatches: stored.etag } : { etagDoesNotMatch: '*' } });
+ let claim = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, ...kept, ...(parts.length ? { parts } : {}) }), { onlyIf: stored ? { etagMatches: stored.etag } : { etagDoesNotMatch: '*' } });
  if (!claim) throw new DeliveryError('Syndication claim raced', true);
  const progress = { parts, async save(sent: SentPart[]) {
   parts = sent;
   // Each saved post also renews the lease, so a long thread is not claimed twice.
-  const saved = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, ...original, parts }), { onlyIf: { etagMatches: claim!.etag } });
+  const saved = await bucket.put(key, JSON.stringify({ status: 'sending', startedAt, leaseUntil: now() + 300_000, ...kept, parts }), { onlyIf: { etagMatches: claim!.etag } });
   if (!saved) throw new DeliveryError('Syndication receipt raced', true);
   claim = saved;
  } };
- const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, ...original }, config, fetcher, progress);
- const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url, ...original, ...(parts.length ? { parts } : {}) }), { onlyIf: { etagMatches: claim.etag } });
+ const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, ...original, media }, config, fetcher, progress);
+ const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url, ...kept, ...(parts.length ? { parts } : {}) }), { onlyIf: { etagMatches: claim.etag } });
  if (!saved) throw new DeliveryError('Syndication receipt raced', true);
  return url;
 }
 
-export async function recordSyndicationResults(config: PublishingConfig, event: DeliveryEvent, progress: DeliveryProgress, fetcher: typeof fetch): Promise<boolean> {
+/**
+ * Save the social links on the post. `alts` (photo URL to alt text) also saves alt
+ * text edited while syndicating, in the same commit.
+ */
+export async function recordSyndicationResults(config: PublishingConfig, event: DeliveryEvent, progress: DeliveryProgress, fetcher: typeof fetch, alts: Record<string, string> = {}): Promise<boolean> {
  // A thread is saved as every one of its posts, first post first, so the post links the whole thread.
  const urls: string[] = [];
  for (const [service, url] of Object.entries(progress.syndication) as [Service, string][]) {
@@ -170,13 +188,22 @@ export async function recordSyndicationResults(config: PublishingConfig, event: 
  const [folder,name] = splitPath(file.path);
  const post = parsePost(file.content, folder, name);
  if (!visible(post) || await publicationRevision(post) !== event.revision) return false;
- const existing = readDocument(file.content).properties.syndication ?? [];
+ const properties = readDocument(file.content).properties;
+ const existing = properties.syndication ?? [];
  // A post already linked under another form of the same URL (Bluesky DID vs handle) is not added twice.
  const known = new Set(existing.map(value => syndicationKey(String(value))));
  const missing = urls.filter(url => !known.has(syndicationKey(url)));
- if (!missing.length) return true;
- await store.write(file.path, updateDocument(file.content, { add: { syndication: missing } }), { sha: file.sha, expectedHead: head, message: 'Record syndication links' });
+ const stored = editorPhotos(properties);
+ const changedAlts = stored.some(photo => alts[photo.url] !== undefined && alts[photo.url] !== photo.alt);
+ if (!missing.length && !changedAlts) return true;
+ const photo = changedAlts ? photosWithAlts(properties.photo ?? [], stored.map(photo => alts[photo.url] ?? photo.alt)) : undefined;
+ await store.write(file.path, updateDocument(file.content, { ...(missing.length ? { add: { syndication: missing } } : {}), ...(photo ? { replace: { photo } } : {}) }), { sha: file.sha, expectedHead: head, message: changedAlts ? 'Record syndication links and photo alt text' : 'Record syndication links' });
  return true;
+}
+
+/** Photos on the site's media host are read from its bucket; Images shrinks them. */
+export function photoSources(config: PublishingConfig): PhotoSources {
+ return { mediaBucket: config.mediaBucket, mediaBaseUrl: config.mediaBaseUrl, images: config.images };
 }
 
 export async function deliverPublication(config: PublishingConfig, bucket: R2Bucket, job: OutboxJob, checkpoint: (progress: DeliveryProgress) => Promise<void>, dependencies: { publicFetch?: PublicFetcher; gitFetch?: typeof fetch; now?: () => number } = {}): Promise<'done' | 'superseded'> {
@@ -220,7 +247,7 @@ export async function deliverPublication(config: PublishingConfig, bucket: R2Buc
   if (progress.syndication[service] || linked.has(service)) continue;
   if (!config.syndication?.[service]) throw new DeliveryError('Provider credentials are not configured', true);
   progress.syndicationStartedAt[service] ??= now(); await checkpoint(progress);
-  progress.syndication[service] = await syndicationOnce(bucket, event, service, config.syndication ?? {}, fetcher, now);
+  progress.syndication[service] = await syndicationOnce(bucket, event, service, config.syndication ?? {}, fetcher, now, undefined, { sources: photoSources(config) });
   await checkpoint(progress);
  }
  await recordSyndicationResults(config, event, progress, gitFetch);
