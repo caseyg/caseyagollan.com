@@ -127,16 +127,16 @@ Two design rules:
 
 ### Platform plugins
 
-| Primitive | Cloudflare | Vercel | Node or local |
-| --- | --- | --- | --- |
-| Blob with conditional put (outbox, receipts, archives) | R2 (`onlyIf` ETag) | Vercel Blob for media. Outbox and leases go in the state store, because conditional writes in Blob need checking. | File system |
-| State store (IndieAuth, sessions, OAuth DPoP keys) | Durable Object with SQLite (today's `IndieAuthStore`) | Postgres (Neon) or Redis (Upstash) from the Marketplace | SQLite |
-| Leases | R2 conditional writes (today) | Redis `SET NX PX` or Postgres advisory lock | In-process |
-| Cron | Cron Triggers | Vercel Cron (fewer runs on the Hobby plan) | `setInterval` or system cron |
-| Images (shrinking for Bluesky's 1 MB) | Images binding | Next/Image optimizer or `sharp` in a function | `sharp` |
-| Previews | Worker Previews, side effects off | Preview deployments, same flag | n/a |
+| Primitive | Cloudflare | Vercel | Netlify | Node or local |
+| --- | --- | --- | --- | --- |
+| Blob with conditional put (outbox, receipts, archives) | R2 (`onlyIf` ETag) | Vercel Blob for media. Outbox and leases go in the state store, because conditional writes in Blob need checking. | Netlify Blobs; outbox in Netlify DB if conditional writes are missing | File system |
+| State store (IndieAuth, sessions, OAuth DPoP keys) | Durable Object with SQLite (today's `IndieAuthStore`) | Postgres (Neon) or Redis (Upstash) from the Marketplace | Netlify DB (Postgres) | SQLite |
+| Leases | R2 conditional writes (today) | Redis `SET NX PX` or Postgres advisory lock | Postgres advisory lock in Netlify DB | In-process |
+| Cron | Cron Triggers | Vercel Cron (fewer runs on the Hobby plan) | Scheduled functions (production deploys only) | `setInterval` or system cron |
+| Images (shrinking for Bluesky's 1 MB) | Images binding | Next/Image optimizer or `sharp` in a function | Netlify Image CDN or `sharp` in a function | `sharp` |
+| Previews | Worker Previews, side effects off | Preview deployments, same flag | Deploy previews, same flag | n/a |
 
-Cloudflare stays the reference: everything runs on the free and $5 plans with no third-party service. Vercel needs one storage integration from the Marketplace, and the starter's setup says so plainly.
+Cloudflare stays the reference: everything runs on the free and $5 plans with no third-party service. Vercel needs one storage integration from the Marketplace, and Netlify needs Netlify DB for state. The starter's setup says so plainly.
 
 ### Other hosts, including IndieWeb and community ones
 
@@ -144,7 +144,7 @@ Researched 2026-11-17 from the IndieWeb wiki's [web hosting](https://indieweb.or
 
 | Group | Hosts | Functions, storage, cron | How the kit supports it |
 | --- | --- | --- | --- |
-| Serverless with full DX | **Netlify**: functions and edge functions, Netlify Blobs, scheduled functions (production deploys only, which matches our preview rule), Netlify DB (Postgres). Long the usual home of Eleventy IndieWeb sites; benjifs/micropub was built for it. | All of them | `platform-netlify`. The best third target after Vercel. Check whether Blobs supports conditional writes for the outbox before relying on it. |
+| Serverless with full DX | **Netlify**: functions and edge functions, Netlify Blobs, scheduled functions (production deploys only, which matches our preview rule), Netlify DB (Postgres). Long the usual home of Eleventy IndieWeb sites; benjifs/micropub was built for it. | All of them | `platform-netlify`, planned alongside Vercel in Phase 3. Check whether Blobs supports conditional writes for the outbox, or use Netlify DB for that state. |
 | | **Deno Deploy** had KV, queues and `Deno.cron`. | All of them, but ending | Skip it. On 2026-10-09 the Deno team announced it is [joining Cloudflare](https://thenewstack.io/cloudflare-acquires-deno-ryan-dahl/), with Deploy shutting down about six months later and customers moved to Workers. Cloudflare also said it aims to make Workers easier to run on your own infrastructure, which would help the self-hosting group below. |
 | | **Bunny.net**: Edge Scripting, S3-compatible storage, Bunny Database (libSQL, in preview). European. | No scheduled jobs found | Possible later. Cron would need an outside trigger. |
 | | **Supabase**: Postgres, storage, edge functions, `pg_cron`. **Val Town**: small hosted functions with crons, blob storage and SQLite. | All of them | Better as backends than hosts. Supabase could be a state and blob store for any platform. A Val Town function could run one plugin, such as a backfeed poller beside a static site. |
@@ -154,7 +154,7 @@ Researched 2026-11-17 from the IndieWeb wiki's [web hosting](https://indieweb.or
 
 What this changes in the plan:
 
-- After Cloudflare and Vercel, the next platforms are **Node/Docker** (one plugin reaches VMs, PaaS, Coolify, co-ops and home servers) and **Netlify**. Deno Deploy is out.
+- After Cloudflare, the platforms are **Vercel**, **Netlify** and **Node/Docker** (one plugin reaches VMs, PaaS, Coolify, co-ops and home servers). Deno Deploy is out.
 - **Split deploy** becomes a supported mode, not a workaround. The kit already runs as `kit.fetch` mounted anywhere. It also needs a "build hook" plugin kind that triggers the static host's rebuild (a GitHub Pages workflow dispatch, a Neocities upload, a Netlify build hook) after a content commit.
 - **Community distribution** joins the packaging list: a Co-op Cloud recipe and a PikaPods listing beside the Deploy to Cloudflare and Vercel buttons.
 
@@ -166,7 +166,7 @@ Many IndieWeb people self-host with [Cloudron](https://docs.cloudron.io/packagin
 | --- | --- | --- |
 | Package format | `CloudronManifest.json` plus a Dockerfile built on Cloudron's base image | `manifest.toml` (packaging v2) plus install, upgrade, backup and restore scripts. Runs as a systemd service behind YunoHost's nginx. |
 | State | `localstorage` addon (the persistent `/app/data`) for SQLite and media. The `postgresql` or `redis` addons are optional. | `data_dir` resource for SQLite and media, or its `database` resource |
-| Cron | `scheduler` addon calls `kit scheduled` | A systemd timer or cron file from the install script |
+| Cron | `scheduler` addon calls `kit scheduled` | Scheduled functions (production deploys only) | A systemd timer or cron file from the install script |
 | Sign-in | The kit's own IndieAuth with passkeys stays the login, because `me` is the owner's domain. The platform's SSO (Cloudron's OIDC, YunoHost's SSOwat) is offered only for the `/account` pages. | Same. The IndieAuth and Micropub paths must be public, or clients can't reach them. |
 | Catalog | Cloudron App Store, or a community repo until it's accepted | The YunoHost app catalog (a pull request to its apps repo), as a `*_ynh` package repo |
 | Fits | One-click installs with git-push for the site's content repo | Home servers and small community servers. YunoHost already lists several IndieWeb apps. |
@@ -239,7 +239,7 @@ Building on IndieKit itself, or on EmDash, was considered and set aside. IndieKi
   });
   ```
 
-- **Starter template** (`templates/starter`): a plain SvelteKit site with h-entry and h-card templates, feeds, the composer, and the kit mounted. It has a Deploy to Cloudflare button, a Deploy with Vercel button, a Docker image, and Cloudron and YunoHost packages, and `bun create indie` asks for domain, repo and platform.
+- **Starter template** (`templates/starter`): a plain SvelteKit site with h-entry and h-card templates, feeds, the composer, and the kit mounted. It has a Deploy to Cloudflare button, Deploy with Vercel and Deploy to Netlify buttons, a Docker image, and Cloudron and YunoHost packages, and `bun create indie` asks for domain, repo and platform.
 - **Setup check.** A `/kit/doctor` page, owner only, runs IndieWebify-style checks (h-card, rel=me, endpoints discoverable, store writable, each plugin configured) and links each failure to the right settings panel.
 - **Docs:** one page per plugin, a plugin authoring guide, and each interface's contract test suite published as `@indie/testkit`, so third-party plugins can prove they conform.
 
@@ -259,9 +259,9 @@ Create `packages/` as a Bun workspace. Move core, platform-cloudflare, store-git
 Build `templates/starter` and deploy it to a throwaway domain on a separate Cloudflare account. Post with Quill, pass IndieWebify, syndicate to test accounts, and receive a Webmention.
 *Done when* someone who isn't Casey could follow the README to a working site in under 30 minutes.
 
-**Phase 3: Vercel, Node and split deploys.**
-Add `platform-vercel` (Blob, Upstash or Neon, Vercel Cron) and `platform-node` (SQLite, files, a Docker image) for local development, VMs and co-op hosts. Add the build-hook plugin kind for split deploys beside a static host. Run every contract suite against all three platforms. `platform-netlify` follows if Blobs passes the conditional-write tests.
-*Done when* the starter deploys on Vercel and in Docker with the same config apart from `platform:`, and a GitHub Pages site can publish through a kit running elsewhere.
+**Phase 3: Vercel, Netlify, Node and split deploys.**
+Add `platform-vercel` (Blob, Upstash or Neon, Vercel Cron) and `platform-node` (SQLite, files, a Docker image) for local development, VMs and co-op hosts. Add the build-hook plugin kind for split deploys beside a static host. Add `platform-netlify` (Netlify Blobs for media and archives, scheduled functions for cron, edge or serverless functions for `kit.fetch`). If Blobs fails the conditional-write tests, the outbox, receipts and leases go in Netlify DB (Postgres) instead. Run every contract suite against all four platforms.
+*Done when* the starter deploys on Vercel, Netlify and Docker with the same config apart from `platform:`, and a GitHub Pages site can publish through a kit running elsewhere.
 
 **Phase 3b: self-hosting packages.**
 Package the Docker build for Cloudron and YunoHost, plus a Co-op Cloud recipe. Test install, upgrade, backup and restore on each. Submit them to the catalogs once Phase 4 has published releases to point at.
@@ -280,5 +280,5 @@ These go to Casey as choices in the project thread. The recommendations are what
 1. **How to relate to IndieKit.** Decided 2026-11-17 (Casey): our own Workers-first kit with IndieKit's plugin shape, compatible at the protocol and content level, plus a later adapter for its store and syndicator plugins. Alternatives: contribute a Workers runtime to IndieKit itself, or build these as EmDash plugins.
 2. **Where it lives first.** Decided 2026-11-17 (Casey): `packages/` inside this repo through Phase 3, then its own repo. The alternative is a new repo now, which makes development across both repos slower while the interfaces are still settling.
 3. **How much UI to ship.** Decided 2026-11-17 (Casey): a headless core with an optional Svelte UI package and the SvelteKit starter. Alternatives: headless only (any Micropub client), or framework-neutral web components.
-4. **Hosts after Cloudflare.** Decided 2026-11-17 (Casey): Vercel, then Node/Docker for VMs, PaaS and co-op hosts, with Cloudron and YunoHost packages on top of it. Netlify comes later, if at all.
+4. **Hosts after Cloudflare.** Decided 2026-11-17 (Casey): Vercel and Netlify, then Node/Docker for VMs, PaaS and co-op hosts, with Cloudron and YunoHost packages on top of it.
 5. **Name and licence.** Not decided. MIT matches IndieKit and EmDash.
