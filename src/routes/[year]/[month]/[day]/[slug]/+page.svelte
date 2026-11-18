@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
+	import HCard from '$lib/components/HCard.svelte';
 	import { PostsLayout, DateArchiveHeader, PostMeta, PostTitle, PostContent, PostMedia, PostDetails, NoteCard } from '$lib/components/posts';
 
 	import { getPostAction } from '$lib/utils/post-details';
@@ -31,8 +32,7 @@
 	<DateArchiveHeader year={data.year} month={data.month} day={data.day} parent />
 
 	<article class="{data.post.microformatType ?? 'h-entry'} post">
-		<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
-		<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
+		<HCard variant="author" />
 
 		<PostMeta
 			type={data.post.type}

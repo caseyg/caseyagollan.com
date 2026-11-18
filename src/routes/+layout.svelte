@@ -2,6 +2,7 @@
 	import favicon from '$lib/assets/favicon.png';
 	import '../app.css';
 	import { SITE_FEEDS, SITE_URL } from '$lib/feeds';
+	import { SITE_IDENTITY } from '$lib/identity';
 	import WikiPreviews from '$lib/components/wiki/WikiPreviews.svelte';
 
 	let { children } = $props();
@@ -17,7 +18,9 @@
 	<link rel="token_endpoint" href={new URL('/auth/token', __INDIEAUTH_ISSUER__).href} />
 	<link rel="indieauth-metadata" href={new URL('/.well-known/oauth-authorization-server', __INDIEAUTH_ISSUER__).href} />
 	<link rel="micropub" href={__MICROPUB_ENDPOINT__} />
-	<link rel="me" href="https://social.coop/@caseyg" />
+	{#each SITE_IDENTITY.profiles as profile (profile.href)}
+		<link rel="me" href={profile.href} />
+	{/each}
 	<!-- Webmention -->
 	<link rel="webmention" href="https://webmention.io/caseyagollan.com/webmention" />
 	<link rel="pingback" href="https://webmention.io/caseyagollan.com/xmlrpc" />

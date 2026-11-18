@@ -4,8 +4,8 @@
 	let { url, title }: { url: string; title?: string } = $props();
 </script>
 
-<!-- A bookmarked cag.wiki page opens in the wiki browser. -->
-<a href={wikiHref(url) ?? url} class="u-bookmark-of"><span class="icon" aria-hidden="true">🔗</span>{title || url.replace(/^https?:\/\//, '')}</a>
+<!-- A bookmarked cag.wiki page opens in the wiki browser. PostTitle's source link carries u-bookmark-of, with the original address. -->
+<a href={wikiHref(url) ?? url}><span class="icon" aria-hidden="true">🔗</span><span class="p-name">{title || url.replace(/^https?:\/\//, '')}</span></a>
 
 <style>
 	a {

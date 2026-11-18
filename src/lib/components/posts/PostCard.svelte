@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HCard from '$lib/components/HCard.svelte';
 	import NoteCard from './NoteCard.svelte';
 	import PostDetails from './PostDetails.svelte';
 	import PostMeta from './PostMeta.svelte';
@@ -43,8 +44,7 @@
 
 <article class="{post.microformatType ?? 'h-entry'} post">
 	{#each anchors as id (id)}<span {id} class="anchor" aria-hidden="true"></span>{/each}
-	<!-- Hidden h-card for author info - required by Bridgy and other IndieWeb tools -->
-	<a href="https://caseyagollan.com" class="p-author h-card" hidden>Casey Gollan</a>
+	<HCard variant="author" />
 
 	<PostMeta
 		type={post.type}

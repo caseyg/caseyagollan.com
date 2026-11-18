@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { browser } from "$app/environment";
     import Nav from "$lib/components/Nav.svelte";
+    import HCard from "$lib/components/HCard.svelte";
     import { Corner, SegmentedPill } from "$lib/components/ui";
     import SkillsGraph from "$lib/components/SkillsGraph.svelte";
     import PersistentDocument from "$lib/components/PersistentDocument.svelte";
@@ -653,12 +654,6 @@
         rel="stylesheet"
     />
     <link rel="feed" href="/posts/" type="text/html" title="All Posts" />
-    <link
-        rel="alternate"
-        type="application/atom+xml"
-        title="Casey Gollan - All Posts"
-        href="/feed.xml"
-    />
     <script
         async
         src="https://www.googletagmanager.com/gtag/js?id=G-YX0XVKSRCH"
@@ -804,6 +799,10 @@
                 </li>
             </ul>
         </section>
+    </div>
+    <!-- The representative h-card: who this site belongs to, and the profiles that link back (rel=me). -->
+    <div class="profile-card">
+        <HCard />
     </div>
 </div>
 
@@ -1005,6 +1004,12 @@
         text-transform: lowercase;
         font-weight: var(--fw-semibold);
         letter-spacing: 0.02em;
+    }
+
+    .profile-card {
+        margin-top: var(--spacing-lg);
+        padding-top: var(--spacing-md);
+        border-top: 1px solid var(--border-subtle);
     }
 
     /* Sisu image */

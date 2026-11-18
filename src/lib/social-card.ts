@@ -1,3 +1,4 @@
+import { SITE_IDENTITY } from './identity';
 /** Shared card markup for native Notes and saved social posts, including feeds. */
 export interface SocialCardAuthor {
  name: string;
@@ -6,7 +7,7 @@ export interface SocialCardAuthor {
  handle?: string;
 }
 export const siteAuthor: SocialCardAuthor = {
- name: 'Casey Gollan', url: 'https://caseyagollan.com', avatar: '/author-avatar.webp'
+ name: SITE_IDENTITY.name, url: 'https://caseyagollan.com', avatar: '/author-avatar.webp'
 };
 const escape = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 /** An outbound link to a copy of a post on another network. */
