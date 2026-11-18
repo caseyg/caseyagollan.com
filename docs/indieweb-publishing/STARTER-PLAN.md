@@ -29,6 +29,7 @@ What it is not: a hosted service, a theme, or a copy of this site. The library g
 | WordPress IndieWeb plugins ([Webmention](https://wordpress.org/plugins/webmention/), Micropub, IndieAuth, Syndication Links, ActivityPub) | Separate plugins, one per protocol | WordPress actions and filters. They interoperate through shared post meta, mostly mf2 property names. | PHP with MySQL | One package per protocol, coordinated through events and a shared vocabulary (mf2), not by calling each other. | Hooks with no types or declared permissions: any plugin can do anything. |
 | [EmDash](https://github.com/emdash-cms/emdash) (Cloudflare, 2026) | CMS built on Astro, aimed at WordPress users | `definePlugin()` with lifecycle hooks (such as `content:afterSave`), settings, admin pages, API routes and KV storage. Each plugin declares a **capability manifest** (`content:read`, `email:send`…) and runs in its own Worker isolate through Dynamic Worker Loaders, or in `workerd` on Node. | Workers with D1 and R2, or Node with SQLite. Portable through Kysely (SQL) and the S3 API (media). | Capability manifests. Portable storage through common APIs. Hooks named after content events. The same plugin code on Workers and Node. | DB-first content, where we want Git and Markdown. Sandboxing needs a paid Workers plan, so it can't be the only mode. |
 | [davidwkeith/workers](https://github.com/davidwkeith/workers) | Now a large Workers-native suite: IndieAuth, Micropub, Webmention, Microsub, a WebSub hub, ActivityPub, Solid, atproto PDS, MCP. Unreleased. See [PRIOR-ART.md](PRIOR-ART.md). | One package per protocol, mounted under path prefixes | Workers with D1, R2, Durable Objects and Queues, plus `cf-shims` for Node | The closest prior art, and a possible foundation. Cloudflare bindings shimmed elsewhere instead of new abstractions. | Its D1 content store, not Git. No POSSE or PESOS. |
+| [Anglesite](https://anglesite.dwk.io) ([skills](https://github.com/Anglesite/anglesite-skills)), by the same author | A free, ISC-licensed "AI webmaster": a Claude Code and Cowork plugin that scaffolds, designs, deploys and maintains static Astro sites on Cloudflare Workers. It covers microformats, RSS, rel=me, POSSE, Buttondown, analytics and imports from WordPress, Squarespace and Wix. | Agent skills (`/anglesite:indieweb`, `/anglesite:import`, "check my site", "update my site") rather than code plugins, with 56 site-type guides | Static Astro on Workers. The first consumer of the `@dwk` packages. | Setup and upkeep done by an agent in conversation, so the owner never edits config. Deploy-time scans for leaked secrets and unauthorised scripts. Privacy defaults (no cookies or third-party JS). | No formal plugin system. Static only, so the dynamic parts depend on the `@dwk` Workers packages. |
 | [benjifs/micropub](https://github.com/benjifs/micropub) and [github-store](https://github.com/benjifs/github-store) | A serverless Micropub endpoint with a store object | A store adapter passed in | Netlify Functions | A tiny store interface keeps the endpoint portable. | Node streams and Busboy for multipart, which aren't web-standard. |
 | Services: Bridgy, Bridgy Fed, webmention.io, granary | Hosted bridges | Not extensible; you point your site at them | Hosted | The core should treat a service as one more plugin. Our webmention.io sync already is one. | Depending on them for anything the owner wants to keep. |
 
@@ -252,6 +253,23 @@ Four levels, from cheapest to most work:
 
 Building on IndieKit itself, or on EmDash, was considered and set aside. IndieKit needs a long-running Node server and a database. EmDash keeps content in SQL and needs a paid plan for sandboxed plugins. Both conflict with "Markdown in Git, runs on the free Workers plan." EmDash's capability manifests are still worth copying.
 
+## Learning from Anglesite: an agent-run kit
+
+[Anglesite](https://anglesite.dwk.io) shows a different way to deliver the same goal. The owner doesn't install packages and edit `indie.config.ts`. They install a Claude plugin and say what they want, and the agent scaffolds the site, wires the IndieWeb pieces, deploys to Workers, and later runs "check my site" and "update my site". It's built on the `@dwk` Workers packages ([PRIOR-ART.md](PRIOR-ART.md)), and it's static Astro with no plugin system of its own.
+
+What the kit takes from it:
+
+- **Ship agent skills alongside the packages.** An `indie` skills package (Claude Code and Cowork plugin, Open Agent Skills format) with `setup`, `add-plugin` ("connect my Bluesky"), `doctor`, `upgrade`, `import` (from WordPress, Micro.blog, IndieKit or a Mastodon archive) and `migrate-content`. Each skill drives the same CLI commands as the docs (`bunx indie init`, `indie doctor`, `indie upgrade`), so the skills and the manual path never drift apart. This also suits this project, where most work is already done by agents.
+- **MCP tools per plugin**, so an agent can post, edit and syndicate through the kit with the owner's Micropub scopes, as `@dwk/mcp` does ([PRIOR-ART.md](PRIOR-ART.md)).
+- **Deploy-time safety checks.** Before each deploy, the platform plugin scans for leaked secrets and unexpected third-party scripts and blocks the deploy if it finds any, as Anglesite does. `indie doctor` runs the same checks.
+- **Privacy defaults in the starter:** no cookies, no third-party JavaScript, and Cloudflare's cookieless analytics as the only analytics option offered.
+- **Plain-language upkeep.** `indie doctor`'s output, and the owner-only `/indie/doctor` page, explain problems in words an owner can act on, not stack traces.
+
+Where the kit and Anglesite meet:
+
+- **Anglesite sites as a target.** An Anglesite site is static Astro on Workers. With the Astro frontend adapter and `platform-cloudflare`, it could add the kit for Micropub, Git-backed posting, threads, PESOS and backfeed, which Anglesite doesn't do today. That makes the Astro adapter more valuable, and a candidate to move earlier than Next.js.
+- **Collaboration.** Alongside the "talk to neighbours" step before Phase 0, ask whether the kit's syndicators, importers and Git store would be welcome as packages Anglesite could use, and whether the two projects can share protocol packages instead of duplicating them.
+
 ## Layers, frontend adapters and adoption
 
 Today this site is one SvelteKit app that does four jobs at once:
@@ -350,13 +368,14 @@ Deploy the "kit only" template with one button. It commits to the site's repo, a
 - **Why SvelteKit for the starter.** It has official adapters for Cloudflare, Vercel, Netlify and Node, which are exactly the four platforms. It prerenders static pages and handles server routes from one codebase, and this site already proves it. The core imports no framework, so an Astro or Eleventy starter can come later. Astro is popular with IndieWeb bloggers and is what EmDash uses, and it would only need a small adapter.
 - **Starter template** (`templates/starter`): a plain SvelteKit site with h-entry and h-card templates, feeds, the composer, and the kit mounted. It has a Deploy to Cloudflare button, Deploy with Vercel and Deploy to Netlify buttons, a Docker image, and Cloudron and YunoHost packages, and `bun create indie` asks for domain, repo and platform.
 - **Setup check.** A `/kit/doctor` page, owner only, runs IndieWebify-style checks (h-card, rel=me, endpoints discoverable, store writable, each plugin configured) and links each failure to the right settings panel.
+- **Agent skills:** an `indie` Claude Code and Cowork plugin (Open Agent Skills format) for setup, adding plugins, doctor, upgrade and imports, on the same CLI as the docs. See [Learning from Anglesite](#learning-from-anglesite-an-agent-run-kit).
 - **Docs:** one page per plugin, a plugin authoring guide, and each interface's contract test suite published as `@indie/testkit`, so third-party plugins can prove they conform.
 
 ## Extraction path
 
 Each phase ships on its own and keeps caseyagollan.com working. The site is always the first consumer.
 
-**Before Phase 0: talk to neighbours.** Contact IndieKit's maintainer and the author of davidwkeith/workers. The latter is a Workers-native IndieWeb package suite, unreleased, that covers much of our protocol core but not Git, POSSE or PESOS; see [PRIOR-ART.md](PRIOR-ART.md). Decide whether we build on its protocol packages and contribute the Git store and syndicators, or go alone.
+**Before Phase 0: talk to neighbours.** Contact IndieKit's maintainer and the author of davidwkeith/workers and Anglesite. The latter is a Workers-native IndieWeb package suite, unreleased, that covers much of our protocol core but not Git, POSSE or PESOS; see [PRIOR-ART.md](PRIOR-ART.md). Decide whether we build on its protocol packages and contribute the Git store and syndicators, or go alone.
 
 **Phase 0: seams in place (in this repo, no new packages).**
 Add `BlobStore`, `StateStore`, `ContentStore` and `Syndicator` interfaces under `src/lib/server/kit/`, and move every R2, Durable Object and GitHub call behind them. Move hard-coded identity, origin and timezone into one site config next to `SITE_IDENTITY`. Replace `worker.mjs`'s cron arithmetic with a task registry.
