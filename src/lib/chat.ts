@@ -33,6 +33,8 @@ export interface ChatToolUse {
 	status: 'running' | 'done' | 'failed';
 	/** Links the step found, shown so readers can follow them. Never owner-only data. */
 	links?: { url: string; title: string }[];
+	/** A page the assistant put in the chat to preview (`show_page`). */
+	peek?: { url: string; title: string; excerpt?: string };
 }
 
 export interface ChatMessage {
@@ -73,10 +75,16 @@ export type ChatServerEvent =
 	| { type: 'chat:tools'; id: string; tools: ChatToolUse[] }
 	| { type: 'chat:done'; id: string; status: ChatMessage['status']; content: string }
 	| { type: 'chat:title'; title: string }
-	| { type: 'chat:error'; error: string };
+	| { type: 'chat:error'; error: string }
+	/** Sent only to the person who asked: go to this page of the site. */
+	| { type: 'chat:navigate'; path: string };
 
-/** Messages a browser sends. Only `say` exists; readers who are not signed in send nothing. */
-export type ChatClientEvent = { type: 'chat:say'; text: string };
+/** Messages a browser sends: readers who are not signed in send nothing, and only Casey's table page answers table ops. */
+export type ChatClientEvent =
+	| { type: 'chat:say'; text: string }
+	/** Casey's table page, ready to take the assistant's edits. */
+	| { type: 'table:ready' }
+	| import('./table-agent').TableOpReply;
 
 export const CHAT_MAX_MESSAGE = 4000;
 export const CHAT_ID = /^[a-z0-9]{10}$/;

@@ -101,6 +101,8 @@ describe('sign-in helpers', () => {
 		expect(instanceOrigin('mastodon.social')).toBe('https://mastodon.social');
 		expect(safeReturn('/chat/abcdefghij')).toBe('/chat/abcdefghij');
 		expect(safeReturn('https://evil.example/')).toBe('/chat');
+		expect(safeReturn('/tables/my-table')).toBe('/tables/my-table');
+		expect(safeReturn('/tables/../admin')).toBe('/chat');
 		expect(safeReturn('/chat/../account')).toBe('/chat');
 	});
 

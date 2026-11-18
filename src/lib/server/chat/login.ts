@@ -46,7 +46,7 @@ export const blueskyClientId = (origin: string) => `${origin}/chat/bluesky-clien
 
 /** Where to go after signing in: a /chat path on this site, nothing else. */
 export function safeReturn(value: unknown): string {
-	return typeof value === 'string' && /^\/chat(?:\/[a-z0-9]{10})?$/.test(value) ? value : '/chat';
+	return typeof value === 'string' && /^\/(?:chat(?:\/[a-z0-9]{10})?|tables\/[a-z0-9-]{4,40})$/.test(value) ? value : '/chat';
 }
 
 async function savePending(context: LoginContext, pending: Pending, returnTo: string): Promise<{ state: string; binding: string }> {
