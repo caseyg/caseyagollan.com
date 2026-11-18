@@ -202,6 +202,37 @@ Both need the same thing from the kit: everything configured from environment va
 | Wiki browser (cag.wiki) | `lib/wiki`, `routes/wiki` | Stays here, maybe a future "Obsidian Publish source" plugin | Site-specific |
 | Tables (tldraw), Readwise, Raindrop, insights, screenshots, home graph, Cuelume sounds, nav | various | Stays here | Site-specific |
 
+### Feature index: publishing features by PR
+
+The table above is grouped by module. This index lists the publishing behaviours built since IndieKit was replaced, and where each one lands. Nothing is dropped: each is a core capability, part of a plugin, or theme work in the starter.
+
+| Feature | PR | Lands in | How |
+| --- | --- | --- | --- |
+| Thread posting (reply chains, resumable) | 203 | core (Micropub `syndication-thread` property) + each syndicator's `plan()` + `ui-svelte` `ThreadComposer` | The planner splits the post (`splitIntoThread`), and the outbox stores per-part receipts, so any syndicator gets threads by declaring `threadMax`. |
+| Multiple photos per post, with alt text | 204 | syndicator `plan()` (photo assignment per part) + platform `images` (shrinking) | Each syndicator declares `limits.photos`, `limits.altChars` and `limits.photoBytes`. Core assigns photos by `syndication-photo-post`. |
+| Native quote posts | 218 | `syndicate-bluesky` and `syndicate-mastodon` `plan()` | Detects `quotation-of` and repost-with-comment, then uses the network's own quote type. |
+| Link cards and linked mentions on Bluesky | 142 | `syndicate-bluesky` (rich text facets, external embed) | Uses core's safe public fetch for the card's title and image. |
+| Bluesky OAuth with app-password fallback | 221 | `syndicate-bluesky` + an account panel | Its tokens go in the platform `StateStore`. |
+| Tags, `q=category` | 212 | core Micropub extension | Read from the content store's index, so it works for any preset. |
+| Person tags (`u-category` h-cards), `q=contact` | 212 | core extension + a **contacts provider** plugin kind | Today's provider reads `social-follows.json`. Others could read a CardDAV address book or the owner's follows on Mastodon and Bluesky. |
+| Tag pages, tag cloud, type filters, per-type feeds, On this day | 145, 151 and later | starter theme + `@indie/feeds` | Presentation. The feeds plugin provides scoped feeds by type and tag. |
+| Slug renames with redirects | 198 | core (`mp-slug`, `previousUrls`) + preset path rules + a framework adapter hook for redirects | Delivery treats a renamed post as the same publication, so it is never posted twice. |
+| Drafts in a private repo | 143 | a second content store named `drafts` | Any store can hold drafts: a private repo, R2 or the local disk. |
+| Composer, editor, syndicate page, rich editor quotes and figures | 143, 148, 153, 199 | `ui-svelte` | Mounted by the starter. |
+| Post list in Micropub (`q=source` listing) | late 2026 | core | Standard. |
+| Markdown everywhere, HTML only when it renders differently | 148, content 16 | preset (`htmlToMarkdown` with the `sameRendering` check) | Every importer and editor write goes through the preset, so Markdown stays the default. |
+| PESOS from Mastodon, Bluesky, GitHub, Are.na, with duplicate merging | 217 and earlier | importer plugins + core de-duplication | Importers skip anything already in the outbox's receipts. |
+| Saved copies of others' posts (social snapshots) | earlier | a **citations** plugin | Fetches and stores a static card for each linked post, for reply and like contexts. |
+| Webmention archive and moderation | late 2026 | `interactions-webmention-io` + core moderation store | Moderation is shared by every interaction source. |
+| Native Mastodon and Bluesky backfeed | late 2026 | each syndicator's `readInteractions` | Merged with Webmentions, with Bridgy copies dropped. |
+| WebSub ping, sitemap | 211 | `@indie/websub`, `@indie/feeds` | |
+| Buttondown signup and theme | 205 | `@indie/newsletter-buttondown` | |
+| h-card and rel=me from one identity | 206 | core config `identity` | |
+| `fediverse:creator` byline, OpenSearch | late 2026 | starter theme head tags, read from `identity` | |
+| Standard.site records | in progress | `syndicate-standard-site` | Uses `update` and `delete`, so edits update the record. |
+
+Protocol extensions in this list (`syndication-thread`, `syndication-photo-post`, `q=contact` silos) are documented in [proposals/](proposals/). A kit plugin that adds one has to ship its proposal too, the same rule this repo follows.
+
 ### Couplings to remove before extraction
 
 - **R2 types everywhere.** 16 server files take `R2Bucket` directly. Each needs a `BlobStore`.
@@ -239,6 +270,7 @@ Building on IndieKit itself, or on EmDash, was considered and set aside. IndieKi
   });
   ```
 
+- **Why SvelteKit for the starter.** It has official adapters for Cloudflare, Vercel, Netlify and Node, which are exactly the four platforms. It prerenders static pages and handles server routes from one codebase, and this site already proves it. The core imports no framework, so an Astro or Eleventy starter can come later. Astro is popular with IndieWeb bloggers and is what EmDash uses, and it would only need a small adapter.
 - **Starter template** (`templates/starter`): a plain SvelteKit site with h-entry and h-card templates, feeds, the composer, and the kit mounted. It has a Deploy to Cloudflare button, Deploy with Vercel and Deploy to Netlify buttons, a Docker image, and Cloudron and YunoHost packages, and `bun create indie` asks for domain, repo and platform.
 - **Setup check.** A `/kit/doctor` page, owner only, runs IndieWebify-style checks (h-card, rel=me, endpoints discoverable, store writable, each plugin configured) and links each failure to the right settings panel.
 - **Docs:** one page per plugin, a plugin authoring guide, and each interface's contract test suite published as `@indie/testkit`, so third-party plugins can prove they conform.
