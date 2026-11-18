@@ -2,15 +2,19 @@
 	import { onMount } from 'svelte';
 	import type { ActionData, PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { CHAT_CRUMB, ChatConversation, ChatPromptInput, ChatSignIn } from '$lib/components/chat';
+	import { CHAT_CRUMB, ChatConversation, ChatPromptInput, ChatSidebarToggle, ChatSignIn } from '$lib/components/chat';
+	import { invalidate } from '$app/navigation';
 	import { Notice, Page, PageHeader } from '$lib/components/ui';
 	import { LiveThread } from '$lib/chat-client.svelte';
 	import { chatHref } from '$lib/chat';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
+	let refresh: ReturnType<typeof setTimeout> | undefined;
+	/** Moves this thread in the sidebar when it gets a message, a title or an answer. */
+	const relist = () => { clearTimeout(refresh); refresh = setTimeout(() => invalidate('chat:threads'), 400); };
 	// svelte-ignore state_referenced_locally
-	const live = new LiveThread(data.snapshot, data.viewer);
+	const live = new LiveThread(data.snapshot, data.viewer, relist);
 	const viewer = $derived(live.viewer);
 	const thread = $derived(live.snapshot.thread);
 	const href = $derived(chatHref(thread.id));
@@ -18,7 +22,7 @@
 
 	onMount(() => {
 		live.connect();
-		return () => live.close();
+		return () => { clearTimeout(refresh); live.close(); };
 	});
 
 	/** Over the socket when it's open; otherwise the form posts. */
@@ -34,7 +38,9 @@
 <Nav currentPage="chat" />
 
 <Page as="main" width="reading" class="chat-page">
-	<PageHeader trail={[CHAT_CRUMB, { label: thread.title, href, current: true }]} title={thread.title} />
+	<PageHeader trail={[CHAT_CRUMB, { label: thread.title, href, current: true }]} title={thread.title}>
+		{#snippet pinned()}<ChatSidebarToggle />{/snippet}
+	</PageHeader>
 
 	<ChatConversation messages={live.messages} viewerId={viewer?.id} />
 

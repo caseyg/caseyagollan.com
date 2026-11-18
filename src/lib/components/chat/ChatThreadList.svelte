@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { chatHref, type ChatThreadSummary } from '$lib/chat';
+	import { chatAgo, chatHref, type ChatThreadSummary } from '$lib/chat';
 	import { Avatar, Count } from '$lib/components/ui';
 
 	interface Props {
@@ -9,14 +9,7 @@
 
 	let { threads, now = Date.now() }: Props = $props();
 
-	function ago(at: number): string {
-		const minutes = Math.round((now - at) / 60_000);
-		if (minutes < 1) return 'just now';
-		if (minutes < 60) return `${minutes} min ago`;
-		const hours = Math.round(minutes / 60);
-		if (hours < 24) return `${hours} h ago`;
-		return new Date(at).toLocaleDateString([], { month: 'short', day: 'numeric', year: new Date(at).getFullYear() === new Date(now).getFullYear() ? undefined : 'numeric' });
-	}
+	const ago = (at: number) => chatAgo(at, now);
 </script>
 
 <!-- Chat threads, most recently active first: title, who's in it, and when it last moved. -->

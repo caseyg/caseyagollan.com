@@ -13,7 +13,7 @@
  * Imported by worker.mjs, so imports stay relative.
  */
 import { Agent, type Connection, type ConnectionContext, type WSMessage } from 'agents';
-import { CHAT_MAX_MESSAGE, chatTitle, type ChatAuthor, type ChatClientEvent, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatToolUse, type ChatViewer } from '../../chat';
+import { CHAT_MAX_MESSAGE, chatTitle, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatToolUse, type ChatViewer } from '../../chat';
 import { publishingConfig } from '../publishing/config';
 import { ownerMicropub } from '../publishing/post-editor';
 import type { PublishingEnvironment } from '../publishing/config';
@@ -137,7 +137,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const first = messages[0];
 		return {
 			id: this.meta('id') ?? '', title: this.meta('title') ?? 'New chat',
-			createdAt: Number(this.meta('created') ?? first?.createdAt ?? Date.now()), updatedAt: messages.at(-1)?.createdAt ?? Date.now(),
+			createdAt: Number(this.meta('created') ?? first?.createdAt ?? Date.now()), updatedAt: Number(this.meta('updated')) || (messages.at(-1)?.createdAt ?? Date.now()),
 			messageCount: messages.length, ...(first?.author ? { startedBy: first.author } : {}), participants: [...people.values()].slice(0, 6)
 		};
 	}
@@ -182,6 +182,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const { owner, ...author } = viewer;
 		const message: ChatMessage = { id: randomToken(9), role: 'user', content: text, author: { ...author, via: owner ? 'owner' : author.via }, status: 'done', createdAt: Date.now() };
 		this.save(message);
+		this.setMeta('updated', String(message.createdAt));
 		this.send({ type: 'chat:message', message });
 		this.pendingOwners.set(message.id, owner);
 		void this.index();
@@ -258,6 +259,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			reply.status = status;
 			reply.content = content;
 			this.save(reply);
+			this.setMeta('updated', String(Date.now()));
 			this.send({ type: 'chat:done', id: reply.id, status, content });
 			void this.index();
 		};
@@ -310,12 +312,38 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 				}
 			}
 			finish('done', reply.content || '*No answer came back.*');
+			if (reply.content && !this.meta('titled')) await this.nameThread(all, reply.content, { apiKey, model });
 		} catch (error) {
 			if (timer) clearTimeout(timer);
 			flush();
 			const reason = error instanceof ModelError ? error.message : 'Something went wrong';
 			console.warn(JSON.stringify({ event: 'chat_turn_failed', reason: reason.slice(0, 200), detail: error instanceof ModelError ? error.detail : String(error).slice(0, 300) }));
 			finish('failed', `${reply.content}${reply.content ? '\n\n' : ''}*The answer stopped: ${reason}.*`);
+		}
+	}
+
+	/**
+	 * Name the thread once, after its first answer, the way chat apps do. Until then it's
+	 * called by the first line of the first message; if naming fails, that title stays.
+	 */
+	private async nameThread(messages: ChatMessage[], answer: string, options: { apiKey: string; model: string }) {
+		this.setMeta('titled', '1');
+		const asked = messages.find((message) => message.role === 'user')?.content ?? '';
+		try {
+			const completion = await streamCompletion({
+				...options, baseUrl: this.env.CHAT_INFERENCE_URL || undefined, maxTokens: 400,
+				messages: [
+					{ role: 'system', content: 'You name chat threads. Reply with only a title of two to six words, in sentence case, saying what the chat is about. No quotes, no Markdown, no full stop.' },
+					{ role: 'user', content: `Question:\n${asked.slice(0, 1500)}\n\nAnswer:\n${answer.slice(0, 1500)}` }
+				]
+			});
+			const title = threadTitle(completion.text);
+			if (!title) return;
+			this.setMeta('title', title);
+			this.send({ type: 'chat:title', title });
+			await this.index();
+		} catch (error) {
+			console.warn(JSON.stringify({ event: 'chat_title_failed', detail: error instanceof ModelError ? error.detail : String(error).slice(0, 200) }));
 		}
 	}
 

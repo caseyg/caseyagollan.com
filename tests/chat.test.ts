@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { chatTitle } from '../src/lib/chat';
+import { chatAgo, chatTitle, threadTitle } from '../src/lib/chat';
 import { readableMarkdown } from '../src/lib/server/chat/fetch-page';
 import { chatViewer, startVisitorSession, viewerFrom, withViewer, VIEWER_HEADER } from '../src/lib/server/chat/identity';
 import { discoverIndieAuth, finishLogin, instanceOrigin, LOGIN_COOKIE, profileAddress, safeReturn, startLogin } from '../src/lib/server/chat/login';
@@ -55,6 +55,20 @@ describe('chat titles', () => {
 	test('first line, trimmed', () => {
 		expect(chatTitle('## What has Casey written about **Micropub**?\nmore')).toBe('What has Casey written about Micropub?');
 		expect(chatTitle('word '.repeat(30)).endsWith('…')).toBe(true);
+	});
+
+	test('cleans up a model-written title', () => {
+		expect(threadTitle('"Casey’s Micropub posts."')).toBe('Casey’s Micropub posts');
+		expect(threadTitle('<think>The user asks about books</think>\n\n**Title:** Cooperative books in the library')).toBe('Cooperative books in the library');
+		expect(threadTitle('<think>never finished')).toBe('');
+		expect(threadTitle('  \n ok')).toBe('');
+	});
+
+	test('says when a thread last moved', () => {
+		const now = Date.UTC(2026, 10, 18, 12);
+		expect(chatAgo(now - 20_000, now)).toBe('just now');
+		expect(chatAgo(now - 5 * 60_000, now)).toBe('5 min ago');
+		expect(chatAgo(now - 3 * 3600_000, now)).toBe('3 h ago');
 	});
 });
 
