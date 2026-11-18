@@ -53,7 +53,7 @@
 			<PostDetails post={data.post} />
 			<NoteCard post={data.post} />
 		{:else}
-			<PostMedia photos={data.post.photo} videos={data.post.video} />
+			<PostMedia photos={data.post.photo} videos={data.post.video} audio={data.post.audio} />
 			<PostDetails post={data.post} />
 			{#if data.post.summary}<p class="p-summary">{data.post.summary}</p>{/if}
 

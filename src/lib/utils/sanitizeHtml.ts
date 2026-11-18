@@ -5,13 +5,16 @@ import type { Element, Root } from 'hast';
 
 const schema = {
  ...defaultSchema,
- tagNames: [...(defaultSchema.tagNames ?? []).filter((tag) => tag !== 'input'), 'article', 'section', 'header', 'footer', 'figure', 'figcaption', 'details', 'summary', 'time', 'mark', 'video', 'audio', 'source', 'iframe'],
+ tagNames: [...(defaultSchema.tagNames ?? []).filter((tag) => tag !== 'input'), 'article', 'section', 'header', 'footer', 'figure', 'figcaption', 'details', 'summary', 'time', 'data', 'cite', 'mark', 'video', 'audio', 'source', 'iframe'],
  strip: [...(defaultSchema.strip ?? []), 'script', 'style', 'svg', 'math', 'template', 'form', 'object', 'embed'],
  attributes: {
   ...defaultSchema.attributes,
   '*': [...(defaultSchema.attributes?.['*'] ?? []), 'className'],
   a: [...(defaultSchema.attributes?.a ?? []).filter(attribute => !(Array.isArray(attribute) && attribute[0] === 'className')), 'className', 'rel'],
+  // Lists keep any class, not only task-list ones, so microformats such as p-ingredient survive.
+  ...Object.fromEntries(['ul', 'ol', 'li'].map(tag => [tag, [...(defaultSchema.attributes?.[tag] ?? []).filter(attribute => !(Array.isArray(attribute) && attribute[0] === 'className')), 'className']])),
   time: ['dateTime', 'className'],
+  data: ['value', 'className'],
   video: ['src', 'poster', 'controls', 'preload', 'width', 'height', 'autoPlay', 'loop', 'muted', 'playsInline', 'ariaLabel'],
   audio: ['src', 'controls', 'preload'],
   source: ['src', 'type'],

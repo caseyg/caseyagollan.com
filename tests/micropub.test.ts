@@ -1,58 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { createMicropubHandler, type PublishingConfig } from '../src/lib/server/publishing/micropub';
+import { createMicropubHandler } from '../src/lib/server/publishing/micropub';
+import { config, setup } from './helpers/micropub';
 import { readDocument } from '../src/lib/server/publishing/document';
 
-const config: PublishingConfig = {
-  me: 'https://example.com/', introspectionEndpoint: 'https://auth.example/introspect', introspectionToken: 'server-secret',
-  owner: 'caseyg', repo: 'test-content', branch: 'test', token: 'git-secret', timeZone: 'America/New_York'
-};
-const b64 = (value: string) => btoa(Array.from(new TextEncoder().encode(value), x => String.fromCharCode(x)).join(''));
-const unb64 = (value: string) => new TextDecoder().decode(Uint8Array.from(atob(value), x => x.charCodeAt(0)));
-
-function setup(scope = 'create update delete undelete', options: Partial<PublishingConfig> = {}, snapshotFetcher?: (url: string) => Promise<Response>) {
-  const files = new Map<string, { content: string; sha: string }>();
-  let writes = 0;
-  let reads = 0;
-  const handler = createMicropubHandler({ ...config, ...options }, {
-    now: () => new Date('2026-11-06T17:00:00Z'), id: () => 'abc123', snapshotFetcher,
-    fetcher: async (url, init) => {
-      if (url === config.introspectionEndpoint) return Response.json({ active: true, me: config.me, client_id: 'https://quill.example/', scope });
-      if (url.includes('/git/ref/')) return Response.json({ object: { sha: `head-${writes}` } });
-      if (url.includes('/git/trees/')) return Response.json({ truncated: false, tree: [...files.keys()].map(path => ({ type: 'blob', path })) });
-      if (url === 'https://api.github.com/graphql' && JSON.parse(init.body as string).query.startsWith('query Read')) {
-        reads++;
-        const { variables } = JSON.parse(init.body as string);
-        const repository: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(variables as Record<string, string>)) {
-          if (!key.startsWith('e')) continue;
-          const file = files.get(value.slice(value.indexOf(':') + 1));
-          repository[`f${key.slice(1)}`] = file ? { oid: file.sha, text: file.content, isBinary: false, isTruncated: false } : null;
-        }
-        return Response.json({ data: { repository } });
-      }
-      if (url === 'https://api.github.com/graphql') {
-        const input = JSON.parse(init.body as string).variables.input;
-        if (input.expectedHeadOid !== `head-${writes}`) return Response.json({ errors: [{ type: 'STALE_DATA' }] });
-        for (const file of input.fileChanges.additions) files.set(file.path, { content: unb64(file.contents), sha: `revision-${writes + 1}` });
-        for (const file of input.fileChanges.deletions ?? []) files.delete(file.path);
-        return Response.json({ data: { createCommitOnBranch: { commit: { oid: `commit-${++writes}` } } } });
-      }
-      const path = decodeURIComponent(new URL(url).pathname.split('/contents/')[1]);
-      if (init.method === 'PUT') {
-        const value = JSON.parse(init.body as string);
-        if (files.get(path)?.sha !== value.sha) return new Response(null, { status: 409 });
-        const sha = `revision-${++writes}`;
-        files.set(path, { content: unb64(value.content), sha });
-        return Response.json({ content: { sha }, commit: { sha: `commit-${writes}` } });
-      }
-      const file = files.get(path);
-      return file ? Response.json({ type: 'file', path, sha: file.sha, encoding: 'base64', content: b64(file.content) }) : new Response(null, { status: 404 });
-    }
-  });
-  const send = (body: unknown) => handler(new Request('https://example.com/micropub', { method: 'POST', headers: { Authorization: 'Bearer client', 'Content-Type': 'application/json' }, body: JSON.stringify(body) }));
-  const query = (value: string) => handler(new Request(`https://example.com/micropub?${value}`, { headers: { Authorization: 'Bearer client' } }));
-  return { handler, files, send, query, writes: () => writes, reads: () => reads };
-}
 
 describe('Micropub HTTP flow', () => {
   test('is disabled without explicit configuration; preflight does not authorize writes', async () => {
@@ -486,5 +436,59 @@ describe('Micropub post list (q=source without url)', () => {
     const response = await setup('create', { syndication: { bluesky: { service: 'https://bsky.social', identifier: 'test', password: 'fake' } }, state: {} as R2Bucket }).query('q=config');
     const body = await response.json() as Record<string, { property?: string; 'max-posts'?: number }>;
     expect(body['syndication-thread']).toMatchObject({ property: 'syndication-thread', 'max-posts': 20 });
+  });
+});
+
+describe('Micropub post types', () => {
+  const cite = (properties: Record<string, unknown[]>) => ({ type: ['h-cite'], properties });
+  const cases: [string, string, unknown][] = [
+    ['quotations', 'h-entry', { 'quotation-of': [cite({ content: ['To be or not to be'], author: ['Shakespeare'], url: ['https://example.org/hamlet'] })] }],
+    ['rsvps', 'h-entry', { 'in-reply-to': ['https://example.org/party'], rsvp: ['yes'] }],
+    ['audio', 'h-entry', { audio: ['https://example.com/media/2026/11/a.mp3'], name: ['Episode one'] }],
+    ['checkins', 'h-entry', { checkin: [{ type: ['h-card'], properties: { name: ['Cafe'], latitude: [40.7], longitude: [-73.9] } }] }],
+    ['venues', 'h-card', { name: ['The Strand'], locality: ['New York'] }],
+    ['reads', 'h-entry', { 'read-of': [cite({ name: ['Piranesi'], author: ['Susanna Clarke'], uid: ['isbn:9781635575637'] })], 'read-status': ['finished'] }],
+    ['watches', 'h-entry', { 'watch-of': [cite({ name: ['Paris, Texas'] })] }],
+    ['listens', 'h-entry', { 'listen-of': ['https://example.org/album'] }],
+    ['plays', 'h-entry', { 'play-of': [cite({ name: ['Outer Wilds'] })] }],
+    ['jams', 'h-entry', { 'jam-of': [cite({ name: ['Heroes'], author: ['David Bowie'] })] }],
+    ['collections', 'h-entry', { name: ['Favorite tools'], children: ['https://example.org/a', cite({ name: ['B'], url: ['https://example.org/b'] })] }],
+    ['issues', 'h-entry', { 'in-reply-to': ['https://github.com/caseyg/caseyagollan.com'], name: ['Broken link'], content: ['The footer link 404s.'] }],
+    ['exercises', 'h-entry', { exercise: [{ type: ['h-exercise'], properties: { activity: ['run'], distance: ['5 km'], duration: ['PT28M'] } }] }],
+    ['recipes', 'h-recipe', { name: ['Toast'], ingredient: ['Bread', 'Butter'], yield: ['1 slice'], content: ['Toast the bread. Butter it.'] }]
+  ];
+  for (const [folder, type, properties] of cases) test(`files a ${type} with ${Object.keys(properties as object).join(', ')} in ${folder}/`, async () => {
+    const app = setup();
+    const response = await app.send({ type: [type], properties });
+    expect(response.status).toBe(202);
+    const [path, file] = [...app.files][0];
+    expect(path).toStartWith(`${folder}/`);
+    expect(readDocument(file.content).type).toBe(type);
+  });
+
+  test('rejects malformed values for the new types', async () => {
+    const app = setup();
+    for (const properties of [
+      { 'read-of': ['not a url'] },
+      { 'read-of': [{ type: ['h-cite'], properties: {} }] },
+      { 'read-of': ['https://example.org/book'], 'read-status': ['skimmed'] },
+      { checkin: ['javascript:alert(1)'] },
+      { exercise: [{ type: ['h-exercise'], properties: { distance: ['5 km'] } }] },
+      { audio: ['ftp://example.org/a.mp3'] }
+    ]) expect((await app.send({ type: ['h-entry'], properties })).status).toBe(400);
+    expect((await app.send({ type: ['h-recipe'], properties: { name: ['Nothing'] } })).status).toBe(400);
+    expect((await app.send({ type: ['h-card'], properties: { locality: ['Nowhere'] } })).status).toBe(400);
+    expect(app.files.size).toBe(0);
+  });
+
+  test('advertises every type in q=config, with its properties', async () => {
+    const body = await (await setup('create', { mediaEnabled: true })).query('q=config').then(response => response.json()) as { 'post-types': { type: string; name: string; h: string; properties: string[]; 'required-properties': string[] }[] };
+    const types = body['post-types'].map(type => type.type);
+    for (const type of ['quotation', 'rsvp', 'audio', 'checkin', 'venue', 'read', 'watch', 'listen', 'play', 'jam', 'collection', 'issue', 'exercise', 'recipe']) expect(types).toContain(type);
+    expect(body['post-types'].find(type => type.type === 'recipe')).toMatchObject({ name: 'Recipe', h: 'recipe', 'required-properties': ['name', 'ingredient'] });
+  });
+
+  test('still refuses weight posts', async () => {
+    expect((await setup().send({ type: ['h-entry'], properties: { weight: ['70 kg'] } })).status).toBe(400);
   });
 });

@@ -26,7 +26,7 @@ function safeUrl(value: string): string | undefined {
 function mime(media: MediaItem): string | undefined {
  if (media.type && /^(audio|video|image)\/[a-z0-9.+-]+$/i.test(media.type)) return media.type;
  const ext = media.url.split(/[?#]/)[0].split('.').pop()?.toLowerCase();
- return ({ mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mp3: 'audio/mpeg', ogg: 'audio/ogg', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif' } as Record<string, string>)[ext || ''];
+ return ({ mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', wav: 'audio/wav', flac: 'audio/flac', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif' } as Record<string, string>)[ext || ''];
 }
 function entries(posts: Post[], limit: number) {
  return posts.filter(post => !post.draft && isPublicPost(post) && Number.isFinite(Date.parse(post.date)))
@@ -34,7 +34,7 @@ function entries(posts: Post[], limit: number) {
   .slice(0, Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 50)
   .map(post => {
    const url = `${SITE}${getPostPermalink(post)}`;
-   const attachments = [...(post.video || []), ...(post.photo || [])].flatMap(media => {
+   const attachments = [...(post.video || []), ...(post.audio || []), ...(post.photo || [])].flatMap(media => {
     const url = safeUrl(media.url), type = mime(media);
     return url && type ? [{ url, mime_type: type }] : [];
    });
@@ -46,10 +46,14 @@ function entries(posts: Post[], limit: number) {
     const url = safeUrl(media.url);
     return url ? `<video controls src="${xml(url)}"><a href="${xml(url)}">Video</a></video>` : '';
    }).join('');
+   const audio = (post.audio || []).map(media => {
+    const url = safeUrl(media.url);
+    return url ? `<audio controls src="${xml(url)}"><a href="${xml(url)}">Audio</a></audio>` : '';
+   }).join('');
    const publishedTime = Date.parse(post.date);
    const updatedTime = post.updated ? Date.parse(post.updated) : NaN;
    const modified = Number.isFinite(updatedTime) && updatedTime >= publishedTime ? new Date(updatedTime).toISOString() : undefined;
-   return { post, url, modified, updated: modified ?? new Date(publishedTime).toISOString(), date: new Date(post.date).toISOString(), html: clean(renderPostDetails(post) + renderContentSync(post.content, post.contentFormat) + photos + videos), attachments };
+   return { post, url, modified, updated: modified ?? new Date(publishedTime).toISOString(), date: new Date(post.date).toISOString(), html: clean(renderPostDetails(post) + renderContentSync(post.content, post.contentFormat) + photos + videos + audio), attachments };
   });
 }
 

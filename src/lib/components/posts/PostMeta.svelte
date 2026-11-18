@@ -2,7 +2,7 @@
 	import { Chip } from '$lib/components/ui';
 	import { firstPerNetwork, socialSource } from '$lib/social-card';
 	import WebmentionCounts from '$lib/components/WebmentionCounts.svelte';
-	import { POST_TYPE_PLURALS } from '$lib/posts-types';
+	import { POST_TYPE_EMOJI, POST_TYPE_PLURALS } from '$lib/posts-types';
 	import { formatRelativeDate, formatAbsoluteDate } from '$lib/utils/formatDate';
 	import { onMount } from 'svelte';
 	import { ownerSignedIn } from '$lib/owner';
@@ -42,16 +42,7 @@
 		return POST_TYPE_PLURALS[t] || t + 's';
 	}
 
-	const TYPE_ICONS: Record<string, string> = {
-		wiki: '📖', book: '📚', arena: '✳️', like: '♥', repost: '🔁', event: '📅', review: '⭐', itinerary: '✈', food: '🍽', drink: '☕',
-		note: '📝',
-		article: '📄',
-		bookmark: '🔖',
-		photo: '📷',
-		video: '🎬',
-		reply: '💬',
-		media: '🎵'
-	};
+	const TYPE_ICONS: Record<string, string> = { ...POST_TYPE_EMOJI, wiki: '📖', book: '📚', arena: '✳️' };
 
 	function getTypeIcon(t: string): string {
 		return TYPE_ICONS[t] || '📌';

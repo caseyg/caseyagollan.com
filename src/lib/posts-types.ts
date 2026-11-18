@@ -9,7 +9,7 @@ export interface MediaItem {
 
 export interface Post {
 	slug: string;
-	type: 'note' | 'article' | 'bookmark' | 'photo' | 'video' | 'reply' | 'media' | 'like' | 'repost' | 'event' | 'review' | 'itinerary' | 'food' | 'drink';
+	type: (typeof POST_TYPES)[number];
 	date: string;
 	updated?: string;
 	syndicationTargets?: string[];
@@ -27,6 +27,7 @@ export interface Post {
 	syndication?: string[];
 	photo?: MediaItem[];
 	video?: MediaItem[];
+	audio?: MediaItem[];
 	microformatType?: string;
 	channel?: string;
 	socialSnapshots?: SocialSnapshot[];
@@ -41,22 +42,44 @@ export interface Post {
 	filePath: string;
 }
 
-export const POST_TYPES = ['note', 'article', 'bookmark', 'photo', 'video', 'reply', 'media', 'like', 'repost', 'event', 'review', 'itinerary', 'food', 'drink'] as const;
+export const POST_TYPES = ['note', 'article', 'bookmark', 'photo', 'video', 'audio', 'reply', 'media', 'like', 'repost', 'quotation', 'rsvp', 'event', 'checkin', 'venue', 'review', 'itinerary', 'food', 'drink', 'read', 'watch', 'listen', 'play', 'jam', 'collection', 'issue', 'exercise', 'recipe'] as const;
+/** Each type's content folder, which is also its archive address (/type/<plural>/). */
 export const POST_TYPE_PLURALS: Record<string, string> = {
 	note: 'notes',
 	article: 'articles',
 	bookmark: 'bookmarks',
 	photo: 'photos',
 	video: 'videos',
+	audio: 'audio',
 	reply: 'replies',
 	media: 'media',
 	like: 'likes',
 	repost: 'reposts',
+	quotation: 'quotations',
+	rsvp: 'rsvps',
 	event: 'events',
+	checkin: 'checkins',
+	venue: 'venues',
 	review: 'reviews',
 	itinerary: 'itineraries',
 	food: 'foods',
-	drink: 'drinks'
+	drink: 'drinks',
+	read: 'reads',
+	watch: 'watches',
+	listen: 'listens',
+	play: 'plays',
+	jam: 'jams',
+	collection: 'collections',
+	issue: 'issues',
+	exercise: 'exercises',
+	recipe: 'recipes'
+};
+/** One emoji per post type, used by archive pages, post meta lines, the Posts menu and the palette. */
+export const POST_TYPE_EMOJI: Record<(typeof POST_TYPES)[number], string> = {
+	note: '📝', article: '📄', bookmark: '🔖', photo: '📷', video: '🎬', audio: '🎙', reply: '💬', media: '🎵',
+	like: '♥', repost: '🔁', quotation: '❝', rsvp: '✉️', event: '📅', checkin: '📍', venue: '🏛', review: '⭐',
+	itinerary: '✈', food: '🍽', drink: '☕', read: '📖', watch: '📺', listen: '🎧', play: '🎮', jam: '🎶',
+	collection: '🗂', issue: '🐛', exercise: '🏃', recipe: '🥣'
 };
 
 export function getPostPermalink(post: { date: string; slug: string }): string {

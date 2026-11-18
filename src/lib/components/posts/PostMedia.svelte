@@ -4,9 +4,11 @@
 	interface Props {
 		photos?: MediaItem[];
 		videos?: MediaItem[];
+		/** Audio files play inline; `alt` names the recording. */
+		audio?: MediaItem[];
 	}
 
-	let { photos, videos }: Props = $props();
+	let { photos, videos, audio }: Props = $props();
 </script>
 
 {#if photos && photos.length > 0}
@@ -32,6 +34,22 @@
 				</video>
 				{#if vid.alt}
 					<figcaption>{vid.alt}</figcaption>
+				{/if}
+			</figure>
+		{/each}
+	</div>
+{/if}
+
+{#if audio && audio.length > 0}
+	<div class="media">
+		{#each audio as clip (clip.url)}
+			<figure>
+				<audio controls class="u-audio" preload="metadata">
+					<source src={clip.url} type={clip.type} />
+					<a href={clip.url}>Download the audio</a>
+				</audio>
+				{#if clip.alt}
+					<figcaption>{clip.alt}</figcaption>
 				{/if}
 			</figure>
 		{/each}

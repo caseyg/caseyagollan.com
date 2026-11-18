@@ -1,4 +1,4 @@
-import { COMPOSER_KINDS, LEG_KEYS, isComposerKind, type ComposerFields, type ComposerKind, type LegFields } from '../../composer-kinds';
+import { COMPOSER_KINDS, LEG_KEYS, isCiteKind, isComposerKind, type ComposerFields, type ComposerKind, type LegFields } from '../../composer-kinds';
 import { ProtocolError } from './auth';
 import type { Json, Properties } from './document';
 import type { PublishingConfig } from './micropub';
@@ -17,11 +17,12 @@ const list = (value: unknown) => (Array.isArray(value) ? value : []).filter((ite
 /** Reads the composer form. Repeated fields stay aligned by position. */
 export function fieldsFromForm(values: URLSearchParams): ComposerFields {
 	const fields: ComposerFields = {};
-	for (const key of ['content', 'format', 'name', 'summary', 'category', 'in-reply-to', 'bookmark-of', 'like-of', 'repost-of', 'rsvp', 'start', 'end', 'location', 'location-name', 'item-name', 'item-url', 'rating', 'food-name', 'slug', 'published']) {
+	for (const key of ['content', 'format', 'name', 'summary', 'category', 'in-reply-to', 'bookmark-of', 'like-of', 'repost-of', 'rsvp', 'start', 'end', 'location', 'location-name', 'item-name', 'item-url', 'rating', 'food-name', 'quote', 'cite-name', 'cite-author', 'cite-url', 'read-status', 'venue-name', 'venue-url', 'street-address', 'locality', 'region', 'country-name', 'activity', 'distance', 'duration', 'ingredients', 'yield', 'slug', 'published']) {
 		const value = values.get(key);
 		if (value !== null) fields[key] = value;
 	}
-	for (const key of ['photo', 'photo-alt', 'video', 'syndicate-to']) if (values.has(key)) fields[key] = values.getAll(key);
+	for (const key of ['photo', 'photo-alt', 'video', 'audio', 'syndicate-to']) if (values.has(key)) fields[key] = values.getAll(key);
+	if (values.has('child')) fields.children = values.getAll('child').filter(value => value.trim());
 	const columns = LEG_KEYS.map(key => values.getAll(`leg-${key}`));
 	const count = Math.max(0, ...columns.map(column => column.length));
 	if (count) fields.legs = Array.from({ length: count }, (_, index) => Object.fromEntries(LEG_KEYS.map((key, column) => [key, columns[column][index] ?? ''])) as unknown as LegFields)
@@ -65,6 +66,31 @@ function location(value: string | undefined): Json | undefined {
 	if (!trimmed) return;
 	if (/^geo:[+-]?\d+(?:\.\d+)?,[+-]?\d+(?:\.\d+)?(?:;u=\d+(?:\.\d+)?)?$/.test(trimmed)) return trimmed;
 	return { type: ['h-card'], properties: { name: [trimmed] } };
+}
+
+/** A geo: URI's coordinates, for venues and checkins. */
+function coordinates(value: string | undefined): Properties {
+	const match = text(value).match(/^geo:([+-]?\d+(?:\.\d+)?),([+-]?\d+(?:\.\d+)?)/);
+	return match ? { latitude: [Number(match[1])], longitude: [Number(match[2])] } : {};
+}
+
+/** Minutes typed into the form, as an ISO 8601 duration. */
+function minutes(value: string | undefined, label: string): string | undefined {
+	const trimmed = text(value);
+	if (!trimmed) return;
+	const amount = Number(trimmed);
+	if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) return invalid(`${label} must be a number of minutes.`);
+	const whole = Math.round(amount);
+	return `PT${whole >= 60 ? `${Math.floor(whole / 60)}H` : ''}${whole % 60 ? `${whole % 60}M` : ''}`;
+}
+
+/** A place's name, address and coordinates as h-card properties. */
+function place(fields: ComposerFields, name: string): Properties {
+	const card: Properties = { name: [name] };
+	const site = url(fields['venue-url'], 'Venue URL', false);
+	if (site) card.url = [site];
+	for (const key of ['street-address', 'locality', 'region', 'country-name'] as const) if (text(fields[key])) card[key] = [text(fields[key])];
+	return { ...card, ...coordinates(fields.location) };
 }
 
 /**
@@ -135,15 +161,78 @@ export function entryFromFields(kind: ComposerKind, fields: ComposerFields, time
 			});
 			setContent(); break;
 		}
+		case 'quotation': {
+			const quote = text(fields.quote), source = url(fields['cite-url'], 'Source URL', false);
+			if (!quote && !source) invalid('Add the quotation or its URL.');
+			const cite: Properties = {};
+			if (quote) cite.content = [quote];
+			if (text(fields['cite-author'])) cite.author = [text(fields['cite-author'])];
+			if (text(fields['cite-name'])) cite.name = [text(fields['cite-name'])];
+			if (source) cite.url = [source];
+			set('quotation-of', quote || text(fields['cite-name']) || text(fields['cite-author']) ? { type: ['h-cite'], properties: cite } : source);
+			setContent(); break;
+		}
+		case 'issue':
+			set('in-reply-to', url(fields['in-reply-to'], 'Repository URL'));
+			set('name', required(fields.name, 'Issue title')); setContent(true); break;
+		case 'collection': {
+			set('name', required(fields.name, 'Collection title'));
+			const children = list(fields.children).map(child => url(child, 'Each item')!);
+			if (!children.length) invalid('Add at least one link.');
+			if (children.length > 100) invalid('A collection holds at most 100 links.');
+			properties.children = children;
+			setContent(); break;
+		}
+		case 'audio':
+			if (!list(fields.audio).length) invalid('Add an audio file.');
+			properties.audio = list(fields.audio).map(audio => url(audio, 'Audio')!);
+			set('name', text(fields.name)); setContent(); break;
+		case 'checkin':
+			set('checkin', { type: ['h-card'], properties: place(fields, required(fields['venue-name'], 'Where you are')) });
+			setContent(); break;
+		case 'venue': {
+			type = 'h-card';
+			Object.assign(properties, place(fields, required(fields.name, 'Venue name')));
+			setContent(); break;
+		}
+		case 'read': case 'watch': case 'listen': case 'play': case 'jam': {
+			const cite: Properties = { name: [required(fields['cite-name'], 'The title')] };
+			if (text(fields['cite-author'])) cite.author = [text(fields['cite-author'])];
+			const link = url(fields['cite-url'], 'Its URL', false);
+			if (link) cite.url = [link];
+			set(`${kind}-of`, { type: ['h-cite'], properties: cite });
+			if (kind === 'read') {
+				if (!['to-read', 'reading', 'finished'].includes(fields['read-status'] ?? '')) invalid('Choose where you are in it.');
+				set('read-status', fields['read-status']);
+			}
+			setContent(); break;
+		}
+		case 'exercise': {
+			const workout: Properties = { activity: [required(fields.activity, 'Activity').toLowerCase()] };
+			if (text(fields.distance)) workout.distance = [text(fields.distance)];
+			const duration = minutes(fields.duration, 'Duration');
+			if (duration) workout.duration = [duration];
+			set('exercise', { type: ['h-exercise'], properties: workout });
+			setContent(); break;
+		}
+		case 'recipe': {
+			type = 'h-recipe';
+			set('name', required(fields.name, 'Recipe name'));
+			const ingredients = text(fields.ingredients).split('\n').map(line => line.replace(/^[-*•]\s*/, '').trim()).filter(Boolean);
+			if (!ingredients.length) invalid('List at least one ingredient.');
+			properties.ingredient = ingredients;
+			set('yield', text(fields.yield)); set('duration', minutes(fields.duration, 'Time'));
+			setContent(true); break;
+		}
 		case 'food': case 'drink':
 			set(kind === 'food' ? 'ate' : 'drank', { type: ['h-food'], properties: { name: [required(fields['food-name'], kind === 'food' ? 'What you ate' : 'What you drank')] } });
 			setContent(); break;
 	}
-	if (kind !== 'event') set('location', location(fields.location));
+	if (!['event', 'checkin', 'venue'].includes(kind)) set('location', location(fields.location));
 	const category = tags(fields.category);
 	if (category.length) properties.category = category;
 	const photos = list(fields.photo), alts = list(fields['photo-alt']);
-	if (photos.length && !['like', 'repost', 'video'].includes(kind)) properties.photo = photos.map((photo, index) => {
+	if (photos.length && !['like', 'repost', 'video', 'audio'].includes(kind)) properties.photo = photos.map((photo, index) => {
 		const value = url(photo, 'Photo')!;
 		return text(alts[index]) ? { value, alt: text(alts[index]) } : value;
 	});
@@ -165,7 +254,7 @@ export function entryFromFields(kind: ComposerKind, fields: ComposerFields, time
 
 /** A short label for the drafts list. */
 export function draftTitle(kind: ComposerKind, fields: ComposerFields): string {
-	const first = [fields.name, fields['item-name'], fields['food-name'], fields.content, fields['bookmark-of'], fields['in-reply-to'], fields['like-of'], fields['repost-of'], fields.legs?.[0] && `${fields.legs[0].origin} → ${fields.legs[0].destination}`]
+	const first = [fields.name, fields['item-name'], fields['food-name'], fields['cite-name'], fields['venue-name'], fields.quote, fields.activity, fields.content, fields['bookmark-of'], fields['in-reply-to'], fields['like-of'], fields['repost-of'], fields.legs?.[0] && `${fields.legs[0].origin} → ${fields.legs[0].destination}`]
 		.map(value => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '').find(Boolean);
 	return first ? (first.length > 80 ? `${first.slice(0, 79)}…` : first) : `Untitled ${COMPOSER_KINDS[kind].label.toLowerCase()}`;
 }
@@ -264,13 +353,15 @@ export function fieldsFromQuery(kind: ComposerKind, query: URLSearchParams): Com
 	const fields: ComposerFields = {};
 	const pick = (...names: string[]) => names.map(name => query.get(name)).find(value => value?.trim())?.trim();
 	const link = pick('url', 'u');
-	const key = { bookmark: 'bookmark-of', like: 'like-of', repost: 'repost-of', reply: 'in-reply-to', rsvp: 'in-reply-to', note: 'in-reply-to' }[kind as string];
+	const key = { bookmark: 'bookmark-of', like: 'like-of', repost: 'repost-of', reply: 'in-reply-to', rsvp: 'in-reply-to', note: 'in-reply-to', issue: 'in-reply-to', quotation: 'cite-url', read: 'cite-url', watch: 'cite-url', listen: 'cite-url', play: 'cite-url', jam: 'cite-url' }[kind as string];
 	for (const name of ['bookmark-of', 'like-of', 'repost-of', 'in-reply-to']) { const value = pick(name); if (value) fields[name] = value; }
 	if (key && link && !fields[key]) fields[key] = link;
 	const title = pick('title', 'name');
-	if (title) fields.name = title;
+	if (title) fields[isCiteKind(kind) || kind === 'quotation' ? 'cite-name' : 'name'] = title;
 	const content = pick('content', 'text', 'selection');
-	if (content) fields.content = kind === 'bookmark' && !query.has('content') ? `> ${content.replace(/\n/g, '\n> ')}` : content;
+	// A quotation bookmarklet sends the selected passage as the quote itself.
+	if (content && kind === 'quotation' && !query.has('content')) fields.quote = content;
+	else if (content) fields.content = kind === 'bookmark' && !query.has('content') ? `> ${content.replace(/\n/g, '\n> ')}` : content;
 	const category = pick('category', 'tags');
 	if (category) fields.category = category;
 	return fields;

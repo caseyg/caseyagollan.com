@@ -420,6 +420,17 @@
 		grid-template-columns: repeat(2, minmax(8.5rem, 1fr));
 	}
 
+	/* Grouped options keep both columns: each group spans the menu, its heading on a row of its own. */
+	:global(.select-menu--columns .select-menu-group) {
+		display: grid;
+		grid-column: 1 / -1;
+		grid-template-columns: subgrid;
+	}
+
+	:global(.select-menu--columns .select-menu-group-label) {
+		grid-column: 1 / -1;
+	}
+
 	:global(.select-menu[data-starting-style]),
 	:global(.select-menu[data-ending-style]) {
 		opacity: 0;

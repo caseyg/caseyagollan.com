@@ -27,7 +27,7 @@ const CANONICAL = 'https://caseyagollan.com';
 
 /** A content revision excludes delivery bookkeeping so recording a result is not a new send. */
 export async function publicationRevision(post: Post): Promise<string> {
- const structured = Object.fromEntries(['like-of', 'repost-of', 'rsvp', 'location', 'start', 'end', 'slides', 'slides-embed', 'video-link', 'video-embed', 'conference', 'item', 'rating', 'best', 'worst', 'itinerary', 'ate', 'drank'].filter(key => post.properties?.[key] !== undefined).map(key => [key, post.properties![key]]));
+ const structured = Object.fromEntries(['like-of', 'repost-of', 'rsvp', 'location', 'start', 'end', 'slides', 'slides-embed', 'video-link', 'video-embed', 'conference', 'item', 'rating', 'best', 'worst', 'itinerary', 'ate', 'drank', 'checkin', 'read-of', 'read-status', 'watch-of', 'listen-of', 'play-of', 'jam-of', 'children', 'exercise', 'ingredient', 'yield', 'duration', 'audio', 'street-address', 'locality', 'region', 'country-name', 'url', 'note'].filter(key => post.properties?.[key] !== undefined).map(key => [key, post.properties![key]]));
  const state = JSON.stringify({
   ...(Object.keys(structured).length ? { structured } : {}),
   ...(post.microformatType && post.microformatType !== 'h-entry' ? { microformatType: post.microformatType } : {}),

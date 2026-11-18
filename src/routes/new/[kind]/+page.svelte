@@ -2,7 +2,7 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import { page } from '$app/state';
 	import { rememberOwner } from '$lib/owner';
-	import { COMPOSER_KINDS, type ComposerFields, type ComposerKind, type LegFields } from '$lib/composer-kinds';
+	import { CITE_KINDS, COMPOSER_KINDS, isCiteKind, type ComposerFields, type ComposerKind, type LegFields } from '$lib/composer-kinds';
 	import { formatAbsoluteDate } from '$lib/utils/formatDate';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
 	import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
@@ -14,16 +14,18 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	const KIND_ICONS: Record<ComposerKind, IconName> = {
-		note: 'note', article: 'article', reply: 'reply', bookmark: 'bookmark', like: 'heart', repost: 'repost', rsvp: 'rsvp',
-		photo: 'image', video: 'video', event: 'calendar', review: 'star', itinerary: 'plane', food: 'food', drink: 'drink'
-	};
-	const kindOptions = (Object.entries(COMPOSER_KINDS) as [ComposerKind, (typeof COMPOSER_KINDS)[ComposerKind]][]).map(([value, details]) => ({ value, label: details.label, title: details.hint, href: `/new/${value}/` }));
+	const KIND_ICONS = Object.fromEntries(Object.entries(COMPOSER_KINDS).map(([kind, details]) => [kind, details.icon])) as Record<ComposerKind, IconName>;
+	const kindOptions = (Object.entries(COMPOSER_KINDS) as [ComposerKind, (typeof COMPOSER_KINDS)[ComposerKind]][]).map(([value, details]) => ({ value, label: details.label, title: details.hint, group: details.group, href: `/new/${value}/` }));
 	const PLACEHOLDERS: Partial<Record<ComposerKind, string>> = {
 		note: 'What’s on your mind?', article: 'Tell your story…', reply: 'Write your reply', bookmark: 'Add a comment (optional)',
 		repost: 'Add a comment (optional)', rsvp: 'Add a note (optional)', photo: 'Add a caption', video: 'Add a caption',
-		event: 'Describe the event (optional)', review: 'What did you think?', itinerary: 'Add a note (optional)', food: 'How was it? (optional)', drink: 'How was it? (optional)'
+		event: 'Describe the event (optional)', review: 'What did you think?', itinerary: 'Add a note (optional)', food: 'How was it? (optional)', drink: 'How was it? (optional)',
+		quotation: 'Why it stuck with you (optional)', issue: 'Describe the issue', collection: 'Introduce the collection (optional)', audio: 'Add a caption',
+		checkin: 'What are you up to? (optional)', venue: 'Why it’s worth a visit (optional)', read: 'Thoughts so far (optional)', watch: 'What did you think? (optional)',
+		listen: 'What did you think? (optional)', play: 'How’s it going? (optional)', jam: 'Why this one? (optional)', exercise: 'How did it feel? (optional)', recipe: 'The steps'
 	};
+	const CITE_TITLES: Record<string, string> = { read: 'What are you reading?', watch: 'What did you watch?', listen: 'What did you listen to?', play: 'What did you play?', jam: 'What song?' };
+	const ACTIVITIES = ['run', 'walk', 'ride', 'swim', 'hike', 'row', 'yoga', 'climb', 'lift'];
 
 	const kind = $derived(data.kind);
 	const info = $derived(COMPOSER_KINDS[data.kind]);
@@ -41,12 +43,15 @@
 	let syndicateTo = $state<string[]>((initial['syndicate-to'] as string[] | undefined) ?? []);
 	let photos = $state<{ url: string; alt: string }[]>(((initial.photo as string[] | undefined) ?? []).map((url, index) => ({ url, alt: (initial['photo-alt'] as string[] | undefined)?.[index] ?? '' })));
 	let videos = $state<string[]>((initial.video as string[] | undefined) ?? []);
+	let audio = $state<string[]>((initial.audio as string[] | undefined) ?? []);
+	let children = $state<string[]>((initial.children as string[] | undefined)?.length ? initial.children as string[] : ['']);
 	let legs = $state<LegFields[]>((initial.legs as LegFields[] | undefined)?.length ? initial.legs as LegFields[] : [emptyLeg()]);
 	let rating = $state(value('rating'));
 	// Optional fields stay out of sight until their icon is pressed, or they already hold a value.
 	let open = $state({
 		reply: startKind === 'note' && !!value('in-reply-to'), location: !!value('location'), tags: !!value('category'),
-		options: !!(value('slug') || value('published') || (startKind === 'review' && value('name'))), photoUrl: false
+		options: !!(value('slug') || value('published') || (startKind === 'review' && value('name'))), photoUrl: false,
+		place: !!(value('venue-url') || value('street-address') || value('locality') || value('region') || value('country-name'))
 	});
 	let uploading = $state(0);
 	let uploadError = $state('');
@@ -58,14 +63,17 @@
 	let photoUrl = $state('');
 	let photoInput: HTMLInputElement | undefined = $state();
 	let videoInput: HTMLInputElement | undefined = $state();
+	let audioInput: HTMLInputElement | undefined = $state();
 
 	let Editor = $state<typeof import('$lib/components/MarkdownEditor.svelte').default>();
 	let source = $state(false);
 	const rich = $derived(!!Editor && format === 'markdown' && !source);
 
 	const hasContent = $derived(kind !== 'like');
-	const hasPhotos = $derived(data.signedIn && data.mediaEnabled && !['like', 'repost', 'video', 'itinerary', 'event'].includes(kind));
-	const hasLocation = $derived(['note', 'photo', 'article', 'reply', 'food', 'drink', 'review', 'video'].includes(kind));
+	const hasPhotos = $derived(data.signedIn && data.mediaEnabled && !['like', 'repost', 'video', 'audio', 'itinerary', 'event', 'issue', 'collection'].includes(kind));
+	const hasLocation = $derived(['note', 'photo', 'article', 'reply', 'food', 'drink', 'review', 'video', 'audio', 'exercise'].includes(kind));
+	/** Checkins and venues are places: their name is shown, the address waits behind the pin. */
+	const isPlace = $derived(kind === 'checkin' || kind === 'venue');
 	const limit = $derived(syndicateTo.some(uid => uid.endsWith('/bluesky')) ? 300 : syndicateTo.some(uid => uid.endsWith('/mastodon')) ? 500 : 0);
 	const published = $derived(page.url.searchParams.get('published'));
 	const bookmarklet = $derived(`javascript:(()=>{location.href=${JSON.stringify(`${page.url.origin}/new/bookmark/?url=`)}+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+'&selection='+encodeURIComponent(String(getSelection()))})()`);
@@ -84,7 +92,7 @@
 		if (open[panel]) { await tick(); document.getElementById(id)?.focus(); }
 	}
 
-	async function upload(files: FileList | null, target: 'photo' | 'video') {
+	async function upload(files: FileList | null, target: 'photo' | 'video' | 'audio') {
 		if (!files?.length || !data.signedIn) return;
 		uploadError = '';
 		for (const file of Array.from(files)) {
@@ -98,7 +106,7 @@
 					const failure = await response.json().catch(() => ({})) as { error_description?: string };
 					throw new Error(failure.error_description ?? 'The upload failed.');
 				}
-				if (target === 'photo') photos.push({ url: location, alt: '' }); else videos.push(location);
+				if (target === 'photo') photos.push({ url: location, alt: '' }); else if (target === 'video') videos.push(location); else audio.push(location);
 			} catch (cause) { uploadError = `${file.name}: ${cause instanceof Error ? cause.message : 'The upload failed.'}`; }
 			finally { uploading--; }
 		}
@@ -185,7 +193,8 @@
 			{:else if kind === 'rsvp'}{@render target('in-reply-to', 'Event URL', 'calendar')}
 			{:else if kind === 'bookmark'}{@render target('bookmark-of', 'URL to bookmark', 'link')}
 			{:else if kind === 'like'}{@render target('like-of', 'URL of the post you like', 'heart')}
-			{:else if kind === 'repost'}{@render target('repost-of', 'URL of the post to repost', 'repost')}{/if}
+			{:else if kind === 'repost'}{@render target('repost-of', 'URL of the post to repost', 'repost')}
+			{:else if kind === 'issue'}{@render target('in-reply-to', 'Repository URL', 'github')}{/if}
 
 			{#if kind === 'note'}
 				<label class="target panel" hidden={!open.reply}><Icon name="reply" size={18} /><span class="visually-hidden">Reply to</span>
@@ -201,8 +210,23 @@
 				</fieldset>
 			{/if}
 
-			{#if kind === 'article' || kind === 'event'}
-				<input class="title" name="name" value={value('name')} placeholder={kind === 'event' ? 'Event name' : 'Title'} aria-label={kind === 'event' ? 'Event name' : 'Title'} required autocomplete="off" />
+			{#if kind === 'article' || kind === 'event' || kind === 'issue' || kind === 'collection' || kind === 'venue' || kind === 'recipe'}
+				{@const label = { event: 'Event name', issue: 'Issue title', collection: 'Collection title', venue: 'Venue name', recipe: 'Recipe name' }[kind as string] ?? 'Title'}
+				<input class="title" name="name" value={value('name')} placeholder={label} aria-label={label} required autocomplete="off" />
+			{:else if kind === 'audio'}
+				<input class="title small" name="name" value={value('name')} placeholder="Title (optional)" aria-label="Title" autocomplete="off" />
+			{:else if kind === 'checkin'}
+				<input class="title" name="venue-name" value={value('venue-name')} placeholder="Where are you?" aria-label="Where you are" required autocomplete="off" />
+			{:else if isCiteKind(kind)}
+				<input class="title" name="cite-name" value={value('cite-name')} placeholder={CITE_TITLES[kind]} aria-label="Title" required autocomplete="off" />
+				<input class="subtitle" name="cite-author" value={value('cite-author')} placeholder="{CITE_KINDS[kind]} (optional)" aria-label={CITE_KINDS[kind]} autocomplete="off" />
+			{:else if kind === 'exercise'}
+				<input class="title" name="activity" list="activities" value={value('activity')} placeholder="What did you do?" aria-label="Activity" required autocomplete="off" />
+				<datalist id="activities">{#each ACTIVITIES as activity (activity)}<option value={activity}></option>{/each}</datalist>
+				<div class="grid two">
+					<label class="mini">Distance<input name="distance" value={value('distance')} placeholder="5 km" autocomplete="off" /></label>
+					<label class="mini">Minutes<input name="duration" type="number" min="1" step="1" inputmode="numeric" value={value('duration')} /></label>
+				</div>
 			{:else if kind === 'bookmark'}
 				<input class="title small" name="name" value={value('name')} placeholder="Title" aria-label="Title" autocomplete="off" />
 			{:else if kind === 'food' || kind === 'drink'}
@@ -226,6 +250,60 @@
 						<label class:on={Number(rating) >= stars} title="{stars} of 5"><input type="radio" name="rating" value={String(stars)} bind:group={rating} /><Icon name="star" size={24} /><span class="visually-hidden">{stars} of 5 stars</span></label>
 					{/each}
 				</fieldset>
+			{/if}
+
+			{#if kind === 'read'}
+				<fieldset class="segmented"><legend class="visually-hidden">Where you are in it</legend>
+					{#each [['to-read', 'Want to read'], ['reading', 'Reading'], ['finished', 'Finished']] as [status, label] (status)}
+						<label><input type="radio" name="read-status" value={status} checked={(value('read-status') || 'finished') === status} required /><span>{label}</span></label>
+					{/each}
+				</fieldset>
+			{/if}
+
+			{#if kind === 'quotation'}
+				<textarea class="body quote" name="quote" placeholder="The quotation" aria-label="Quotation" rows="3">{value('quote')}</textarea>
+				<div class="grid two">
+					<label class="mini">Who said it<input name="cite-author" value={value('cite-author')} placeholder="Optional" autocomplete="off" /></label>
+					<label class="mini">Where<input name="cite-name" value={value('cite-name')} placeholder="Book, article or talk" autocomplete="off" /></label>
+				</div>
+			{/if}
+			{#if kind === 'quotation' || isCiteKind(kind)}
+				<label class="target"><Icon name="link" size={18} /><span class="visually-hidden">Its URL</span>
+					<input name="cite-url" type="url" value={value('cite-url')} placeholder={kind === 'quotation' ? 'Source URL (optional)' : 'Its URL (optional)'} autocomplete="off" spellcheck="false" />
+				</label>
+			{/if}
+
+			{#if isPlace}
+				<div class="panel place" hidden={!open.place}>
+					<label class="target"><Icon name="link" size={18} /><span class="visually-hidden">Venue URL</span><input id="field-place" name="venue-url" type="url" value={value('venue-url')} placeholder="Its website (optional)" autocomplete="off" spellcheck="false" /></label>
+					<div class="grid two">
+						<label class="mini">Street address<input name="street-address" value={value('street-address')} autocomplete="off" /></label>
+						<label class="mini">City<input name="locality" value={value('locality')} autocomplete="off" /></label>
+						<label class="mini">Region<input name="region" value={value('region')} autocomplete="off" /></label>
+						<label class="mini">Country<input name="country-name" value={value('country-name')} autocomplete="off" /></label>
+					</div>
+				</div>
+				<input type="hidden" name="location" value={location} />
+				{#if location}<p class="hint">Coordinates added. <button class="link" type="button" onclick={() => { location = ''; }}>Remove</button></p>{/if}
+				{#if locationError}<p class="hint">{locationError}</p>{/if}
+			{/if}
+
+			{#if kind === 'collection'}
+				{#each children as _, index (index)}
+					<div class="row">
+						<label class="target grow"><Icon name="link" size={18} /><span class="visually-hidden">Link {index + 1}</span><input name="child" type="url" bind:value={children[index]} placeholder="A link" required={index === 0} autocomplete="off" spellcheck="false" /></label>
+						{#if children.length > 1}<Button variant="icon" size="sm" icon="close" label="Remove link {index + 1}" onclick={() => children.splice(index, 1)} />{/if}
+					</div>
+				{/each}
+				{#if children.length < 100}<span class="add"><Button variant="quiet" icon="plus" onclick={() => children.push('')}>Add link</Button></span>{/if}
+			{/if}
+
+			{#if kind === 'recipe'}
+				<textarea class="body" name="ingredients" placeholder="Ingredients, one per line" aria-label="Ingredients" rows="4" required>{value('ingredients')}</textarea>
+				<div class="grid two">
+					<label class="mini">Makes<input name="yield" value={value('yield')} placeholder="4 servings" autocomplete="off" /></label>
+					<label class="mini">Minutes<input name="duration" type="number" min="1" step="1" inputmode="numeric" value={value('duration')} /></label>
+				</div>
 			{/if}
 
 			{#if kind === 'itinerary'}
@@ -257,7 +335,7 @@
 				</div>
 			{/if}
 
-			{#if photos.length || videos.length}
+			{#if photos.length || videos.length || audio.length}
 				<ul class="attachments">
 					{#each photos as photo, index (photo.url)}
 						<li>
@@ -265,6 +343,13 @@
 							<input type="hidden" name="photo" value={photo.url} />
 							<input class="alt" name="photo-alt" bind:value={photo.alt} placeholder="Alt text" aria-label="Alt text for photo {index + 1}" autocomplete="off" />
 							<button class="remove" type="button" aria-label="Remove photo {index + 1}" onclick={() => photos.splice(index, 1)}><Icon name="close" size={14} /></button>
+						</li>
+					{/each}
+					{#each audio as clip, index (clip)}
+						<li class="wide">
+							<audio src={clip} preload="metadata" controls></audio>
+							<input type="hidden" name="audio" value={clip} />
+							<button class="remove" type="button" aria-label="Remove audio {index + 1}" onclick={() => audio.splice(index, 1)}><Icon name="close" size={14} /></button>
 						</li>
 					{/each}
 					{#each videos as video, index (video)}
@@ -281,6 +366,7 @@
 			{#if uploadError}<Notice tone="error">{uploadError}</Notice>{/if}
 			{#if kind === 'photo' && !photos.length}<p class="hint">Add photos with the image button below.</p>{/if}
 			{#if kind === 'video' && !videos.length}<p class="hint">Add a video with the video button below.</p>{/if}
+			{#if kind === 'audio' && !audio.length}<p class="hint">Add a recording with the microphone button below.</p>{/if}
 
 			{#if hasPhotos}
 				<div class="panel row" hidden={!open.photoUrl}>
@@ -320,7 +406,15 @@
 					<Button variant="icon" icon="video" label="Add a video" onclick={() => videoInput?.click()} />
 					<input bind:this={videoInput} class="visually-hidden" tabindex="-1" type="file" accept="video/mp4,video/quicktime,video/webm" onchange={event => { void upload(event.currentTarget.files, 'video'); event.currentTarget.value = ''; }} />
 				{/if}
+				{#if kind === 'audio' && data.mediaEnabled}
+					<Button variant="icon" icon="mic" label="Add audio" onclick={() => audioInput?.click()} />
+					<input bind:this={audioInput} class="visually-hidden" tabindex="-1" type="file" accept="audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm,audio/flac" multiple onchange={event => { void upload(event.currentTarget.files, 'audio'); event.currentTarget.value = ''; }} />
+				{/if}
 				{#if kind === 'note'}<Button variant="icon" icon="reply" label="Reply to a URL" pressed={open.reply || !!replyTo} onclick={() => reveal('reply', 'field-reply')} />{/if}
+				{#if isPlace}
+					<Button variant="icon" icon="pin" label="Address and website" pressed={open.place} onclick={() => reveal('place', 'field-place')} />
+					<Button variant="icon" icon="locate" label="Use current location" pressed={!!location} disabled={locating} onclick={locate} />
+				{/if}
 				{#if hasLocation}<Button variant="icon" icon="pin" label="Add location" pressed={open.location || !!location} onclick={() => reveal('location', 'field-location')} />{/if}
 				<Button variant="icon" icon="hash" label="Add tags" pressed={open.tags || !!category} onclick={() => reveal('tags', 'field-tags')} />
 				<Button variant="icon" icon="sliders" label="Slug, date and format" pressed={open.options} onclick={() => reveal('options', 'field-slug')} />
@@ -388,6 +482,11 @@
 	.leg { position: relative; margin: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: var(--space-2); }
 	.remove-leg { position: absolute; top: var(--space-1); right: var(--space-1); }
 	.add { align-self: flex-start; }
+	.panel.place { display: flex; flex-direction: column; gap: var(--space-2); }
+	.body.quote { padding-left: var(--space-3); border-left: 2px solid var(--border-strong); font-style: italic; }
+	.link { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+	.attachments li.wide { grid-column: 1 / -1; padding: var(--space-2) var(--space-6) var(--space-2) var(--space-2); }
+	.attachments audio { width: 100%; }
 
 	.segmented { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
 	.segmented label { position: relative; cursor: pointer; }

@@ -9,7 +9,7 @@
  let { post }: { post: Post } = $props();
  const own = $derived(post.type === 'note' || post.type === 'reply');
  const snapshots = $derived(own ? [] : postDetailSnapshots(post));
- const details = $derived(renderPostDetails(post,{omitQuotations:own,omitReply:own,omitLinkPreviews:own,omitReactionLabel:true,omitSnapshots:true}));
+ const details = $derived(renderPostDetails(post,{omitQuotations:own,omitReply:own || post.type === 'rsvp' || post.type === 'issue',omitLinkPreviews:own,omitReactionLabel:true,omitSnapshots:true}));
 </script>
 
 {#each snapshots as snapshot (snapshot.url)}
@@ -25,4 +25,11 @@
  .post-details :global(a) { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
  .post-details :global(section) { margin: var(--space-3) 0; padding-left: var(--space-4); border-left: 2px solid var(--border-strong); }
  .post-details :global(iframe) { max-width: 100%; border: 0; }
+ .post-details :global(blockquote) { margin: var(--space-3) 0; padding-left: var(--space-4); border-left: 2px solid var(--border-strong); color: var(--text-secondary); }
+ .post-details :global(blockquote p) { margin: 0 0 var(--space-1); font-size: var(--fs-lg); line-height: var(--lh-normal); color: var(--text-primary); }
+ .post-details :global(blockquote footer) { font-size: var(--fs-sm); }
+ .post-details :global(cite) { font-style: normal; }
+ .post-details :global(cite .p-name) { font-style: italic; }
+ .post-details :global(ul) { margin: var(--space-2) 0; padding-left: var(--space-5); }
+ .post-details :global(h3) { margin: var(--space-4) 0 var(--space-1); font-size: var(--fs-md); font-weight: var(--fw-semibold); }
 </style>

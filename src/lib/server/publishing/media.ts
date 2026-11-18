@@ -32,7 +32,7 @@ function matchesType(bytes: Uint8Array, type: string): boolean {
 	}
 }
 
-async function boundedBody(request: Request): Promise<Uint8Array<ArrayBuffer>> {
+export async function boundedBody(request: Request): Promise<Uint8Array<ArrayBuffer>> {
 	const length = request.headers.get('Content-Length');
 	if (length && (!/^\d+$/.test(length) || Number(length) > maxRequestBytes)) throw error(413, 'Upload request exceeds 25 MiB plus multipart metadata');
 	const reader = request.body?.getReader();
@@ -52,17 +52,45 @@ async function boundedBody(request: Request): Promise<Uint8Array<ArrayBuffer>> {
 	return bytes;
 }
 
+function publicOrigin(config: PublishingConfig): URL | undefined {
+	if (!config.mediaBaseUrl) return;
+	try {
+		const origin = new URL(config.mediaBaseUrl);
+		if (origin.protocol !== 'https:' || origin.username || origin.password || origin.port || origin.pathname !== '/' || origin.search || origin.hash) throw new Error();
+		return origin;
+	} catch { throw error(503, 'Invalid public media origin'); }
+}
+
+/** Check one uploaded file and store it; returns its public URL. Shared by the media endpoint and multipart Micropub requests. */
+export async function storeMedia(config: PublishingConfig, bucket: R2Bucket, file: File, dependencies: { now?: () => Date; id?: () => string } = {}, base = config.me): Promise<string> {
+	const origin = publicOrigin(config);
+	if (!file.size) throw error(400, 'File is empty');
+	if (file.size > MAX_MEDIA_BYTES) throw error(413, 'File exceeds 25 MiB');
+	const type = file.type.toLowerCase();
+	const extension = types[type];
+	if (!extension || !matchesType(new Uint8Array(await file.slice(0, 64).arrayBuffer()), type)) throw error(415, 'Unsupported or mismatched media type');
+	const now = dependencies.now?.() ?? new Date();
+	const key = `${now.toISOString().slice(0, 7).replace('-', '/')}/${dependencies.id?.() ?? crypto.randomUUID()}.${extension}`;
+	if (!keyPattern.test(key)) throw error(503, 'Could not generate media key');
+	try {
+		const result = await bucket.put(`publishing/${key}`, await file.arrayBuffer(), { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } });
+		if (!result) throw new Error('Key collision');
+	} catch { throw error(503, 'Media storage unavailable; check before retrying'); }
+	return origin ? new URL(`publishing/${key}`, origin).href : new URL(`/media/${key}`, base).href;
+}
+
+/** The media type of an upload Micropub can store, or undefined. */
+export function mediaKind(file: File): 'photo' | 'video' | 'audio' | undefined {
+	const type = file.type.toLowerCase();
+	if (!types[type]) return;
+	return type.startsWith('image/') ? 'photo' : type.startsWith('video/') ? 'video' : 'audio';
+}
+
 export function createMediaHandler(config: PublishingConfig | undefined, bucket: R2Bucket | undefined, dependencies: { fetcher?: Fetcher; now?: () => Date; id?: () => string } = {}) {
 	return async (request: Request): Promise<Response> => {
 		try {
 			if (!config || !bucket) throw error(503, 'Media publishing is not configured');
-			let publicOrigin: URL | undefined;
-			if (config.mediaBaseUrl) {
-				try {
-					publicOrigin = new URL(config.mediaBaseUrl);
-					if (publicOrigin.protocol !== 'https:' || publicOrigin.username || publicOrigin.password || publicOrigin.port || publicOrigin.pathname !== '/' || publicOrigin.search || publicOrigin.hash) throw new Error();
-				} catch { throw error(503, 'Invalid public media origin'); }
-			}
+			publicOrigin(config);
 			if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 			if (request.method !== 'POST') return new Response(null, { status: 405, headers: { ...cors, Allow: 'POST, OPTIONS' } });
 			await authorize(request, 'media', config, dependencies.fetcher);
@@ -74,20 +102,7 @@ export function createMediaHandler(config: PublishingConfig | undefined, bucket:
 			catch { throw error(400, 'Malformed multipart upload'); }
 			const files = form.getAll('file');
 			if (files.length !== 1 || typeof files[0] === 'string' || [...form.keys()].some(key => key !== 'file')) throw error(400, 'Send exactly one file');
-			const file = files[0];
-			if (!file.size) throw error(400, 'File is empty');
-			if (file.size > MAX_MEDIA_BYTES) throw error(413, 'File exceeds 25 MiB');
-			const type = file.type.toLowerCase();
-			const extension = types[type];
-			if (!extension || !matchesType(new Uint8Array(await file.slice(0, 64).arrayBuffer()), type)) throw error(415, 'Unsupported or mismatched media type');
-			const now = dependencies.now?.() ?? new Date();
-			const key = `${now.toISOString().slice(0, 7).replace('-', '/')}/${dependencies.id?.() ?? crypto.randomUUID()}.${extension}`;
-			if (!keyPattern.test(key)) throw error(503, 'Could not generate media key');
-			try {
-				const result = await bucket.put(`publishing/${key}`, await file.arrayBuffer(), { onlyIf: { etagDoesNotMatch: '*' }, httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } });
-				if (!result) throw new Error('Key collision');
-			} catch { throw error(503, 'Media storage unavailable; check before retrying'); }
-			return new Response(null, { status: 201, headers: { ...cors, Location: publicOrigin ? new URL(`publishing/${key}`, publicOrigin).href : new URL(`/media/${key}`, request.url).href } });
+			return new Response(null, { status: 201, headers: { ...cors, Location: await storeMedia(config, bucket, files[0], dependencies, request.url) } });
 		} catch (cause) {
 			const failure = cause instanceof ProtocolError ? cause : error(400, 'Invalid upload request');
 			return Response.json({ error: failure.code, error_description: failure.message }, { status: failure.status, headers: { ...cors, ...(failure.status === 401 ? { 'WWW-Authenticate': 'Bearer' } : {}) } });

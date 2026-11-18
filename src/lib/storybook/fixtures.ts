@@ -91,3 +91,22 @@ export const backfeedThread: StoredMention[] = [
 	nativeOf(21, 'mastodon', 'repost', 'Inés Silva'),
 	gia, casey, giaAgain, hal, deep, deeper, ines
 ];
+
+const cite = (properties: Record<string, unknown[]>) => ({ type: ['h-cite'], properties });
+/** One post of each IndieWeb type whose details render from its properties. */
+export const postTypeExamples: Record<string, Post> = {
+	quotation: { ...note, type: 'quotation', content: 'Still the best advice about drafts.', properties: { 'quotation-of': [cite({ content: ['The first draft of anything is just you telling yourself the story.'], author: ['Terry Pratchett'], name: ['A Slip of the Keyboard'], url: ['https://example.org/slip'] })] } },
+	rsvp: { ...note, type: 'rsvp', inReplyTo: 'https://example.org/events/indieweb-camp', content: 'See you there!', properties: { rsvp: ['yes'], 'in-reply-to': ['https://example.org/events/indieweb-camp'] } },
+	checkin: { ...note, type: 'checkin', content: 'Afternoon coffee.', properties: { checkin: [{ type: ['h-card'], properties: { name: ['Hungry Ghost'], url: ['https://example.org/hungry-ghost'], locality: ['Brooklyn'], region: ['NY'] } }] } },
+	venue: { ...note, type: 'venue', microformatType: 'h-card', title: 'The Strand', content: '', properties: { name: ['The Strand'], 'street-address': ['828 Broadway'], locality: ['New York'], region: ['NY'], url: ['https://www.strandbooks.com/'], note: ['18 miles of books.'] } },
+	read: { ...note, type: 'read', content: 'A strange, beautiful house of a book.', properties: { 'read-of': [cite({ name: ['Piranesi'], author: ['Susanna Clarke'], uid: ['isbn:9781635575637'] })], 'read-status': ['finished'] } },
+	watch: { ...note, type: 'watch', content: '', properties: { 'watch-of': [cite({ name: ['Paris, Texas'], author: ['Wim Wenders'], url: ['https://example.org/paris-texas'] })] } },
+	listen: { ...note, type: 'listen', content: '', properties: { 'listen-of': [cite({ name: ['Kind of Blue'], author: ['Miles Davis'] })] } },
+	play: { ...note, type: 'play', content: 'Finally finished the Eye of the Universe.', properties: { 'play-of': [cite({ name: ['Outer Wilds'], url: ['https://example.org/outer-wilds'] })] } },
+	jam: { ...note, type: 'jam', content: '', properties: { 'jam-of': [cite({ name: ['Heroes'], author: ['David Bowie'] })] } },
+	collection: { ...note, type: 'collection', title: 'Tools I use every day', content: 'A short list, updated now and then.', properties: { name: ['Tools I use every day'], children: [cite({ name: ['Obsidian'], url: ['https://obsidian.md/'] }), cite({ name: ['Are.na'], url: ['https://www.are.na/'] }), 'https://example.org/a-link'] } },
+	issue: { ...note, type: 'issue', title: 'Footer link is broken', inReplyTo: 'https://github.com/caseyg/caseyagollan.com', content: 'The colophon link in the footer returns a 404.', properties: { name: ['Footer link is broken'], 'in-reply-to': ['https://github.com/caseyg/caseyagollan.com'] } },
+	exercise: { ...note, type: 'exercise', content: 'Easy loop around the park.', properties: { exercise: [{ type: ['h-exercise'], properties: { activity: ['run'], distance: ['5.2 km'], duration: ['PT28M30S'] } }] } },
+	recipe: { ...note, type: 'recipe', microformatType: 'h-recipe', title: 'Tomato toast', content: 'Toast the bread. Rub it with garlic, pile on the tomatoes, and finish with salt and oil.', properties: { name: ['Tomato toast'], ingredient: ['1 thick slice of bread', '1 ripe tomato', '1 clove garlic', 'Olive oil and flaky salt'], yield: ['1 toast'], duration: ['PT10M'] } },
+	audio: { ...note, type: 'audio', title: 'Voice memo', content: 'Thinking out loud about the library.', audio: [{ url: 'https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg', alt: 'Voice memo', type: 'audio/ogg' }], properties: { audio: ['https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg'] } }
+};

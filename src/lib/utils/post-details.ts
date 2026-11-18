@@ -29,18 +29,18 @@ function replyUsername(value: string): string {
 function time(value: string, field: string): string {
  return value ? `<time class="dt-${field}" datetime="${escape(value)}">${escape(value.replace('T', ' '))}</time>` : '';
 }
-function location(value: unknown): string {
+function location(value: unknown, property = 'p-location'): string {
  if (typeof value === 'string') {
   if (value.startsWith('geo:')) {
    const coords = value.match(/^geo:([+-]?\d+(?:\.\d+)?),([+-]?\d+(?:\.\d+)?)(?:;u=\d+(?:\.\d+)?)?$/);
-   if (coords && Math.abs(Number(coords[1])) <= 90 && Math.abs(Number(coords[2])) <= 180) return `<span class="p-location h-geo"><span class="p-latitude">${escape(coords[1])}</span>, <span class="p-longitude">${escape(coords[2])}</span></span>`;
+   if (coords && Math.abs(Number(coords[1])) <= 90 && Math.abs(Number(coords[2])) <= 180) return `<span class="${property} h-geo"><span class="p-latitude">${escape(coords[1])}</span>, <span class="p-longitude">${escape(coords[2])}</span></span>`;
   }
-  return `<span class="p-location">${link(value, value, 'u-location')}</span>`;
+  return `<span class="${property}">${link(value, value, `u-${property.slice(2)}`)}</span>`;
  }
  const p = properties(value);
  const name = text(p, 'name'), url = text(p, 'url');
- const fields = ['locality', 'region', 'country-name', 'latitude', 'longitude'].map(key => text(p, key) ? `<span class="p-${key}">${escape(text(p, key))}</span>` : '').filter(Boolean);
- return `<span class="p-location h-card"><span class="p-name">${url ? link(url, name || url, 'u-url') : escape(name)}</span>${fields.length ? ` · ${fields.join(', ')}` : ''}</span>`;
+ const fields = ['street-address', 'locality', 'region', 'country-name', 'latitude', 'longitude'].map(key => text(p, key) ? `<span class="p-${key}">${escape(text(p, key))}</span>` : '').filter(Boolean);
+ return `<span class="${property} h-card"><span class="p-name">${url ? link(url, name || url, 'u-url') : escape(name)}</span>${fields.length ? ` · ${fields.join(', ')}` : ''}</span>`;
 }
 function event(p: Properties, depth = 0): string {
  let html = `<p class="event-time">${time(text(p, 'start'), 'start')}${p.end ? ` – ${time(text(p, 'end'), 'end')}` : ''}</p>`;
@@ -54,6 +54,39 @@ function event(p: Properties, depth = 0): string {
  for (const [key,label] of [['slides','Slides'],['video-link','Video']]) for (const value of p[key] ?? []) if (typeof value === 'string') html += `<p>${link(value, label, `u-${key}`)}</p>`;
  for (const key of ['slides-embed','video-embed']) for (const value of p[key] ?? []) if (typeof value === 'string') html += `<div class="presentation-embed">${sanitizePublishingHtml(value)}</div>`;
  return html;
+}
+/** A cited work: a URL, or an h-cite with a name, author and address. `rel` is the property, e.g. u-read-of. */
+function citation(value: unknown, property: string): string {
+ if (typeof value === 'string') return `<cite>${link(value, replyUsername(value) === value ? value.replace(/^https?:\/\/(www\.)?/, '') : replyUsername(value), property)}</cite>`;
+ const p = properties(value);
+ const name = text(p, 'name') || text(p, 'url') || text(p, 'uid');
+ const url = text(p, 'url');
+ const author = (p.author ?? []).map(entry => typeof entry === 'string' ? entry : text(properties(entry), 'name')).filter(Boolean);
+ const title = url ? link(url, name, 'u-url p-name') : `<span class="p-name">${escape(name)}</span>`;
+ return `<cite class="${property.replace(/^u-/, 'p-')} h-cite">${title}${author.length ? ` by ${author.map(name => `<span class="p-author">${escape(name)}</span>`).join(', ')}` : ''}</cite>`;
+}
+const RSVP_LABELS: Record<string, string> = { yes: 'Going', no: 'Not going', maybe: 'Maybe going', interested: 'Interested' };
+const READ_LABELS: Record<string, string> = { 'to-read': 'Want to read', reading: 'Started reading', finished: 'Finished reading' };
+/** Consumed and experienced things: reads, watches, listens, plays and jams. */
+const ACTIVITIES: [string, string][] = [['read-of', 'Read'], ['watch-of', 'Watched'], ['listen-of', 'Listened to'], ['play-of', 'Played'], ['jam-of', 'Jamming to']];
+/** ISO 8601 durations such as PT1H5M, said the way people say them. */
+export function durationLabel(value: string): string {
+ const match = value.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
+ if (!match || !match.slice(1).some(Boolean)) return value;
+ const [, days, hours, minutes, seconds] = match;
+ return [[days, 'd'], [hours, 'h'], [minutes, 'min'], [seconds, 's']].filter(([amount]) => amount).map(([amount, unit]) => `${amount} ${unit}`).join(' ');
+}
+function exercise(value: unknown): string {
+ const p = properties(value);
+ const activity = text(p, 'activity');
+ const parts = [activity ? `<span class="p-activity">${escape(activity.charAt(0).toUpperCase() + activity.slice(1))}</span>` : ''];
+ if (text(p, 'distance')) parts.push(`<span class="p-distance">${escape(text(p, 'distance'))}</span>`);
+ if (text(p, 'duration')) parts.push(`<data class="p-duration" value="${escape(text(p, 'duration'))}">${escape(durationLabel(text(p, 'duration')))}</data>`);
+ return `<p class="p-exercise h-exercise">${parts.filter(Boolean).join(' · ')}</p>`;
+}
+function address(p: Properties): string {
+ const parts = ['street-address', 'locality', 'region', 'postal-code', 'country-name'].filter(key => text(p, key)).map(key => `<span class="p-${key}">${escape(text(p, key))}</span>`);
+ return parts.length ? `<p class="p-adr h-adr">${parts.join(', ')}</p>` : '';
 }
 export interface PostAction {
  /** Past-tense phrase that completes "Casey ___ @someone", e.g. "replied to". */
@@ -77,7 +110,7 @@ function targetLabel(post: Post, url: string): string {
 export function getPostAction(post: Post): PostAction | undefined {
  const p = post.properties ?? {};
  const reply = post.inReplyTo || text(p, 'in-reply-to');
- if (safeUrl(reply)) return { verb: 'replied to', targets: [{ url: reply, label: targetLabel(post, reply), classes: 'u-in-reply-to' }] };
+ if (safeUrl(reply)) return { verb: post.type === 'issue' ? 'opened an issue on' : post.type === 'rsvp' ? 'RSVPed to' : 'replied to', targets: [{ url: reply, label: targetLabel(post, reply), classes: 'u-in-reply-to' }] };
  const reactions = new Map<string, string[]>();
  const kinds = new Set<string>(post.indexActivities?.map(activity => activity.type) ?? []);
  for (const [key, kind] of [['like-of', 'like'], ['repost-of', 'repost']]) for (const value of p[key] ?? []) if (safeUrl(value)) {
@@ -95,7 +128,15 @@ export function getPostAction(post: Post): PostAction | undefined {
 }
 /** Shared semantic HTML for archive cards, permalinks, feeds and delivery text. */
 export function renderPostQuotations(post: Post): string {
- return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{const saved=post.socialSnapshots?.find(s=>s.url===value);return saved?renderSocialSnapshot(saved):typeof value==='string'?`<p>Quoting ${link(value,replyUsername(value)===value?value:`${replyUsername(value)}’s post`,'u-quotation-of')}</p>`:'';}).join('');
+ return (post.properties?.['quotation-of']??[]).slice(0,8).map(value=>{
+  const saved=post.socialSnapshots?.find(s=>s.url===value);
+  if (saved) return renderSocialSnapshot(saved);
+  if (typeof value==='string') return `<p>Quoting ${link(value,replyUsername(value)===value?value:`${replyUsername(value)}’s post`,'u-quotation-of')}</p>`;
+  // A quoted passage: its words, then who said it and where.
+  const p=properties(value), quoted=(p.content??[]).map(entry=>typeof entry==='string'?entry:String((entry as {value?:unknown})?.value??'')).filter(Boolean);
+  const source=citation(value,'u-quotation-of');
+  return quoted.length?`<blockquote class="p-quotation-of h-cite"><p class="p-content">${escape(quoted.join(' '))}</p><footer>— ${source.replace(/^<cite class="p-quotation-of h-cite">/,'<cite>')}</footer></blockquote>`:`<p>Quoting ${source}</p>`;
+ }).join('');
 }
 /** Cards for links the post itself shares; the link stays in the text, the card shows what it is. */
 export function renderLinkPreviews(post: Post): string {
@@ -149,7 +190,22 @@ export function renderPostDetails(post: Post, options:{omitQuotations?:boolean;o
  }
  if (!options.omitReply && !options.omitSnapshots) html += renderReplyContext(post);
  else if (!options.omitReply && !post.socialSnapshots?.some(s => s.url === (post.inReplyTo || text(p, 'in-reply-to')))) html += renderReplyLabel(post);
- if (p.rsvp) html += `<p>RSVP: <span class="p-rsvp">${escape(text(p, 'rsvp'))}</span></p>`;
+ if (p.rsvp) html += `<p><data class="p-rsvp" value="${escape(text(p, 'rsvp'))}">${escape(RSVP_LABELS[text(p, 'rsvp')] ?? text(p, 'rsvp'))}</data></p>`;
+ for (const value of p.checkin ?? []) html += `<p>Checked in at ${location(value, 'p-checkin')}</p>`;
+ if (post.microformatType === 'h-card') {
+  html += address(p);
+  for (const value of p.url ?? []) if (typeof value === 'string') html += `<p>${link(value, value.replace(/^https?:\/\/(www\.)?/, ''), 'u-url')}</p>`;
+  if (text(p, 'latitude') && text(p, 'longitude')) html += `<p class="h-geo"><span class="p-latitude">${escape(text(p, 'latitude'))}</span>, <span class="p-longitude">${escape(text(p, 'longitude'))}</span></p>`;
+  for (const value of p.note ?? []) html += `<p class="p-note">${escape(value)}</p>`;
+ }
+ for (const [key, verb] of ACTIVITIES) for (const value of p[key] ?? []) html += `<p>${key === 'read-of' ? READ_LABELS[text(p, 'read-status')] ?? verb : verb} ${citation(value, `u-${key}`)}</p>`;
+ for (const value of p.exercise ?? []) html += exercise(value);
+ if (p.children?.length) html += `<ul class="collection">${p.children.slice(0, 100).map(value => `<li>${citation(value, 'u-children').replace(/class="p-children h-cite"/, 'class="h-cite"')}</li>`).join('')}</ul>`;
+ if (post.microformatType === 'h-recipe') {
+  const facts = [text(p, 'yield') && `Makes <span class="p-yield">${escape(text(p, 'yield'))}</span>`, text(p, 'duration') && `Takes <data class="dt-duration" value="${escape(text(p, 'duration'))}">${escape(durationLabel(text(p, 'duration')))}</data>`].filter(Boolean);
+  if (facts.length) html += `<p>${facts.join(' · ')}</p>`;
+  if (p.ingredient?.length) html += `<h3>Ingredients</h3><ul class="ingredients">${p.ingredient.map(value => `<li class="p-ingredient">${escape(value)}</li>`).join('')}</ul>`;
+ }
  if (post.type === 'event' || post.microformatType === 'h-event') html += event(p);
  else for (const value of p.location ?? []) html += `<p>${location(value)}</p>`;
  for (const item of p.item ?? []) {

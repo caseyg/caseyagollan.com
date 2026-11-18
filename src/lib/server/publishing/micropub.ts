@@ -11,9 +11,10 @@ import { postPath, SLUG_PATTERN } from '../../post-slug';
 import { createGitHubStore, GitHubStoreError } from './github';
 import { validPostParams } from '../github-posts';
 import { POST_TYPE_PLURALS } from '../../posts-types';
-import { channels, channelValue, postFolder, QUILL_TYPES, validateQuill } from './quill';
+import { channels, channelValue, CITATIONS, POST_TYPE_SPECS, postFolder, QUILL_TYPES, ROOT_TYPES, validateQuill } from './quill';
 import { decodeCursor, encodeCursor, listedFiles, listPosts, postTypeFolders, type ReadPost } from './micropub-list';
 import { invalidThreadProperty, threadConfig } from './syndication-thread';
+import { boundedBody, mediaKind, storeMedia } from './media';
 
 export interface PublishingConfig extends AuthConfig {
 	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaBucket?: R2Bucket; mediaEnabled?: boolean; images?: ImagesBinding; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
@@ -28,7 +29,44 @@ function record(value: unknown): Record<string, unknown> {
 	return value as Record<string, unknown>;
 }
 
-async function body(request: Request): Promise<{ input: Record<string, unknown>; bodyToken: string | undefined }> {
+/** Form fields become Micropub properties; `name[]` repeats a value, and structured values need JSON. */
+function formInput(entries: [string, string][]): { input: Record<string, unknown>; bodyToken: string | undefined } {
+	const get = (name: string) => entries.find(([key]) => key === name)?.[1] ?? null;
+	for (const name of ['access_token', 'action', 'url', 'h']) if (entries.filter(([key]) => key === name).length > 1) throw bad(`Send ${name} once`);
+	const properties: Properties = Object.create(null);
+	for (const [name, value] of entries) {
+		if (['h', 'access_token', 'action', 'url'].includes(name)) continue;
+		const key = name.replace(/\[\]$/, '');
+		if (key.includes('[') || key.includes(']')) throw bad('Structured form properties require JSON');
+		(properties[key] ??= []).push(value);
+	}
+	return { input: get('action') !== null ? { action: get('action'), url: get('url'), properties } : { type: [`h-${get('h') ?? 'entry'}`], properties }, bodyToken: get('access_token') ?? undefined };
+}
+
+/** Files sent in a multipart create, stored after the request is authorized. */
+interface Upload { key: 'photo' | 'video' | 'audio'; file: File }
+
+async function body(request: Request, uploads: boolean): Promise<{ input: Record<string, unknown>; bodyToken: string | undefined; uploads?: Upload[] }> {
+	const contentType = request.headers.get('Content-Type') ?? '';
+	if (/^multipart\/form-data\s*;/i.test(contentType)) {
+		if (!uploads) throw new ProtocolError(415, 'invalid_request', 'Uploads are not enabled; use JSON or form encoding');
+		let form: FormData;
+		try { form = await new Response(await boundedBody(request), { headers: { 'Content-Type': contentType } }).formData(); }
+		catch (cause) { if (cause instanceof ProtocolError) throw cause; throw bad('Malformed multipart request'); }
+		const files: Upload[] = [];
+		const fields: [string, string][] = [];
+		for (const [name, value] of form) {
+			if (typeof value === 'string') { fields.push([name, value]); continue; }
+			const key = name.replace(/\[\]$/, '');
+			if (key !== 'photo' && key !== 'video' && key !== 'audio') throw bad(`Files can only be sent as photo, video or audio, not ${name}`);
+			if (mediaKind(value) !== key) throw new ProtocolError(415, 'invalid_request', `Unsupported ${key} file type`);
+			files.push({ key, file: value });
+		}
+		if (files.length > 10) throw bad('Send at most 10 files');
+		const parsed = formInput(fields);
+		if (files.length && parsed.input.action !== undefined) throw bad('Files can only be sent when creating a post');
+		return { ...parsed, uploads: files };
+	}
 	const reader = request.body?.getReader();
 	const chunks: Uint8Array[] = [];
 	let size = 0;
@@ -45,17 +83,9 @@ async function body(request: Request): Promise<{ input: Record<string, unknown>;
 	const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 	const mime = request.headers.get('Content-Type')?.split(';')[0].trim().toLowerCase();
 	if (mime === 'application/json') return { input: record(JSON.parse(text)), bodyToken: undefined };
-	if (mime && mime !== 'application/x-www-form-urlencoded') throw new ProtocolError(415, 'invalid_request', 'Use JSON or form encoding; uploads are not enabled');
+	if (mime && mime !== 'application/x-www-form-urlencoded') throw new ProtocolError(415, 'invalid_request', 'Use JSON, form encoding or multipart');
 	const form = new URLSearchParams(text);
-	for (const name of ['access_token', 'action', 'url', 'h']) if (form.getAll(name).length > 1) throw bad(`Send ${name} once`);
-	const properties: Properties = Object.create(null);
-	for (const [name, value] of form) {
-		if (['h', 'access_token', 'action', 'url'].includes(name)) continue;
-		const key = name.replace(/\[\]$/, '');
-		if (key.includes('[') || key.includes(']')) throw bad('Structured form properties require JSON');
-		(properties[key] ??= []).push(value);
-	}
-	return { input: form.has('action') ? { action: form.get('action'), url: form.get('url'), properties } : { type: [`h-${form.get('h') ?? 'entry'}`], properties }, bodyToken: form.get('access_token') ?? undefined };
+	return formInput([...form]);
 }
 
 function timestamp(now: Date, timeZone: string): string {
@@ -103,7 +133,7 @@ function publicProperties(properties: Properties, removing = false) {
 		const thread = invalidThreadProperty(key, values);
 		if (thread) throw bad(thread);
 		if (['category', 'summary'].includes(key) && values.some(value => typeof value !== 'string')) throw bad(`Use text values for ${key}`);
-		if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'photo', 'video', 'syndication'].includes(key)) {
+		if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'photo', 'video', 'audio', 'syndication'].includes(key)) {
 			for (const value of values) {
 				const href = typeof value === 'string' ? value : value && typeof value === 'object' && !Array.isArray(value) ? value.value ?? value.url : undefined;
 				if (typeof href !== 'string' || !['http:', 'https:'].includes(new URL(href).protocol)) throw bad(`Invalid ${key} URL`);
@@ -124,7 +154,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 			if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
 			if (!['GET', 'POST'].includes(request.method)) return json({ error: 'invalid_request' }, 405, { Allow: 'GET, POST, OPTIONS' });
 			const url = new URL(request.url);
-			const parsed = request.method === 'POST' ? await body(request) : { input: {} as Record<string, unknown>, bodyToken: undefined };
+			const parsed = request.method === 'POST' ? await body(request, !!(config.mediaEnabled && config.mediaBucket)) : { input: {} as Record<string, unknown>, bodyToken: undefined };
 			const input = parsed.input;
 			const action = request.method === 'GET' ? (url.searchParams.get('q') === 'source' ? 'update' : '') : (input.action ?? 'create');
 			if (typeof action !== 'string' || !['', 'create', 'update', 'delete', 'undelete'].includes(action)) throw bad('Unsupported action');
@@ -132,6 +162,11 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 			const upstream: Fetcher = (target, init) => (dependencies.fetcher ?? fetch)(target, { ...init, signal: AbortSignal.any([deadline, request.signal, ...(init.signal ? [init.signal] : [])]) });
 			const createDraft = action === 'create' && input.properties && typeof input.properties === 'object' && !Array.isArray(input.properties) && (input.properties as Record<string, unknown>)['post-status'] instanceof Array && ((input.properties as Record<string, unknown>)['post-status'] as unknown[])[0] === 'draft';
 			await authorize(request, action === 'undelete' ? 'delete' : createDraft ? 'draft' : action, config, upstream, parsed.bodyToken);
+			// Files are stored only once the token is known to allow the create.
+			if (parsed.uploads?.length) {
+				const properties = input.properties as Properties;
+				for (const upload of parsed.uploads) (properties[upload.key] ??= []).push(await storeMedia(config, config.mediaBucket!, upload.file, { now: dependencies.now }, request.url));
+			}
 			const store = createGitHubStore(config, upstream);
 			const now = dependencies.now?.() ?? new Date();
 			// Captured before content reads: a competing create in any folder invalidates this write.
@@ -203,7 +238,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 			if (request.method === 'GET') {
 				const q = url.searchParams.get('q');
 				if (q === 'channels') return json({ channels });
-				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), ...(syndicationTargets(config).length ? { 'syndication-thread': threadConfig() } : {}), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video'].includes(type)).map(type => ({ type, name: type })) });
+				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), ...(syndicationTargets(config).length ? { 'syndication-thread': threadConfig() } : {}), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video', 'audio'].includes(type)).map(type => ({ type, name: POST_TYPE_SPECS[type].name, h: POST_TYPE_SPECS[type].h, properties: POST_TYPE_SPECS[type].properties, 'required-properties': POST_TYPE_SPECS[type].required })) });
 				if (q === 'syndicate-to') return json({ 'syndicate-to': syndicationTargets(config) });
 				if (q !== 'source') throw bad('Unsupported query');
 				const filter = url.searchParams.getAll('properties[]');
@@ -228,7 +263,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 			}
 
 			if (action === 'create') {
-				if (input.type !== undefined && (!Array.isArray(input.type) || input.type.length !== 1 || !['h-entry','h-event','h-review'].includes(String(input.type[0])))) throw bad('Use h-entry, h-event or h-review');
+				if (input.type !== undefined && (!Array.isArray(input.type) || input.type.length !== 1 || !ROOT_TYPES.includes(String(input.type[0])))) throw bad(`Use ${ROOT_TYPES.join(', ')}`);
 				const root = (input.type as string[] | undefined)?.[0] ?? 'h-entry';
 				const properties = structuredClone(record(input.properties)) as Properties;
 				for (const command of ['mp-slug', 'mp-channel']) {
@@ -261,7 +296,7 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 				const target = location(`${new URL(me).origin}/${published.slice(0, 10).replaceAll('-', '/')}/${encodeURIComponent(slug)}/`, me);
 				if ((await find(target.url)).file) throw new ProtocolError(409, 'invalid_request', 'Post URL already exists');
 				const folder = postFolder(properties, root);
-				if (!['content','name','bookmark-of','in-reply-to','like-of','repost-of','photo','video','item','itinerary','ate','drank'].some(key => properties[key]?.length)) throw bad('Post is empty');
+				if (!['content','name','bookmark-of','in-reply-to','like-of','repost-of','photo','video','audio','item','itinerary','ate','drank','checkin','exercise',...CITATIONS].some(key => properties[key]?.length)) throw bad('Post is empty');
 				const path = `${folder}/${target.date}-${slug}.md`;
 				const markdown = await enrichSocialSnapshots(documentMetadata(createDocument(properties), root, channel), dependencies.snapshotFetcher, {storeImage:socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),storeVideo:socialVideoStore(config.mediaBucket,config.me,config.mediaBaseUrl)});
 				const saved = await store.write(path, markdown, { expectedHead, message: `Publish ${target.slug}` });

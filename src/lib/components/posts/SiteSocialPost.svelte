@@ -20,7 +20,7 @@
  {#if hEntry && post.inReplyTo && !replyTo}<a class="u-in-reply-to" href={post.inReplyTo} hidden>In reply to</a>{/if}
  <div class="social-card-scope">
   {#if post.summary}<p class="p-summary">{post.summary}</p>{/if}
-  <PostMedia photos={post.photo} videos={post.video} />
+  <PostMedia photos={post.photo} videos={post.video} audio={post.audio} />
   <PostContent content={post.content} format={post.contentFormat} />
   {#if cards}{@html localizeLinks(cards)}{/if}
   {#if quotes}<div class="social-quoted-post">{@html localizeLinks(quotes)}</div>{/if}
