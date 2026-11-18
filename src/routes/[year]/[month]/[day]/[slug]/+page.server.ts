@@ -11,6 +11,9 @@ import { movedPost } from '$lib/server/renamed-posts';
 
 // Keep generated posts static, but retain this route in the Worker for new URLs.
 export const prerender = 'auto';
+// A post's address ends in a slash, as its canonical link, the feeds, Webmentions and syndicated
+// copies all say, so serve it there (a .../slug/index.html file) and redirect the bare form to it.
+export const trailingSlash = 'always';
 
 export const load: PageServerLoad = async (event) => {
 	const { params, fetch, setHeaders } = event;
