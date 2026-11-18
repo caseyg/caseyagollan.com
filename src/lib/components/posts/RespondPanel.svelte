@@ -72,7 +72,7 @@
 	// Liking needs a copy to like; replying and reposting can start a new post that links here instead.
 	const choices = $derived.by<Choice[]>(() => {
 		const list: Choice[] = [];
-		if (copies.bluesky) list.push({ key: 'bluesky', mark: '🦋', label: `${verb} on Bluesky`, detail: 'Opens the post on bsky.app', href: copies.bluesky });
+		if (copies.bluesky) list.push({ key: 'bluesky', mark: '🦋', label: `${verb} on Bluesky`, detail: 'Opens this post on bsky.app', href: copies.bluesky });
 		else if (action !== 'like') list.push({ key: 'bluesky', mark: '🦋', label: 'Post on Bluesky', detail: 'Starts a post with a link here', href: blueskyComposeUrl(shareText) });
 		if (copies.mastodon) list.push({ key: 'mastodon', mark: '🐘', label: `${verb} on Mastodon`, detail: 'From your own server', step: 'mastodon' });
 		else if (action !== 'like') list.push({ key: 'mastodon', mark: '🐘', label: 'Post on Mastodon', detail: 'Starts a post on your server', step: 'mastodon' });
@@ -142,7 +142,7 @@
 				</li>
 			{/each}
 		</ul>
-		<p class="note">{action === 'reply' ? 'Replies' : action === 'like' ? 'Likes' : 'Reposts'} show up under the post.</p>
+		<p class="note">{action === 'reply' ? 'Replies' : action === 'like' ? 'Likes' : 'Reposts'} show up under this post.</p>
 	{:else}
 		<div class="step">
 			<Button variant="quiet" size="sm" class="back" onclick={back}>← Back</Button>
@@ -156,7 +156,7 @@
 					buttonLabel="Go"
 					bind:value={server}
 					bind:error={serverError}
-					hint={copies.mastodon ? `Opens the post there, signed in, to ${NOUN[action]}.` : 'Opens a new post there with a link here.'}
+					hint={copies.mastodon ? `Opens this post there, signed in, to ${NOUN[action]}.` : 'Opens a new post there with a link here.'}
 					onsubmit={goToServer}
 				/>
 				{#if copies.mastodon}
