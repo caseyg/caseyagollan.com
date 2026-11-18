@@ -38,7 +38,7 @@ export async function blueskyArchive(bytes: Uint8Array): Promise<Activity[]> {
    const match = path.match(/^app\.bsky\.feed\.(post|like|repost)\/[^/]+$/);
    if (match) {
     // CAR CIDs must use the same {$link} shape as XRPC blob references.
-    const activity = blueskyActivity({uri:`at://${commit.did}/${path}`,value:xrpcLinks(await read(entry.v))},match[1] as Activity['kind']);
+    const activity = blueskyActivity({uri:`at://${commit.did}/${path}`,value:xrpcLinks(await read(entry.v))},match[1] as 'post' | 'like' | 'repost');
     if (activity) activities.push({...activity,dateSource:'activity'});
    }
    if (entry.t) await walk(entry.t);

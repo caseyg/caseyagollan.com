@@ -4,6 +4,12 @@ import type { PublishingConfig } from './micropub';
 export interface PublishingEnvironment extends IndieAuthEnvironment {
 	READWISE_ACCESS_TOKEN?: string;
 	PESOS_ENABLED?: string;
+	/** GitHub user whose own releases (as notes) and stars (as bookmarks) PESOS imports. */
+	PESOS_GITHUB_USER?: string;
+	/** Are.na user whose public blocks PESOS imports as bookmarks. Private blocks never are. */
+	PESOS_ARENA_USER?: string;
+	/** GitHub and Are.na activity before this date is not imported. */
+	PESOS_SOURCES_SINCE?: string;
 	PUBLISHING_AUTH_MODE?: string;
 	PUBLISHING_ENABLED?: string;
 	PUBLISHING_MEDIA?: R2Bucket;

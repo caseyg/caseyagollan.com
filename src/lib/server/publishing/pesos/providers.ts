@@ -7,9 +7,11 @@ import { sameRendering } from '../../../utils/sameRendering';
 
 export interface Activity {
  id: string;
- service: 'mastodon' | 'bluesky';
- kind: 'post' | 'like' | 'repost';
+ service: 'mastodon' | 'bluesky' | 'github' | 'arena';
+ kind: 'post' | 'like' | 'repost' | 'bookmark';
  url: string;
+ /** The file name after the date; otherwise the last segment of the target or URL. */
+ slug?: string;
  target?: string;
  published: string;
  dateSource?: 'activity' | 'original-post';
@@ -27,7 +29,7 @@ export function importedContent(html: string): Properties {
 }
 const iso = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 
-export function mastodonActivity(status: any, kind: Activity['kind'], now: string): Activity | undefined {
+export function mastodonActivity(status: any, kind: 'post' | 'like' | 'repost', now: string): Activity | undefined {
  const original = status.reblog ?? status;
  if (original.account?.locked === true || original.visibility !== 'public' || (kind === 'post' && status.visibility !== 'public') || !iso(original.created_at) || typeof original.url !== 'string') return;
  const action = status.reblog ? 'repost' : kind;
@@ -71,7 +73,7 @@ export function blueskyLinkPreview(external: any, actor: string): {url:string;ti
  return {url,title:typeof external.title === 'string' ? external.title.slice(0,2000) : '',description:typeof external.description === 'string' ? external.description.slice(0,5000) : '',
   ...(typeof cid === 'string' && /^[a-zA-Z0-9]+$/.test(cid) ? {image:`https://cdn.bsky.app/img/feed_thumbnail/plain/${actor}/${cid}@jpeg`} : {})};
 }
-export function blueskyActivity(record: any, kind: Activity['kind']): Activity | undefined {
+export function blueskyActivity(record: any, kind: 'post' | 'like' | 'repost'): Activity | undefined {
  const value = record.value;
  if (!iso(value?.createdAt) || typeof record.uri !== 'string') return;
  if (kind !== 'post' && (typeof value.subject?.uri !== 'string' || !/^at:\/\/[^/]+\/app\.bsky\.feed\.post\/[a-zA-Z0-9]+$/.test(value.subject.uri))) return;
@@ -132,7 +134,7 @@ export async function mastodonPage(get: GetJson, instance: string, token: string
  const nextUrl = next ? new URL(next) : undefined;
  return {ids:data.map(status=>`mastodon:${kind}:${status.id}`),activities:data.map(status=>mastodonActivity(status,kind,now)).filter((a):a is Activity=>!!a),cursor:nextUrl?.searchParams.get('max_id') ?? undefined};
 }
-export async function blueskyPage(get: GetJson, service: string, did: string, kind: Activity['kind'], cursor?: string): Promise<Page> {
+export async function blueskyPage(get: GetJson, service: string, did: string, kind: 'post' | 'like' | 'repost', cursor?: string): Promise<Page> {
  const collection = `app.bsky.feed.${kind === 'post' ? 'post' : kind}`;
  const url = new URL('/xrpc/com.atproto.repo.listRecords',service);
  url.search = new URLSearchParams({repo:did,collection,limit:'40',...(cursor ? {cursor} : {})}).toString();

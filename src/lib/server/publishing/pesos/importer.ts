@@ -7,6 +7,7 @@ import { enrichSocialSnapshots } from '../social-snapshots';
 import { socialImageStore, archivePhotoProperties, archiveLinkPreviewProperties } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
 import { mastodonPage, blueskyPage, blueskyPublic, blueskySyndicationUrls, type Activity, type GetJson, type Page } from './providers';
+import { arenaPage, githubReleasePage, githubStarPage } from './sources';
 
 export type PesosEnvironment = PublishingEnvironment;
 interface IndexEntry { path: string; sha: string; properties: Properties; permalink: string }
@@ -38,7 +39,7 @@ export function indexIdentities(entries: (Pick<IndexEntry,'properties'> & Partia
  const result = new Set<string>();
  for (const {properties:p,permalink} of entries) {
   if (permalink) result.add(identity('post',permalink,actors));
-  const kind = p['like-of']?.length ? 'like' : p['repost-of']?.length ? 'repost' : 'post';
+  const kind = p['like-of']?.length ? 'like' : p['repost-of']?.length ? 'repost' : p['bookmark-of']?.length ? 'bookmark' : 'post';
   for (const url of strings(p.syndication)) {
    result.add(identity('post',url,actors));
    result.add(identity(kind,url,actors));
@@ -46,6 +47,8 @@ export function indexIdentities(entries: (Pick<IndexEntry,'properties'> & Partia
   for (const url of strings(p['pesos-source'])) result.add(`source:${url}`);
   for (const url of strings(p['like-of'])) result.add(identity('like',url,actors));
   for (const url of strings(p['repost-of'])) result.add(identity('repost',url,actors));
+  // A page already bookmarked on the site is not bookmarked again by a star or an Are.na block.
+  for (const url of strings(p['bookmark-of'])) result.add(identity('bookmark',url,actors));
  }
  return result;
 }
@@ -62,14 +65,14 @@ function localTimestamp(value: string, timeZone: string): string {
 }
 export async function activityDocument(activity: Activity, timeZone: string, occupied: Iterable<string> = []): Promise<{path:string;content:string}> {
  const date = localTimestamp(activity.published,timeZone);
- const folder = activity.kind === 'like' ? 'likes' : activity.kind === 'repost' ? 'reposts' : activity.properties['in-reply-to'] ? 'replies' : activity.properties.photo ? 'photos' : activity.properties.video ? 'videos' : 'notes';
+ const folder = activity.kind === 'like' ? 'likes' : activity.kind === 'repost' ? 'reposts' : activity.kind === 'bookmark' ? 'bookmarks' : activity.properties['in-reply-to'] ? 'replies' : activity.properties.photo ? 'photos' : activity.properties.video ? 'videos' : 'notes';
  const properties: Properties = {...activity.properties,published:[date],'pesos-source':[activity.id]};
- if (activity.kind === 'post' || (activity.kind === 'repost' && activity.url !== activity.target)) properties.syndication = [activity.url];
+ if (activity.kind === 'post' || (['repost','bookmark'].includes(activity.kind) && activity.url !== activity.target)) properties.syndication = [activity.url];
  if (activity.dateSource) properties['pesos-date-source'] = [activity.dateSource];
- if (activity.target) properties[activity.kind === 'like' ? 'like-of' : 'repost-of'] = [activity.target];
+ if (activity.target) properties[activity.kind === 'like' ? 'like-of' : activity.kind === 'bookmark' ? 'bookmark-of' : 'repost-of'] = [activity.target];
  // Deliberately omit mp-syndicate-to: imports must never be syndicated back out.
  const target = new URL(activity.target ?? activity.url);
- const id = target.pathname.replace(/\/$/,'').split('/').pop() ?? '';
+ const id = activity.slug ?? target.pathname.replace(/\/$/,'').split('/').pop() ?? '';
  if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid social post ID');
  // Permalinks omit folders, so detect collisions across every post type.
  const used = new Set([...occupied].map(path=>path.split('/').pop()));
@@ -253,6 +256,15 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
    }
   }
   if (blue) for (const kind of ['post','like','repost'] as const) feeds.push({name:`bluesky:${kind}`,page:cursor=>blueskyPage(request,publicUrl(blue.service).origin,actors[blue.identifier.toLowerCase()],kind,cursor)});
+  // Only activity from PESOS_SOURCES_SINCE on; older stars and blocks are left where they are.
+  const since = env.PESOS_SOURCES_SINCE?.trim() || undefined;
+  const githubUser = env.PESOS_GITHUB_USER?.trim();
+  if (githubUser) {
+   feeds.push({name:'github:release',page:()=>githubReleasePage(request,githubUser,githubHeaders,since)});
+   feeds.push({name:'github:star',page:cursor=>githubStarPage(request,githubUser,githubHeaders,since,cursor)});
+  }
+  const arenaUser = env.PESOS_ARENA_USER?.trim();
+  if (arenaUser) feeds.push({name:'arena:block',page:()=>arenaPage(request,arenaUser,since)});
   if (!feeds.length) throw new Error('No PESOS providers configured');
   const setBlueskySyndicationUrl = blueskySyndicationUrls(request);
   const additions: {path:string;content:string}[] = [];
@@ -280,7 +292,8 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
       if (!await blueskyPublic(request,uri)) { result.skipped++; seen.add(activity.id); continue; }
      }
      await setBlueskySyndicationUrl(activity);
-     const match = duplicateOriginal(activity,[...entries,...additions.map(file=>({path:file.path,sha:'',permalink:'',properties:readDocument(file.content).properties}))]);
+     const social = activity.service === 'mastodon' || activity.service === 'bluesky';
+     const match = social && duplicateOriginal(activity,[...entries,...additions.map(file=>({path:file.path,sha:'',permalink:'',properties:readDocument(file.content).properties}))]);
      if (match) {
       const staged = additions.find(file=>file.path === match.path);
       let content = staged?.content ?? updates.get(match.path)?.content;
@@ -298,11 +311,11 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
       feedImports++; result.merged++;
       continue;
      }
-     if(activity.kind==='post'&&!dependencies.dryRun)activity.properties=await archivePhotoProperties(activity.properties,socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
+     if((activity.kind==='post'||activity.service==='arena')&&!dependencies.dryRun)activity.properties=await archivePhotoProperties(activity.properties,socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
      // Link card thumbnails are only ever served from saved copies; dry runs keep the card text.
      if(activity.kind==='post')activity.properties=await archiveLinkPreviewProperties(activity.properties,dependencies.dryRun?undefined:socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
-     if (activity.kind !== 'post' || activity.properties['in-reply-to']?.length || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
+     if (social && (activity.kind !== 'post' || activity.properties['in-reply-to']?.length || activity.properties['quotation-of']?.length)) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
      additions.push(file);
      feedImports++;
      keys.add(`source:${activity.id}`);
