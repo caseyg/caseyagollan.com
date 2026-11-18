@@ -259,7 +259,7 @@ On Cloudflare paid plans, run third-party plugins in Dynamic Worker isolates and
 These go to Casey as choices in the project thread. The recommendations are what the plan above assumes.
 
 1. **How to relate to IndieKit.** Decided 2026-11-17 (Casey): our own Workers-first kit with IndieKit's plugin shape, compatible at the protocol and content level, plus a later adapter for its store and syndicator plugins. Alternatives: contribute a Workers runtime to IndieKit itself, or build these as EmDash plugins.
-2. **Where it lives first.** Recommended: `packages/` inside this repo through Phase 3, then its own repo. The alternative is a new repo now, which makes development across both repos slower while the interfaces are still settling.
+2. **Where it lives first.** Decided 2026-11-17 (Casey): `packages/` inside this repo through Phase 3, then its own repo. The alternative is a new repo now, which makes development across both repos slower while the interfaces are still settling.
 3. **How much UI to ship.** Recommended: a headless core with an optional Svelte UI package and the SvelteKit starter. Alternatives: headless only (any Micropub client), or framework-neutral web components.
 4. **Which host comes after Cloudflare and Vercel.** Recommended: Node/Docker, which also covers co-op hosts and Coolify. Netlify comes after that.
 5. **Name and licence.** Not decided. MIT matches IndieKit and EmDash.
