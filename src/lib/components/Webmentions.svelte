@@ -157,12 +157,12 @@
 					{#each replies as reply (reply['wm-id'])}
 						<li>
 							{#if reply['wm-property'] === 'mention-of' && !reply.content}
-								<div class="mention h-cite">
+								<div class="mention p-comment h-cite">
 									<span aria-hidden="true">🔗</span>
 									<span>mentioned by <a href={reply.url} target="_blank" rel="noopener" class="u-url">{truncateUrl(reply.url)}</a></span>
 								</div>
 							{:else}
-								<article class="reply h-cite">
+								<article class="reply p-comment h-cite">
 									<Avatar src={reply.author.photo} name={reply.author.name} class="u-photo" />
 									<div class="reply-body">
 										<div class="reply-author p-author h-card">

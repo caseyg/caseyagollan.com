@@ -18,13 +18,14 @@
 
 {#if post.title || bookmarkUrl}
 	<div class="post-title post-title--{context}">
-		<Heading level={context === 'page' ? 1 : 3} size={context === 'page' ? 'title' : 'subtitle'} class="p-name">
+		<!-- p-name sits on the words alone, so the bookmark icon stays out of the post's name. -->
+		<Heading level={context === 'page' ? 1 : 3} size={context === 'page' ? 'title' : 'subtitle'}>
 			{#if bookmarkUrl}
 				<BookmarkTitle url={bookmarkUrl} title={post.title} />
 			{:else if href}
-				<a {href} class="title-link">{post.title}</a>
+				<a {href} class="title-link p-name">{post.title}</a>
 			{:else}
-				{post.title}
+				<span class="p-name">{post.title}</span>
 			{/if}
 		</Heading>
 		{#if bookmarkUrl}
