@@ -138,6 +138,26 @@ Two design rules:
 
 Cloudflare stays the reference: everything runs on the free and $5 plans with no third-party service. Vercel needs one storage integration from the Marketplace, and the starter's setup says so plainly.
 
+### Other hosts, including IndieWeb and community ones
+
+Researched 2026-11-17 from the IndieWeb wiki's [web hosting](https://indieweb.org/web_hosting) page and the web. The wiki lists no community or co-op host with Cloudflare- or Vercel-style DX, meaning git-push deploys, previews, functions, storage and cron in one place. The only hosted IndieWeb offering there is Micro.blog, which isn't extensible. So the hosts below fall into four groups, and each group needs a different kind of support.
+
+| Group | Hosts | Functions, storage, cron | How the kit supports it |
+| --- | --- | --- | --- |
+| Serverless with full DX | **Netlify**: functions and edge functions, Netlify Blobs, scheduled functions (production deploys only, which matches our preview rule), Netlify DB (Postgres). Long the usual home of Eleventy IndieWeb sites; benjifs/micropub was built for it. | All of them | `platform-netlify`. The best third target after Vercel. Check whether Blobs supports conditional writes for the outbox before relying on it. |
+| | **Deno Deploy** had KV, queues and `Deno.cron`. | All of them, but ending | Skip it. On 2026-10-09 the Deno team announced it is [joining Cloudflare](https://thenewstack.io/cloudflare-acquires-deno-ryan-dahl/), with Deploy shutting down about six months later and customers moved to Workers. Cloudflare also said it aims to make Workers easier to run on your own infrastructure, which would help the self-hosting group below. |
+| | **Bunny.net**: Edge Scripting, S3-compatible storage, Bunny Database (libSQL, in preview). European. | No scheduled jobs found | Possible later. Cron would need an outside trigger. |
+| | **Supabase**: Postgres, storage, edge functions, `pg_cron`. **Val Town**: small hosted functions with crons, blob storage and SQLite. | All of them | Better as backends than hosts. Supabase could be a state and blob store for any platform. A Val Town function could run one plugin, such as a backfeed poller beside a static site. |
+| Long-running Node (containers and VMs) | Fly.io, Render, Railway (IndieKit's documented host), DigitalOcean App Platform. Self-hosted PaaS such as **Coolify** and **Dokploy** gives git-push deploys and previews on your own VPS. | Yes, using your own database and cron | `platform-node` plus a Docker image. One plugin covers all of them, plus a home server. |
+| Co-ops and community hosts | **May First Movement Technology** (US co-op), **Webarchitects** (UK co-op), HCoop, **Co-op Cloud** (shared app recipes deployed with `abra`, used by tech co-ops), IndieHosters, PikaPods, NearlyFreeSpeech.NET, Opalstack | Mostly shared hosting or containers. No edge functions or previews. | `platform-node` with SQLite and files. Publishing a **Co-op Cloud recipe** and a PikaPods app would make the kit a one-step install at co-ops. This is how a community host could offer the kit to its members. |
+| Static only | GitHub, GitLab, Codeberg and Sourcehut Pages, Neocities, Nekoweb, Bear Blog, omg.lol | None | A **split deploy**: the site's static output goes there, and the kit (Micropub, IndieAuth, delivery) runs on any platform above, on its own subdomain. The site's HTML points its `rel=micropub`, `authorization_endpoint` and `webmention` links at that subdomain. This is how IndieKit and webmention.io already work beside static sites. |
+
+What this changes in the plan:
+
+- After Cloudflare and Vercel, the next platforms are **Node/Docker** (one plugin reaches VMs, PaaS, Coolify, co-ops and home servers) and **Netlify**. Deno Deploy is out.
+- **Split deploy** becomes a supported mode, not a workaround. The kit already runs as `kit.fetch` mounted anywhere. It also needs a "build hook" plugin kind that triggers the static host's rebuild (a GitHub Pages workflow dispatch, a Neocities upload, a Netlify build hook) after a content commit.
+- **Community distribution** joins the packaging list: a Co-op Cloud recipe and a PikaPods listing beside the Deploy to Cloudflare and Vercel buttons.
+
 ## How today's features map onto plugins
 
 | Feature today | Code | Becomes | Generic? |
@@ -224,9 +244,9 @@ Create `packages/` as a Bun workspace. Move core, platform-cloudflare, store-git
 Build `templates/starter` and deploy it to a throwaway domain on a separate Cloudflare account. Post with Quill, pass IndieWebify, syndicate to test accounts, and receive a Webmention.
 *Done when* someone who isn't Casey could follow the README to a working site in under 30 minutes.
 
-**Phase 3: Vercel and local.**
-Add `platform-vercel` (Blob, Upstash or Neon, Vercel Cron) and `platform-node` for local development. Run every contract suite against all three.
-*Done when* the starter deploys on Vercel with the same config apart from `platform:`.
+**Phase 3: Vercel, Node and split deploys.**
+Add `platform-vercel` (Blob, Upstash or Neon, Vercel Cron) and `platform-node` (SQLite, files, a Docker image) for local development, VMs and co-op hosts. Add the build-hook plugin kind for split deploys beside a static host. Run every contract suite against all three platforms. `platform-netlify` follows if Blobs passes the conditional-write tests.
+*Done when* the starter deploys on Vercel and in Docker with the same config apart from `platform:`, and a GitHub Pages site can publish through a kit running elsewhere.
 
 **Phase 4: public release.**
 Move `packages/` and `templates/` to their own repository (this site then depends on the published packages). Publish to npm with deploy buttons, docs, the testkit, and the IndieKit store and syndicator adapter. Announce on the IndieWeb wiki and in chat.
@@ -238,7 +258,8 @@ On Cloudflare paid plans, run third-party plugins in Dynamic Worker isolates and
 
 These go to Casey as choices in the project thread. The recommendations are what the plan above assumes.
 
-1. **How to relate to IndieKit.** Recommended: our own Workers-first kit with IndieKit's plugin shape, compatible at the protocol and content level, plus a later adapter for its store and syndicator plugins. Alternatives: contribute a Workers runtime to IndieKit itself, or build these as EmDash plugins.
+1. **How to relate to IndieKit.** Decided 2026-11-17 (Casey): our own Workers-first kit with IndieKit's plugin shape, compatible at the protocol and content level, plus a later adapter for its store and syndicator plugins. Alternatives: contribute a Workers runtime to IndieKit itself, or build these as EmDash plugins.
 2. **Where it lives first.** Recommended: `packages/` inside this repo through Phase 3, then its own repo. The alternative is a new repo now, which makes development across both repos slower while the interfaces are still settling.
 3. **How much UI to ship.** Recommended: a headless core with an optional Svelte UI package and the SvelteKit starter. Alternatives: headless only (any Micropub client), or framework-neutral web components.
-4. **Name and licence.** Not decided. MIT matches IndieKit and EmDash.
+4. **Which host comes after Cloudflare and Vercel.** Recommended: Node/Docker, which also covers co-op hosts and Coolify. Netlify comes after that.
+5. **Name and licence.** Not decided. MIT matches IndieKit and EmDash.
