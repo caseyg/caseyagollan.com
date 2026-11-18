@@ -1,8 +1,9 @@
+import type { Facets } from '$lib/posts-filter';
 import { getAllPosts } from '$lib/posts';
-import { getPostsMenu, getTagCounts } from '$lib/server/posts-menu';
+import { getTagCounts } from '$lib/server/posts-menu';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => ({
-	postsMenu: await getPostsMenu(),
+	postsMenuSelection: {} as Partial<Facets>,
 	tags: getTagCounts(await getAllPosts())
 });

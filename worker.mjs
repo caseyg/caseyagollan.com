@@ -8,6 +8,9 @@ export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 
 export default {
   fetch(request, env, context) {
+    // Storybook is deployed separately (wrangler.storybook.jsonc) under the same /storybook/ path.
+    const { pathname } = new URL(request.url);
+    if (env.STORYBOOK && (pathname === '/storybook' || pathname.startsWith('/storybook/'))) return env.STORYBOOK.fetch(request);
     return application.fetch(request, env, context);
   },
   async scheduled(event, env, _context) {

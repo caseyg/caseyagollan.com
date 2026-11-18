@@ -1,10 +1,9 @@
 /**
- * Production build. The search index, the SvelteKit build and Storybook don't depend on each
- * other, so they run at the same time and their output is moved into the Worker assets after.
+ * Production build. The search index and the SvelteKit build don't depend on each other, so they
+ * run at the same time and the index is moved into the Worker assets after. Storybook is built and
+ * deployed by its own Worker (`deploy:storybook`, wrangler.storybook.jsonc), only when code changes.
  *
  * - Pagefind writes to a scratch folder, because `vite build` copies static/ while it runs.
- * - Storybook writes to a scratch folder, because the Cloudflare adapter empties
- *   .svelte-kit/cloudflare when it finishes.
  * - cag.wiki is fetched once, here, alongside the other steps. The search index and the wiki
  *   browser pages both read the file it lands in (`WIKI_VAULT`), waiting if they get there first.
  */
@@ -13,15 +12,13 @@ import { fetchWikiVault, writeWikiVault } from './wiki-vault';
 
 const OUT = '.svelte-kit/cloudflare';
 const PAGEFIND = '.svelte-kit/build-pagefind';
-const STORYBOOK = '.svelte-kit/build-storybook';
 const WIKI = '.svelte-kit/build-wiki/vault.json';
 process.env.WIKI_VAULT = WIKI;
 
 type Step = { name: string; cmd: string[]; env?: Record<string, string> };
 const steps: Step[] = [
 	{ name: 'search', cmd: ['bun', 'utils/build-search.ts'], env: { PAGEFIND_OUTPUT: PAGEFIND } },
-	{ name: 'vite', cmd: ['node_modules/.bin/vite', 'build'] },
-	{ name: 'storybook', cmd: ['node_modules/.bin/storybook', 'build', '--disable-telemetry', '--quiet', '-o', STORYBOOK], env: { STORYBOOK_SITE_ASSETS: 'external' } }
+	{ name: 'vite', cmd: ['node_modules/.bin/vite', 'build'] }
 ];
 
 const started = performance.now();
@@ -51,7 +48,7 @@ async function run(step: Step) {
 }
 
 try {
-	await Promise.all([PAGEFIND, STORYBOOK, '.svelte-kit/build-wiki'].map((path) => rm(path, { recursive: true, force: true })));
+	await Promise.all([PAGEFIND, '.svelte-kit/build-wiki'].map((path) => rm(path, { recursive: true, force: true })));
 	const from = performance.now();
 	const wiki = fetchWikiVault().then(
 		async (vault) => {
@@ -67,9 +64,7 @@ try {
 	);
 	await Promise.all([wiki, ...steps.map(run)]);
 	await rm(`${OUT}/pagefind`, { recursive: true, force: true });
-	await rm(`${OUT}/storybook`, { recursive: true, force: true });
 	await cp(PAGEFIND, `${OUT}/pagefind`, { recursive: true });
-	await rename(STORYBOOK, `${OUT}/storybook`);
 	// Keep the local copy current too, for `bun run dev` and the Search stories.
 	await rm('static/pagefind', { recursive: true, force: true });
 	await mkdir('static', { recursive: true });

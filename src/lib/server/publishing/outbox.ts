@@ -4,6 +4,8 @@ export type DeliveryEvent = {
  syndicateTo: ('mastodon' | 'bluesky')[]; text: string; title?: string; published: string; sourcePath?: string;
  /** Earlier addresses of a renamed post; their syndication receipts still count. */
  previousSources?: string[];
+ /** The post's photos with their alt text; automatic sends attach the first four. */
+ photos?: { url: string; alt: string }[];
 };
 export interface DeliveryProgress {
  webmentions: string[];

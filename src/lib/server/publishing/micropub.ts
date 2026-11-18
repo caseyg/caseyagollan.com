@@ -15,7 +15,7 @@ import { channels, channelValue, postFolder, QUILL_TYPES, validateQuill } from '
 import { decodeCursor, encodeCursor, listedFiles, listPosts, postTypeFolders, type ReadPost } from './micropub-list';
 
 export interface PublishingConfig extends AuthConfig {
-	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaBucket?: R2Bucket; mediaEnabled?: boolean; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
+	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaBucket?: R2Bucket; mediaEnabled?: boolean; images?: ImagesBinding; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
 }
 interface Dependencies { snapshotFetcher?: PublicFetcher; fetcher?: Fetcher; now?: () => Date; id?: () => string }
 
