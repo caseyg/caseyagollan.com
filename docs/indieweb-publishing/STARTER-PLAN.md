@@ -252,6 +252,83 @@ Four levels, from cheapest to most work:
 
 Building on IndieKit itself, or on EmDash, was considered and set aside. IndieKit needs a long-running Node server and a database. EmDash keeps content in SQL and needs a paid plan for sandboxed plugins. Both conflict with "Markdown in Git, runs on the free Workers plan." EmDash's capability manifests are still worth copying.
 
+## Layers, frontend adapters and adoption
+
+Today this site is one SvelteKit app that does four jobs at once:
+
+| Layer | Today, in this repo | In the kit |
+| --- | --- | --- |
+| **Frontend** (the public site: post pages, feeds, tag pages, h-entry markup) | `src/routes/[year]`, `posts`, `tags`, `type`, components in `src/lib/components/posts/` | Stays the owner's. Any framework. The kit supplies data loaders and head tags, never page designs. |
+| **Owner UI** (composer, editor, syndicate page, account) | `src/routes/new`, `editor`, `…/syndicate`, `account`, `src/lib/components/composer/` | `ui-svelte`, which can be used two ways (below) |
+| **API** (Micropub, media, IndieAuth, OAuth callbacks, `/api/*`) | `src/routes/micropub`, `auth`, `oauth`, `api`, `src/lib/server/publishing/` | The kit core and plugins, served through `kit.fetch` |
+| **Deployment** (bindings, cron, previews) | `wrangler.jsonc`, `worker.mjs`, the five cron jobs | The platform plugin, plus an `indie` CLI that writes or checks the host config |
+
+The kit keeps these separate, so each layer can change on its own.
+
+### Frontend adapters
+
+A frontend adapter does three small things: it mounts `kit.fetch` under the kit's paths, it gives the site's pages the posts in a form the framework understands, and it adds the discovery tags (`rel=micropub`, `authorization_endpoint`, `token_endpoint`, `webmention`, `hub`, `me` links, the h-card).
+
+| Frontend | Mount | Content for pages | Head tags |
+| --- | --- | --- | --- |
+| SvelteKit (first) | `handle` hook | `loadPosts()`, `loadPost(path)`, `loadTags()` for `+page.server.ts` | `<IndieHead />` component |
+| Astro | Integration with middleware | A content-collection loader | `<IndieHead />` Astro component |
+| Next.js | `app/(indie)/[...path]/route.ts` | Server functions | `generateMetadata` helper |
+| Eleventy, Hugo, Jekyll, any static site | **Sidecar**: the kit runs as its own small Worker or container on a subdomain | They keep reading Markdown from the repo, because the preset writes their layout | A snippet to paste into the base template |
+
+### Owner UI, two ways
+
+- **Embedded** (SvelteKit sites): import the Svelte components and put them on your own routes, in your own design system. This is how this site would use it.
+- **Standalone** (every other frontend): the kit serves a prebuilt owner app at `/indie/` (composer, editor, syndicate page, settings). It's plain static assets plus the API, so an Astro, Next or Hugo site gets the full composer without installing Svelte. It can take a theme from CSS custom properties.
+
+### Adoption: three ways in
+
+**1. New site from the starter.**
+`bun create indie` → choose platform, content repo and syndicators → deploy. The template is yours from then on (pages, CSS), and everything else is a package dependency.
+
+**2. Drop into an existing framework site** (SvelteKit or Astro first):
+
+```sh
+bun add @indie/core @indie/adapter-sveltekit @indie/platform-vercel @indie/store-github @indie/syndicate-bluesky
+bunx indie init      # writes indie.config.ts and checks the host config
+```
+
+```ts
+// src/hooks.server.ts
+import { indieHandle } from '@indie/adapter-sveltekit';
+export const handle = indieHandle();        // or sequence(indieHandle(), yourHandle)
+```
+
+```svelte
+<!-- src/routes/+layout.svelte -->
+<IndieHead />
+```
+
+Posts written through Micropub land in the repo in the site's existing layout (the preset is set to match it). The site's pages read them as before, or switch to `loadPosts()`.
+
+**3. Sidecar beside a static site** (Hugo, Eleventy, Jekyll, Neocities, GitHub Pages):
+Deploy the "kit only" template with one button. It commits to the site's repo, and the static host rebuilds as usual, triggered by a build hook. Paste the head snippet into the base template. Nothing else in the site changes. This is how IndieKit is usually set up, so people coming from IndieKit know it.
+
+### Keeping it updated
+
+- **Code** lives in versioned packages, never copied into the site. Updating is `bun update @indie/*`, or merging the Renovate or Dependabot pull request that the starter turns on. The site's own pages and CSS are never touched by an update.
+- **Breaking changes** come only in major versions, each with a changelog and, where possible, a codemod (`bunx indie upgrade`).
+- **Stored state** (IndieAuth tokens, outbox, settings) carries a schema version. The platform plugin migrates it on first start after an update, the way the Durable Object migrations work today.
+- **Content changes** never happen silently. If a new preset version changes how files are written, `bunx indie migrate-content` opens a pull request on the content repo, the way the HTML-to-Markdown conversion went through content PR 16.
+- **Host config** drift is caught by `bunx indie doctor` (and the owner-only `/indie/doctor` page). It compares `wrangler.jsonc`, `vercel.json` or `netlify.toml` against what the enabled plugins need, such as a missing R2 bucket or a cron schedule that runs too rarely.
+- **Sidecar and self-hosted installs** update by redeploying the kit-only template, by the Cloudron or YunoHost app update, or by pulling a new Docker tag.
+
+### This site, before and after
+
+| | Before | After |
+| --- | --- | --- |
+| Publishing code | About 7,000 lines in `src/lib/server/publishing/`, `indieauth/`, `backfeed.ts`, `webmentions.ts`, `websub.ts`, `buttondown*.ts` | Package dependencies plus a roughly 40-line `indie.config.ts` |
+| API routes | `src/routes/micropub`, `auth`, `oauth/bluesky`, parts of `api/` | Gone. `indieHandle()` in `hooks.server.ts` serves them. The site-specific `api/` routes (tables, Are.na, Raindrop, insights, screenshots) stay. |
+| Owner UI | Routes and components here | The same routes, now importing from `@indie/ui-svelte`, in this site's design system and Storybook |
+| `worker.mjs` | Wraps SvelteKit and runs five cron jobs with minute arithmetic | `export default indieWorker(app)`, with plugins registering their own schedules |
+| `wrangler.jsonc` | Hand-maintained bindings and `PUBLISHING_*` variables | The same file, checked by `indie doctor`. Variables become plugin settings, and only secrets stay in the environment. |
+| Site-specific features | Mixed in with publishing code | All that's left in `src/`: library, wiki, tables, home graph, nav, theme |
+
 ## Packaging and distribution
 
 - **Monorepo** with Bun workspaces: `packages/core`, `packages/platform-cloudflare`, `packages/platform-vercel`, `packages/store-github`, `packages/preset-markdown`, `packages/syndicate-*`, `packages/import-*`, `packages/ui-svelte`, `packages/create` and `templates/starter`.
