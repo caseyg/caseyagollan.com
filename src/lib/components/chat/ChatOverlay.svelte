@@ -74,6 +74,12 @@
 {/if}
 
 <style>
+	/* Its own type size, whatever the page around it uses (a table's page is scaled for its canvas). */
+	.chat-overlay-pill,
+	.chat-overlay {
+		font-size: var(--fs-base);
+	}
+
 	.chat-overlay-pill {
 		display: inline-flex;
 		align-items: center;
@@ -84,8 +90,7 @@
 		background: var(--bg-primary);
 		box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
 		color: var(--text-primary);
-		font: inherit;
-		font-size: var(--fs-sm);
+		font-family: inherit;
 		cursor: pointer;
 		transition: border-color var(--duration) var(--ease);
 	}
