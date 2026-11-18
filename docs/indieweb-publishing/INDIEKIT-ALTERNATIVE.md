@@ -110,6 +110,47 @@ R2 via S3 for media
 
 Exit check for each phase: Quill, the site's composer and IndieWebify all pass, and the syndication receipts show no duplicates.
 
+## IndieKit's ancestors, and what happened to them
+
+IndieKit's README credits five earlier projects. All of them were one person's server for one person's static site:
+
+| Project | Author | Shape | What happened |
+| --- | --- | --- | --- |
+| [Mastr Cntrl](https://github.com/vipickering/mastr-cntrl) | Vincent Pickering | Node service on Heroku. One of a suite of microservices (Micropub in; [mc-syndication](https://github.com/vipickering) and webmentions separate). Committed Markdown to GitHub, and Netlify rebuilt the Jekyll site. | By 2019 its author called it "a bit of a black box monolith" with a suspected race condition, and considered splitting it into Netlify/Lambda functions. No activity found after 2020. |
+| [micropub-endpoint](https://github.com/muan/micropub-endpoint) | Mu-An Chiou | Small Node server (Heroku button, Glitch demo) that commits Jekyll posts through the GitHub API, with a separate GitHub-auth service | Archived December 2022 |
+| [Micropub to GitHub](https://github.com/voxpelli/webpage-micropub-to-github) | Pelle Wessman | Express endpoint committing to GitHub for Jekyll | No partial updates or deletes. Last real code change 2023 (see [PROJECTS.md](PROJECTS.md)). |
+| [Postr](https://github.com/grantcodes/postr) | Grant Richmond | `@postr/core`, a Micropub endpoint mounted as Express middleware. RxDB storage (LevelDB by default), Webmention sending, image resizing, mf2 fetching. "Extensible via middleware", no plugin system. | No releases. 25 open issues and 6 open PRs. |
+| [SiteWriter](https://github.com/gerwitz/sitewriter) | Hans Gerwitz | Ruby and Sinatra service, forked from Barry Frost's Transformative, that gives static sites endpoints. Per-domain config, templates, GitHub store, external IndieAuth token endpoint. | 45 open issues. Paul Robert Lloyd used it and Micropub to GitHub before writing IndieKit, because "neither was flexible enough for my needs". |
+
+Two lessons:
+
+1. **Being general is what lasted.** IndieKit outlived the others because it was built for other people's sites from the start: presets for any generator, stores for any Git host, and a plugin API. A kit that only fits caseyagollan.com would go the way of the five above. That's why the chosen plan's Phase 2 requires a second site run by someone else.
+2. **The split recurs.** Every one of them ran as a separate service beside a static site. Mastr Cntrl's author wanted to break it into functions. Our design is that wish carried through: functions over platform storage, mounted in the site itself or run beside it.
+
+## Is the core different enough to justify a new project?
+
+A new project is only justified if the differences are in the core, meaning things IndieKit can't adopt without breaking its plugins or its stated design. Features alone don't count: they can be added to IndieKit.
+
+| Difference | Core or additive? | Why |
+| --- | --- | --- |
+| **Runtime:** web-standard `fetch` handlers on Workers, Vercel and Netlify, vs a long-running Node and Express server | **Core** | IndieKit's endpoint plugins return Express routers (`routes()`, `routesPublic()`), and its author describes endpoint plugins as Express middleware. Moving to web-standard handlers would break every endpoint plugin. |
+| **State:** platform primitives (blob with conditional writes, transactional state, leases) vs MongoDB collections | **Core** | `addCollection` is the plugin storage API, and the features that need state assume MongoDB. Swapping it is a rewrite of the storage layer and every plugin that uses it. |
+| **Deployment:** one deploy inside the site, free-tier Workers, no database vs a second server plus a database | **Core** (follows from the two above) | This is the practical reason for the whole effort: $0–5 a month, nothing extra to run, and branch previews of the publishing stack itself. |
+| **Language and UI stack:** TypeScript and Svelte vs JavaScript and Nunjucks | **Cultural** | IndieKit avoids TypeScript on purpose, to keep contributing simple. That's a valid choice, not a gap, but it means our code can't go upstream as-is. |
+| Syndicator v2 (threads, photos, quotes, resume, update, delete, backfeed) | Additive | It can sit beside `syndicate()` without breaking anything |
+| Scheduler, importers, interactions, newsletter, WebSub | Additive | New plugin kinds |
+| Micropub query and property hooks | Additive | A new registration call |
+| Passkeys, drafts store, slug renames, conditional writes | Additive | Options on existing pieces |
+
+**Verdict: yes, but narrowly.** The runtime, the state model and the deployment shape are real core differences. IndieKit can't adopt them without becoming a different project, and they are what makes this site cheap and simple to run. Everything else, including most of what makes the site's publishing good (threads, photos, quotes, backfeed, the Micropub extensions), is additive and belongs upstream as much as here.
+
+So the new project's identity should be **"IndieKit's plugin model, on web-standard runtimes"**, not "a better IndieKit". In practice:
+
+- **Before starting Phase 0**, open a conversation with IndieKit's maintainer. Share this assessment and ask whether a web-standard runtime would interest the project, either as a future IndieKit core or as a sibling. If it would, the chosen plan becomes a contribution rather than a fork.
+- Send the additive pieces upstream as proposals (syndicator v2, Micropub hooks), whatever the answer.
+- Keep plugin compatibility both ways where the runtime allows: the chosen plan's IndieKit adapter, and IndieKit-compatible file layouts.
+- Accept the maintenance cost on purpose. The five projects above show what happens otherwise: plan for a second site, contract tests and a small core from the start.
+
 ## Side by side with the chosen plan
 
 | | Own kit (STARTER-PLAN.md, chosen) | Extend IndieKit (this doc) |
