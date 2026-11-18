@@ -33,6 +33,33 @@ feed so a large historical backfill cannot consume another feed's capacity.
 The existing content sync workflow advances the site's submodule and rebuilds
 it; importing to Git and seeing it on the public site are separate steps.
 
+## GitHub and Are.na
+
+The same run also imports, with the same commit, checkpoints and `pesos-source`
+de-duplication:
+
+- `PESOS_GITHUB_USER`: releases published in that user's own public repositories
+  become notes ("Released [repo v1.2](…)" plus the release notes, Markdown, with the
+  release page as `syndication`), read from the public events feed, which keeps 90
+  days. Starred public repositories become bookmarks (`bookmark-of` the repository,
+  `name` its full name, the description as content). GitHub reads use the content
+  repository's token for its rate limit, but only `/users/…` endpoints and only
+  repositories marked `private: false`.
+- `PESOS_ARENA_USER`: blocks that user made and that anyone can see (public or
+  closed) become bookmarks: `bookmark-of` the linked page, or the block itself for
+  text and image blocks, with the block as `syndication`, its title as `name`, and
+  its text and description as Markdown. Image blocks keep the image, saved to
+  `PUBLISHING_MEDIA`. The feed uses the guest API and never `ARENA_PAT`, so private
+  blocks cannot be fetched, and the visibility check drops them again regardless.
+- `PESOS_SOURCES_SINCE`: an ISO date; older releases, stars and blocks are not
+  imported. Production starts on 2026-11-17, so the history is not backfilled. Move
+  the date back to backfill (GitHub stars page back to it; Are.na reads its newest
+  100 blocks only, because its sort is only roughly by date).
+
+A URL already bookmarked on the site, by hand or by another source, is not
+bookmarked again. Files are named `bookmarks/<date>-<owner>-<repo>.md`,
+`bookmarks/<date>-arena-<id>.md` and `notes/<date>-<repo>-<tag>.md`.
+
 ## Identity and retries
 
 Every run indexes the latest content repository revision, including existing
