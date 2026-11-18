@@ -2,12 +2,13 @@
 	export interface NewsletterState {
 		configured: boolean;
 		error?: string;
-		newsletter?: { username: string; name: string; url: string; applied: Record<string, boolean> };
+		newsletter?: { username: string; name: string; url: string; applied: Record<string, boolean>; refused?: Record<string, string> };
 	}
 
 	const LABELS: Record<string, string> = {
 		archive_theme: 'Archive theme',
-		web_css: 'Page style (gray, white, blue)',
+		theme_configuration: 'Page colors (gray, white, blue)',
+		web_css: 'Page details: no all-caps, square buttons',
 		css: 'Email style',
 		tint_color: 'Blue for links and buttons',
 		subscription_redirect_url: 'Back to the site after signing up',
@@ -52,7 +53,7 @@
 		if (next.error) notice = next.error;
 		else {
 			info = { ...info, ...next, configured: true };
-			notice = 'Buttondown now matches the site.';
+			notice = next.newsletter?.refused ? 'Applied what Buttondown allows. The rest is noted above.' : 'Buttondown now matches the site.';
 		}
 	}
 
@@ -72,7 +73,7 @@
 		<p>Signups from the Subscribe menu go to <a href={info.newsletter.url}>{info.newsletter.name}</a> on Buttondown.</p>
 		<ul class="settings">
 			{#each entries as [key, on] (key)}
-				<li><span class="mark" class:on aria-hidden="true">{on ? '✓' : ''}</span>{LABELS[key] ?? key}<span class="visually-hidden">{on ? ', matches the site' : ', not yet set'}</span></li>
+				<li><span class="mark" class:on aria-hidden="true">{on ? '✓' : ''}</span>{LABELS[key] ?? key}<span class="visually-hidden">{on ? ', matches the site' : ', not yet set'}</span>{#if !on && info.newsletter.refused?.[key]}<span class="refused">{info.newsletter.refused[key]}</span>{/if}</li>
 			{/each}
 		</ul>
 		<div class="actions">
@@ -93,9 +94,19 @@
 
 	.settings li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--space-2);
 		padding: var(--space-1) 0;
+	}
+
+	.refused {
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+	}
+
+	.refused::before {
+		content: ' · ';
 	}
 
 	.mark {

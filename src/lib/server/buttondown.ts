@@ -17,8 +17,9 @@ export async function subscribe(apiKey: string | undefined, email: string, detai
 	if (!looksLikeEmail(email)) return { ok: false, status: 'invalid', message: 'That doesn’t look like an email address.' };
 	if (!apiKey) return { ok: false, status: 'unavailable', message: 'Email signup isn’t set up here yet. The feeds below work.' };
 
-	// No `type`: Buttondown's default sends the reader a confirmation email (double opt-in).
-	const body: Record<string, unknown> = { email_address: email };
+	// `unactivated` makes Buttondown send a confirmation email (double opt-in). Subscribers
+	// created through the API are otherwise `regular` straight away.
+	const body: Record<string, unknown> = { email_address: email, type: 'unactivated' };
 	// Buttondown checks the reader's address for spam signups.
 	if (details.ip) body.ip_address = details.ip;
 
@@ -52,6 +53,8 @@ export interface NewsletterSummary {
 	url: string;
 	/** Which of the site's settings Buttondown already has. */
 	applied: Record<string, boolean>;
+	/** Settings Buttondown refused on the last apply, with its reason, such as a plan limit. */
+	refused?: Record<string, string>;
 }
 
 async function call(apiKey: string, path: string, init: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<Record<string, unknown>> {
@@ -60,6 +63,8 @@ async function call(apiKey: string, path: string, init: RequestInit = {}, fetche
 	return (await response.json()) as Record<string, unknown>;
 }
 
+const same = (a: unknown, b: unknown) => (typeof b === 'object' && b !== null ? JSON.stringify(a) === JSON.stringify(b) : a === b);
+
 function summarize(newsletter: Record<string, unknown>, theme: Record<string, unknown>): NewsletterSummary {
 	const username = String(newsletter.username ?? '');
 	const domain = typeof newsletter.domain === 'string' && newsletter.domain ? newsletter.domain : '';
@@ -67,7 +72,7 @@ function summarize(newsletter: Record<string, unknown>, theme: Record<string, un
 		username,
 		name: String(newsletter.name ?? username),
 		url: domain ? `https://${domain}` : `https://buttondown.com/${username}`,
-		applied: Object.fromEntries(Object.entries(theme).map(([key, value]) => [key, newsletter[key] === value]))
+		applied: Object.fromEntries(Object.entries(theme).map(([key, value]) => [key, same(newsletter[key], value)]))
 	};
 }
 
@@ -82,9 +87,23 @@ export async function readNewsletter(apiKey: string, theme: Record<string, unkno
 	return summarize(await firstNewsletter(apiKey, fetcher), theme);
 }
 
-/** Sends the site's look to Buttondown and returns the newsletter as it now stands. */
+/**
+ * Sends the site's look to Buttondown one setting at a time, so a setting the plan doesn't allow
+ * (custom CSS) doesn't stop the others, and returns the newsletter as it now stands.
+ */
 export async function applyNewsletterTheme(apiKey: string, theme: Record<string, unknown>, fetcher: typeof fetch = fetch): Promise<NewsletterSummary> {
-	const { id } = await firstNewsletter(apiKey, fetcher);
-	const updated = await call(apiKey, `/newsletters/${encodeURIComponent(String(id))}`, { method: 'PATCH', body: JSON.stringify(theme) }, fetcher);
-	return summarize(updated, theme);
+	let newsletter = await firstNewsletter(apiKey, fetcher);
+	const path = `${API}/newsletters/${encodeURIComponent(String(newsletter.id))}`;
+	const refused: Record<string, string> = {};
+	for (const [key, value] of Object.entries(theme)) {
+		if (same(newsletter[key], value)) continue;
+		const response = await fetcher(path, { method: 'PATCH', headers: { Authorization: `Token ${apiKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ [key]: value }) });
+		if (response.ok) newsletter = (await response.json()) as Record<string, unknown>;
+		else {
+			const error = (await response.json().catch(() => null)) as { detail?: unknown } | null;
+			// Buttondown's own reason, kept short; it never contains the key.
+			refused[key] = typeof error?.detail === 'string' ? error.detail.slice(0, 200) : `Buttondown answered ${response.status}.`;
+		}
+	}
+	return { ...summarize(newsletter, theme), ...(Object.keys(refused).length ? { refused } : {}) };
 }

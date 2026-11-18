@@ -126,9 +126,44 @@ blockquote {
 }
 `;
 
-/** The settings sent to Buttondown, `PATCH /v1/newsletters/{id}`. */
+/**
+ * Buttondown's page variables, which every plan may set: the hosted pages read them as
+ * `--color-*` and `--font-*`. This alone turns the pages gray, white and blue.
+ */
+const translucent = (alpha: number) => `rgb(255 255 255 / ${alpha})`;
+const palette = {
+	'color-background': '#808080',
+	'color-background-card': translucent(0.08),
+	'color-background-offset': translucent(0.22),
+	'color-foreground': '#ffffff',
+	'color-foreground-offset': translucent(0.86),
+	'color-foreground-offset-2': translucent(0.68),
+	'color-accent': '#0000ff',
+	'color-action': '#0000ff'
+};
+export const THEME_CONFIGURATION: Record<string, string> = {
+	...palette,
+	// The same in dark mode: the site has one look.
+	...Object.fromEntries(Object.entries(palette).map(([key, value]) => [`${key}-dark`, value])),
+	'color-error': '#ffffff',
+	'color-error-soft': 'rgb(0 0 0 / 0.18)',
+	'color-error-soft-border': translucent(0.5),
+	'color-featured': translucent(0.08),
+	'color-featured-border': translucent(0.22),
+	'color-featured-icon': '#ffffff',
+	'font-accent': 'system-ui, -apple-system, sans-serif',
+	'font-body': 'system-ui, -apple-system, sans-serif',
+	'corner-shape': 'square'
+};
+
+/**
+ * The settings sent to Buttondown, `PATCH /v1/newsletters/{id}`, one at a time. Custom CSS
+ * (`web_css`, `css`) needs a paid Buttondown plan; on a free plan Buttondown refuses those two
+ * and the rest still apply. The CSS fixes what variables can't: all-caps nav, pill buttons, inputs.
+ */
 export const NEWSLETTER_THEME = {
 	archive_theme: 'modern',
+	theme_configuration: THEME_CONFIGURATION,
 	web_css: WEB_CSS,
 	css: EMAIL_CSS,
 	tint_color: '#0000ff',
