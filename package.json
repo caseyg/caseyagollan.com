@@ -20,7 +20,8 @@
 		"update-library": "bun utils/librarything-to-graph.js",
 		"build:search": "bun utils/build-search.ts",
 		"storybook": "storybook dev -p 6006 --no-open",
-		"build-storybook": "storybook build --disable-telemetry -o .svelte-kit/cloudflare/storybook"
+		"build-storybook": "storybook build --disable-telemetry -o dist-storybook/storybook",
+		"deploy:storybook": "bun run build-storybook && wrangler deploy -c wrangler.storybook.jsonc"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^4.20251011.0",
