@@ -68,16 +68,32 @@ export async function editorDestinations(config: PublishingConfig, post: Post): 
   // The receipt keeps the URL as sent; the post may store another form of it (Bluesky DID vs handle).
   const links = recordedLinks({ ...post, syndication: [...saved, ...sent] }, service, config);
   const limit = service === 'bluesky' ? 300 : 500;
-  const thread = receipt?.thread?.length ? receipt.thread : [receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity)];
+  // A send in progress shows what it is sending; otherwise the post's stored thread, or one generated post.
+  const thread = receipt?.thread?.length ? receipt.thread : receipt?.draft === undefined && publication.thread ? publication.thread : [receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity)];
   return { service, name: names[service], links, unrecorded: links.length > saved.length, available: !!config.state && !!config.syndication?.[service],
    pending: receipt?.status === 'sending', limit, draft: thread[0], thread };
  }));
 }
 
 /** The whole post as plain text with its link, for splitting into a thread on the page. */
-export async function threadSource(config: PublishingConfig, post: Post): Promise<{ text: string; link: string }> {
+export async function threadSource(config: PublishingConfig, post: Post): Promise<{ text: string; link: string; stored: boolean }> {
  const publication = await publicationForPost(post, config.me);
- return { text: [publication.title, publication.text].filter(Boolean).join('\n\n').trim(), link: publication.url };
+ return { text: [publication.title, publication.text].filter(Boolean).join('\n\n').trim(), link: publication.url, stored: !!publication.thread };
+}
+
+/** Save a thread and its photo placement on the post without sending, so other clients see it. */
+export async function saveEditorThread(config: PublishingConfig, post: Post, revision: string, draft: string[], submittedPhotos: unknown, gitFetch: typeof fetch = fetch): Promise<string> {
+ assertSyndicatable(post);
+ const publication = await publicationForPost(post, config.me);
+ if (revision !== publication.revision) throw new ProtocolError(409, 'invalid_request', 'The original post changed. Reload to review the latest version.');
+ const posts = threadOf(draft);
+ if (!posts.length || posts.length > maxThreadPosts || posts.some(text => typeof text !== 'string' || !text.trim() || text.length > 10000)) throw new ProtocolError(422, 'invalid_request', `A thread has 1–${maxThreadPosts} posts, none of them empty.`);
+ const photos = chosenPhotos(publication.photos ?? [], submittedPhotos);
+ const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, published: publication.published, sourcePath: publication.sourcePath };
+ const saved = await recordSyndicationResults(config, event, { webmentions: [], syndication: {}, syndicationStartedAt: {} }, gitFetch,
+  { alts: Object.fromEntries(photos.map(photo => [photo.url, photo.alt])), thread: posts, photoPosts: Object.fromEntries(photos.map(photo => [photo.url, photo.post ?? 0])) });
+ if (!saved) throw new ProtocolError(409, 'invalid_request', 'The original post changed. Reload to review the latest version.');
+ return posts.length > 1 ? 'Thread saved to the post.' : 'Saved. The post has no thread now.';
 }
 
 /** A submitted draft as its list of posts; a single string is a one-post thread. */
@@ -151,7 +167,10 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
   if (receipt?.status === 'sent' && receipt.url) progress.syndication[service] = receipt.url;
  }
  try {
-  const synced = await recordSyndicationResults(config, event, progress, dependencies.gitFetch ?? fetch, Object.fromEntries(photos.map(photo => [photo.url, photo.alt])));
+  // The thread that went out (the first network's, when they differ) is kept on the post for every client.
+  const sent = chosen.find(target => !target.links.length && progress.syndication[target.service]);
+  const synced = await recordSyndicationResults(config, event, progress, dependencies.gitFetch ?? fetch, { alts: Object.fromEntries(photos.map(photo => [photo.url, photo.alt])),
+   ...(sent ? { thread: threadOf(drafts[sent.service]), photoPosts: Object.fromEntries(photos.map(photo => [photo.url, photo.post ?? 0])) } : {}) });
   if (!synced) throw new Error('Original post changed');
   if (dependencies.syncOnly) messages.push('Syndication links synced to the original post.');
  } catch { messages.push('Social links are saved here, but the GitHub update failed. Use “Sync links to original post” to retry without sending again.'); }

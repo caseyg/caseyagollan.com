@@ -225,13 +225,15 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
   await mapReads(entries.flatMap(entry=>(['mastodon','bluesky'] as const).map(service=>({entry,service}))),async ({entry,service}) => {
    const receipt = await bucket.get(`private/syndication/${await digest(`${entry.permalink}\0${service}`)}.json`);
    if (!receipt) return;
-   const data = await receipt.json<{status:string;url?:string}>();
+   const data = await receipt.json<{status:string;url?:string;parts?:{url?:unknown}[]}>();
    if (data.status === 'sending') throw new Error('Syndication outcome pending reconciliation');
    if (data.url) {
     const kind = entry.properties['like-of']?.length ? 'like' : entry.properties['repost-of']?.length ? 'repost' : 'post';
     keys.add(identity('post',data.url,actors));
     keys.add(identity(kind,data.url,actors));
    }
+   // Every post of a syndicated thread is this entry, not a new note of its own.
+   for (const part of data.parts ?? []) if (typeof part.url === 'string') keys.add(identity('post',part.url,actors));
   });
   progress('feed_setup');
   const stored = await bucket.get('private/pesos/state.json');

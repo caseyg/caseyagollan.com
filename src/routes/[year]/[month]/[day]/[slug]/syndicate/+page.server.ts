@@ -5,7 +5,7 @@ import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publishingConfig } from '$lib/server/publishing/config';
 import { publicationRevision } from '$lib/server/publishing/publication';
 import { ProtocolError } from '$lib/server/publishing/auth';
-import { editorSession, editorDestinations, postPhotos, sendEditorDrafts, threadSource, validateEditorSubmission, type ChosenPhoto } from '$lib/server/publishing/syndication-editor';
+import { editorSession, editorDestinations, postPhotos, saveEditorThread, sendEditorDrafts, threadSource, validateEditorSubmission, type ChosenPhoto } from '$lib/server/publishing/syndication-editor';
 
 export const prerender = false;
 
@@ -40,7 +40,7 @@ function photoChoice(value: string | null): unknown {
 }
 /** Chosen photos as the page shows them again after a failed send. */
 function formPhotos(value: unknown): ChosenPhoto[] | undefined {
- return Array.isArray(value) && value.every(item => item && typeof item.url === 'string' && typeof item.alt === 'string') ? value.map(item => ({ url: item.url, alt: item.alt })) : undefined;
+ return Array.isArray(value) && value.every(item => item && typeof item.url === 'string' && typeof item.alt === 'string') ? value.map(item => ({ url: item.url, alt: item.alt, ...(Number.isInteger(item.post) && item.post > 0 ? { post: item.post } : {}) })) : undefined;
 }
 
 export const actions: Actions = {
@@ -70,7 +70,11 @@ export const actions: Actions = {
    if (!config) error(503, 'Publishing is unavailable.');
    const post = await getGitHubPost(params, fetch, config.token, config);
    if (!post) error(404, 'Post not found');
-   const message = await sendEditorDrafts(config, post, values.get('revision') ?? '', values.getAll('targets'), drafts, { gitFetch: fetch, syncOnly: values.get('intent') === 'sync', photos });
+   // Save keeps the thread on the post for other clients without sending: the first chosen network's thread.
+   const shown = (values.getAll('targets')[0] ?? 'bluesky') === 'mastodon' ? drafts.mastodon : drafts.bluesky;
+   const message = values.get('intent') === 'save'
+    ? await saveEditorThread(config, post, values.get('revision') ?? '', shown, photos, fetch)
+    : await sendEditorDrafts(config, post, values.get('revision') ?? '', values.getAll('targets'), drafts, { gitFetch: fetch, syncOnly: values.get('intent') === 'sync', photos });
    return { message, drafts, photos: formPhotos(photos), linked: values.has('linked'), targets: values.getAll('targets') };
   } catch (cause) {
    if (cause instanceof ProtocolError) return fail(cause.status, { message: cause.message, drafts, photos: formPhotos(photos), linked: values.has('linked'), targets: values.getAll('targets') });

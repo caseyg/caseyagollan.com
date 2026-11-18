@@ -75,7 +75,9 @@
 		if (showing) for (const other of chosen) threads[other.service] = [...showing];
 	}
 	// Splitting: long posts break where they are; a single post can become the whole text as a thread.
-	const fullText = $derived(data.signedIn ? data.source : { text: '', link: '' });
+	const fullText = $derived(data.signedIn ? data.source : { text: '', link: '', stored: false });
+	// Saving keeps the thread on the post, where Micropub clients read and edit it too.
+	const canSave = $derived(fullText.stored || (!!editors[0] && (threads[editors[0].service] ?? []).length > 1));
 	const tooLong = (service: SocialService) => threads[service].some(text => !fitsFor(service)(text));
 	const canThreadAll = (service: SocialService) => threads[service].length === 1 && !!fullText.text && !fitsFor(service)(`${fullText.text}\n\n${fullText.link}`);
 	function split(service: SocialService) {
@@ -95,7 +97,7 @@
 	let photos = $state(untrack(() => (data.signedIn ? data.photos : []).map((photo, index) => {
 		const chosen = form?.photos?.find(item => item.url === photo.url);
 		// Photos start on the first post of a thread; each can move to another post.
-		return { ...photo, alt: chosen?.alt ?? photo.alt, included: form?.photos ? !!chosen : index < maxPhotos, post: chosen?.post ?? 0 };
+		return { ...photo, alt: chosen?.alt ?? photo.alt, included: form?.photos ? !!chosen : index < maxPhotos, post: chosen?.post ?? photo.post ?? 0 };
 	})));
 	// Alt text fits every network it goes to.
 	const altLimit = $derived(Math.min(...(chosen.length ? chosen : ready).map(d => PHOTO_LIMITS[d.service].alt)));
@@ -127,6 +129,7 @@
 			<span class="kind"><Icon name="share" size={18} /> Syndicate {kind}</span>
 			{#snippet actions()}
 				<Button variant="icon" icon="article" label="Edit {kind}" href="{postHref}edit/" />
+				{#if ready.length && canSave}<Button variant="quiet" type="submit" form="syndicate" name="intent" value="save" disabled={sending || over}>Save thread</Button>{/if}
 				{#if ready.length}
 					<Button variant="primary" type="submit" form="syndicate" name="intent" value="send" disabled={sending || !chosen.length || over || altOver}>{sending ? 'Posting…' : 'Post'}</Button>
 				{/if}

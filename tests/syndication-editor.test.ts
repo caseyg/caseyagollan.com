@@ -252,3 +252,38 @@ test('photos in a thread go on the post they name, and past the end on the last 
  expect(statuses).toEqual([['One', ['p1']], ['Two', ['p2']], ['Three', ['p3']]]);
  expect(uploads).toEqual(['first', 'second', 'late']);
 });
+
+test('a thread stored on the post is what automatic delivery and the page start from', async () => {
+ const stored = `---\ndate: 2026-11-06T12:00:00-05:00\nsyndication-thread:\n  - Stored one\n  - Stored two\n---\nOriginal post`;
+ const app = setup(stored), saved = parsePost(stored, 'notes', '2026-11-06-note.md');
+ const publication = await publicationForPost(saved, app.config.me);
+ expect(publication.thread).toEqual(['Stored one', 'Stored two']);
+ expect((await editorDestinations(app.config, saved)).map(d => d.thread)).toEqual([['Stored one', 'Stored two'], ['Stored one', 'Stored two']]);
+ const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: ['mastodon'], text: publication.text, published: publication.published, thread: publication.thread };
+ const sent: string[] = [];
+ await syndicationOnce(app.bucket, event, 'mastodon', app.config.syndication!, async (_url, init) => { sent.push(new URLSearchParams(String(init?.body)).get('status')!); return Response.json({ id: `m${sent.length}`, url: `https://social.coop/@caseyg/${sent.length}` }); }, () => 1);
+ expect(sent).toEqual(['Stored one', 'Stored two']);
+});
+
+test('saving from the page stores the thread on the post without sending, and a one-post thread removes it', async () => {
+ const { saveEditorThread } = await import('../src/lib/server/publishing/syndication-editor');
+ const app = setup(), publication = await publicationForPost(post, app.config.me);
+ expect(await saveEditorThread(app.config, post, publication.revision, ['A', 'B'], undefined, app.gitFetch)).toContain('saved');
+ expect(readDocument(app.content()).properties['syndication-thread']).toEqual(['A', 'B']);
+ expect(app.rows.size).toBe(0);
+ const updated = parsePost(app.content(), 'notes', '2026-11-06-note.md');
+ // Saving a thread is not a new revision, so it never starts another automatic send.
+ expect((await publicationForPost(updated, app.config.me)).revision).toBe(publication.revision);
+ await saveEditorThread(app.config, updated, publication.revision, ['Just one'], undefined, app.gitFetch);
+ expect(readDocument(app.content()).properties['syndication-thread']).toBeUndefined();
+ await expect(saveEditorThread(app.config, post, publication.revision, ['ok', ' '], undefined, app.gitFetch)).rejects.toMatchObject({ status: 422 });
+});
+
+test('a sent thread is kept on the post with its links', async () => {
+ const app = setup(), publication = await publicationForPost(post, app.config.me);
+ const publicFetch = async (url: string) => url.endsWith('createSession') ? Response.json({ did: 'did:plc:test', accessJwt: 'fake' }) : Response.json({ uri: 'at://x', cid: 'c' });
+ await sendEditorDrafts(app.config, post, publication.revision, ['bluesky'], { bluesky: ['Sent one', 'Sent two'] }, { publicFetch, gitFetch: app.gitFetch });
+ const properties = readDocument(app.content()).properties;
+ expect(properties['syndication-thread']).toEqual(['Sent one', 'Sent two']);
+ expect(properties.syndication).toHaveLength(2); expect(app.writes()).toBe(1);
+});

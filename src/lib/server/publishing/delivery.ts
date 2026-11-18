@@ -12,6 +12,7 @@ import { syndicate, syndicationKey, type SentPart, type SyndicationConfig } from
 import { PHOTO_LIMITS } from '../../social-text';
 import { preparePhotos, type PhotoSources, type PreparedPhoto, type SyndicationPhoto } from './syndication-photos';
 import { editorPhotos, photosWithAlts } from './photo-properties';
+import { storedPhotoPosts, storedThread, threadUpdate } from './syndication-thread';
 
 type Service = 'mastodon' | 'bluesky';
 const services = ['mastodon', 'bluesky'] as const;
@@ -32,7 +33,7 @@ const splitPath = (path: string) => { const index = path.indexOf('/'); return [p
 const visible = (post: ReturnType<typeof parsePost>) => !post.draft && isPublicPost(post);
 const hash = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), byte => byte.toString(16).padStart(2,'0')).join('');
 function eventFor(publication: Publication, previous?: Publication, action: 'publish' | 'remove' = 'publish', generation?: string): DeliveryEvent {
- return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(action === 'publish' && publication.photos?.length ? { photos: publication.photos } : {}) };
+ return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(action === 'publish' && publication.photos?.length ? { photos: publication.photos } : {}), ...(action === 'publish' && publication.thread ? { thread: publication.thread } : {}) };
 }
 
 /** The request path and manifest recovery share a durable transition before enqueue.
@@ -111,6 +112,11 @@ export interface SyndicationReceipt {
 }
 /** What a manual send chose: its text, its photos, and the photos already read for it. */
 export interface SyndicationChoice { draft?: string | string[]; photos?: SyndicationPhoto[]; prepared?: PreparedPhoto[] }
+/** Up to `count` photos on each post of a thread, in order. */
+function firstPerPost<T extends { post?: number }>(photos: T[], count: number): T[] {
+ const seen = new Map<number, number>();
+ return photos.filter(photo => { const n = (seen.get(photo.post ?? 0) ?? 0) + 1; seen.set(photo.post ?? 0, n); return n <= count; });
+}
 export async function syndicationReceiptKey(source: string, service: Service): Promise<string> {
  return `private/syndication/${await hash(`${source}\0${service}`)}.json`;
 }
@@ -129,8 +135,8 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
  const key = `private/syndication/${identity}.json`;
  const stored = await bucket.get(key);
  const receipt = stored ? await stored.json<SyndicationReceipt>() : undefined;
- // A retry keeps the photos of the first attempt; automatic sends take the post's first four.
- const photos = receipt?.photos ?? choice.photos ?? (event.photos ?? []).slice(0, PHOTO_LIMITS[service].count);
+ // A retry keeps the photos of the first attempt; automatic sends take the first four of each post.
+ const photos = receipt?.photos ?? choice.photos ?? firstPerPost(event.photos ?? [], PHOTO_LIMITS[service].count);
  if (receipt?.status === 'sent' && receipt.url) return receipt.url;
  if (!receipt && event.previousSources?.length) {
   // Never send a renamed post again: a receipt under an old address is this post's receipt.
@@ -145,7 +151,8 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
  const startedAt = receipt?.startedAt ?? now();
  if (service === 'mastodon' && now() - startedAt >= 45 * 60_000) throw new DeliveryError('Mastodon outcome requires manual reconciliation', false);
  // The first reviewed text wins through retries, whether a post or a thread.
- const chosen = choice.draft ?? draft;
+ // Automatic sends use the post's stored thread, if it has one.
+ const chosen = choice.draft ?? draft ?? event.thread;
  const offered = Array.isArray(chosen) ? (chosen.length > 1 ? { thread: chosen } : { draft: chosen[0] }) : { draft: chosen };
  const original = receipt?.thread?.length ? { thread: receipt.thread } : receipt?.draft !== undefined ? { draft: receipt.draft } : offered;
  // Read and fit the photos before claiming, so a photo that cannot be sent leaves nothing to review.
@@ -167,11 +174,14 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
  return url;
 }
 
+/** What the syndicate page edits on the post: alt text and thread post by photo URL, and the thread. */
+export interface SyndicationEdits { alts?: Record<string, string>; photoPosts?: Record<string, number>; thread?: string[] }
 /**
- * Save the social links on the post. `alts` (photo URL to alt text) also saves alt
- * text edited while syndicating, in the same commit.
+ * Save the social links on the post. `edits` also saves alt text, the thread, and which
+ * post each photo goes on, as edited while syndicating, in the same commit.
  */
-export async function recordSyndicationResults(config: PublishingConfig, event: DeliveryEvent, progress: DeliveryProgress, fetcher: typeof fetch, alts: Record<string, string> = {}): Promise<boolean> {
+export async function recordSyndicationResults(config: PublishingConfig, event: DeliveryEvent, progress: DeliveryProgress, fetcher: typeof fetch, edits: SyndicationEdits = {}): Promise<boolean> {
+ const alts = edits.alts ?? {};
  // A thread is saved as every one of its posts, first post first, so the post links the whole thread.
  const urls: string[] = [];
  for (const [service, url] of Object.entries(progress.syndication) as [Service, string][]) {
@@ -179,7 +189,7 @@ export async function recordSyndicationResults(config: PublishingConfig, event: 
   const parts = receipt?.status === 'sent' && receipt.url === url ? receipt.parts?.map(part => part.url) ?? [] : [];
   urls.push(url, ...parts.filter(part => part !== url));
  }
- if (!urls.length) return true;
+ if (!urls.length && !edits.alts && !edits.thread && !edits.photoPosts) return true;
  if (!event.sourcePath) return false;
  const store = createGitHubStore(config, fetcher);
  const head = await store.head();
@@ -195,9 +205,16 @@ export async function recordSyndicationResults(config: PublishingConfig, event: 
  const missing = urls.filter(url => !known.has(syndicationKey(url)));
  const stored = editorPhotos(properties);
  const changedAlts = stored.some(photo => alts[photo.url] !== undefined && alts[photo.url] !== photo.alt);
- if (!missing.length && !changedAlts) return true;
+ // The thread and photo placement are stored only when they differ from what the post has.
+ const oldPosts = storedPhotoPosts(properties);
+ const photoPosts = edits.photoPosts ? stored.map((photo, index) => edits.photoPosts![photo.url] ?? oldPosts[index] ?? 0) : undefined;
+ const thread = edits.thread && JSON.stringify(edits.thread.length > 1 ? edits.thread : []) !== JSON.stringify(storedThread(properties) ?? []) ? edits.thread : undefined;
+ const placed = photoPosts && JSON.stringify(photoPosts.some(Boolean) ? photoPosts : []) !== JSON.stringify(oldPosts.some(Boolean) ? stored.map((_, index) => oldPosts[index] ?? 0) : []) ? photoPosts : undefined;
+ if (!missing.length && !changedAlts && !thread && !placed) return true;
  const photo = changedAlts ? photosWithAlts(properties.photo ?? [], stored.map(photo => alts[photo.url] ?? photo.alt)) : undefined;
- await store.write(file.path, updateDocument(file.content, { ...(missing.length ? { add: { syndication: missing } } : {}), ...(photo ? { replace: { photo } } : {}) }), { sha: file.sha, expectedHead: head, message: changedAlts ? 'Record syndication links and photo alt text' : 'Record syndication links' });
+ const threaded = thread || placed ? threadUpdate(thread, placed) : { replace: {}, delete: [] };
+ const message = missing.length ? `Record syndication links${changedAlts ? ' and photo alt text' : ''}${thread || placed ? ' and thread' : ''}` : 'Save syndication thread';
+ await store.write(file.path, updateDocument(file.content, { ...(missing.length ? { add: { syndication: missing } } : {}), replace: { ...(photo ? { photo } : {}), ...threaded.replace }, ...(threaded.delete.length ? { delete: threaded.delete } : {}) }), { sha: file.sha, expectedHead: head, message });
  return true;
 }
 
