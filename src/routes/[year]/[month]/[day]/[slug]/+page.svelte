@@ -4,7 +4,7 @@
 	import Webmentions from '$lib/components/Webmentions.svelte';
 	import HCard from '$lib/components/HCard.svelte';
 	import { fediverseHandle } from '$lib/identity';
-	import { PostsLayout, DateArchiveHeader, PostMeta, PostTitle, PostContent, PostMedia, PostDetails, NoteCard } from '$lib/components/posts';
+	import { PostsLayout, DateArchiveHeader, PostMeta, PostTitle, PostContent, PostMedia, PostDetails, NoteCard, RespondBar } from '$lib/components/posts';
 
 	import { getPostAction } from '$lib/utils/post-details';
 	import { renderContentSync } from '$lib/utils/renderContent';
@@ -59,6 +59,8 @@
 
 			<PostContent content={data.post.content} format={data.post.contentFormat} />
 		{/if}
+
+		<RespondBar url="https://caseyagollan.com{permalink}" title={data.post.title} syndication={data.post.syndication} />
 
 		<Webmentions url={permalink} previous={data.post.previousUrls} />
 	</article>

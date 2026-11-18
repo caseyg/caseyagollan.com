@@ -22,3 +22,5 @@ export { default as PhotoTile } from './PhotoTile.svelte';
 export { default as PhotoGrid } from './PhotoGrid.svelte';
 export { default as FeedMenu } from './FeedMenu.svelte';
 export { default as OnThisDay } from './OnThisDay.svelte';
+export { default as RespondBar } from './RespondBar.svelte';
+export { default as RespondPanel } from './RespondPanel.svelte';
