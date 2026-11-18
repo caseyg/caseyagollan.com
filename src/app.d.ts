@@ -26,6 +26,10 @@ declare global {
 				CLOUDFLARE_API_TOKEN?: string;
 				GITHUB_CONTENT_TOKEN?: string;
 				INFERENCE_COOP_API_KEY: string;
+				/** /chat threads, one Agents SDK agent each (`src/lib/server/chat/agent.ts`). */
+				ChatThread?: DurableObjectNamespace;
+				/** The inference.coop model /chat answers with. */
+				CHAT_MODEL?: string;
 				KAGI_API_KEY: string;
 				/** Are.na personal access token; reads Casey’s private blocks for the owner only. */
 				ARENA_PAT?: string;

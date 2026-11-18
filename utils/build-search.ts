@@ -4,7 +4,8 @@ import { libraryMetadata } from '../src/lib/library-metadata';
 import { arenaDocuments } from './arena';
 import { wikiDocuments } from './wiki-search';
 import { loadWikiVault } from './wiki-vault';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
+import { agentSearchDocument, AGENT_INDEX_FILE, type AgentSearchDocument } from '../src/lib/server/chat/site-search';
 import * as pagefind from 'pagefind';
 import { parsePost, isPublicPost, PLURAL_TO_SINGULAR } from '../src/lib/server/parse-post';
 import { getPostPermalink } from '../src/lib/posts-types';
@@ -22,8 +23,11 @@ arena.catch(() => {});
 const { index, errors } = await pagefind.createIndex();
 if (!index) throw new Error(errors.join('\n'));
 let count = 0;
+/** The same documents as plain text for the /chat agent's site search, which runs in the Worker where Pagefind can't. */
+const agentDocuments: AgentSearchDocument[] = [];
 async function add(url: string, title: string, type: string, metadata: Record<string, unknown>, html: string, filters: Record<string, string[]> = {}) {
 	assertSuccess(await index!.addHTMLFile({ url, content: searchDocument(title, type, metadata, html, filters) }));
+	agentDocuments.push(agentSearchDocument(url, title, type, metadata, html));
 	count++;
 }
 try {
@@ -66,6 +70,7 @@ try {
 	const outputPath = process.env.PAGEFIND_OUTPUT || 'static/pagefind';
 	await rm(outputPath, { recursive: true, force: true });
 	assertSuccess(await index.writeFiles({ outputPath }));
+	await writeFile(`${outputPath}/${AGENT_INDEX_FILE}`, JSON.stringify(agentDocuments));
 	console.log(`Pagefind indexed ${count} posts, books, wiki pages and Are.na blocks (${wiki.length} wiki pages, ${arenaItems.length} from Are.na).`);
 } finally {
 	await pagefind.close();
