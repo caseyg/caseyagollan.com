@@ -12,12 +12,14 @@
 		children?: Snippet;
 		/** A control for the page, set at the end of the trail's row. */
 		actions?: Snippet;
+		/** A small control for the whole page, such as Subscribe, pinned in the trail's corner just after it. */
+		pinned?: Snippet;
 		description?: string;
 		/** Less space below, for pages whose first section brings its own. */
 		tight?: boolean;
 	}
 
-	let { trail, title, children, actions, description, tight = false }: Props = $props();
+	let { trail, title, children, actions, pinned, description, tight = false }: Props = $props();
 </script>
 
 <header class="page-header" class:tight class:bare={!actions && !children && !description}>
@@ -25,6 +27,7 @@
 		<!-- Pinned top-left, opposite the site navigation, in the quiet tone so it reads as part of the page. -->
 		<Corner as="nav" side="start" class="trail" aria-label="Breadcrumb">
 			<SegmentedPill segments={trail} size="md" tone="quiet" compact />
+			{#if pinned}<div class="pinned">{@render pinned()}</div>{/if}
 		</Corner>
 		{#if actions}<div class="actions">{@render actions()}</div>{/if}
 	</div>
@@ -70,6 +73,12 @@
 
 	.page-header.bare {
 		margin-bottom: 0;
+	}
+
+	/* Keeps its size: the trail's titles give way first. */
+	.pinned {
+		display: flex;
+		flex: none;
 	}
 
 	.description {

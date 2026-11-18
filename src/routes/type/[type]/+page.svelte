@@ -21,7 +21,7 @@
 
 <PostsLayout width={data.photos ? 'full' : 'reading'}>
 	<ArchiveHeader title={capitalizeFirst(data.typePlural)} icon={data.typeIcon} count={data.totalPosts}>
-		{#snippet actions()}<FeedMenu feeds={data.feeds.feeds} scope={data.typePlural} />{/snippet}
+		{#snippet pinned()}<FeedMenu feeds={data.feeds.feeds} scope={data.typePlural} />{/snippet}
 	</ArchiveHeader>
 
 	{#if data.photos}

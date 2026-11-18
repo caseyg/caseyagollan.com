@@ -10,9 +10,11 @@
 		/** Value of this archive's entry in the Posts menu. */
 		menuActive?: string;
 		actions?: Snippet;
+		/** A small control pinned beside the trail, such as the archive's Subscribe menu. */
+		pinned?: Snippet;
 	}
 
-	let { title, count, icon, menuActive, actions }: Props = $props();
+	let { title, count, icon, menuActive, actions, pinned }: Props = $props();
 </script>
 
-<PageHeader trail={[postsCrumb(menuActive), { label: title, href: '', icon, current: true, count }]} {title} {actions} />
+<PageHeader trail={[postsCrumb(menuActive), { label: title, href: '', icon, current: true, count }]} {title} {actions} {pinned} />

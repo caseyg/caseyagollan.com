@@ -2,6 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { Button, Checkbox, Chip, Heading, Notice, Page, PageHeader, Section, TextField } from '.';
 	import PostFeed from '../posts/PostFeed.svelte';
+	import FeedMenu from '../posts/FeedMenu.svelte';
 	import { note, article, bookmark } from '$lib/storybook/fixtures';
 
 	const { Story } = defineMeta({ title: 'Primitives/Page', component: Page, parameters: { layout: 'fullscreen' }, tags: ['!autodocs'] });
@@ -24,6 +25,16 @@
 			{#snippet actions()}
 				<Chip href="/posts/" variant="ghost">Filter by type</Chip>
 			{/snippet}
+		</PageHeader>
+		<PostFeed postsByDay={[['2026-01-10', [note, { ...article, slug: 'a' }]]]} />
+	</Page>
+</Story>
+
+<!-- A small control for the whole page, pinned just after the trail in its corner, so it leaves no row of its own: the posts Subscribe menu. -->
+<Story asChild name="HeaderWithPinned">
+	<Page>
+		<PageHeader title="Posts" trail={[{ label: 'Posts', href: '/posts/', icon: '📡', current: true }]}>
+			{#snippet pinned()}<FeedMenu submit={async () => ({ ok: true, status: 'subscribed' })} />{/snippet}
 		</PageHeader>
 		<PostFeed postsByDay={[['2026-01-10', [note, { ...article, slug: 'a' }]]]} />
 	</Page>

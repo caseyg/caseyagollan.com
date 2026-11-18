@@ -11,9 +11,11 @@
 		/** Set on a single post, where the trail leads to the page instead of naming it. */
 		parent?: boolean;
 		actions?: Snippet;
+		/** A small control pinned beside the trail, such as the archive's Subscribe menu. */
+		pinned?: Snippet;
 	}
 
-	let { year, month, day, count, parent = false, actions }: Props = $props();
+	let { year, month, day, count, parent = false, actions, pinned }: Props = $props();
 
 	const title = $derived.by(() => {
 		if (!month) return `Posts from ${year}`;
@@ -31,4 +33,4 @@
 	});
 </script>
 
-<PageHeader {trail} title={parent ? undefined : title} {actions} />
+<PageHeader {trail} title={parent ? undefined : title} {actions} {pinned} />

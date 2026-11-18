@@ -30,7 +30,7 @@
 		trail={[{ ...postsCrumb(filtered ? undefined : 'all', badge), current: true }]}
 		title={filtered ? shownLabel : 'Posts'}
 	>
-		{#snippet actions()}<div class="feeds"><FeedMenu /></div>{/snippet}
+		{#snippet pinned()}<FeedMenu />{/snippet}
 	</PageHeader>
 	{#if data.totalPosts === 0}
 		<p class="empty">No posts match these filters.</p>
@@ -45,11 +45,6 @@
 </PostsLayout>
 
 <style>
-	.feeds {
-		display: flex;
-		justify-content: flex-end;
-	}
-
 	.empty {
 		color: var(--text-muted);
 	}

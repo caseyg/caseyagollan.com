@@ -11,9 +11,11 @@
 		count?: number;
 		countDescription?: string;
 		actions?: Snippet;
+		/** A small control pinned beside the trail, such as the archive's Subscribe menu. */
+		pinned?: Snippet;
 	}
 
-	let { current, currentIcon, options, count, countDescription, actions }: Props = $props();
+	let { current, currentIcon, options, count, countDescription, actions, pinned }: Props = $props();
 </script>
 
 <PageHeader
@@ -21,4 +23,5 @@
 	title={current}
 	description={countDescription}
 	{actions}
+	{pinned}
 />

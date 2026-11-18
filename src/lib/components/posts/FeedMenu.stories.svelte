@@ -15,7 +15,7 @@
 	});
 </script>
 
-<!-- The gray Subscribe control at the top of the posts feed. -->
+<!-- The Subscribe control pinned beside the trail on /posts, type and tag pages (PageHeader `pinned`). Icon only on a phone. -->
 <Story name="Default" />
 
 <!-- Email signup first (SubscribeForm, sent to Buttondown by the Worker), then RSS, Atom and JSON Feed. -->
