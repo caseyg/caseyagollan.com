@@ -204,3 +204,50 @@ describe('inference.coop streaming', () => {
 		expect(sent?.stream).toBe(true);
 	});
 });
+
+describe('Pi transcript as chat messages', () => {
+	const { projectMessages, diffMessages, SAY_KIND } = require('../src/lib/server/chat/projection') as typeof import('../src/lib/server/chat/projection');
+	const ana = { id: 'mastodon:ana@social.coop', name: 'Ana', via: 'mastodon' as const };
+	const say = (id: string, text: string, at = 1000) => ({ id: `e${id}`, kind: SAY_KIND, data: { id, author: ana, owner: false, at, text }, model: [{ role: 'user', content: `Ana wrote:\n\n${text}`, timestamp: at }] });
+	const answer = (id: string, content: unknown[], at = 2000) => ({ id, kind: 'pi.assistant', model: [{ role: 'assistant', content, model: 'glm-flash-green', timestamp: at, usage: { input: 1000, output: 200 } }] });
+	const result = (id: string, callId: string, toolName: string, text: string, isError = false) => ({ id, kind: 'pi.tool-result', model: [{ role: 'toolResult', toolCallId: callId, toolName, content: [{ type: 'text', text }], isError }] });
+
+	test('one message per person, one reply per run with its steps', () => {
+		const messages = projectMessages([
+			say('m1', 'What about Micropub?'),
+			answer('e2', [{ type: 'text', text: 'Let me look.' }, { type: 'toolCall', id: 'c1', name: 'search_site', arguments: { query: 'micropub' } }]),
+			result('e3', 'c1', 'search_site', JSON.stringify([{ url: 'https://caseyagollan.com/a', title: 'A' }])),
+			answer('e4', [{ type: 'text', text: 'Casey wrote [A](https://caseyagollan.com/a).' }])
+		]);
+		expect(messages.map((message) => message.role)).toEqual(['user', 'assistant']);
+		expect(messages[0].content).toBe('What about Micropub?');
+		expect(messages[1].id).toBe('r-m1');
+		expect(messages[1].content).toBe('Let me look.\n\nCasey wrote [A](https://caseyagollan.com/a).');
+		expect(messages[1].tools).toEqual([{ tool: 'search_site', label: 'Searched the site for “micropub”', status: 'done', links: [{ url: 'https://caseyagollan.com/a', title: 'A' }] }]);
+	});
+
+	test('the live answer streams, then a failure says why', () => {
+		const streaming = projectMessages([say('m1', 'Hi')], { run: {}, generation: { message: { role: 'assistant', content: [{ type: 'text', text: 'Hel' }] } } });
+		expect(streaming[1]).toMatchObject({ id: 'r-m1', status: 'streaming', content: 'Hel' });
+		const failed = projectMessages([say('m1', 'Hi')], { runFailure: { reason: 'model_error' } });
+		expect(failed[1]).toMatchObject({ status: 'failed', content: '*The answer stopped: the model answered with an error.*' });
+		expect(diffMessages([streaming[0], streaming[1]], [streaming[0], { ...streaming[1], content: 'Hello' }])).toEqual([{ type: 'chat:delta', id: 'r-m1', text: 'lo' }]);
+	});
+
+	test('Micropub output never becomes a public link', () => {
+		const messages = projectMessages([
+			say('m1', 'Draft a note'),
+			answer('e2', [{ type: 'toolCall', id: 'c1', name: 'micropub_create_post', arguments: { content: 'x' } }]),
+			result('e3', 'c1', 'micropub_create_post', 'Location: https://caseyagollan.com/private-draft')
+		]);
+		expect(messages[1].tools).toEqual([{ tool: 'micropub_create_post', label: 'Saved a draft', status: 'done' }]);
+	});
+
+	test('what an answer costs', () => {
+		const { costOf, priceOf, resetsOn } = require('../src/lib/server/chat/budget') as typeof import('../src/lib/server/chat/budget');
+		expect(costOf([answer('e1', [])])).toBeCloseTo((1000 * 0.11 + 200 * 0.44) / 1e6, 10);
+		expect(costOf([{ model: [{ role: 'assistant', usage: { cost: { total: 0.5 } } }] }])).toBe(0.5);
+		expect(priceOf('unknown').input).toBe(1.8);
+		expect(resetsOn(Date.UTC(2026, 10, 18))).toBe('December 1');
+	});
+});
