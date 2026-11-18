@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { Avatar, Button, Heading, Notice } from '$lib/components/ui';
 	import ContextMenu, { type ContextMenuItem } from '$lib/components/ui/ContextMenu.svelte';
-	import { authorKey, authorLabel, emptyModeration, groupMentions, type MentionModeration, type ModerationAction } from '$lib/webmentions';
+	import { authorKey, authorLabel, emptyModeration, groupMentions, threadReplies, type MentionModeration, type ModerationAction, type ReplyNode } from '$lib/webmentions';
 	import type { MentionsMode, ShownMention } from '$lib/webmentions-client';
 
 	interface Props {
@@ -23,6 +23,7 @@
 	const canModerate = $derived(mode !== 'visitor');
 	const showing = $derived(canModerate && moderating ? mentions : mentions.filter((mention) => !mention.hidden));
 	const groups = $derived(groupMentions(showing));
+	const thread = $derived(threadReplies(groups.replies));
 	const hiddenCount = $derived(mentions.filter((mention) => mention.hidden).length);
 	const any = $derived(showing.length > 0);
 
@@ -30,6 +31,11 @@
 	let target = $state<ShownMention | null>(null);
 	let status = $state<{ tone: 'info' | 'error'; text: string } | null>(null);
 	let statusTimer: ReturnType<typeof setTimeout> | undefined;
+
+	/** Replies nest this deep, as on Bluesky; deeper ones line up with the last level. */
+	const MAX_DEPTH = 3;
+	const NETWORK = { mastodon: 'Mastodon', bluesky: 'Bluesky' } as const;
+	const where = (mention: ShownMention) => (mention.network ? NETWORK[mention.network] : new URL(mention.url).hostname.replace(/^www\./, ''));
 
 	const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 	const noun = (mention: ShownMention) => (mention.kind === 'like' ? 'favorite' : mention.kind === 'repost' ? 'repost' : mention.kind === 'reply' ? 'reply' : 'mention');
@@ -105,6 +111,39 @@
 	</div>
 {/snippet}
 
+{#snippet replyItem(node: ReplyNode<ShownMention>, depth: number)}
+	{@const reply = node.reply}
+	<li class="p-comment h-cite reply-item" class:reply-item--nested={depth > 0}>
+		<div class="reply" class:hidden={reply.hidden}>
+			<Avatar src={reply.author.photo} name={reply.author.name} size={depth > 0 ? 'sm' : 'md'} class="u-photo" />
+			<div class="reply-body">
+				<div class="reply-author p-author h-card">
+					<a class="p-name u-url" href={reply.author.url || reply.url} target="_blank" rel="noopener">{reply.author.name || authorKey(reply)}</a>
+					{#if reply.hidden}<span class="hidden-label">Hidden</span>{/if}
+				</div>
+				<div class="reply-content p-content">
+					{#if reply.html}{@html reply.html}{:else}{reply.text}{/if}
+				</div>
+				<footer class="reply-meta">
+					{#if reply.published}
+						<time class="dt-published" datetime={reply.published}>{new Date(reply.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</time>
+						<span aria-hidden="true">·</span>
+					{/if}
+					<a class="u-url" href={reply.url} target="_blank" rel="noopener">{where(reply)}</a>
+				</footer>
+			</div>
+			{#if canModerate && moderating}{@render moderate(reply)}{/if}
+		</div>
+		{#if node.replies.length}
+			<ol class="reply-list reply-children" class:reply-children--flat={depth + 1 >= MAX_DEPTH} aria-label="Replies to {authorLabel(reply)}">
+				{#each node.replies as child (child.reply.id)}
+					{@render replyItem(child, depth + 1)}
+				{/each}
+			</ol>
+		{/if}
+	</li>
+{/snippet}
+
 {#if any || (canModerate && hiddenCount)}
 	<section class="webmentions" id="webmentions">
 		<header class="webmentions-header">
@@ -128,27 +167,8 @@
 			<div class="replies">
 				<Heading level={4} size="label"><span aria-hidden="true">💬</span> {plural(groups.replies.length + groups.links.length, 'reply', 'replies')}</Heading>
 				<ol class="reply-list">
-					{#each groups.replies as reply (reply.id)}
-						<li class="p-comment h-cite reply" class:hidden={reply.hidden}>
-							<Avatar src={reply.author.photo} name={reply.author.name} class="u-photo" />
-							<div class="reply-body">
-								<div class="reply-author p-author h-card">
-									<a class="p-name u-url" href={reply.author.url || reply.url} target="_blank" rel="noopener">{reply.author.name || authorKey(reply)}</a>
-									{#if reply.hidden}<span class="hidden-label">Hidden</span>{/if}
-								</div>
-								<div class="reply-content p-content">
-									{#if reply.html}{@html reply.html}{:else}{reply.text}{/if}
-								</div>
-								<footer class="reply-meta">
-									{#if reply.published}
-										<time class="dt-published" datetime={reply.published}>{new Date(reply.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</time>
-										<span aria-hidden="true">·</span>
-									{/if}
-									<a class="u-url" href={reply.url} target="_blank" rel="noopener">{new URL(reply.url).hostname.replace(/^www\./, '')}</a>
-								</footer>
-							</div>
-							{#if canModerate && moderating}{@render moderate(reply)}{/if}
-						</li>
+					{#each thread as node (node.reply.id)}
+						{@render replyItem(node, 0)}
 					{/each}
 					{#each groups.links as link (link.id)}
 						<li class="p-comment h-cite mention" class:hidden={link.hidden}>
@@ -255,6 +275,30 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-5);
+	}
+
+	/* Avatar widths from the Avatar primitive: md for top-level replies, sm below. */
+	.reply-item {
+		--reply-avatar: 2.75rem;
+	}
+
+	.reply-item--nested {
+		--reply-avatar: 2rem;
+	}
+
+	.reply-children {
+		/* The thread line runs down from the parent's avatar, as on Bluesky. */
+		margin: var(--space-3) 0 0 calc(var(--reply-avatar) / 2 - 1px);
+		padding-left: calc(var(--reply-avatar) / 2 + var(--space-1));
+		border-left: 2px solid var(--border);
+		gap: var(--space-4);
+	}
+
+	/* Past the deepest level, replies stay at that level instead of narrowing further. */
+	.reply-children--flat :global(.reply-children) {
+		margin-left: 0;
+		padding-left: 0;
+		border-left: 0;
 	}
 
 	.reply {

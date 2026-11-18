@@ -66,3 +66,28 @@ export const webmentions: StoredMention[] = [
 export const longWebmentionReply: StoredMention = mentionOf(8, 'reply', 'Someone With A Very Long Display Name Indeed', {
 	html: `<p>${'A long reply that keeps going, with a link to https://example.com/a/very/long/address/that/should/wrap/rather/than/overflow/the/page and more words. '.repeat(3)}</p>`
 });
+
+/** A post's Bluesky and Mastodon responses as the site reads them directly, replies nested. */
+const nativeOf = (id: number, network: 'bluesky' | 'mastodon', kind: StoredMention['kind'], name: string, extra: Partial<StoredMention> = {}): StoredMention => {
+	const handle = name.toLowerCase().replace(/\W/g, '');
+	const url = network === 'bluesky' ? `https://bsky.app/profile/${handle}.bsky.social/post/3n${id}` : `https://mastodon.example/@${handle}/${id}`;
+	return {
+		id, kind, network, target: '/2026/01/10/storybook-note/', url, source: url,
+		author: { name, url: network === 'bluesky' ? `https://bsky.app/profile/${handle}.bsky.social` : `https://mastodon.example/@${handle}`, photo: '' },
+		published: `2026-01-11T${String(9 + (id % 10)).padStart(2, '0')}:00:00-05:00`, ...extra
+	};
+};
+const nativeReply = (id: number, network: 'bluesky' | 'mastodon', name: string, text: string, parent?: StoredMention) =>
+	nativeOf(id, network, 'reply', name, { text, html: `<p>${text}</p>`, ...(parent ? { parent: parent.url } : {}) });
+const gia = nativeReply(11, 'bluesky', 'Gia Romero', 'Saving this. Did you write up the setup anywhere?');
+const casey = nativeReply(12, 'bluesky', 'Casey Gollan', 'Not yet! It’s mostly a cron and a few JSON files. Happy to share notes.', gia);
+const giaAgain = nativeReply(13, 'bluesky', 'Gia Romero', 'Please do 🙏', casey);
+const hal = nativeReply(14, 'bluesky', 'Hal Ito', 'Same here. Curious how you handle deleted replies.', casey);
+const deep = nativeReply(15, 'bluesky', 'Casey Gollan', 'Each read replaces the stored list, so a deleted reply just drops out.', hal);
+const deeper = nativeReply(16, 'bluesky', 'Hal Ito', 'Simple. Nice.', deep);
+const ines = nativeReply(17, 'mastodon', 'Inés Silva', 'Boosting for the fediverse folks.');
+export const backfeedThread: StoredMention[] = [
+	nativeOf(18, 'bluesky', 'like', 'Jo Park'), nativeOf(19, 'bluesky', 'like', 'Kim Lee'), nativeOf(20, 'mastodon', 'like', 'Lou Grant'),
+	nativeOf(21, 'mastodon', 'repost', 'Inés Silva'),
+	gia, casey, giaAgain, hal, deep, deeper, ines
+];
