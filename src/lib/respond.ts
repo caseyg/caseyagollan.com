@@ -1,5 +1,5 @@
 /**
- * Ways a visitor can answer a post: on its Mastodon or Bluesky copy, on X, or from their own
+ * Ways a visitor can answer a post: on its Mastodon or Bluesky copy, or from their own
  * site with a Webmention. Responses on the copies come back through backfeed, and Webmentions
  * through webmention.io, so every route ends up under the post (see `WebmentionList`).
  */
@@ -15,7 +15,6 @@ export type RespondAction = 'reply' | 'like' | 'repost';
 export interface PostCopies {
 	mastodon?: string;
 	bluesky?: string;
-	x?: string;
 }
 
 const hostOf = (url: string) => {
@@ -36,7 +35,6 @@ export function postCopies(syndication: string[] = []): PostCopies {
 		const host = hostOf(url);
 		if (!host) continue;
 		if (host === 'bsky.app' && /\/post\//.test(url)) copies.bluesky ??= url;
-		else if ((host === 'x.com' || host === 'twitter.com') && /\/status\/\d+/.test(url)) copies.x ??= url;
 		else if (MASTODON_PATH.test(new URL(url).pathname)) copies.mastodon ??= url;
 	}
 	return copies;
@@ -77,17 +75,6 @@ export function mastodonShareUrl(server: string, text: string): string {
 /** A new Bluesky post with the link in it. */
 export function blueskyComposeUrl(text: string): string {
 	return `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
-}
-
-/** X's web intents. With a copy on X they act on it; otherwise they start a post with the link. */
-export function xIntentUrl(action: RespondAction, url: string, title: string, copy?: string): string {
-	const id = copy?.match(/\/status\/(\d+)/)?.[1];
-	if (id && action === 'reply') return `https://x.com/intent/post?in_reply_to=${id}`;
-	if (id && action === 'like') return `https://x.com/intent/like?tweet_id=${id}`;
-	if (id && action === 'repost') return `https://x.com/intent/retweet?tweet_id=${id}`;
-	const params = new URLSearchParams({ url });
-	if (title) params.set('text', title);
-	return `https://x.com/intent/post?${params}`;
 }
 
 /** The mf2 property a post on the visitor's own site uses for each action. */

@@ -16,7 +16,7 @@
 	});
 </script>
 
-<!-- Under every post page: Reply, Like and Repost. Each opens where to do it: the post's own copies on Bluesky and Mastodon, X, or the visitor's site. -->
+<!-- Under every post page: Reply, Like and Repost. Each opens where to do it: the post's own copies on Bluesky and Mastodon, or the visitor's site. -->
 <Story name="Syndicated to Bluesky and Mastodon" />
 
 <!-- Only a Bluesky copy: Mastodon can still start a new post that links here, but not a like. -->

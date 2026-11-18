@@ -31,7 +31,6 @@
 		mastodonShareUrl,
 		normalizeServer,
 		sendWebmention,
-		xIntentUrl,
 		type PostCopies,
 		type RespondAction,
 		type WebmentionOutcome
@@ -77,7 +76,6 @@
 		else if (action !== 'like') list.push({ key: 'bluesky', mark: '🦋', label: 'Post on Bluesky', detail: 'Starts a post with a link here', href: blueskyComposeUrl(shareText) });
 		if (copies.mastodon) list.push({ key: 'mastodon', mark: '🐘', label: `${verb} on Mastodon`, detail: 'From your own server', step: 'mastodon' });
 		else if (action !== 'like') list.push({ key: 'mastodon', mark: '🐘', label: 'Post on Mastodon', detail: 'Starts a post on your server', step: 'mastodon' });
-		if (copies.x || action !== 'like') list.push({ key: 'x', mark: '𝕏', label: copies.x ? `${verb} on X` : 'Post on X', detail: copies.x ? 'Opens X' : 'Starts a post with a link here', href: xIntentUrl(action, url, title, copies.x) });
 		list.push({ key: 'web', mark: '🌐', label: 'From your website', detail: 'Send a Webmention', step: 'web' });
 		return list;
 	});

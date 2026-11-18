@@ -7,7 +7,7 @@
 		/** The post's canonical address. */
 		url: string;
 		title?: string;
-		/** The post's `syndication` links; the copies on Mastodon, Bluesky and X are read from them. */
+		/** The post's `syndication` links; the copies on Mastodon and Bluesky are read from them. */
 		syndication?: string[];
 		/** Stand-ins for stories. */
 		send?: (source: string, target: string) => Promise<WebmentionOutcome>;
