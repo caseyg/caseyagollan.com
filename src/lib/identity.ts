@@ -35,3 +35,16 @@ export const SITE_IDENTITY: SiteIdentity = {
 		{ label: 'Wiki', href: 'https://cag.wiki/' }
 	]
 };
+
+/**
+ * The Mastodon profile as a fediverse handle (`@caseyg@social.coop`), read from the profile link
+ * above. Posts name it in `fediverse:creator`, so Mastodon credits shared links to that account.
+ */
+export function fediverseHandle(identity: SiteIdentity = SITE_IDENTITY): string | undefined {
+	for (const { href } of identity.profiles) {
+		const url = new URL(href);
+		const user = url.pathname.match(/^\/@([\w.-]+)\/?$/)?.[1];
+		if (user) return `@${user}@${url.hostname}`;
+	}
+	return undefined;
+}

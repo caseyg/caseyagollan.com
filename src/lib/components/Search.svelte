@@ -3,6 +3,8 @@
 	import PostMeta from './posts/PostMeta.svelte';
 	import '@pagefind/component-ui/css';
 	import { updateFilterDisplay } from '$lib/search-filter-display';
+	import { SEARCH_QUERY_PARAM } from '$lib/opensearch';
+	import { replaceState } from '$app/navigation';
 
 	// Register browser-only custom elements after Svelte has hydrated the markup.
 	let filterPane: HTMLElement;
@@ -41,7 +43,7 @@
 		const filterObserver = new MutationObserver(() => updateFilterDisplay(filterPane));
 		filterObserver.observe(filterPane, { childList: true, subtree: true });
 		updateFilterDisplay(filterPane);
-		void import('@pagefind/component-ui');
+		void import('@pagefind/component-ui').then(() => customElements.whenDefined('pagefind-modal')).then(openFromUrl);
 		// Pagefind moves its modal outside the navigation markup.
 		document.addEventListener('click', handleResultClick);
 		document.addEventListener('click', keepOpenForNewTab, true);
@@ -67,6 +69,19 @@
 			input.value = query;
 			input.dispatchEvent(new Event('input', { bubbles: true }));
 		});
+	}
+
+	/**
+	 * A `?q=` link, such as a browser's search engine entry from /opensearch.xml, opens search on that
+	 * query. The parameter comes off the address, so closing search leaves the page's own URL.
+	 */
+	function openFromUrl() {
+		const url = new URL(location.href);
+		const query = url.searchParams.get(SEARCH_QUERY_PARAM)?.trim();
+		if (query === undefined) return;
+		url.searchParams.delete(SEARCH_QUERY_PARAM);
+		replaceState(url, {});
+		openWith(query);
 	}
 
 	/**

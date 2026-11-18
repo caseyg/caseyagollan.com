@@ -3,12 +3,14 @@
 	import Nav from '$lib/components/Nav.svelte';
 	import Webmentions from '$lib/components/Webmentions.svelte';
 	import HCard from '$lib/components/HCard.svelte';
+	import { fediverseHandle } from '$lib/identity';
 	import { PostsLayout, DateArchiveHeader, PostMeta, PostTitle, PostContent, PostMedia, PostDetails, NoteCard } from '$lib/components/posts';
 
 	import { getPostAction } from '$lib/utils/post-details';
 	import { renderContentSync } from '$lib/utils/renderContent';
 
 	let { data }: { data: PageData } = $props();
+	const creator = fediverseHandle();
 
 	const permalink = `/${data.year}/${data.month}/${data.day}/${data.post.slug}/`;
 	// The description is the post's visible text, not its Markdown or HTML source.
@@ -24,6 +26,8 @@
 	<title>{data.post.title || data.post.type} - Casey Gollan</title>
 	<meta name="description" content={description} />
 	<link rel="canonical" href="https://caseyagollan.com{permalink}" />
+	<!-- Mastodon credits links to this post to the author's account. -->
+	{#if creator}<meta name="fediverse:creator" content={creator} />{/if}
 </svelte:head>
 
 <Nav currentPage="posts" />
