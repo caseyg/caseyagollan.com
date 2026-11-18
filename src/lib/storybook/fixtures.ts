@@ -9,7 +9,7 @@ export const note: Post = {
 };
 export const article: Post = { ...note, type: 'article', title: 'Making space for experimentation', content: 'An introduction to a longer piece about creative practice.\n\n## Start with curiosity\n\nTry something small, learn from it, and share what you find.' };
 export const bookmark: Post = { ...note, type: 'bookmark', title: 'School for Poetic Computation', bookmarkOf: 'https://sfpc.study/', content: 'Learning at the intersection of art, code, and community.' };
-const savedPost = {
+export const savedPost = {
 	version: 1 as const, url: 'https://bsky.app/profile/example.com/post/abc', platform: 'bluesky' as const,
 	author: { name: 'Example Reader', handle: '@example.com', url: 'https://bsky.app/profile/example.com' },
 	published: '2026-01-09T15:30:00-05:00', fetchedAt: '2026-01-10T12:00:00-05:00',

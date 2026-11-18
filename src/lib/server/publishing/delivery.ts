@@ -33,7 +33,7 @@ const splitPath = (path: string) => { const index = path.indexOf('/'); return [p
 const visible = (post: ReturnType<typeof parsePost>) => !post.draft && isPublicPost(post);
 const hash = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), byte => byte.toString(16).padStart(2,'0')).join('');
 function eventFor(publication: Publication, previous?: Publication, action: 'publish' | 'remove' = 'publish', generation?: string): DeliveryEvent {
- return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(action === 'publish' && publication.photos?.length ? { photos: publication.photos } : {}), ...(action === 'publish' && publication.thread ? { thread: publication.thread } : {}) };
+ return { source: publication.url, revision: publication.revision, generation, action, targets: [...new Set([...publication.targets, ...(previous?.targets ?? [])])], syndicateTo: action === 'publish' ? publication.syndicateTo.filter((service): service is Service => services.includes(service as Service)) : [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(action === 'publish' && publication.photos?.length ? { photos: publication.photos } : {}), ...(action === 'publish' && publication.thread ? { thread: publication.thread } : {}), ...(action === 'publish' && publication.quote ? { quote: publication.quote } : {}) };
 }
 
 /** The request path and manifest recovery share a durable transition before enqueue.
@@ -168,7 +168,7 @@ export async function syndicationOnce(bucket: R2Bucket, event: DeliveryEvent, se
   if (!saved) throw new DeliveryError('Syndication receipt raced', true);
   claim = saved;
  } };
- const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, ...original, media }, config, fetcher, progress);
+ const url = await syndicate(service, { url: event.source, text: event.text, title: event.title, published: event.published, idempotencyKey: identity, ...original, media, ...(event.quote ? { quote: event.quote } : {}) }, config, fetcher, progress);
  const saved = await bucket.put(key, JSON.stringify({ status: 'sent', startedAt, leaseUntil: 0, url, ...kept, ...(parts.length ? { parts } : {}) }), { onlyIf: { etagMatches: claim.etag } });
  if (!saved) throw new DeliveryError('Syndication receipt raced', true);
  return url;

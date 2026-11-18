@@ -325,7 +325,8 @@
 				<Button variant="icon" icon="hash" label="Add tags" pressed={open.tags || !!category} onclick={() => reveal('tags', 'field-tags')} />
 				<Button variant="icon" icon="sliders" label="Slug, date and format" pressed={open.options} onclick={() => reveal('options', 'field-slug')} />
 				{#snippet end()}
-				{#if data.syndication.length && kind !== 'like' && kind !== 'repost'}
+				<!-- A repost goes out as a quote, so it offers networks once it has a comment. -->
+				{#if data.syndication.length && kind !== 'like' && (kind !== 'repost' || content.trim())}
 					<CheckboxGroup layout="row" label="Also post to" name="syndicate-to" bind:value={syndicateTo}>
 						{#each data.syndication as destination (destination.uid)}
 							<ToggleChip value={destination.uid} title="Also post to {destination.name}">{destination.name}</ToggleChip>

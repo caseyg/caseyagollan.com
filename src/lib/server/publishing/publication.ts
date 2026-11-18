@@ -6,6 +6,7 @@ import { getPostPermalink } from '../../posts-types';
 import { renderContentSync } from '../../utils/renderContent';
 import { isPublicPost } from '../parse-post';
 import { storedPhotoPosts, storedThread } from './syndication-thread';
+import { quoteNetwork, type SyndicationQuote } from './syndication-quotes';
 
 export interface Publication {
  url: string;
@@ -22,6 +23,8 @@ export interface Publication {
  photos?: { url: string; alt: string; post?: number }[];
  /** The social copy as a thread of posts, from the post's `syndication-thread`. */
  thread?: string[];
+ /** A Bluesky or Mastodon post this one reposts with a comment, or quotes, for a native quote. */
+ quote?: SyndicationQuote;
 }
 const CANONICAL = 'https://caseyagollan.com';
 
@@ -63,7 +66,14 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
   const text = node.children.map(read).join('');
   return node.type === 'element' && ['p', 'div', 'li', 'br', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'pre', 'section', 'article', 'tr'].includes(node.tagName) ? `${text}\n` : text;
  }
- const text = read(tree).replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+ const plain = (node: Nodes) => read(node).replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+ const text = plain(tree);
+ // A repost with a comment, or a quote, of a social post; its text drops the line the quote card replaces.
+ const reposted = post.type === 'repost' ? post.properties?.['repost-of']?.find(value => typeof value === 'string' && quoteNetwork(value)) : undefined;
+ const quoting = reposted ? undefined : post.properties?.['quotation-of']?.find(value => typeof value === 'string' && quoteNetwork(value));
+ const quoteUrl = (reposted ?? quoting) as string | undefined;
+ const quoteText = quoteUrl ? plain(fromHtml(renderContentSync(post.content, post.contentFormat) + renderPostDetails({ ...post, socialSnapshots: undefined }, reposted ? { omitReactionLabel: true } : { omitQuotations: true }), { fragment: true })) : '';
+ const quote = quoteUrl && (quoting || quoteText) ? { url: quoteUrl, text: quoteText } : undefined;
  const photoPosts = storedPhotoPosts(post.properties);
  const photos = (post.photo ?? []).map((photo, index) => ({ photo, post: photoPosts[index] ?? 0 })).filter(({ photo }) => /^https:\/\//.test(photo.url)).map(({ photo, post }) => ({ url: photo.url, alt: (photo.alt ?? '').replace(/\s+/g, ' ').trim(), ...(post ? { post } : {}) }));
  const thread = storedThread(post.properties);
@@ -75,6 +85,7 @@ export async function publicationForPost(post: Post, origin = CANONICAL): Promis
   title: post.title, published: post.date, sourcePath: post.filePath,
   ...(photos.length ? { photos } : {}),
   ...(thread && thread.length > 1 ? { thread } : {}),
+  ...(quote ? { quote } : {}),
   ...(post.previousUrls?.length ? { previousUrls: post.previousUrls.map(path => new URL(path, site).href) } : {}),
   // Imported activities may carry historical destination metadata. Never let a
   // polling import or later snapshot refresh trigger another automatic POSSE send.

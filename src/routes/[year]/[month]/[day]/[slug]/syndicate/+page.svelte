@@ -11,6 +11,7 @@
 	import AttachedPhotos from '$lib/components/editor/AttachedPhotos.svelte';
 	import { Heading, Notice, Page, PageHeader, CheckboxGroup, ToggleChip } from '$lib/components/ui';
 	import ThreadComposer from '$lib/components/composer/ThreadComposer.svelte';
+	import QuotedPost from '$lib/components/composer/QuotedPost.svelte';
 	import { characterCount, mentionQuery, altLength, PHOTO_LIMITS, type SocialService, type FollowedAccount } from '$lib/social-text';
 	import { maxThreadPosts, splitIntoThread } from '$lib/social-thread';
 	import follows from '$lib/data/social-follows.json';
@@ -111,6 +112,8 @@
 		return to >= 0 && to < postCount && (!photo.included || onPost(to).filter(other => other.included).length < maxPhotos);
 	};
 	function move(photo: { post?: number }, step: -1 | 1) { photo.post = postOf(photo) + step; }
+	// The networks this thread's first post quotes the reposted or quoted post on.
+	const quoting = (service: SocialService) => data.signedIn && data.quote ? reach(service).filter(d => d.service === data.quote!.service).map(d => d.name) : [];
 	const altOver = $derived(photos.some(photo => photo.included && altLength(photo.alt.trim()) > altLimit));
 
 	let sending = $state(false);
@@ -174,6 +177,9 @@
 								{/if}
 							{/snippet}
 							{#snippet attachments(index)}
+								{#if index === 0 && data.signedIn && data.quote && quoting(destination.service).length}
+									<QuotedPost url={data.quote.url} networks={quoting(destination.service)} snapshot={data.quote.snapshot} />
+								{/if}
 								<!-- Photos are shared by every network; they show under the first one's posts. -->
 								{#if destination === editors[0] && onPost(index).length}
 									<AttachedPhotos bind:photos={() => onPost(index), () => {}} name={null} removable max={maxPhotos} {altLimit}

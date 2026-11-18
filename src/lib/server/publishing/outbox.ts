@@ -8,6 +8,8 @@ export type DeliveryEvent = {
  photos?: { url: string; alt: string; post?: number }[];
  /** The post's stored thread; automatic sends post it as a reply chain. */
  thread?: string[];
+ /** A post this one reposts with a comment or quotes; its own network gets a native quote. */
+ quote?: { url: string; text: string };
 };
 export interface DeliveryProgress {
  webmentions: string[];

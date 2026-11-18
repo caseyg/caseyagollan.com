@@ -32,6 +32,8 @@
 	const initial = untrack(() => form?.fields ?? editor.fields);
 	const [kindLabel, kindIcon] = $derived<[string, IconName]>((editor.path ? KINDS[editor.path.split('/')[0]] : undefined) ?? ['post', 'note']);
 	const reaction = $derived(!!initial.properties && ('like-of' in initial.properties || 'repost-of' in initial.properties));
+	// A saved repost with a comment can be syndicated; it goes out as a quote.
+	const quotable = $derived(!!initial.properties && 'repost-of' in initial.properties && !('like-of' in initial.properties) && !!editor.fields.content.trim());
 	// Native saves reload the page, so these start from the stored post each time.
 	let name = $state(untrack(() => initial.name ?? ''));
 	let content = $state(untrack(() => initial.content));
@@ -65,7 +67,7 @@
 	<span class="kind"><Icon name={kindIcon} size={18} /> Edit {kindLabel}</span>
 	{#snippet actions()}
 		{#if editor.github}<Button variant="icon" icon="github" label="Open on GitHub" href={editor.github} target="_blank" rel="noopener noreferrer" />{/if}
-		{#if !reaction}<Button variant="icon" icon="share" label="Syndicate" href="{base}syndicate/" />{/if}
+		{#if !reaction || quotable}<Button variant="icon" icon="share" label="Syndicate" href="{base}syndicate/" />{/if}
 		<Button variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
 	{/snippet}
 </ComposerBar>
