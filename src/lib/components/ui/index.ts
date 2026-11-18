@@ -23,6 +23,8 @@ export { default as SegmentedPill } from './SegmentedPill.svelte';
 export { default as SelectMenu } from './SelectMenu.svelte';
 export { default as TextField } from './TextField.svelte';
 export { default as SubscribeForm } from './SubscribeForm.svelte';
+export { default as SubscribePanel } from './SubscribePanel.svelte';
+export { takeSubscribeStatus, type SubscribeStatus } from './subscribeStatus';
 export { default as Switch } from './Switch.svelte';
 export { default as ToggleChip } from './ToggleChip.svelte';
 export type { IconName } from './Icon.svelte';

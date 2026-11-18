@@ -71,3 +71,15 @@ test('only bare video links embed; explicit video link labels survive', () => {
  expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ">Watch this</a>');
  expect(html).toContain('src="https://player.vimeo.com/video/12345678"');
 });
+
+describe('subscribe line', () => {
+ test('a bare subscribe link on its own line becomes the subscribe embed, in place of its paragraph', () => {
+  const html = renderContent('Follow along:\n\nhttps://caseyagollan.com/subscribe\n\nThanks.');
+  expect(html).toContain('<div class="embed embed-subscribe"><p><a href="https://caseyagollan.com/subscribe/">Get new posts by email</a>, or follow with <a href="https://caseyagollan.com/feed.xml">RSS</a>, <a href="https://caseyagollan.com/atom.xml">Atom</a> or <a href="https://caseyagollan.com/feed.json">JSON Feed</a>.</p></div>');
+  expect(html).not.toContain('<p></p>');
+ });
+ test('a subscribe link in a sentence, or with its own label, stays a link', () => {
+  expect(renderContent('see https://caseyagollan.com/subscribe here')).not.toContain('embed-subscribe');
+  expect(renderContent('[sign up](https://caseyagollan.com/subscribe)')).not.toContain('embed-subscribe');
+ });
+});

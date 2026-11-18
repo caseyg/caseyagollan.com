@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { mermaidBlocks } from './mermaidBlocks';
+	import { subscribeEmbeds } from './subscribeEmbeds';
 
 	interface Props {
 		/** Extra classes, e.g. microformats such as `e-content`. */
@@ -11,8 +12,8 @@
 	let { class: className = '', children }: Props = $props();
 </script>
 
-<!-- Mermaid code blocks are drawn as diagrams once the page is up. -->
-<div class="prose {className}" {@attach mermaidBlocks}>
+<!-- Mermaid code blocks are drawn as diagrams, and subscribe lines become the signup form, once the page is up. -->
+<div class="prose {className}" {@attach mermaidBlocks} {@attach subscribeEmbeds}>
 	{@render children()}
 </div>
 
@@ -279,6 +280,26 @@
 	.prose :global(.embed-table .embed-caption) {
 		margin: var(--space-1) 0 0;
 		font-size: var(--fs-sm);
+	}
+
+	/* A subscribe line (a bare caseyagollan.com/subscribe link): the signup form and feeds in a quiet frame. */
+	.prose :global(.embed-subscribe) {
+		max-width: 28rem;
+		padding: var(--space-2);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--surface-1);
+	}
+
+	.prose :global(.embed-subscribe > p) {
+		margin: 0;
+		padding: var(--space-2);
+		font-size: var(--fs-sm);
+	}
+
+	/* Once the panel is drawn, the written line is only for feeds and readers without JavaScript. */
+	.prose :global(.embed-subscribe--live > p) {
+		display: none;
 	}
 
 	.prose :global(.embed-video) {
