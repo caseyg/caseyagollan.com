@@ -103,7 +103,7 @@ function publicProperties(properties: Properties, removing = false) {
 		const thread = invalidThreadProperty(key, values);
 		if (thread) throw bad(thread);
 		if (['category', 'summary'].includes(key) && values.some(value => typeof value !== 'string')) throw bad(`Use text values for ${key}`);
-		if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'photo', 'video', 'syndication'].includes(key)) {
+		if (['like-of', 'repost-of', 'quotation-of', 'bookmark-of', 'in-reply-to', 'photo', 'video', 'syndication'].includes(key)) {
 			for (const value of values) {
 				const href = typeof value === 'string' ? value : value && typeof value === 'object' && !Array.isArray(value) ? value.value ?? value.url : undefined;
 				if (typeof href !== 'string' || !['http:', 'https:'].includes(new URL(href).protocol)) throw bad(`Invalid ${key} URL`);

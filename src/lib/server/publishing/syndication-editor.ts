@@ -10,6 +10,8 @@ import { photoSources, readSyndicationReceipt, recordSyndicationResults, syndica
 import { preparePhotos, type PreparedPhoto, type SyndicationPhoto } from './syndication-photos';
 import { DeliveryError } from './public-fetch';
 import { PHOTO_LIMITS } from '../../social-text';
+import { quoteNetwork } from './syndication-quotes';
+import type { SocialSnapshot } from '../../social-snapshots';
 import { maxThreadPosts, syndicationKey, syndicationText, syndicationThread } from './syndication';
 import { safePublicFetch, type PublicFetcher } from './public-fetch';
 import type { DeliveryEvent, DeliveryProgress } from './outbox';
@@ -46,7 +48,8 @@ export async function validateEditorSubmission(request: Request, session: Sessio
 }
 export function assertSyndicatable(post: Post): void {
  if (post.draft || !isPublicPost(post)) throw new ProtocolError(409, 'invalid_request', 'Only published public posts can be syndicated.');
- if (post.type === 'like' || post.type === 'repost') throw new ProtocolError(409, 'invalid_request', 'Like and repost actions use their original social workflow.');
+ // A repost with a comment goes out as a quote; plain likes and reposts stay on their original network.
+ if (post.type === 'like' || (post.type === 'repost' && !post.content?.trim())) throw new ProtocolError(409, 'invalid_request', 'Like and repost actions use their original social workflow.');
 }
 export function recordedLinks(post: Post, service: Service, config: PublishingConfig): string[] {
  const origin = service === 'bluesky' ? 'https://bsky.app' : new URL(config.syndication?.mastodon?.instance ?? 'https://social.coop').origin;
@@ -70,7 +73,7 @@ export async function editorDestinations(config: PublishingConfig, post: Post): 
   const links = recordedLinks({ ...post, syndication: [...saved, ...sent] }, service, config);
   const limit = service === 'bluesky' ? 300 : 500;
   // A send in progress shows what it is sending; otherwise the post's stored thread, or one generated post.
-  const thread = receipt?.thread?.length ? receipt.thread : receipt?.draft === undefined && publication.thread ? publication.thread : [receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity)];
+  const thread = receipt?.thread?.length ? receipt.thread : receipt?.draft === undefined && publication.thread ? publication.thread : [receipt?.draft ?? syndicationText({ ...publication, idempotencyKey: 'preview' }, limit, service === 'bluesky' ? 3000 : Infinity, service)];
   return { service, name: names[service], links, unrecorded: links.length > saved.length, available: !!config.state && !!config.syndication?.[service],
    pending: receipt?.status === 'sending', limit, draft: thread[0], thread };
  }));
@@ -95,6 +98,15 @@ export async function saveEditorThread(config: PublishingConfig, post: Post, rev
   { alts: Object.fromEntries(photos.map(photo => [photo.url, photo.alt])), thread: posts, photoPosts: Object.fromEntries(photos.map(photo => [photo.url, photo.post ?? 0])) });
  if (!saved) throw new ProtocolError(409, 'invalid_request', 'The original post changed. Reload to review the latest version.');
  return posts.length > 1 ? 'Thread saved to the post.' : 'Saved. The post has no thread now.';
+}
+
+/** The post a syndicated copy quotes natively, with the network that quotes it and its saved card. */
+export async function quotedPost(config: PublishingConfig, post: Post): Promise<{ url: string; service: Service; snapshot?: SocialSnapshot } | undefined> {
+ const quote = (await publicationForPost(post, config.me)).quote;
+ const service = quote && quoteNetwork(quote.url);
+ if (!quote || !service) return undefined;
+ const snapshot = post.socialSnapshots?.find(saved => saved.url === quote.url);
+ return { url: quote.url, service, ...(snapshot ? { snapshot } : {}) };
 }
 
 /** A submitted draft as its list of posts; a single string is a one-post thread. */
@@ -152,7 +164,7 @@ export async function sendEditorDrafts(config: PublishingConfig, post: Post, rev
   try { prepared[target.service] = await preparePhotos(target.service, photos, photoSources(config)); }
   catch (cause) { throw new ProtocolError(422, 'invalid_request', cause instanceof DeliveryError ? `${cause.message}. Nothing was posted.` : `The photos could not be read for ${target.name}. Nothing was posted.`); }
  }
- const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}) };
+ const event: DeliveryEvent = { source: publication.url, revision: publication.revision, action: 'publish', targets: [], syndicateTo: [], text: publication.text, title: publication.title, published: publication.published, sourcePath: publication.sourcePath, ...(publication.previousUrls?.length ? { previousSources: publication.previousUrls } : {}), ...(publication.quote ? { quote: publication.quote } : {}) };
  const progress: DeliveryProgress = { webmentions: [], syndication: {}, syndicationStartedAt: {} };
  const messages: string[] = [];
  for (const target of chosen) {

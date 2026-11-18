@@ -5,7 +5,7 @@ import { getGitHubPost, validPostParams } from '$lib/server/github-posts';
 import { publishingConfig } from '$lib/server/publishing/config';
 import { publicationRevision } from '$lib/server/publishing/publication';
 import { ProtocolError } from '$lib/server/publishing/auth';
-import { editorSession, editorDestinations, postPhotos, saveEditorThread, sendEditorDrafts, threadSource, validateEditorSubmission, type ChosenPhoto } from '$lib/server/publishing/syndication-editor';
+import { editorSession, editorDestinations, postPhotos, quotedPost, saveEditorThread, sendEditorDrafts, threadSource, validateEditorSubmission, type ChosenPhoto } from '$lib/server/publishing/syndication-editor';
 
 export const prerender = false;
 
@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ request, params, platform, setHeade
   }
   return { signedIn: true as const, csrf: session.csrf, revision: await publicationRevision(post), title: post.title, kind: post.type,
    postUrl: new URL(`/${params.year}/${params.month}/${params.day}/${params.slug}/`, config.me).href,
-   destinations: await editorDestinations(config, post), photos: await postPhotos(config, post), source: await threadSource(config, post) };
+   destinations: await editorDestinations(config, post), photos: await postPhotos(config, post), source: await threadSource(config, post), quote: await quotedPost(config, post) };
  } catch (cause) {
   if (cause instanceof ProtocolError) error(cause.status, cause.message);
   throw cause;

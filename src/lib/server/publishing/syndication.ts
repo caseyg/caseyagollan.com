@@ -2,6 +2,7 @@ import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from '.
 import { characterCount } from '../../social-text';
 import { checkDeliveryResponse } from './webmention';
 import { blueskyImagesEmbed, uploadMastodonMedia, type PreparedPhoto } from './syndication-photos';
+import { blueskyQuoteRecord, mastodonQuoteId, quoteNetwork, withQuoteLink, type SyndicationQuote } from './syndication-quotes';
 export interface SyndicationConfig {
  mastodon?: {instance:string;token:string};
  bluesky?: {service:string;identifier:string;password:string};
@@ -10,7 +11,9 @@ export interface SyndicationPost {url:string;text:string;title?:string;published
  /** A reviewed thread: each entry is one post, sent as a reply to the one before. */
  thread?:string[];
  /** Photos fitted to this network, uploaded with their alt text, each on the post of the thread it names. */
- media?:PreparedPhoto[]}
+ media?:PreparedPhoto[];
+ /** A post this one reposts with a comment or quotes. Its own network gets a native quote on the first post. */
+ quote?:SyndicationQuote}
 /**
  * One key per social post. Bluesky links name the same post by DID or by handle
  * (bsky.app/profile/did:plc:…/post/X and bsky.app/profile/caseyagollan.com/post/X),
@@ -32,7 +35,9 @@ export function syndicationText(post:SyndicationPost,limit:number,byteLimit=Infi
  }
  const link=publicUrl(post.url).href;
  if(graphemes(link).length>limit || new TextEncoder().encode(link).length>byteLimit) throw new DeliveryError('Canonical link exceeds provider length limit',false);
- const source=[post.title,post.text].filter(Boolean).join('\n\n').trim();
+ // A native quote shows the quoted post, so the line naming it is left out.
+ const body=post.quote && quoteNetwork(post.quote.url)===service ? post.quote.text : post.text;
+ const source=[post.title,body].filter(Boolean).join('\n\n').trim();
  const chars=graphemes(source);const originalLength=chars.length;const encoder=new TextEncoder();
  while(chars.length) {
   const suffix=chars.length<originalLength?'…':'';
@@ -114,6 +119,7 @@ async function blueskyRecordKey(key:string,published:number):Promise<string> {
 /** A thread post's photos: those naming it, with any past the end on the last post. */
 const mediaFor=(post:SyndicationPost,index:number,count:number)=>(post.media ?? []).filter(photo=>Math.min(photo.post ?? 0,count-1)===index);
 /** The first post keeps the job's key; later posts of a thread add their position. */
+const fits=(service:'mastodon'|'bluesky')=>(text:string)=>characterCount(text,service)<=(service==='bluesky'?300:500) && (service==='mastodon' || new TextEncoder().encode(text).length<=3000);
 const partKey=(key:string,index:number)=>index?`${key}:${index}`:key;
 
 /**
@@ -125,12 +131,16 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  if(!post.idempotencyKey || !Number.isFinite(Date.parse(post.published))) throw new DeliveryError('Invalid publication metadata',false);
  const texts=syndicationThread(post,service);
  const parts=[...(progress?.parts ?? [])].slice(0,texts.length);
+ // Only the thread's first post quotes, and only on the quoted post's own network.
+ const quote=post.quote && quoteNetwork(post.quote.url)===service && !parts.length ? post.quote.url : undefined;
  if(service==='mastodon') {
   const account=config.mastodon;if(!account)throw new DeliveryError('Mastodon is not configured',false);
   const base=origin(account.instance);
   for(let index=parts.length;index<texts.length;index++) {
-   const body=new URLSearchParams({status:texts[index],visibility:'public'});
+   const quoted=quote && !index ? await mastodonQuoteId(base,account.token,quote,fetcher) : undefined;
+   const body=new URLSearchParams({status:quote && !index && !quoted ? withQuoteLink(texts[index],quote,fits(service)) : texts[index],visibility:'public'});
    if(index) body.set('in_reply_to_id',parts[index-1].id);
+   if(quoted) body.set('quoted_status_id',quoted);
    // Text is checked before photos upload, so a draft that is too long uploads nothing.
    const media=mediaFor(post,index,texts.length);
    for(const id of media.length ? await uploadMastodonMedia(base,account.token,media,fetcher) : []) body.append('media_ids[]',id);
@@ -156,14 +166,17 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  const resolved=new Map<string,string>();
  const published=Date.parse(post.published);
  for(let index=parts.length;index<texts.length;index++) {
-  const text=texts[index];
+  const quoted=quote && !index ? await blueskyQuoteRecord(base,session.accessJwt,quote,fetcher,resolved) : undefined;
+  const text=quote && !index && !quoted ? withQuoteLink(texts[index],quote,fits(service)) : texts[index];
   const rkey=await blueskyRecordKey(partKey(post.idempotencyKey,index),published+index);
   const facets=await blueskyFacets(text,base,fetcher,resolved);
   // Replies point at the thread's first post and the post right before them.
   const reply=index?{root:{uri:parts[0].id,cid:parts[0].cid},parent:{uri:parts[index-1].id,cid:parts[index-1].cid}}:undefined;
   const createdAt=index?new Date(published+index).toISOString():post.published;
   const media=mediaFor(post,index,texts.length);
-  const embed=media.length ? await blueskyImagesEmbed(base,session.accessJwt,media,fetcher) : undefined;
+  const images=media.length ? await blueskyImagesEmbed(base,session.accessJwt,media,fetcher) : undefined;
+  const record=quoted && {$type:'app.bsky.embed.record',record:quoted};
+  const embed=record && images ? {$type:'app.bsky.embed.recordWithMedia',record,media:images} : record || images;
   const result=await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt,facets,...(reply?{reply}:{}),...(embed?{embed}:{})}},{authorization:`Bearer ${session.accessJwt}`});
   if(index<texts.length-1 && typeof result.cid!=='string') throw new DeliveryError('Bluesky did not return a record CID',true);
   parts.push({url:`https://bsky.app/profile/${handle}/post/${rkey}`,id:`at://${session.did}/app.bsky.feed.post/${rkey}`,...(typeof result.cid==='string'?{cid:result.cid}:{})});
