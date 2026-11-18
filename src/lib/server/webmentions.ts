@@ -1,7 +1,9 @@
 import { fromHtml } from 'hast-util-from-html';
 import { sanitize, type Schema } from 'hast-util-sanitize';
 import { toHtml } from 'hast-util-to-html';
+import { readBackfeed, readBackfeedIndex, type BackfeedEnvironment } from './backfeed';
 import {
+	combineResponses,
 	countMentions,
 	emptyModeration,
 	isHidden,
@@ -42,10 +44,10 @@ export interface ArchiveState {
 	total: number;
 }
 
-type IndexEntry = Pick<StoredMention, 'id' | 'kind' | 'author' | 'source'> & { content?: boolean };
+type IndexEntry = Pick<StoredMention, 'id' | 'kind' | 'author' | 'source'> & { url?: string; content?: boolean };
 type ArchiveIndex = Record<string, IndexEntry[]>;
 
-export interface WebmentionEnvironment {
+export interface WebmentionEnvironment extends BackfeedEnvironment {
 	PUBLISHING_STATE?: R2Bucket;
 	WEBMENTION_IO_TOKEN?: string;
 }
@@ -138,7 +140,7 @@ export async function syncWebmentions(env: WebmentionEnvironment, fetcher: typeo
 		for (const [path, mentions] of byPost) {
 			const merged = mergeMentions(await readPost(bucket, path), mentions);
 			await bucket.put(postKey(path), JSON.stringify(merged), json);
-			index[path] = merged.map(({ id, kind, author, source, html, text }) => ({ id, kind, author: { name: author.name, url: author.url, photo: '' }, source, ...(html || text ? { content: true } : {}) }));
+			index[path] = merged.map(({ id, kind, author, source, url, html, text }) => ({ id, kind, author: { name: author.name, url: author.url, photo: '' }, source, url, ...(html || text ? { content: true } : {}) }));
 		}
 		await bucket.put(INDEX_KEY, JSON.stringify(index), json);
 		result.stored = incoming.length;
@@ -151,8 +153,17 @@ export async function syncWebmentions(env: WebmentionEnvironment, fetcher: typeo
 	return result;
 }
 
-/** Mentions of one post across its addresses, old ones included, read live until the copy exists. */
+/**
+ * Mentions of one post across its addresses, old ones included: Webmentions (read live until
+ * the copy exists) together with the replies, favorites and reposts read from its Mastodon and
+ * Bluesky copies (`$lib/server/backfeed`), Bridgy's duplicates of those removed.
+ */
 export async function readMentions(env: WebmentionEnvironment, paths: string[], fetcher: typeof fetch = fetch): Promise<{ mentions: StoredMention[]; archived: boolean }> {
+	const [{ mentions, archived }, native] = await Promise.all([readWebmentions(env, paths, fetcher), readBackfeed(env, paths, fetcher)]);
+	return { mentions: combineResponses(mentions, native), archived };
+}
+
+async function readWebmentions(env: WebmentionEnvironment, paths: string[], fetcher: typeof fetch): Promise<{ mentions: StoredMention[]; archived: boolean }> {
 	const bucket = env.PUBLISHING_STATE;
 	if (bucket && (await readState(bucket))) {
 		const lists = await Promise.all(paths.map((path) => readPost(bucket, path)));
@@ -178,12 +189,12 @@ async function liveMentions(path: string, fetcher: typeof fetch): Promise<Stored
 /** Visible counts for every post that has mentions, for the chips in feeds. */
 export async function readCounts(bucket: R2Bucket | undefined): Promise<Record<string, MentionCounts> | null> {
 	if (!bucket || !(await readState(bucket))) return null;
-	const [index, moderation] = await Promise.all([readJson<ArchiveIndex>(bucket, INDEX_KEY), readModeration(bucket)]);
+	const [index, native, moderation] = await Promise.all([readJson<ArchiveIndex>(bucket, INDEX_KEY), readBackfeedIndex(bucket), readModeration(bucket)]);
+	const asMentions = (path: string, entries: (IndexEntry & { url?: string })[] = []) =>
+		entries.map((entry) => ({ ...entry, target: path, url: entry.url ?? entry.source, ...(entry.content ? { text: ' ' } : {}) }) as StoredMention);
 	const counts: Record<string, MentionCounts> = {};
-	for (const [path, entries] of Object.entries(index ?? {})) {
-		const visible = entries
-			.map((entry) => ({ ...entry, target: path, url: entry.source, ...(entry.content ? { text: ' ' } : {}) }) as StoredMention)
-			.filter((mention) => !isHidden(mention, moderation));
+	for (const path of new Set([...Object.keys(index ?? {}), ...Object.keys(native ?? {})])) {
+		const visible = combineResponses(asMentions(path, index?.[path]), asMentions(path, native?.[path])).filter((mention) => !isHidden(mention, moderation));
 		const count = countMentions(visible);
 		if (count.like || count.repost || count.reply) counts[path] = count;
 	}

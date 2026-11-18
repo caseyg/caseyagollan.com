@@ -35,6 +35,8 @@ declare global {
 				BUTTONDOWN_API_KEY?: string;
 				NODE_ENV: string;
 				WEBMENTION_IO_TOKEN: string;
+				/** The site's static files; the backfeed reads `/backfeed.json` from it. */
+				ASSETS?: Pick<Fetcher, 'fetch'>;
 			};
 		}
 	}

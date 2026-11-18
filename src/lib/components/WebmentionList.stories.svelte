@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import WebmentionList from './WebmentionList.svelte';
-	import { longWebmentionReply, webmentions } from '$lib/storybook/fixtures';
+	import { backfeedThread, longWebmentionReply, webmentions } from '$lib/storybook/fixtures';
 
 	const { Story } = defineMeta({ title: 'Site/Webmentions', component: WebmentionList, parameters: { docs: { story: { height: '640px' } } } });
 </script>
@@ -24,6 +24,11 @@
 <Story name="Visitor" args={{ mentions: webmentions }} />
 
 <Story name="Likes only" args={{ mentions: webmentions.filter((mention) => mention.kind === 'like') }} />
+
+<!-- Read from Bluesky and Mastodon directly: each reply sits under the one it answers. -->
+<Story name="Bluesky thread" args={{ mentions: backfeedThread }} />
+
+<Story name="Bluesky thread with Webmentions" args={{ mentions: [...webmentions, ...backfeedThread] }} />
 
 <Story name="Long reply" args={{ mentions: [longWebmentionReply] }} />
 

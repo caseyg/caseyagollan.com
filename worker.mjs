@@ -5,6 +5,7 @@ import { processPublishing } from './src/lib/server/publishing/delivery.ts';
 import { processPesos } from './src/lib/server/publishing/pesos/importer.ts';
 import { syncWebmentions } from './src/lib/server/webmentions.ts';
 import { publishFeedUpdates } from './src/lib/server/websub.ts';
+import { syncBackfeed } from './src/lib/server/backfeed.ts';
 
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 
@@ -50,6 +51,17 @@ export default {
     } catch {
       console.error(JSON.stringify({ event: 'webmention_sync_failed' }));
       failed = true;
+    }
+    // Read replies, favorites and reposts straight from the posts' Mastodon and Bluesky copies,
+    // at :05, :15, :25, etc., away from the import.
+    if (Math.floor(event.scheduledTime / 60_000) % 10 === 5) {
+      try {
+        const result = await syncBackfeed(env);
+        if (!result.skipped) console.log(JSON.stringify({ event: 'backfeed_sync', ...result }));
+      } catch {
+        console.error(JSON.stringify({ event: 'backfeed_sync_failed' }));
+        failed = true;
+      }
     }
     if (failed) throw new Error('Background publishing work failed');
   }

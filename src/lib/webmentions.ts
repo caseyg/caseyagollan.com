@@ -29,6 +29,13 @@ export interface StoredMention {
 	/** Markup as received. It is sanitized before it is sent to a page. */
 	html?: string;
 	text?: string;
+	/**
+	 * Set when the site read it straight from Mastodon or Bluesky (`$lib/server/backfeed`)
+	 * rather than through webmention.io. Its `id` is then `nativeId(url)`.
+	 */
+	network?: 'mastodon' | 'bluesky';
+	/** For a reply to another reply, the `url` of the one it answers. Top-level replies have none. */
+	parent?: string;
 }
 
 export interface MentionModeration {
@@ -166,6 +173,50 @@ export function applyModeration(moderation: MentionModeration, change: Moderatio
 	}
 }
 
+/** Ids of mentions read from Mastodon or Bluesky start here, clear of webmention.io's own. */
+export const NATIVE_ID_BASE = 2 ** 50;
+
+/** A stable id for a mention read from Mastodon or Bluesky, from its address (FNV-1a, 50 bits). */
+export function nativeId(url: string): number {
+	let hash = 0xcbf29ce484222325n;
+	for (const byte of new TextEncoder().encode(url)) hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
+	return NATIVE_ID_BASE + Number(hash & (2n ** 50n - 1n));
+}
+
+/** One address for a reply however it was linked: Bluesky by record key, others without hash or trailing slash. */
+export function replyKey(url: string): string {
+	try {
+		const parsed = new URL(url);
+		const bluesky = parsed.hostname === 'bsky.app' && parsed.pathname.match(/^\/profile\/[^/]+\/post\/([^/]+)/);
+		if (bluesky) return `bsky:${bluesky[1]}`;
+		return `${parsed.hostname.toLowerCase()}${parsed.pathname.replace(/\/+$/, '')}`;
+	} catch {
+		return url;
+	}
+}
+
+/** What makes two copies of one response the same: a reply's address, or who liked or reposted. */
+export function responseKey(mention: Pick<StoredMention, 'kind' | 'url' | 'author' | 'source'>): string {
+	return mention.kind === 'like' || mention.kind === 'repost' ? `${mention.kind}|${authorKey(mention)}` : `post|${replyKey(mention.url)}`;
+}
+
+/**
+ * Webmentions and the responses read from Mastodon and Bluesky, as one list. Bridgy sends
+ * copies of the same responses as Webmentions; the direct copy wins, since it knows which reply
+ * answers which, but keeps the Webmention's id so anything already hidden stays hidden.
+ */
+export function combineResponses<T extends StoredMention>(webmentions: T[], native: T[]): T[] {
+	const copies = new Map(webmentions.map((mention) => [responseKey(mention), mention]));
+	const used = new Set<T>();
+	const direct = native.map((mention) => {
+		const copy = copies.get(responseKey(mention));
+		if (!copy || used.has(copy)) return mention;
+		used.add(copy);
+		return { ...mention, id: copy.id };
+	});
+	return [...webmentions.filter((mention) => !used.has(mention)), ...direct];
+}
+
 /** Adds new mentions to a list, replacing any with the same id, oldest first. */
 export function mergeMentions(existing: StoredMention[], incoming: StoredMention[]): StoredMention[] {
 	const byId = new Map(existing.map((mention) => [mention.id, mention]));
@@ -182,9 +233,44 @@ export interface MentionGroups<T extends StoredMention = StoredMention> {
 	links: T[];
 }
 
+const time = (mention: StoredMention) => {
+	const value = Date.parse(mention.published ?? mention.received ?? '');
+	return Number.isNaN(value) ? Infinity : value;
+};
+
+/** Oldest first, by when it was written; ids break ties and order undated ones. */
+export const byTime = (a: StoredMention, b: StoredMention) => time(a) - time(b) || a.id - b.id;
+
+export interface ReplyNode<T extends StoredMention = StoredMention> {
+	reply: T;
+	replies: ReplyNode<T>[];
+}
+
+/**
+ * Replies nested under the reply each one answers, oldest first at every level, as Bluesky
+ * shows a thread. A reply whose parent isn't in the list (hidden, deleted) moves to the top.
+ */
+export function threadReplies<T extends StoredMention>(replies: T[]): ReplyNode<T>[] {
+	const nodes = new Map<string, ReplyNode<T>>();
+	const sorted = [...replies].sort(byTime);
+	for (const reply of sorted) nodes.set(replyKey(reply.url), { reply, replies: [] });
+	const top: ReplyNode<T>[] = [];
+	for (const reply of sorted) {
+		const node = nodes.get(replyKey(reply.url))!;
+		const parent = reply.parent ? nodes.get(replyKey(reply.parent)) : undefined;
+		if (parent && parent !== node && !contains(node, parent)) parent.replies.push(node);
+		else if (!top.includes(node)) top.push(node);
+	}
+	return top;
+}
+
+function contains<T extends StoredMention>(node: ReplyNode<T>, target: ReplyNode<T>): boolean {
+	return node.replies.some((child) => child === target || contains(child, target));
+}
+
 export function groupMentions<T extends StoredMention>(mentions: T[]): MentionGroups<T> {
 	const groups: MentionGroups<T> = { likes: [], reposts: [], replies: [], links: [] };
-	for (const mention of [...mentions].sort((a, b) => a.id - b.id)) {
+	for (const mention of [...mentions].sort(byTime)) {
 		if (mention.kind === 'like') groups.likes.push(mention);
 		else if (mention.kind === 'repost') groups.reposts.push(mention);
 		else if (mention.kind === 'reply' || mention.html || mention.text) groups.replies.push(mention);
