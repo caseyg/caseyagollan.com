@@ -302,6 +302,16 @@
 		display: none;
 	}
 
+	/* The drawn panel keeps its own list and link styles rather than the text's. */
+	.prose :global(.embed-subscribe-panel ul) {
+		margin: 0;
+		padding: 0;
+	}
+
+	.prose :global(.embed-subscribe-panel a) {
+		text-decoration: none;
+	}
+
 	.prose :global(.embed-video) {
 		position: relative;
 		height: 0;
