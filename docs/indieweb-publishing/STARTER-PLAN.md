@@ -231,6 +231,7 @@ The table above is grouped by module. This index lists the publishing behaviours
 | h-card and rel=me from one identity | 206 | core config `identity` | |
 | `fediverse:creator` byline, OpenSearch | late 2026 | starter theme head tags, read from `identity` | |
 | Standard.site records | in progress | `syndicate-standard-site` | Uses `update` and `delete`, so edits update the record. |
+| Visitor responses (Reply, Like, Repost on post pages) | 224 | a **respond** plugin (theme component plus a small client module) | Reads the post's syndication copies and offers a Bluesky link or compose intent, Mastodon through the visitor's own server (`authorize_interaction`, `/share`), X web intents, and a Webmention form that posts to the configured endpoint. Buttons are wrapped in `indie-action`. Each syndicator plugin can add its own "respond here" link, so new networks plug in without theme changes. |
 
 Protocol extensions in this list (`syndication-thread`, `syndication-photo-post`, `q=contact` silos) are documented in [proposals/](proposals/). A kit plugin that adds one has to ship its proposal too, the same rule this repo follows.
 
