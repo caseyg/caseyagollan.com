@@ -7,6 +7,8 @@
 	interface Props {
 		/** Feeds to offer; the site's own by default. */
 		feeds?: SiteFeed[];
+		/** What the feeds hold when they are not every post, such as "photos" or "#indieweb". */
+		scope?: string;
 		/** Offer the newsletter above the feeds. */
 		email?: boolean;
 		label?: string;
@@ -17,7 +19,7 @@
 		submit?: (email: string) => Promise<SubscribeOutcome>;
 	}
 
-	let { feeds = SITE_FEEDS, email = true, label = 'Get new posts by email', buttonLabel = 'Sign up', initial, submit }: Props = $props();
+	let { feeds = SITE_FEEDS, scope, email = true, label = 'Get new posts by email', buttonLabel = 'Sign up', initial, submit }: Props = $props();
 
 	const host = new URL(SITE_URL).host;
 </script>
@@ -32,7 +34,7 @@
 		<div class="email">
 			{#key initial}<SubscribeForm {label} {buttonLabel} {submit} {initial} />{/key}
 		</div>
-		<p class="or">Or follow with a feed reader</p>
+		<p class="or">Or follow {scope ? `${scope} ` : ''}with a feed reader</p>
 	{/if}
 	<ul class="feeds">
 		{#each feeds as feed (feed.path)}

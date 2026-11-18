@@ -21,3 +21,4 @@ export { default as TagList } from './TagList.svelte';
 export { default as PhotoTile } from './PhotoTile.svelte';
 export { default as PhotoGrid } from './PhotoGrid.svelte';
 export { default as FeedMenu } from './FeedMenu.svelte';
+export { default as OnThisDay } from './OnThisDay.svelte';

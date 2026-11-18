@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostsLayout, DateArchiveHeader, PostFeed } from '$lib/components/posts';
+	import { PostsLayout, DateArchiveHeader, PostFeed, OnThisDay } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 
@@ -22,4 +22,5 @@
 <PostsLayout>
 	<DateArchiveHeader year={data.year} month={data.month} day={data.day} count={data.totalPosts} />
 	<PostFeed posts={data.posts} />
+	<OnThisDay dateKey={data.dateKey} years={data.onThisDay} />
 </PostsLayout>

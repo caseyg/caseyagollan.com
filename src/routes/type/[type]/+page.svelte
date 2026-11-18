@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostFeed, PhotoGrid, ArchiveHeader, PostsLayout } from '$lib/components/posts';
+	import { PostFeed, PhotoGrid, ArchiveHeader, PostsLayout, FeedMenu } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 
@@ -20,7 +20,9 @@
 <Nav currentPage="posts" />
 
 <PostsLayout width={data.photos ? 'full' : 'reading'}>
-	<ArchiveHeader title={capitalizeFirst(data.typePlural)} icon={data.typeIcon} count={data.totalPosts} />
+	<ArchiveHeader title={capitalizeFirst(data.typePlural)} icon={data.typeIcon} count={data.totalPosts}>
+		{#snippet actions()}<FeedMenu feeds={data.feeds.feeds} scope={data.typePlural} />{/snippet}
+	</ArchiveHeader>
 
 	{#if data.photos}
 		<PhotoGrid posts={data.photos} />

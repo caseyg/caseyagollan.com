@@ -2,6 +2,7 @@ import type { Facets } from '$lib/posts-filter';
 import type { PageServerLoad } from './$types';
 import { getAllPosts, rollupIndexPosts } from '$lib/posts';
 import { error } from '@sveltejs/kit';
+import { onThisDay } from '$lib/on-this-day';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const { year, month, day } = params;
@@ -26,6 +27,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		day,
 		dateKey,
 		posts: rollupIndexPosts(postsOnDay),
+		onThisDay: onThisDay(allPosts, dateKey),
 		totalPosts: rollupIndexPosts(postsOnDay).length
 	};
 };

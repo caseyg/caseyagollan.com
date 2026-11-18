@@ -2,7 +2,10 @@ import { getAllPosts, getPostsByType, getPostsByDay, POST_TYPES, POST_TYPE_PLURA
 import { error } from '@sveltejs/kit';
 import { type Facets, TYPE_ICONS, type PostType } from '$lib/posts-filter';
 import type { PageServerLoad } from './$types';
+import { typeFeeds, type ScopedFeeds } from '$lib/feeds';
 
+
+const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
 export const load: PageServerLoad = async ({ params }) => {
 	const { type } = params;
@@ -33,6 +36,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		type: singularType,
 		typeIcon: TYPE_ICONS[singularType as keyof typeof TYPE_ICONS] || '📌',
 		typePlural: POST_TYPE_PLURALS[singularType],
+		feeds: { title: capitalize(POST_TYPE_PLURALS[singularType]), feeds: typeFeeds(POST_TYPE_PLURALS[singularType]) } satisfies ScopedFeeds,
 		postsByDay: photos ? [] : postsByDayArray,
 		photos,
 		totalPosts: photos ? photos.length : postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0)
