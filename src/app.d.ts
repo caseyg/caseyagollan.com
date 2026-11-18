@@ -31,6 +31,8 @@ declare global {
 				ARENA_PAT?: string;
 				/** Raindrop.io token; searches Casey’s bookmarks for the owner only. */
 				RAINDROP_TOKEN?: string;
+				/** Buttondown API key; signs readers up for the newsletter from `/api/subscribe`. */
+				BUTTONDOWN_API_KEY?: string;
 				NODE_ENV: string;
 				WEBMENTION_IO_TOKEN: string;
 			};
