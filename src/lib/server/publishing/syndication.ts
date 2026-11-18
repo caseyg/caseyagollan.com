@@ -1,11 +1,14 @@
 import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from './public-fetch';
 import { characterCount } from '../../social-text';
 import { checkDeliveryResponse } from './webmention';
+import { blueskyImagesEmbed, uploadMastodonMedia, type PreparedPhoto } from './syndication-photos';
 export interface SyndicationConfig {
  mastodon?: {instance:string;token:string};
  bluesky?: {service:string;identifier:string;password:string};
 }
-export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string}
+export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string;
+ /** Photos fitted to this network, uploaded with their alt text. */
+ media?:PreparedPhoto[]}
 /**
  * One key per social post. Bluesky links name the same post by DID or by handle
  * (bsky.app/profile/did:plc:…/post/X and bsky.app/profile/caseyagollan.com/post/X),
@@ -50,7 +53,10 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  if(service==='mastodon') {
   const account=config.mastodon;if(!account)throw new DeliveryError('Mastodon is not configured',false);
   const base=origin(account.instance);
-  const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':post.idempotencyKey},body:new URLSearchParams({status:syndicationText(post,500,Infinity,'mastodon'),visibility:'public'})});
+  const status=new URLSearchParams({status:syndicationText(post,500,Infinity,'mastodon'),visibility:'public'});
+  // Text is checked before photos upload, so a draft that is too long uploads nothing.
+  for(const id of post.media?.length ? await uploadMastodonMedia(base,account.token,post.media,fetcher) : []) status.append('media_ids[]',id);
+  const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':post.idempotencyKey},body:status});
   checkDeliveryResponse(response);
   let result:{url?:unknown};try{result=await response.json() as {url?:unknown};}catch{throw new DeliveryError('Invalid Mastodon response',true);}
   if(typeof result.url!=='string')throw new DeliveryError('Mastodon did not return a canonical URL',true);
@@ -108,7 +114,8 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
   facets.push({index:{byteStart:encoder.encode(text.slice(0,start)).length,byteEnd:encoder.encode(text.slice(0,start+handle.length+1)).length},features:[{$type:'app.bsky.richtext.facet#mention',did:resolved.get(handle)!}]});
  }
  facets.sort((a,b)=>a.index.byteStart-b.index.byteStart);
- await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt:post.published,facets}},{authorization:`Bearer ${session.accessJwt}`});
+ const embed=post.media?.length ? await blueskyImagesEmbed(base,session.accessJwt,post.media,fetcher) : undefined;
+ await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt:post.published,facets,...(embed?{embed}:{})}},{authorization:`Bearer ${session.accessJwt}`});
  // Bridgy and readers expect handle URLs; the DID form is the fallback when the handle is unverified.
  const handle=typeof session.handle==='string' && session.handle!=='handle.invalid' && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(session.handle) ? session.handle : session.did;
  return `https://bsky.app/profile/${handle}/post/${rkey}`;

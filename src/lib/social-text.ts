@@ -9,3 +9,17 @@ export function mentionQuery(text: string, caret: number) {
  const match = /(?:^|\s|[—(])@([\w.@-]*)$/.exec(text.slice(0, caret));
  return match ? { start: caret - match[1].length - 1, end: caret, query: match[1].toLowerCase() } : null;
 }
+
+/**
+ * What each network takes with a post: Bluesky's app.bsky.embed.images (four images,
+ * each at most 1,000,000 bytes, alt text of 2,000 graphemes in its app) and
+ * Mastodon's defaults (four attachments, 16 MB images, 1,500-character descriptions).
+ */
+export const PHOTO_LIMITS: Record<SocialService, { count: number; alt: number; bytes: number; types: string[] }> = {
+ bluesky: { count: 4, alt: 2000, bytes: 1_000_000, types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] },
+ mastodon: { count: 4, alt: 1500, bytes: 16 * 1024 * 1024, types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'] }
+};
+/** Alt text length as the networks count it: characters a reader sees. */
+export function altLength(text: string): number {
+ return Array.from(segmenter.segment(text)).length;
+}
