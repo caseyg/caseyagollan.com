@@ -7,6 +7,8 @@
 	import { onMount } from 'svelte';
 	import { ownerSignedIn } from '$lib/owner';
 	import { ARENA_PROFILE } from '$lib/arena';
+	import PersonTag from './PersonTag.svelte';
+	import type { PersonTag as Person } from '$lib/person-tags';
 
 	interface Props {
 		type: string;
@@ -18,12 +20,14 @@
 		showType?: boolean;
 		category?: string | string[];
 		activeTag?: string;
+		/** People the post tags, shown after its topic tags. */
+		people?: Person[];
 		indexActivities?: import('$lib/posts-types').Post['indexActivities'];
 		/** For replies, likes and reposts: the verb and whose post it acts on. */
 		action?: import('$lib/utils/post-details').PostAction;
 	}
 
-	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag, indexActivities, action }: Props = $props();
+	let { type, date = '', year, showInteractions = true, permalink, syndication = [], showType = true, category, activeTag, people = [], indexActivities, action }: Props = $props();
 
 	function getCategories(cat: string | string[] | undefined): string[] {
 		if (!cat) return [];
@@ -92,6 +96,9 @@
 		{/if}
 		{#each categories as cat (cat)}
 			<Chip href="/tags/{cat.toLowerCase()}/" active={cat.toLowerCase() === activeTag?.toLowerCase()}>#<span class="p-category">{cat}</span></Chip>
+		{/each}
+		{#each people as person (person.url)}
+			<PersonTag {person} />
 		{/each}
 	</div>
 	{#if showInteractions || editHref}

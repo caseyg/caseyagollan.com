@@ -34,7 +34,7 @@ export async function publicationRevision(post: Post): Promise<string> {
   ...(post.channel ? { channel: post.channel } : {}),
   slug: post.slug, type: post.type, date: post.date, title: post.title ?? null,
   html: renderContentSync(post.content, post.contentFormat), summary: post.summary ?? null,
-  category: post.category ?? null, photo: post.photo ?? [], video: post.video ?? [],
+  category: post.category ?? null, ...(post.people?.length ? { people: post.people } : {}), photo: post.photo ?? [], video: post.video ?? [],
   bookmarkOf: post.bookmarkOf ?? null, inReplyTo: post.inReplyTo ?? null,
   draft: !!post.draft, postStatus: post.postStatus ?? 'published',
   visibility: post.visibility ?? 'public', deleted: !!post.deleted

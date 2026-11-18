@@ -14,11 +14,22 @@ import { POST_TYPE_PLURALS } from '../../posts-types';
 import { channels, channelValue, postFolder, QUILL_TYPES, validateQuill } from './quill';
 import { decodeCursor, encodeCursor, listedFiles, listPosts, postTypeFolders, type ReadPost } from './micropub-list';
 import { invalidThreadProperty, threadConfig } from './syndication-thread';
+import { categoryQuery, contactQuery, followedContacts, type Contact } from './micropub-queries';
+import { personCard, personTag } from '../../person-tags';
 
 export interface PublishingConfig extends AuthConfig {
 	owner: string; repo: string; branch: string; token: string; timeZone: string; mediaBucket?: R2Bucket; mediaEnabled?: boolean; images?: ImagesBinding; mediaBaseUrl?: string; state?: R2Bucket; deliveryEnabled?: boolean; syndication?: SyndicationConfig;
 }
-interface Dependencies { snapshotFetcher?: PublicFetcher; fetcher?: Fetcher; now?: () => Date; id?: () => string }
+interface Dependencies {
+	snapshotFetcher?: PublicFetcher; fetcher?: Fetcher; now?: () => Date; id?: () => string;
+	/** Existing tags for `q=category`, most used first. Without it the list is empty. */
+	categories?: () => Promise<string[]> | string[];
+	/** People for `q=contact`; defaults to the accounts in social-follows.json. */
+	contacts?: () => Contact[];
+}
+
+/** Every `q` this endpoint answers, advertised in `q=config`. */
+const QUERIES = ['config', 'source', 'syndicate-to', 'channels', 'category', 'contact'];
 
 const folders = Object.values(POST_TYPE_PLURALS);
 const bad = (message: string) => new ProtocolError(400, 'invalid_request', message);
@@ -102,7 +113,14 @@ function publicProperties(properties: Properties, removing = false) {
 		if (key === 'published' && (values.length !== 1 || typeof values[0] !== 'string')) throw bad('Use one published timestamp');
 		const thread = invalidThreadProperty(key, values);
 		if (thread) throw bad(thread);
-		if (['category', 'summary'].includes(key) && values.some(value => typeof value !== 'string')) throw bad(`Use text values for ${key}`);
+		if (key === 'summary' && values.some(value => typeof value !== 'string')) throw bad('Use text values for summary');
+		// A person tag is an h-card (as from q=contact) or a profile URL; only its name, url and photo are kept.
+		if (key === 'category') values.forEach((value, i) => {
+			if (typeof value === 'string') return;
+			const person = personTag(value);
+			if (!person) throw bad('Use text or h-card values for category');
+			values[i] = personCard(person);
+		});
 		if (['like-of', 'repost-of', 'bookmark-of', 'in-reply-to', 'photo', 'video', 'syndication'].includes(key)) {
 			for (const value of values) {
 				const href = typeof value === 'string' ? value : value && typeof value === 'object' && !Array.isArray(value) ? value.value ?? value.url : undefined;
@@ -203,8 +221,18 @@ export function createMicropubHandler(config?: PublishingConfig, dependencies: D
 			if (request.method === 'GET') {
 				const q = url.searchParams.get('q');
 				if (q === 'channels') return json({ channels });
-				if (q === 'config') return json({ ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), ...(syndicationTargets(config).length ? { 'syndication-thread': threadConfig() } : {}), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video'].includes(type)).map(type => ({ type, name: type })) });
+				if (q === 'config') return json({ q: QUERIES, ...(config.mediaEnabled ? { 'media-endpoint': new URL('/micropub/media', request.url).href } : {}), 'syndicate-to': syndicationTargets(config), ...(syndicationTargets(config).length ? { 'syndication-thread': threadConfig() } : {}), channels, 'post-statuses': ['published', 'draft'], 'post-types': QUILL_TYPES.filter(type => config.mediaEnabled || !['photo', 'video'].includes(type)).map(type => ({ type, name: type })) });
 				if (q === 'syndicate-to') return json({ 'syndicate-to': syndicationTargets(config) });
+				if (q === 'category' || q === 'contact') {
+					const raw = url.searchParams.get('limit');
+					if (raw !== null && !/^\d+$/.test(raw)) throw bad('Use a whole number for limit');
+					const limit = raw === null ? undefined : Math.max(1, Number(raw));
+					// Clients send `filter` for tags and `search` for contacts; accept either on both.
+					const term = url.searchParams.get(q === 'category' ? 'filter' : 'search') ?? url.searchParams.get(q === 'category' ? 'search' : 'filter');
+					return q === 'category'
+						? json(categoryQuery(await dependencies.categories?.() ?? [], term, limit))
+						: json(contactQuery((dependencies.contacts ?? followedContacts)(), term, limit));
+				}
 				if (q !== 'source') throw bad('Unsupported query');
 				const filter = url.searchParams.getAll('properties[]');
 				const markdown = url.searchParams.get('p3k-content-type') === 'text/markdown';

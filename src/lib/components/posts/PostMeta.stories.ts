@@ -18,3 +18,5 @@ export const OwnerEdit: Story = {
 };
 /** A syndicated thread saves every post's link; one mark per network shows, linking the first post. */
 export const SyndicatedThread: Story = { args: { type: 'article', syndication: ['https://bsky.app/profile/caseyagollan.com/post/3mzoozs6d4tqh', 'https://bsky.app/profile/caseyagollan.com/post/3mzoozs6d4tqi', 'https://bsky.app/profile/caseyagollan.com/post/3mzoozs6d4tqj', 'https://social.coop/@caseyg/117572962830652076', 'https://social.coop/@caseyg/117572962830652077'] } };
+/** People tagged in the post sit after its topic tags, each a `u-category h-card`. */
+export const PersonTags: Story = { args: { people: [{ name: 'Aaron Parecki', url: 'https://aaronparecki.com/' }, { name: 'Tantek Çelik', url: 'https://tantek.com/' }] } };

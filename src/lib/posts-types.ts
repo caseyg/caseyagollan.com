@@ -1,3 +1,4 @@
+import type { PersonTag } from './person-tags';
 import type { LinkPreview, SocialSnapshot } from './social-snapshots';
 // Client-safe post types and constants (no Node.js imports)
 
@@ -18,6 +19,8 @@ export interface Post {
 	inReplyTo?: string;
 	summary?: string;
 	category?: string | string[];
+	/** People the post tags, from `category` h-cards; rendered as `u-category h-card`. */
+	people?: PersonTag[];
 	content: string;
 	contentFormat?: 'text' | 'html' | 'markdown';
 	postStatus?: string;

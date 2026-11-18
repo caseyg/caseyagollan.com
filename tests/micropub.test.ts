@@ -488,3 +488,20 @@ describe('Micropub post list (q=source without url)', () => {
     expect(body['syndication-thread']).toMatchObject({ property: 'syndication-thread', 'max-posts': 20 });
   });
 });
+
+describe('Micropub person tags', () => {
+  test('saves an h-card category as a clean person tag beside topic tags', async () => {
+    const app = setup();
+    const card = { type: ['h-card'], properties: { name: ['Aaron Parecki'], url: ['https://aaronparecki.com/'], nickname: ['aaronpk'], note: ['<script>'] } };
+    expect((await app.send({ type: ['h-entry'], properties: { content: ['Hi'], category: ['indieweb', card], 'mp-slug': ['tagged'] } })).status).toBe(202);
+    expect(readDocument(app.files.get('notes/2026-11-06-tagged.md')!.content).properties.category)
+      .toEqual(['indieweb', { type: ['h-card'], properties: { name: ['Aaron Parecki'], url: ['https://aaronparecki.com/'] } }]);
+  });
+
+  test('rejects category objects that are not h-cards with a profile URL', async () => {
+    const app = setup();
+    for (const value of [{ value: 'x' }, { type: ['h-card'], properties: { name: ['No URL'] } }]) {
+      expect((await app.send({ type: ['h-entry'], properties: { content: ['Hi'], category: [value] } })).status).toBe(400);
+    }
+  });
+});

@@ -40,6 +40,7 @@
 			{permalink}
 			syndication={data.post.syndication}
 			category={data.post.category}
+			people={data.post.people}
 			action={getPostAction(data.post)}
 		/>
 
