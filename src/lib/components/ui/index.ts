@@ -8,6 +8,7 @@ export { default as Corner } from './Corner.svelte';
 export { default as CommandPalette } from './CommandPalette.svelte';
 export { default as Count } from './Count.svelte';
 export { default as Heading } from './Heading.svelte';
+export { default as InlineForm } from './InlineForm.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as Notice } from './Notice.svelte';
 export { default as MasonryGrid } from './MasonryGrid.svelte';
