@@ -2,6 +2,7 @@ import type { Facets } from '$lib/posts-filter';
 import { getAllPosts, getPostsByTag, getPostsByDay, getAllTags } from '$lib/posts';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { tagFeeds, type ScopedFeeds } from '$lib/feeds';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const { tag } = params;
@@ -30,6 +31,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		postsMenuSelection: { tags: [tag] } as Partial<Facets>,
 		tag,
+		feeds: { title: `#${tag.toLowerCase()}`, feeds: tagFeeds(tag) } satisfies ScopedFeeds,
 		postsByDay: postsByDayArray,
 		totalPosts: postsByDayArray.reduce((count, [, entries]) => count + entries.length, 0),
 		allTags

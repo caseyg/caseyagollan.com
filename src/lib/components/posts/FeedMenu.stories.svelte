@@ -1,6 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import FeedMenu from './FeedMenu.svelte';
+	import { typeFeeds } from '$lib/feeds';
 	import type { SubscribeOutcome } from '$lib/components/ui';
 
 	const subscribed = () => new Promise<SubscribeOutcome>((resolve) => setTimeout(() => resolve({ ok: true, status: 'subscribed' }), 600));
@@ -24,3 +25,6 @@
 <Story name="Feeds only" args={{ email: false }} play={openIt} />
 
 <Story name="One feed" args={{ feeds: [{ path: '/feed.xml', label: 'RSS', mime: 'application/rss+xml', icon: 'rss' }], label: 'Follow' }} play={openIt} />
+
+<!-- On a post type or tag page: that page's own feeds, under /type/photos/. -->
+<Story name="Photos feeds" args={{ feeds: typeFeeds('photos'), scope: 'photos' }} play={openIt} />

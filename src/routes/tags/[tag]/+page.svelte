@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { PostFeed, DropdownArchiveHeader, PostsLayout } from '$lib/components/posts';
+	import { PostFeed, DropdownArchiveHeader, PostsLayout, FeedMenu } from '$lib/components/posts';
 
 	let { data }: { data: PageData } = $props();
 </script>
@@ -16,6 +16,8 @@
 <Nav currentPage="posts" />
 
 <PostsLayout>
-	<DropdownArchiveHeader current="#{data.tag}" options={data.allTags} count={data.totalPosts} />
+	<DropdownArchiveHeader current="#{data.tag}" options={data.allTags} count={data.totalPosts}>
+		{#snippet actions()}<FeedMenu feeds={data.feeds.feeds} scope="#{data.tag}" />{/snippet}
+	</DropdownArchiveHeader>
 	<PostFeed postsByDay={data.postsByDay} activeTag={data.tag} />
 </PostsLayout>
