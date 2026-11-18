@@ -1,0 +1,8 @@
+# WebSub discovery (rel="hub" and rel="self") for the prerendered feeds. SvelteKit's Cloudflare
+# adapter appends its own rules to this file in the build output.
+/feed.xml
+  Link: <https://pubsubhubbub.appspot.com/>; rel="hub", <https://caseyagollan.com/feed.xml>; rel="self"
+/atom.xml
+  Link: <https://pubsubhubbub.appspot.com/>; rel="hub", <https://caseyagollan.com/atom.xml>; rel="self"
+/feed.json
+  Link: <https://pubsubhubbub.appspot.com/>; rel="hub", <https://caseyagollan.com/feed.json>; rel="self"
