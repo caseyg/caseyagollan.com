@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { SITE_FEEDS, SITE_URL, type ScopedFeeds } from '$lib/feeds';
 	import { SITE_IDENTITY } from '$lib/identity';
+	import { OPENSEARCH_PATH, OPENSEARCH_TITLE } from '$lib/opensearch';
 	import WikiPreviews from '$lib/components/wiki/WikiPreviews.svelte';
 
 	let { children } = $props();
@@ -22,6 +23,8 @@
 	{#each SITE_FEEDS as feed (feed.path)}
 		<link rel="alternate" type={feed.mime} title="Casey Gollan {feed.label}" href="{SITE_URL}{feed.path}" />
 	{/each}
+	<!-- Lets a browser add site search as a search engine. -->
+	<link rel="search" type="application/opensearchdescription+xml" title={OPENSEARCH_TITLE} href="{SITE_URL}{OPENSEARCH_PATH}" />
 	<!-- IndieAuth -->
 	<link rel="authorization_endpoint" href={new URL('/auth', __INDIEAUTH_ISSUER__).href} />
 	<link rel="token_endpoint" href={new URL('/auth/token', __INDIEAUTH_ISSUER__).href} />
