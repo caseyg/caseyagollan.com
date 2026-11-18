@@ -4,6 +4,7 @@ import { publishingConfig } from './src/lib/server/publishing/config.ts';
 import { processPublishing } from './src/lib/server/publishing/delivery.ts';
 import { processPesos } from './src/lib/server/publishing/pesos/importer.ts';
 import { syncWebmentions } from './src/lib/server/webmentions.ts';
+import { publishFeedUpdates } from './src/lib/server/websub.ts';
 
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 
@@ -22,6 +23,14 @@ export default {
     } catch {
       // Provider/network errors and credentials must not enter Worker logs.
       console.error(JSON.stringify({ event: 'publishing_delivery_scan_failed' }));
+      failed = true;
+    }
+    // Tell the WebSub hub when this deploy changed the feeds, so readers get new posts pushed.
+    try {
+      const result = await publishFeedUpdates(env);
+      if (result.status === 'pinged') console.log(JSON.stringify({ event: 'websub_ping', ...result }));
+    } catch {
+      console.error(JSON.stringify({ event: 'websub_ping_failed' }));
       failed = true;
     }
     // Preserve delivery's five-minute schedule; import at :00, :10, :20, etc.

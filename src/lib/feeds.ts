@@ -16,3 +16,9 @@ export const SITE_FEEDS: SiteFeed[] = [
 ];
 
 export const SITE_URL = 'https://caseyagollan.com';
+
+/**
+ * The WebSub hub the feeds name (rel="hub"). Readers that subscribe through it get new posts
+ * pushed to them, and the Worker's cron tells it when a deployed feed changes ($lib/server/websub).
+ */
+export const WEBSUB_HUB = 'https://pubsubhubbub.appspot.com/';

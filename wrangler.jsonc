@@ -25,6 +25,7 @@
 		"PUBLISHING_ENABLED": "true",
 		"PESOS_ENABLED": "true",
 		"PUBLISHING_DELIVERY_ENABLED": "false",
+		"WEBSUB_ENABLED": "true",
 		"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
 		"PUBLISHING_ME": "https://caseyagollan.com/",
 		"PUBLISHING_INTROSPECTION_ENDPOINT": "https://kit.caseyagollan.com/auth/introspect",
