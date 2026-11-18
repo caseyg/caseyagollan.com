@@ -1,5 +1,6 @@
 import type { Block, TableSummary } from '../tables';
 import type { Post } from '../posts-types';
+import type { StoredMention } from '../webmentions';
 
 export const note: Post = {
 	slug: 'storybook-note', type: 'note', date: '2026-01-10T12:00:00-05:00',
@@ -48,3 +49,20 @@ export const tableSummary: TableSummary = {
 	count: 9,
 	preview: [blocks.article, blocks.book, blocks.wiki, blocks.link]
 };
+
+/** Webmentions of one post, as `/api/webmentions` returns them. */
+const mentionOf = (id: number, kind: StoredMention['kind'], name: string, extra: Partial<StoredMention> = {}): StoredMention => ({
+	id, kind, target: '/2026/01/10/storybook-note/', url: `https://social.example/@${name.toLowerCase().replace(/\W/g, '')}/${id}`,
+	source: `https://brid.gy/comment/mastodon/${id}`, author: { name, url: `https://social.example/@${name.toLowerCase().replace(/\W/g, '')}`, photo: '' },
+	published: '2026-01-11T09:30:00-05:00', ...extra
+});
+export const webmentions: StoredMention[] = [
+	mentionOf(1, 'like', 'Ada Reader'), mentionOf(2, 'like', 'Bo Lin'), mentionOf(3, 'like', 'Chris Park'),
+	mentionOf(4, 'repost', 'Dana Ortiz'),
+	mentionOf(5, 'reply', 'Eli Moss', { html: '<p>This is how our studio works too. <a href="https://example.com/notes" rel="nofollow ugc noopener" target="_blank">Some notes</a> on it.</p>' }),
+	mentionOf(6, 'reply', 'Fran Okafor', { text: 'Thank you for writing this down.' }),
+	mentionOf(7, 'mention', 'A blog about tools', { url: 'https://blog.example.org/2026/01/tools', author: { name: '', url: '', photo: '' } })
+];
+export const longWebmentionReply: StoredMention = mentionOf(8, 'reply', 'Someone With A Very Long Display Name Indeed', {
+	html: `<p>${'A long reply that keeps going, with a link to https://example.com/a/very/long/address/that/should/wrap/rather/than/overflow/the/page and more words. '.repeat(3)}</p>`
+});

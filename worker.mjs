@@ -3,6 +3,8 @@ import application from './.svelte-kit/cloudflare/_worker.js';
 import { publishingConfig } from './src/lib/server/publishing/config.ts';
 import { processPublishing } from './src/lib/server/publishing/delivery.ts';
 import { processPesos } from './src/lib/server/publishing/pesos/importer.ts';
+import { syncWebmentions } from './src/lib/server/webmentions.ts';
+import { publishFeedUpdates } from './src/lib/server/websub.ts';
 
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 
@@ -23,6 +25,14 @@ export default {
       console.error(JSON.stringify({ event: 'publishing_delivery_scan_failed' }));
       failed = true;
     }
+    // Tell the WebSub hub when this deploy changed the feeds, so readers get new posts pushed.
+    try {
+      const result = await publishFeedUpdates(env);
+      if (result.status === 'pinged') console.log(JSON.stringify({ event: 'websub_ping', ...result }));
+    } catch {
+      console.error(JSON.stringify({ event: 'websub_ping_failed' }));
+      failed = true;
+    }
     // Preserve delivery's five-minute schedule; import at :00, :10, :20, etc.
     if (Math.floor(event.scheduledTime / 60_000) % 10 === 0) {
       try {
@@ -32,6 +42,14 @@ export default {
         console.error(JSON.stringify({ event: 'pesos_scan_failed' }));
         failed = true;
       }
+    }
+    // Keep the site's own copy of incoming Webmentions; previews have no token and skip it.
+    try {
+      const result = await syncWebmentions(env);
+      if (!result.skipped) console.log(JSON.stringify({ event: 'webmention_sync', ...result }));
+    } catch {
+      console.error(JSON.stringify({ event: 'webmention_sync_failed' }));
+      failed = true;
     }
     if (failed) throw new Error('Background publishing work failed');
   }

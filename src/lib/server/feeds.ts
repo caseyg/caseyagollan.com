@@ -3,6 +3,7 @@ import type { MediaItem, Post } from '../posts-types';
 import { getPostPermalink } from '../posts-types';
 import { isPublicPost } from './parse-post';
 import { renderContentSync } from '../utils/renderContent';
+import { WEBSUB_HUB } from '../feeds';
 
 const SITE = 'https://caseyagollan.com';
 const TITLE = 'Casey Gollan';
@@ -65,7 +66,9 @@ export interface FeedOptions {
 
 function resolve(options: FeedOptions) {
  const base = options.base ?? '/';
- return { title: options.title ?? TITLE, description: options.description ?? DESCRIPTION, home: `${SITE}${options.home ?? '/'}`, self: (file: string) => `${SITE}${base}${file}` };
+ // Only the site's own feeds are pinged to the hub (websub.ts), so only they name it.
+ const hub = base === '/' ? WEBSUB_HUB : undefined;
+ return { hub, title: options.title ?? TITLE, description: options.description ?? DESCRIPTION, home: `${SITE}${options.home ?? '/'}`, self: (file: string) => `${SITE}${base}${file}` };
 }
 
 function latestUpdated(items: ReturnType<typeof entries>): string {
@@ -76,16 +79,16 @@ export function serializeRss(posts: Post[], limit = 50, options: FeedOptions = {
  const items = entries(posts, limit);
  const updated = latestUpdated(items);
  const feed = resolve(options);
- return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${xml(feed.title)}</title><link>${xml(feed.home)}</link><description>${xml(feed.description)}</description><language>en</language><atom:link href="${xml(feed.self('feed.xml'))}" rel="self" type="application/rss+xml"/><lastBuildDate>${new Date(updated).toUTCString()}</lastBuildDate>${items.map(({ post, url, date, html, attachments }) => `<item><guid isPermaLink="true">${xml(url)}</guid><link>${xml(url)}</link>${post.title ? `<title>${xml(post.title)}</title>` : ''}<dc:creator>${TITLE}</dc:creator><pubDate>${new Date(date).toUTCString()}</pubDate>${post.summary ? `<description>${xml(post.summary)}</description>` : ''}<content:encoded>${xml(html)}</content:encoded>${attachments.slice(0, 1).map(a => `<enclosure url="${xml(a.url)}" type="${xml(a.mime_type)}" length="0"/>`).join('')}</item>`).join('')}</channel></rss>\n`;
+ return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>${xml(feed.title)}</title><link>${xml(feed.home)}</link><description>${xml(feed.description)}</description><language>en</language><atom:link href="${xml(feed.self('feed.xml'))}" rel="self" type="application/rss+xml"/>${feed.hub ? `<atom:link href="${feed.hub}" rel="hub"/>` : ''}<lastBuildDate>${new Date(updated).toUTCString()}</lastBuildDate>${items.map(({ post, url, date, html, attachments }) => `<item><guid isPermaLink="true">${xml(url)}</guid><link>${xml(url)}</link>${post.title ? `<title>${xml(post.title)}</title>` : ''}<dc:creator>${TITLE}</dc:creator><pubDate>${new Date(date).toUTCString()}</pubDate>${post.summary ? `<description>${xml(post.summary)}</description>` : ''}<content:encoded>${xml(html)}</content:encoded>${attachments.slice(0, 1).map(a => `<enclosure url="${xml(a.url)}" type="${xml(a.mime_type)}" length="0"/>`).join('')}</item>`).join('')}</channel></rss>\n`;
 }
 
 export function serializeAtom(posts: Post[], limit = 50, options: FeedOptions = {}): string {
  const items = entries(posts, limit);
  const feed = resolve(options);
- return `<?xml version="1.0" encoding="UTF-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom"><id>${xml(feed.home)}</id><title>${xml(feed.title)}</title><subtitle>${xml(feed.description)}</subtitle><link href="${xml(feed.home)}"/><link href="${xml(feed.self('atom.xml'))}" rel="self" type="application/atom+xml"/><updated>${latestUpdated(items)}</updated><author><name>${TITLE}</name><uri>${SITE}/</uri></author>${items.map(({ post, url, date, updated, html, attachments }) => `<entry><id>${xml(url)}</id><title>${xml(post.title || post.summary || `${post.type} on ${post.date.slice(0, 10)}`)}</title><link href="${xml(url)}"/><published>${date}</published><updated>${updated}</updated>${post.summary ? `<summary>${xml(post.summary)}</summary>` : ''}<content type="html">${xml(html)}</content>${attachments.map(a => `<link rel="enclosure" href="${xml(a.url)}" type="${xml(a.mime_type)}"/>`).join('')}</entry>`).join('')}</feed>\n`;
+ return `<?xml version="1.0" encoding="UTF-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom"><id>${xml(feed.home)}</id><title>${xml(feed.title)}</title><subtitle>${xml(feed.description)}</subtitle><link href="${xml(feed.home)}"/><link href="${xml(feed.self('atom.xml'))}" rel="self" type="application/atom+xml"/>${feed.hub ? `<link href="${feed.hub}" rel="hub"/>` : ''}<updated>${latestUpdated(items)}</updated><author><name>${TITLE}</name><uri>${SITE}/</uri></author>${items.map(({ post, url, date, updated, html, attachments }) => `<entry><id>${xml(url)}</id><title>${xml(post.title || post.summary || `${post.type} on ${post.date.slice(0, 10)}`)}</title><link href="${xml(url)}"/><published>${date}</published><updated>${updated}</updated>${post.summary ? `<summary>${xml(post.summary)}</summary>` : ''}<content type="html">${xml(html)}</content>${attachments.map(a => `<link rel="enclosure" href="${xml(a.url)}" type="${xml(a.mime_type)}"/>`).join('')}</entry>`).join('')}</feed>\n`;
 }
 
 export function serializeJsonFeed(posts: Post[], limit = 50, options: FeedOptions = {}): string {
  const feed = resolve(options);
- return JSON.stringify({ version: 'https://jsonfeed.org/version/1.1', title: feed.title, home_page_url: feed.home, feed_url: feed.self('feed.json'), description: feed.description, language: 'en', authors: [{ name: TITLE, url: `${SITE}/` }], items: entries(posts, limit).map(({ post, url, date, modified, html, attachments }) => ({ id: url, url, title: post.title, summary: post.summary, content_html: html, date_published: date, date_modified: modified, tags: post.category ? (Array.isArray(post.category) ? post.category : [post.category]) : undefined, attachments: attachments.length ? attachments : undefined })) }, null, 2) + '\n';
+ return JSON.stringify({ version: 'https://jsonfeed.org/version/1.1', title: feed.title, home_page_url: feed.home, feed_url: feed.self('feed.json'), hubs: feed.hub ? [{ type: 'WebSub', url: feed.hub }] : undefined, description: feed.description, language: 'en', authors: [{ name: TITLE, url: `${SITE}/` }], items: entries(posts, limit).map(({ post, url, date, modified, html, attachments }) => ({ id: url, url, title: post.title, summary: post.summary, content_html: html, date_published: date, date_modified: modified, tags: post.category ? (Array.isArray(post.category) ? post.category : [post.category]) : undefined, attachments: attachments.length ? attachments : undefined })) }, null, 2) + '\n';
 }
