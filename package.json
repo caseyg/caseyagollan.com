@@ -54,6 +54,10 @@
 	},
 	"dependencies": {
 		"3d-force-graph": "^1.79.0",
+		"@earendil-works/chord": "1.5.2",
+		"@earendil-works/pi-ai": "1.5.2",
+		"@earendil-works/pi-durable": "1.5.2",
+		"@earendil-works/pi-schema": "1.5.2",
 		"@ipld/car": "5.4.7",
 		"@ipld/dag-cbor": "10.0.2",
 		"@lexical/link": "0.40.0",

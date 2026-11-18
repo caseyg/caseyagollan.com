@@ -67,7 +67,13 @@ export class LiveThread {
 		try { event = JSON.parse(data); } catch { return; }
 		switch (event.type) {
 			case 'chat:snapshot': this.snapshot = event.snapshot; this.viewer = event.viewer ?? this.viewer; this.tools = event.tools; break;
-			case 'chat:message': if (!this.#find(event.message.id)) { this.snapshot.messages.push(event.message); if (event.message.role === 'user') this.#onchange?.(); } break;
+			case 'chat:message': {
+				// New, or replaced whole (the server reshaped it).
+				const index = this.snapshot.messages.findIndex((message) => message.id === event.message.id);
+				if (index >= 0) this.snapshot.messages[index] = event.message;
+				else { this.snapshot.messages.push(event.message); if (event.message.role === 'user') this.#onchange?.(); }
+				break;
+			}
 			case 'chat:delta': { const message = this.#find(event.id); if (message) message.content += event.text; break; }
 			case 'chat:tools': { const message = this.#find(event.id); if (message) message.tools = event.tools; break; }
 			case 'chat:done': { const message = this.#find(event.id); if (message) { message.status = event.status; message.content = event.content; } this.#onchange?.(); break; }

@@ -16,7 +16,7 @@
 	"compatibility_flags": [
 		"nodejs_als",
 		/** The Agents SDK (/chat) needs Node.js APIs. */
-		"nodejs_compat"
+		"nodejs_compat", "enable_weak_ref"
 	],
 	/**
 	 * Enable workers.dev subdomain for preview deployments
@@ -45,7 +45,9 @@
 		"PUBLISHING_BLUESKY_SERVICE": "https://bsky.social",
 		"PUBLISHING_BLUESKY_IDENTIFIER": "caseyagollan.com",
 		/** The inference.coop model /chat answers with (key: the INFERENCE_COOP_API_KEY secret). */
-		"CHAT_MODEL": "glm-flash-green"
+		"CHAT_MODEL": "glm-flash-green",
+		/** US dollars each /chat visitor may spend a month (Casey is not capped). */
+		"CHAT_MONTHLY_BUDGET": "3"
 	},
 	"assets": {
 		"binding": "ASSETS",
@@ -84,7 +86,8 @@
 			"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
 			"PUBLISHING_ME": "https://caseyagollan.com/",
 			"PUBLISHING_TIMEZONE": "America/New_York",
-			"CHAT_MODEL": "glm-flash-green"
+			"CHAT_MODEL": "glm-flash-green",
+			"CHAT_MONTHLY_BUDGET": "3"
 		},
 		"kv_namespaces": [{ "binding": "INSIGHT_CACHE", "id": "9eca3bf2742740d78191c5be95a5be97" }],
 		"r2_buckets": [
