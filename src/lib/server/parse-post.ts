@@ -1,3 +1,4 @@
+import { splitCategories } from '../person-tags';
 import { parse } from 'yaml';
 import { linkPreviews, socialSnapshots } from '../social-snapshots';
 import type { Post, MediaItem } from '../posts-types';
@@ -77,7 +78,8 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		linkPreviews: linkPreviews(data._micropubLinkPreviews),
 		inReplyTo: data.inReplyTo,
 		summary: data.summary,
-		category: data.category,
+		// Person tags (h-cards or profile URLs) leave `category`, so tag pages and feeds see only topics.
+		...personFields(data.category),
 		content,
 		contentFormat: data._micropubContentFormat ?? 'markdown',
 		postStatus: data['post-status'] === undefined ? undefined : String(first(data['post-status'])),
@@ -93,6 +95,11 @@ export function parsePost(fileContent: string, type: string, file: string): Post
 		properties: Object.fromEntries(Object.entries(data).filter(([key]) => !key.startsWith('_')).map(([key,value]) => [key, Array.isArray(value) ? value : [value]])),
 		filePath: `${type}/${file}`
 	};
+}
+
+function personFields(category: unknown) {
+	const { tags, people } = splitCategories(category);
+	return people.length ? { category: tags.length ? tags : undefined, people } : { category: category as Post['category'] };
 }
 
 export function isPublicPost(post: Post): boolean {

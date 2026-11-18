@@ -5,7 +5,8 @@
 		src?: string;
 		/** Used for alt text and the initial shown while the image loads, or when there is none. */
 		name?: string;
-		size?: 'sm' | 'md';
+		/** `xs` sits inline with running text, such as a person tag. */
+		size?: 'xs' | 'sm' | 'md';
 		class?: string;
 	}
 
@@ -30,6 +31,12 @@
 	:global(.avatar--md) {
 		width: 2.75rem;
 		height: 2.75rem;
+	}
+
+	:global(.avatar--xs) {
+		width: 1.25em;
+		height: 1.25em;
+		font-size: 0.75em;
 	}
 
 	:global(.avatar--sm) {

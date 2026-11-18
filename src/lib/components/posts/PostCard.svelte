@@ -53,6 +53,7 @@
 		syndication={post.syndication}
 		{showType}
 		category={post.category}
+		people={post.people}
 		{activeTag}
 		indexActivities={post.indexActivities}
 		action={getPostAction(post)}
