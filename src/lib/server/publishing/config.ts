@@ -1,5 +1,6 @@
 import { authSettings, authStore, type IndieAuthEnvironment } from '../indieauth/contracts';
 import type { PublishingConfig } from './micropub';
+import { blueskyOAuthConfig } from './bluesky-oauth';
 
 export interface PublishingEnvironment extends IndieAuthEnvironment {
 	READWISE_ACCESS_TOKEN?: string;
@@ -17,6 +18,8 @@ export interface PublishingEnvironment extends IndieAuthEnvironment {
 	PUBLISHING_BLUESKY_SERVICE?: string;
 	PUBLISHING_BLUESKY_IDENTIFIER?: string;
 	PUBLISHING_BLUESKY_PASSWORD?: string;
+	/** "false" turns Bluesky OAuth off, leaving only the app password. */
+	PUBLISHING_BLUESKY_OAUTH?: string;
 	PUBLISHING_ME?: string;
 	PUBLISHING_INTROSPECTION_ENDPOINT?: string;
 	PUBLISHING_INTROSPECTION_TOKEN?: string;
@@ -45,6 +48,19 @@ export function draftsConfig(env: PublishingEnvironment = {}): { owner: string; 
 	return config;
 }
 
+/**
+ * Bluesky posting: OAuth once the owner connects it on /account (the session lives in
+ * `PUBLISHING_STATE`), and the app password, when set, as the fallback.
+ */
+function bluesky(env: PublishingEnvironment, me: string) {
+	const service = env.PUBLISHING_BLUESKY_SERVICE ?? 'https://bsky.social';
+	const identifier = env.PUBLISHING_BLUESKY_IDENTIFIER?.trim();
+	const password = env.PUBLISHING_BLUESKY_PASSWORD?.trim() ? env.PUBLISHING_BLUESKY_PASSWORD : undefined;
+	const oauth = env.PUBLISHING_BLUESKY_OAUTH === 'false' ? undefined : blueskyOAuthConfig(me, env.PUBLISHING_STATE, identifier);
+	if (!oauth && !(identifier && password)) return;
+	return { service, ...(identifier ? { identifier } : {}), ...(password ? { password } : {}), ...(oauth ? { oauth } : {}) };
+}
+
 export function publishingConfig(env: PublishingEnvironment = {}): PublishingConfig | undefined {
 	if (env.PUBLISHING_ENABLED !== 'true') return;
 	const internal = env.PUBLISHING_AUTH_MODE === 'internal';
@@ -58,9 +74,10 @@ export function publishingConfig(env: PublishingEnvironment = {}): PublishingCon
 		timeZone: env.PUBLISHING_TIMEZONE ?? 'America/New_York'
 	};
 	if (Object.values(config).some(value => !value?.trim())) return;
+	const blue = bluesky(env, config.me!);
 	const syndication = {
 		...(env.PUBLISHING_MASTODON_TOKEN?.trim() ? { mastodon: { instance: env.PUBLISHING_MASTODON_INSTANCE ?? 'https://social.coop', token: env.PUBLISHING_MASTODON_TOKEN } } : {}),
-		...(env.PUBLISHING_BLUESKY_IDENTIFIER?.trim() && env.PUBLISHING_BLUESKY_PASSWORD?.trim() ? { bluesky: { service: env.PUBLISHING_BLUESKY_SERVICE ?? 'https://bsky.social', identifier: env.PUBLISHING_BLUESKY_IDENTIFIER, password: env.PUBLISHING_BLUESKY_PASSWORD } } : {})
+		...(blue ? { bluesky: blue } : {})
 	};
 	return { ...config, ...(store ? { introspect: (token: string) => store.invoke('introspectToken', { token }) } : {}), state: env.PUBLISHING_STATE, syndication, deliveryEnabled: env.PUBLISHING_DELIVERY_ENABLED === 'true', mediaBucket: env.PUBLISHING_MEDIA, mediaEnabled: Boolean(env.PUBLISHING_MEDIA), mediaBaseUrl: env.PUBLISHING_MEDIA_BASE_URL, images: env.IMAGES, introspectionToken: env.PUBLISHING_INTROSPECTION_TOKEN } as PublishingConfig;
 }

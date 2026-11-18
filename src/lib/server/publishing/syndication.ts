@@ -2,9 +2,11 @@ import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from '.
 import { characterCount } from '../../social-text';
 import { checkDeliveryResponse } from './webmention';
 import { blueskyImagesEmbed, uploadMastodonMedia, type PreparedPhoto } from './syndication-photos';
+import { blueskyAgent, fallbackAgent, notePosted, OAuthUnavailable, type BlueskyAccount, type BlueskyAgent } from './bluesky-oauth';
 export interface SyndicationConfig {
  mastodon?: {instance:string;token:string};
- bluesky?: {service:string;identifier:string;password:string};
+ /** OAuth when connected (`oauth`), with the app password as the fallback. */
+ bluesky?: BlueskyAccount;
 }
 export interface SyndicationPost {url:string;text:string;title?:string;published:string;idempotencyKey:string;draft?:string;
  /** A reviewed thread: each entry is one post, sent as a reply to the one before. */
@@ -44,11 +46,6 @@ export function syndicationText(post:SyndicationPost,limit:number,byteLimit=Infi
 }
 function origin(value:string):string {
  const url=publicUrl(value);if(url.pathname!=='/' || url.search || url.hash) throw new DeliveryError('Provider must be an HTTPS origin',false);return url.origin;
-}
-async function request(fetcher:PublicFetcher,url:string,body:unknown,headers:Record<string,string>={}) {
- const response=await fetcher(url,{method:'POST',redirect:'manual',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
- checkDeliveryResponse(response);
- try{return await response.json() as Record<string,unknown>;}catch{throw new DeliveryError('Invalid provider response',true);}
 }
 /** One sent post of a thread: its public URL, and what a reply to it needs. */
 export interface SentPart {url:string;id:string;cid?:string}
@@ -111,6 +108,23 @@ async function blueskyRecordKey(key:string,published:number):Promise<string> {
  for(let i=0;i<13;i++){rkey=alphabet[Number(tid&31n)]+rkey;tid>>=5n;}
  return rkey;
 }
+/** Send one post of a Bluesky thread as a `putRecord` on the account's PDS. */
+async function sendBlueskyPost(agent:BlueskyAgent,post:SyndicationPost,texts:string[],index:number,parts:SentPart[],published:number,fetcher:PublicFetcher,resolved:Map<string,string>):Promise<SentPart> {
+ const base=origin(agent.service);
+ const text=texts[index];
+ const rkey=await blueskyRecordKey(partKey(post.idempotencyKey,index),published+index);
+ const facets=await blueskyFacets(text,base,fetcher,resolved);
+ // Replies point at the thread's first post and the post right before them.
+ const reply=index?{root:{uri:parts[0].id,cid:parts[0].cid},parent:{uri:parts[index-1].id,cid:parts[index-1].cid}}:undefined;
+ const createdAt=index?new Date(published+index).toISOString():post.published;
+ const media=mediaFor(post,index,texts.length);
+ const embed=media.length ? await blueskyImagesEmbed(base,agent.fetch,media) : undefined;
+ const response=await agent.fetch(base+'/xrpc/com.atproto.repo.putRecord',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({repo:agent.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt,facets,...(reply?{reply}:{}),...(embed?{embed}:{})}})});
+ checkDeliveryResponse(response);
+ let result:Record<string,unknown>;try{result=await response.json() as Record<string,unknown>;}catch{throw new DeliveryError('Invalid provider response',true);}
+ if(index<texts.length-1 && typeof result.cid!=='string') throw new DeliveryError('Bluesky did not return a record CID',true);
+ return {url:`https://bsky.app/profile/${agent.handle}/post/${rkey}`,id:`at://${agent.did}/app.bsky.feed.post/${rkey}`,...(typeof result.cid==='string'?{cid:result.cid}:{})};
+}
 /** A thread post's photos: those naming it, with any past the end on the last post. */
 const mediaFor=(post:SyndicationPost,index:number,count:number)=>(post.media ?? []).filter(photo=>Math.min(photo.post ?? 0,count-1)===index);
 /** The first post keeps the job's key; later posts of a thread add their position. */
@@ -148,26 +162,19 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
   return parts[0].url;
  }
  const account=config.bluesky;if(!account)throw new DeliveryError('Bluesky is not configured',false);
- const base=origin(account.service);
- const session=await request(fetcher,base+'/xrpc/com.atproto.server.createSession',{identifier:account.identifier,password:account.password});
- if(typeof session.did!=='string' || !blueskyDid.test(session.did) || typeof session.accessJwt!=='string') throw new DeliveryError('Invalid Bluesky session',true);
- // Bridgy and readers expect handle URLs; the DID form is the fallback when the handle is unverified.
- const handle=typeof session.handle==='string' && session.handle!=='handle.invalid' && /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$/i.test(session.handle) ? session.handle : session.did;
+ let agent:BlueskyAgent=await blueskyAgent(account,fetcher);
  const resolved=new Map<string,string>();
  const published=Date.parse(post.published);
  for(let index=parts.length;index<texts.length;index++) {
-  const text=texts[index];
-  const rkey=await blueskyRecordKey(partKey(post.idempotencyKey,index),published+index);
-  const facets=await blueskyFacets(text,base,fetcher,resolved);
-  // Replies point at the thread's first post and the post right before them.
-  const reply=index?{root:{uri:parts[0].id,cid:parts[0].cid},parent:{uri:parts[index-1].id,cid:parts[index-1].cid}}:undefined;
-  const createdAt=index?new Date(published+index).toISOString():post.published;
-  const media=mediaFor(post,index,texts.length);
-  const embed=media.length ? await blueskyImagesEmbed(base,session.accessJwt,media,fetcher) : undefined;
-  const result=await request(fetcher,base+'/xrpc/com.atproto.repo.putRecord',{repo:session.did,collection:'app.bsky.feed.post',rkey,validate:true,record:{$type:'app.bsky.feed.post',text,createdAt,facets,...(reply?{reply}:{}),...(embed?{embed}:{})}},{authorization:`Bearer ${session.accessJwt}`});
-  if(index<texts.length-1 && typeof result.cid!=='string') throw new DeliveryError('Bluesky did not return a record CID',true);
-  parts.push({url:`https://bsky.app/profile/${handle}/post/${rkey}`,id:`at://${session.did}/app.bsky.feed.post/${rkey}`,...(typeof result.cid==='string'?{cid:result.cid}:{})});
+  try { parts.push(await sendBlueskyPost(agent,post,texts,index,parts,published,fetcher,resolved)); }
+  catch(error) {
+   // OAuth refused mid-send: the record key is deterministic, so the app password rewrites the same post.
+   if(!(error instanceof OAuthUnavailable) || agent.auth!=='oauth') throw error;
+   agent=await fallbackAgent(account,fetcher,error.message);
+   index--;continue;
+  }
   if(texts.length>1) await progress?.save(parts);
  }
+ await notePosted(account,agent).catch(()=>undefined);
  return parts[0].url;
 }
