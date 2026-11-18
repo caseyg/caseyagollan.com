@@ -4,7 +4,7 @@ import { getPostPermalink, POST_TYPE_PLURALS } from '../../../posts-types';
 import { parsePost } from '../../parse-post';
 import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from '../public-fetch';
 import { enrichSocialSnapshots } from '../social-snapshots';
-import { socialImageStore, archivePhotoProperties, archiveLinkPreviewProperties } from '../social-media';
+import { socialImageStore, socialVideoStore, archivePhotoProperties, archiveLinkPreviewProperties } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
 import { mastodonPage, blueskyPage, blueskyPublic, blueskySyndicationUrls, type Activity, type GetJson, type Page } from './providers';
 
@@ -302,7 +302,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
      // Link card thumbnails are only ever served from saved copies; dry runs keep the card text.
      if(activity.kind==='post')activity.properties=await archiveLinkPreviewProperties(activity.properties,dependencies.dryRun?undefined:socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
-     if (activity.kind !== 'post' || activity.properties['in-reply-to']?.length || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
+     if (activity.kind !== 'post' || activity.properties['in-reply-to']?.length || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),storeVideo:dependencies.dryRun ? undefined : socialVideoStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
      additions.push(file);
      feedImports++;
      keys.add(`source:${activity.id}`);

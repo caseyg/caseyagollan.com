@@ -5,7 +5,8 @@ import type { Root, Element } from 'hast';
 import { sanitizePublishingHtml } from '../../utils/sanitizeHtml';
 import { publicBluesky, blueUrl } from './pesos/providers';
 import { socialSnapshots, MAX_QUOTE_DEPTH, type SocialSnapshot } from '../../social-snapshots';
-import type { SocialImageStore } from './social-media';
+import { blobSha256, type SocialImageStore, type SocialVideoStore } from './social-media';
+import { DeliveryError } from './public-fetch';
 import { safePublicFetch, publicUrl, type PublicFetcher } from './public-fetch';
 import { blueskyHtml } from './bluesky-richtext';
 
@@ -38,7 +39,8 @@ function raster(bytes: Uint8Array, type: string): boolean {
   (type === 'image/webp' && ascii(0,4) === 'RIFF' && ascii(8,12) === 'WEBP');
 }
 /** Fetching is bounded by safePublicFetch and a single deadline shared by metadata and images. */
-async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal, budget: {bytes: number}, storeImage?: SocialImageStore, previous?: SocialSnapshot, mastodonSource?: {instance:string;id:string}, depth=0, ancestors=new Set<string>()): Promise<SocialSnapshot | undefined> {
+interface Stores { image?: SocialImageStore; video?: SocialVideoStore }
+async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal, budget: {bytes: number}, stores: Stores, previous?: SocialSnapshot, mastodonSource?: {instance:string;id:string}, depth=0, ancestors=new Set<string>()): Promise<SocialSnapshot | undefined> {
  if(depth>MAX_QUOTE_DEPTH||ancestors.has(url))return;
  const visited=new Set([...ancestors,url]);
  let quoteUrl:string|undefined;let quoteSource:{instance:string;id:string}|undefined;
@@ -46,7 +48,7 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
  const get = (u: string) => { publicUrl(u); return fetcher(u, {headers:{accept:'application/json'},signal}); };
  let result: Omit<SocialSnapshot,'images'>;
  let media: {url:string;alt:string}[] = [];
- let video: {url:string;alt:string;presentation?:'gif'} | undefined;
+ let video: {url:string;alt:string;presentation?:'gif';sha256?:string;poster?:string} | undefined;
  let avatar: string | undefined;
  let previewImage: string | undefined;
  const preview = (value: any, blue = false) => {
@@ -122,7 +124,10 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
     const identity = response.ok ? await response.json() as any : undefined;
     const service = identity?.id === did && Array.isArray(identity.service) ? identity.service.find((s:any)=>[`${did}#atproto_pds`,'#atproto_pds'].includes(s.id) && s.type === 'AtprotoPersonalDataServer') : undefined;
     const pds = publicUrl(service?.serviceEndpoint);
-    video = {url:new URL(`/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`,pds).href,alt:typeof embed.alt === 'string' ? embed.alt : '',...(embed.presentation === 'gif' ? {presentation:'gif' as const} : {})};
+    const sha256 = blobSha256(cid);
+    let poster: string | undefined;
+    try { if(typeof embed.thumbnail === 'string') poster = publicUrl(embed.thumbnail).href; } catch { /* No poster frame. */ }
+    video = {url:new URL(`/xrpc/com.atproto.sync.getBlob?did=${encodeURIComponent(did)}&cid=${encodeURIComponent(cid)}`,pds).href,alt:typeof embed.alt === 'string' ? embed.alt : '',...(embed.presentation === 'gif' ? {presentation:'gif' as const} : {}),...(sha256 ? {sha256} : {}),...(poster ? {poster} : {})};
    } catch { /* A failed lookup must not remove previously saved media. */ }
    if (!video && previous?.video) return previous;
   }
@@ -145,39 +150,57 @@ async function snapshot(url: string, fetcher: PublicFetcher, signal: AbortSignal
   const sourceUrl = mastodonSource && localId ? `${target.origin}/@${encodeURIComponent(account.acct).replace(/%40/g,'@')}/${localId}` : undefined;
   result = {version:1,url,...(sourceUrl ? {sourceUrl} : {}),platform:'mastodon',author:{name:account.display_name || account.acct,handle,url:publicUrl(account.url).href},published:post.created_at,fetchedAt:new Date().toISOString(),html:cleanHtml(post.content),...(post.spoiler_text ? {warning:post.spoiler_text} : {})};
   media = (post.media_attachments ?? []).slice(0,4).filter((i:any)=>i.type === 'image' && typeof i.url === 'string').map((i:any)=>({url:i.preview_url || i.url,alt:typeof i.description === 'string' ? i.description : ''}));
+  // Mastodon attaches one video (or a GIF, served as a looping MP4) per post.
+  const clip = (post.media_attachments ?? []).find((i:any)=>['video','gifv'].includes(i.type) && typeof i.url === 'string');
+  if(clip) try {
+   video = {url:publicUrl(clip.url).href,alt:typeof clip.description === 'string' ? clip.description : '',...(clip.type === 'gifv' ? {presentation:'gif' as const} : {})};
+   if(typeof clip.preview_url === 'string') video.poster = publicUrl(clip.preview_url).href;
+  } catch { /* Invalid media URLs are omitted. */ }
   preview(post.card);
   if(post.sensitive && !result.warning) result.warning = 'Sensitive content';
  } else return;
  const saved: SocialSnapshot = {...result,images:[]};
- if(quoteUrl&&depth<MAX_QUOTE_DEPTH)try{const quote=await snapshot(quoteUrl,fetcher,signal,budget,storeImage,previous?.quote,quoteSource,depth+1,visited);if(quote)saved.quote=quote;}catch{/* Missing/restricted quotes never reuse archived copies. */}
+ if(quoteUrl&&depth<MAX_QUOTE_DEPTH)try{const quote=await snapshot(quoteUrl,fetcher,signal,budget,stores,previous?.quote,quoteSource,depth+1,visited);if(quote)saved.quote=quote;}catch{/* Missing/restricted quotes never reuse archived copies. */}
  if(!socialSnapshots([saved]).length) return;
+ const storeImage = stores.image;
  if(!storeImage) return saved;
  let mediaComplete = true;
- const assets = [...(avatar ? [{url:avatar,alt:'',kind:'avatar'}] : []),...(previewImage ? [{url:previewImage,alt:'',kind:'preview'}] : []),...media.map(image=>({...image,kind:'attachment'})),...(video ? [{...video,kind:'video'}] : [])];
+ let poster: string | undefined;
+ const assets = [...(avatar ? [{url:avatar,alt:'',kind:'avatar'}] : []),...(previewImage ? [{url:previewImage,alt:'',kind:'preview'}] : []),...media.map(image=>({...image,kind:'attachment'})),...(video?.poster ? [{url:video.poster,alt:'',kind:'poster'}] : [])];
  for(const image of assets) {
   try {
    if(signal.aborted) {mediaComplete=false; break;}
    publicUrl(image.url);
-   const response = await fetcher(image.url,{headers:{accept:image.kind === 'video' ? 'video/mp4' : 'image/png,image/jpeg,image/webp,image/gif'},signal});
+   const response = await fetcher(image.url,{headers:{accept:'image/png,image/jpeg,image/webp,image/gif'},signal});
    if(!response.ok) {mediaComplete=false;continue;}
    const type = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ?? '';
    if(Number(response.headers.get('content-length')) > MAX_IMAGE_BYTES) {await response.body?.cancel(); mediaComplete=false; continue;}
    const bytes = new Uint8Array(await response.arrayBuffer());
-   if(!bytes.length || bytes.length > MAX_IMAGE_BYTES || budget.bytes + bytes.length > MAX_SAVED_IMAGE_BYTES || !(image.kind === 'video' ? type === 'video/mp4' && String.fromCharCode(...bytes.slice(4,8)) === 'ftyp' && !/avif|avis/.test(String.fromCharCode(...bytes.slice(8,64))) : raster(bytes,type))) {mediaComplete=false;continue;}
+   if(!bytes.length || bytes.length > MAX_IMAGE_BYTES || budget.bytes + bytes.length > MAX_SAVED_IMAGE_BYTES || !raster(bytes,type)) {mediaComplete=false;continue;}
    budget.bytes += bytes.length;
    const src = await storeImage(bytes,type);
-   if(image.kind === 'video') saved.video = {src,alt:image.alt,...(video?.presentation ? {presentation:video.presentation} : {})};
+   if(image.kind === 'poster') poster = src;
    else if(image.kind === 'avatar') saved.author.avatar = src;
    else if(image.kind === 'preview' && saved.preview) saved.preview.image = src;
    else saved.images.push({src,alt:image.alt});
   } catch { mediaComplete=false; /* Keep the last complete snapshot during refresh. */ }
+ }
+ // Videos have their own store and deadline: they can be far larger than images, and a
+ // video too large to save leaves its poster frame, linked to the original.
+ if(video) {
+  let src: string | undefined;
+  if(stores.video) try { src = await stores.video(video.url,video.sha256); }
+  catch(error) { if(!(error instanceof DeliveryError) || error.retryable) mediaComplete=false; }
+  else mediaComplete=false;
+  if(src || poster) saved.video = {...(src ? {src} : {}),...(poster ? {poster} : {}),alt:video.alt,...(video.presentation ? {presentation:video.presentation} : {})};
+  else mediaComplete=false;
  }
  if(!mediaComplete&&previous){const {quote:_old,...base}=previous;return {...base,...(saved.quote?{quote:saved.quote}:{})};}
  return saved;
 }
 
 /** Enrich only at publication/backfill, never during reads or page rendering. */
-export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFetcher = safePublicFetch, options: { threadMetadataOnly?: boolean; refresh?: boolean; storeImage?: SocialImageStore; timeoutMs?: number; mastodonInstance?: string } = {}): Promise<string> {
+export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFetcher = safePublicFetch, options: { threadMetadataOnly?: boolean; refresh?: boolean; storeImage?: SocialImageStore; storeVideo?: SocialVideoStore; timeoutMs?: number; mastodonInstance?: string } = {}): Promise<string> {
  const match = markdown.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
  if(!match) return markdown;
  const doc = parseDocument(match[1]);
@@ -200,7 +223,7 @@ export async function enrichSocialSnapshots(markdown: string, fetcher: PublicFet
    const source = Array.isArray(data['pesos-source']) ? data['pesos-source'][0] : undefined;
    const id = typeof source === 'string' ? source.match(/^mastodon:(?:like|repost):(\d+)$/)?.[1] : undefined;
    const mastodonSource = id && options.mastodonInstance ? {instance:publicUrl(options.mastodonInstance).origin,id} : undefined;
-   fresh = await snapshot(url,fetcher,signal,budget,options.threadMetadataOnly ? undefined : options.storeImage,existing,mastodonSource); } catch(error) { invalid=error instanceof SocialSnapshotUnavailable; /* Temporary transport failures retain existing outer snapshots. */ }
+   fresh = await snapshot(url,fetcher,signal,budget,options.threadMetadataOnly ? {} : {image:options.storeImage,video:options.storeVideo},existing,mastodonSource); } catch(error) { invalid=error instanceof SocialSnapshotUnavailable; /* Temporary transport failures retain existing outer snapshots. */ }
   if(fresh) {
    if (options.threadMetadataOnly && existing) { const {thread:_old,...saved}=existing; after.push({...saved,...(fresh.thread ? {thread:fresh.thread} : {})}); }
    else after.push(fresh);

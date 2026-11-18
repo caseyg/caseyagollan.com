@@ -54,6 +54,11 @@
  .social-post .social-card-scope > :is(.social-images, .social-link-preview, .social-quoted-post, .social-video) { margin-top: var(--space-2); }
 
  .social-card-scope .social-video { margin-top: var(--space-3); }
+ /* A video too large to save: its poster frame, linking to the original. */
+ .social-card-scope a.social-video-link { position: relative; display: block; color: inherit; text-decoration: none; }
+ .social-card-scope .social-video-play { position: absolute; left: var(--space-3); bottom: var(--space-3); padding: var(--space-1) var(--space-3); border-radius: var(--radius-full); background: var(--bg-primary); color: var(--text-primary); font-size: var(--fs-sm); font-weight: var(--fw-semibold); line-height: var(--lh-snug); transition: background var(--duration) var(--ease); }
+ .social-card-scope a.social-video-link:hover .social-video-play { background: var(--accent-hover); }
+ .social-card-scope a.social-video-link:focus-visible { outline: var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-md); }
 
  /* Links in a SocialPost's text read as text, as in saved posts. */
  .social-card-scope .social-post .body a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }

@@ -36,9 +36,27 @@ async function bounded(response: Response, signal?: AbortSignal, maximumBytes=MA
  const result=new Response(bytes,{status:response.status,statusText:response.statusText,headers:response.headers});
  Object.defineProperty(result,'url',{value:response.url,configurable:true}); return result;
 }
-export async function safePublicFetch(value: string, init: RequestInit = {}, fetcher: typeof fetch = fetch, maximumBytes=MAX_BYTES): Promise<Response> {
- const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),15000);
+export function safePublicFetch(value: string, init: RequestInit = {}, fetcher: typeof fetch = fetch, maximumBytes=MAX_BYTES): Promise<Response> {
+ return publicRequest(value,init,fetcher,maximumBytes,false);
+}
+/** Like safePublicFetch, but the body is streamed rather than buffered, for large media.
+ * The response must declare its length up front, and the stream errors if it runs past it.
+ * The caller's signal (not a fixed 15 seconds) bounds the whole transfer. */
+export function safePublicStream(value: string, init: RequestInit = {}, fetcher: typeof fetch = fetch, maximumBytes=MAX_BYTES): Promise<Response> {
+ return publicRequest(value,init,fetcher,maximumBytes,true);
+}
+function limited(response: Response, maximumBytes: number): Response {
+ const length=Number(response.headers.get('content-length'));
+ if(!response.body || !response.headers.has('content-length') || !Number.isSafeInteger(length) || length<=0 || length>maximumBytes) { void response.body?.cancel(); throw new DeliveryError(length>maximumBytes ? 'Response exceeds body limit' : 'Response has no declared length',false); }
+ let size=0;
+ const body=response.body.pipeThrough(new TransformStream<Uint8Array,Uint8Array>({transform(chunk,controller){size+=chunk.length;if(size>length)controller.error(new DeliveryError('Response exceeds declared length',false));else controller.enqueue(chunk);},flush(controller){if(size!==length)controller.error(new DeliveryError('Response ended early',true));}}));
+ const result=new Response(body,{status:response.status,statusText:response.statusText,headers:response.headers});
+ Object.defineProperty(result,'url',{value:response.url,configurable:true}); return result;
+}
+async function publicRequest(value: string, init: RequestInit, fetcher: typeof fetch, maximumBytes: number, stream: boolean): Promise<Response> {
+ const controller=new AbortController(); const timer=stream ? undefined : setTimeout(()=>controller.abort(),15000);
  const abort=()=>controller.abort(); init.signal?.addEventListener('abort',abort,{once:true}); if(init.signal?.aborted) controller.abort();
+ let streaming=false;
  try {
   let url=publicUrl(value); let options={...init,signal:controller.signal,redirect:'manual' as RequestRedirect};
   for(let hop=0;hop<=4;hop++) {
@@ -62,12 +80,18 @@ export async function safePublicFetch(value: string, init: RequestInit = {}, fet
     if(next.origin!==url.origin) {const headers=new Headers(options.headers); headers.delete('authorization');headers.delete('cookie');options={...options,headers};}
     url=next;continue;
    }
+   if(stream) { if(!response.ok) { await response.body?.cancel(); return response; } const result=limited(response,maximumBytes); Object.defineProperty(result,'url',{value:url.href,configurable:true}); streaming=true; return result; }
    const result=await bounded(response,controller.signal,maximumBytes); Object.defineProperty(result,'url',{value:url.href,configurable:true});return result;
   }
   throw new DeliveryError('Too many redirects',false);
  } catch(error) { if(error instanceof DeliveryError) throw error; throw new DeliveryError('Public fetch failed',true); }
- finally { clearTimeout(timer);init.signal?.removeEventListener('abort',abort); }
+ // A streamed body keeps listening to the caller's signal until it is read.
+ finally { clearTimeout(timer);if(!streaming)init.signal?.removeEventListener('abort',abort); }
 }
 
 /** Imported full-resolution photos get a separate bounded allowance. */
 export const safePublicImageFetch: PublicFetcher = (url,init)=>safePublicFetch(url,init,fetch,10*1024*1024);
+
+/** Saved social videos: Bluesky allows uploads up to 100 MB. */
+export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+export const safePublicVideoStream: PublicFetcher = (url,init)=>safePublicStream(url,init,fetch,MAX_VIDEO_BYTES);

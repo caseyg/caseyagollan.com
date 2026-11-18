@@ -1,6 +1,6 @@
 import { resolve, relative, isAbsolute } from 'node:path';
 import { realpath } from 'node:fs/promises';
-import { archiveLinkPreviewProperties, archivePhotoProperties, socialImageKey, type SocialImageStore } from '../src/lib/server/publishing/social-media';
+import { archiveLinkPreviewProperties, archivePhotoProperties, socialImageKey, mp4Start, type SocialImageStore, type SocialVideoStore } from '../src/lib/server/publishing/social-media';
 import { parseDocument } from 'yaml';
 import { blueskyActivity, blueskyPublic, mastodonActivity } from '../src/lib/server/publishing/pesos/providers';
 import { backfillNetwork } from './lib/backfill-network';
@@ -33,12 +33,23 @@ const { unstable_readConfig } = await import('wrangler');
 const config = unstable_readConfig({config:resolve('wrangler.jsonc')});
 const mastodonInstance = config.vars.PUBLISHING_MASTODON_INSTANCE as string | undefined;
 let storeImage: SocialImageStore | undefined;
+let storeVideo: SocialVideoStore | undefined;
 if(args.includes('--write')) {
  const bucket = config.r2_buckets.find(binding=>binding.binding === 'PUBLISHING_MEDIA')?.bucket_name;
  const base = config.vars.PUBLISHING_MEDIA_BASE_URL;
  if(!bucket || typeof base !== 'string') throw new Error('Configure PUBLISHING_MEDIA and PUBLISHING_MEDIA_BASE_URL in Wrangler');
  const origin = new URL(base);
  if(origin.protocol !== 'https:' || origin.username || origin.password || origin.port || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid media base URL');
+ // Videos are read whole here (up to 100 MB); a Bluesky CID's digest must match the bytes.
+ storeVideo = async(url,sha256)=> {
+  const response=await network.fetcher(url,{headers:{accept:'video/mp4'}});
+  if(!response.ok||response.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!=='video/mp4')throw new Error('Video unavailable');
+  const bytes=new Uint8Array(await response.arrayBuffer());
+  if(!mp4Start(bytes))throw new Error('Not an MP4 video');
+  const saved=await storeImage!(bytes,'video/mp4');
+  if(sha256&&!saved.endsWith(`/${sha256}.mp4`))throw new Error('Video does not match its CID');
+  return saved;
+ };
  storeImage = async(bytes,type)=> {
   const key = await socialImageKey(bytes,type);
   if(!uploads.has(key)) uploads.set(key,(async()=>{
@@ -106,7 +117,7 @@ await Promise.all(Array.from({length:concurrency},async()=>{
    const p=await archivePhotoProperties({photo:data.photo},storeImage,network.fetcher);
    if(JSON.stringify(p.photo)===JSON.stringify(data.photo)){unavailable++;done++;continue;}
    doc.set('photo',p.photo);formatSnapshotScalars(doc.get('photo',true));after=`---\n${doc.toString({lineWidth:0,doubleQuotedAsJSON:true})}---${before.slice(match[0].length)}`;
-  }else after=await enrichSocialSnapshots(before,network.fetcher,{refresh:args.includes('--refresh'),storeImage,mastodonInstance,timeoutMs:180_000});
+  }else after=await enrichSocialSnapshots(before,network.fetcher,{refresh:args.includes('--refresh'),storeImage,storeVideo,mastodonInstance,timeoutMs:180_000});
   if(after!==before){if(args.includes('--write'))await Bun.write(full,after);changed++;}else unavailable++;
   if(++done%25===0)console.log(JSON.stringify({done,total:work.length,changed,unavailable,uploaded,reused,...network.stats}));
  }

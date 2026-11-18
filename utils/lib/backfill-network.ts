@@ -1,7 +1,7 @@
-import { safePublicFetch, type PublicFetcher } from '../../src/lib/server/publishing/public-fetch';
+import { safePublicFetch, MAX_VIDEO_BYTES, type PublicFetcher } from '../../src/lib/server/publishing/public-fetch';
 
 /** One job-local cache and independent request budgets; never used by site reads. */
-export function backfillNetwork(fetcher: PublicFetcher = (url,init)=>safePublicFetch(url,init,fetch,new Headers(init?.headers).get('accept')?.startsWith('image/')?10*1024*1024:1024*1024), clock = {now:Date.now,sleep:(ms:number)=>Bun.sleep(ms)}) {
+export function backfillNetwork(fetcher: PublicFetcher = (url,init)=>{const accept=new Headers(init?.headers).get('accept');return safePublicFetch(url,init,fetch,accept?.startsWith('video/')?MAX_VIDEO_BYTES:accept?.startsWith('image/')?10*1024*1024:1024*1024);}, clock = {now:Date.now,sleep:(ms:number)=>Bun.sleep(ms)}) {
  const budgets = new Map<string,{tail:Promise<void>;next:number}>();
  const cache = new Map<string,Promise<Response>>();
  const stats = {requests:0,rateLimitResponses:0};

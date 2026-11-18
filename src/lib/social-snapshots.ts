@@ -17,7 +17,8 @@ export interface SocialSnapshot {
  html: string;
  warning?: string;
  preview?: LinkPreview;
- video?: { src: string; alt: string; presentation?: 'gif' };
+ /** A saved MP4, its saved poster frame, or both. A poster alone (the video was too large to save) links to the original. */
+ video?: { src?: string; poster?: string; alt: string; presentation?: 'gif' };
  images: { src: string; alt: string }[];
  quote?: SocialSnapshot;
 }
@@ -51,7 +52,7 @@ export function socialSnapshots(value: unknown, depth = 0, seen = new Set<unknow
   typeof s.published === 'string' && Number.isFinite(Date.parse(s.published)) && typeof s.fetchedAt === 'string' &&
   (s.warning === undefined || typeof s.warning === 'string') && Array.isArray(s.images) && s.images.length <= 5 &&
   (s.preview === undefined || validPreview(s.preview)) &&
-  (s.video === undefined || (savedVideoUrl(s.video?.src) && typeof s.video.alt === 'string' && (s.video.presentation === undefined || s.video.presentation === 'gif'))) &&
+  (s.video === undefined || (!!s.video && typeof s.video === 'object' && (s.video.src !== undefined || s.video.poster !== undefined) && (s.video.src === undefined || savedVideoUrl(s.video.src)) && (s.video.poster === undefined || savedImageUrl(s.video.poster)) && typeof s.video.alt === 'string' && (s.video.presentation === undefined || s.video.presentation === 'gif'))) &&
   s.images.every((i: {src?: unknown; alt?: unknown}) => savedImageUrl(i?.src) && typeof i.alt === 'string') &&
   (s.quote === undefined || socialSnapshots([s.quote],depth+1,new Set([...seen,s])).length === 1));
 }
@@ -77,11 +78,19 @@ function snapshotBody(s: SocialSnapshot): string {
  const body = sanitizePublishingHtml(s.html).replace(/<(?:img|iframe|video|audio|source)\b[^>]*>(?:<\/(?:iframe|video|audio)>)?/gi,'');
  const images = s.images.map(i=>`<a class="social-image-link" href="${escape(i.src)}"><img class="social-attachment" src="${escape(i.src)}" alt="${escape(i.alt)}" loading="lazy"></a>`).join('');
  const gallery = images ? `<div class="social-images social-images-${s.images.length}">${images}</div>` : '';
- const video = s.video ? `<video class="social-attachment social-video" src="${escape(s.video.src)}" aria-label="${escape(s.video.alt)}" controls playsinline preload="metadata"${s.video.presentation === 'gif' ? ' autoplay loop muted' : ''}></video>` : '';
+ const video = s.video ? renderVideo(s) : '';
  const card = s.preview ? renderLinkPreview(s.preview) : '';
  const quote = s.quote ? `<div class="social-quoted-post">${renderSocialSnapshot(s.quote)}</div>` : '';
  const content = `<div class="social-post-content">${body}</div>${gallery}${video}${card}${quote}`;
  return s.warning ? `<details><summary>${escape(s.warning)}</summary>${content}</details>` : content;
+}
+
+function renderVideo(s: SocialSnapshot): string {
+ const v = s.video!;
+ const poster = v.poster ? ` poster="${escape(v.poster)}"` : '';
+ if (v.src) return `<video class="social-attachment social-video" src="${escape(v.src)}"${poster} aria-label="${escape(v.alt)}" controls playsinline preload="metadata"${v.presentation === 'gif' ? ' autoplay loop muted' : ''}></video>`;
+ const where = s.platform === 'bluesky' ? 'Bluesky' : 'Mastodon';
+ return `<a class="social-video social-video-link" href="${escape(s.sourceUrl ?? s.url)}"><img class="social-attachment" src="${escape(v.poster!)}" alt="${escape(v.alt)}" loading="lazy"><span class="social-video-play">▶ Watch on ${where}</span></a>`;
 }
 
 /** Where a saved post lives on its network, as a source link. */
