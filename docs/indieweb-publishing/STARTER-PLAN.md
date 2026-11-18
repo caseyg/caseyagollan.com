@@ -158,6 +158,21 @@ What this changes in the plan:
 - **Split deploy** becomes a supported mode, not a workaround. The kit already runs as `kit.fetch` mounted anywhere. It also needs a "build hook" plugin kind that triggers the static host's rebuild (a GitHub Pages workflow dispatch, a Neocities upload, a Netlify build hook) after a content commit.
 - **Community distribution** joins the packaging list: a Co-op Cloud recipe and a PikaPods listing beside the Deploy to Cloudflare and Vercel buttons.
 
+### Self-hosting app platforms: Cloudron and YunoHost
+
+Many IndieWeb people self-host with [Cloudron](https://docs.cloudron.io/packaging/) or [YunoHost](https://yunohost.org/packaging_apps). Both install apps from a catalog onto your own server, with a domain, TLS, backups, updates and single sign-on handled for you. Neither is a new runtime. Both run the `platform-node` build, so they are **packages**, not new platform plugins:
+
+| | Cloudron | YunoHost |
+| --- | --- | --- |
+| Package format | `CloudronManifest.json` plus a Dockerfile built on Cloudron's base image | `manifest.toml` (packaging v2) plus install, upgrade, backup and restore scripts. Runs as a systemd service behind YunoHost's nginx. |
+| State | `localstorage` addon (the persistent `/app/data`) for SQLite and media. The `postgresql` or `redis` addons are optional. | `data_dir` resource for SQLite and media, or its `database` resource |
+| Cron | `scheduler` addon calls `kit scheduled` | A systemd timer or cron file from the install script |
+| Sign-in | The kit's own IndieAuth with passkeys stays the login, because `me` is the owner's domain. The platform's SSO (Cloudron's OIDC, YunoHost's SSOwat) is offered only for the `/account` pages. | Same. The IndieAuth and Micropub paths must be public, or clients can't reach them. |
+| Catalog | Cloudron App Store, or a community repo until it's accepted | The YunoHost app catalog (a pull request to its apps repo), as a `*_ynh` package repo |
+| Fits | One-click installs with git-push for the site's content repo | Home servers and small community servers. YunoHost already lists several IndieWeb apps. |
+
+Both need the same thing from the kit: everything configured from environment variables and a data directory, one long-running process, health and backup hooks, and no outbound side effects until the owner finishes setup. `platform-node` provides all of that, so these packages are thin. The work is mostly packaging, testing upgrades, and keeping the catalog entries current.
+
 ## How today's features map onto plugins
 
 | Feature today | Code | Becomes | Generic? |
@@ -224,7 +239,7 @@ Building on IndieKit itself, or on EmDash, was considered and set aside. IndieKi
   });
   ```
 
-- **Starter template** (`templates/starter`): a plain SvelteKit site with h-entry and h-card templates, feeds, the composer, and the kit mounted. It has a Deploy to Cloudflare button and a Deploy with Vercel button, and `bun create indie` asks for domain, repo and platform.
+- **Starter template** (`templates/starter`): a plain SvelteKit site with h-entry and h-card templates, feeds, the composer, and the kit mounted. It has a Deploy to Cloudflare button, a Deploy with Vercel button, a Docker image, and Cloudron and YunoHost packages, and `bun create indie` asks for domain, repo and platform.
 - **Setup check.** A `/kit/doctor` page, owner only, runs IndieWebify-style checks (h-card, rel=me, endpoints discoverable, store writable, each plugin configured) and links each failure to the right settings panel.
 - **Docs:** one page per plugin, a plugin authoring guide, and each interface's contract test suite published as `@indie/testkit`, so third-party plugins can prove they conform.
 
@@ -248,6 +263,10 @@ Build `templates/starter` and deploy it to a throwaway domain on a separate Clou
 Add `platform-vercel` (Blob, Upstash or Neon, Vercel Cron) and `platform-node` (SQLite, files, a Docker image) for local development, VMs and co-op hosts. Add the build-hook plugin kind for split deploys beside a static host. Run every contract suite against all three platforms. `platform-netlify` follows if Blobs passes the conditional-write tests.
 *Done when* the starter deploys on Vercel and in Docker with the same config apart from `platform:`, and a GitHub Pages site can publish through a kit running elsewhere.
 
+**Phase 3b: self-hosting packages.**
+Package the Docker build for Cloudron and YunoHost, plus a Co-op Cloud recipe. Test install, upgrade, backup and restore on each. Submit them to the catalogs once Phase 4 has published releases to point at.
+*Done when* a fresh Cloudron and a fresh YunoHost server each get a working site from one install, and an upgrade keeps posts, tokens and settings.
+
 **Phase 4: public release.**
 Move `packages/` and `templates/` to their own repository (this site then depends on the published packages). Publish to npm with deploy buttons, docs, the testkit, and the IndieKit store and syndicator adapter. Announce on the IndieWeb wiki and in chat.
 
@@ -261,5 +280,5 @@ These go to Casey as choices in the project thread. The recommendations are what
 1. **How to relate to IndieKit.** Decided 2026-11-17 (Casey): our own Workers-first kit with IndieKit's plugin shape, compatible at the protocol and content level, plus a later adapter for its store and syndicator plugins. Alternatives: contribute a Workers runtime to IndieKit itself, or build these as EmDash plugins.
 2. **Where it lives first.** Decided 2026-11-17 (Casey): `packages/` inside this repo through Phase 3, then its own repo. The alternative is a new repo now, which makes development across both repos slower while the interfaces are still settling.
 3. **How much UI to ship.** Decided 2026-11-17 (Casey): a headless core with an optional Svelte UI package and the SvelteKit starter. Alternatives: headless only (any Micropub client), or framework-neutral web components.
-4. **Which host comes after Cloudflare and Vercel.** Recommended: Node/Docker, which also covers co-op hosts and Coolify. Netlify comes after that.
+4. **Hosts after Cloudflare.** Decided 2026-11-17 (Casey): Vercel, then Node/Docker for VMs, PaaS and co-op hosts, with Cloudron and YunoHost packages on top of it. Netlify comes later, if at all.
 5. **Name and licence.** Not decided. MIT matches IndieKit and EmDash.
