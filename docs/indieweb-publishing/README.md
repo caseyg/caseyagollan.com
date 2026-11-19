@@ -3,6 +3,9 @@
 Markdown in Git, media in R2, Micropub on the existing Cloudflare Worker. No D1. Trial Sveltia before building an editor.
 
 - [Plan](DESIGN.md)
+- [Plugin-based starter plan](STARTER-PLAN.md)
+- [Alternative: extend IndieKit](INDIEKIT-ALTERNATIVE.md)
+- [Prior art to check first](PRIOR-ART.md)
 - [Preview setup](SETUP.md)
 - [CMS notes](GIT-CMS.md)
 - [Detailed research](PROJECTS.md)
