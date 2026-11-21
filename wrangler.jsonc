@@ -6,11 +6,17 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "caseyagollan",
 	"main": "worker.mjs",
-	"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }] },
-	"migrations": [{ "tag": "v1-indieauth", "new_sqlite_classes": ["IndieAuthStore"] }],
+	"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }] },
+	"migrations": [
+		{ "tag": "v1-indieauth", "new_sqlite_classes": ["IndieAuthStore"] },
+		/** /chat threads: one Agents SDK agent per thread (src/lib/server/chat/agent.ts). */
+		{ "tag": "v2-chat", "new_sqlite_classes": ["ChatThread"] }
+	],
 	"compatibility_date": "2025-01-19",
 	"compatibility_flags": [
-		"nodejs_als"
+		"nodejs_als",
+		/** The Agents SDK (/chat) needs Node.js APIs. */
+		"nodejs_compat", "enable_weak_ref"
 	],
 	/**
 	 * Enable workers.dev subdomain for preview deployments
@@ -37,7 +43,11 @@
 		"PUBLISHING_TIMEZONE": "America/New_York",
 		"PUBLISHING_MASTODON_INSTANCE": "https://social.coop",
 		"PUBLISHING_BLUESKY_SERVICE": "https://bsky.social",
-		"PUBLISHING_BLUESKY_IDENTIFIER": "caseyagollan.com"
+		"PUBLISHING_BLUESKY_IDENTIFIER": "caseyagollan.com",
+		/** The inference.coop model /chat answers with (key: the INFERENCE_COOP_API_KEY secret). */
+		"CHAT_MODEL": "glm-flash-green",
+		/** US dollars each /chat visitor may spend a month (Casey is not capped). */
+		"CHAT_MONTHLY_BUDGET": "3"
 	},
 	"assets": {
 		"binding": "ASSETS",
@@ -66,7 +76,7 @@
 	 * Media, screenshots, and the insight cache are read from production.
 	 */
 	"previews": {
-		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }] },
+		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }] },
 		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }],
 		"vars": {
 			"AUTH_ENABLED": "false",
@@ -75,7 +85,9 @@
 			"PUBLISHING_DELIVERY_ENABLED": "false",
 			"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
 			"PUBLISHING_ME": "https://caseyagollan.com/",
-			"PUBLISHING_TIMEZONE": "America/New_York"
+			"PUBLISHING_TIMEZONE": "America/New_York",
+			"CHAT_MODEL": "glm-flash-green",
+			"CHAT_MONTHLY_BUDGET": "3"
 		},
 		"kv_namespaces": [{ "binding": "INSIGHT_CACHE", "id": "9eca3bf2742740d78191c5be95a5be97" }],
 		"r2_buckets": [

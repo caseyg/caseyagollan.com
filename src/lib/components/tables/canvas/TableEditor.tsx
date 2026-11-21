@@ -6,13 +6,18 @@ import {
 	createShapeId,
 	getSnapshot,
 	react,
+	renderPlaintextFromRichText,
+	toRichText,
 	type Editor,
 	type TLEditorSnapshot,
+	type TLShape,
+	type TLShapePartial,
 	type TLEventInfo,
 	type TLShapeId
 } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
+import type { TableItem, TableOp } from '$lib/table-agent';
 import { SiteBlockShapeUtil, blockOf, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
@@ -37,7 +42,9 @@ export interface TableApi {
 	 * Adds blocks with their top-left at a screen point, or around the middle of the view (or beside
 	 * the block they were taken from, `near`), in a row or wrapped into `columns`.
 	 */
-	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block }): void;
+	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean }): string[];
+	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
+	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'rename' }>): unknown;
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
@@ -103,9 +110,9 @@ function detailsOf(blocks: SiteBlockShape[]): TableState['details'] {
 
 function apiFor(editor: Editor): TableApi {
 	return {
-		addBlocks(blocks, at, { columns = blocks.length, select = true, near } = {}) {
-			if (!blocks.length) return;
-			const dropped = at && editor.screenToPage(at);
+		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false } = {}) {
+			if (!blocks.length) return [];
+			const dropped = at && (page ? at : editor.screenToPage(at));
 			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, blockProps(blocks[0]), near);
 			const ids: TLShapeId[] = [];
 			let x = origin.x;
@@ -131,7 +138,11 @@ function apiFor(editor: Editor): TableApi {
 			editor.setCurrentTool('select');
 			// A block set down out of sight is brought into view.
 			const added = editor.getShapePageBounds(ids[0]);
-			if (!at && added && !editor.getViewportPageBounds().contains(added)) editor.centerOnPoint(added.center, { animation: { duration: 220 } });
+			if ((!at || page) && added && !editor.getViewportPageBounds().contains(added)) editor.centerOnPoint(added.center, { animation: { duration: 220 } });
+			return ids;
+		},
+		perform(op) {
+			return performOp(editor, op, this);
 		},
 		setTool: (tool) => editor.setCurrentTool(tool),
 		setDetails(shown) {
@@ -162,6 +173,94 @@ function apiFor(editor: Editor): TableApi {
 			});
 		}
 	};
+}
+
+const ANIMATION = { animation: { duration: 320 } };
+
+/** The shapes an operation names, by the ids `read` reports; unknown ids are left out. */
+function shapesFor(editor: Editor, ids: string[] | undefined): TLShape[] {
+	const all = editor.getCurrentPageShapesSorted();
+	if (!ids?.length) return all.filter((shape) => shape.type !== 'arrow');
+	const wanted = new Set(ids.map((id) => (id.startsWith('shape:') ? id : `shape:${id}`)));
+	return all.filter((shape) => wanted.has(shape.id));
+}
+
+function itemOf(editor: Editor, shape: TLShape): TableItem {
+	const bounds = editor.getShapePageBounds(shape)!;
+	const base = { id: shape.id.replace(/^shape:/, ''), x: Math.round(bounds.x), y: Math.round(bounds.y), w: Math.round(bounds.w), h: Math.round(bounds.h) };
+	if (editor.isShapeOfType(shape, BLOCK_SHAPE)) {
+		const props = (shape as SiteBlockShape).props;
+		return { ...base, type: props.kind, title: props.title, url: props.url, ...(props.excerpt ? { text: props.excerpt.slice(0, 200) } : {}) };
+	}
+	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
+	return { ...base, type: shape.type, ...(rich ? { text: renderPlaintextFromRichText(editor, rich).slice(0, 400) } : {}) };
+}
+
+/** Sets shapes out in a grid (or one row, or one column) from a corner, in reading order, a grid step apart. */
+function layoutShapes(editor: Editor, shapes: TLShape[], columns: number, at?: { x: number; y: number }) {
+	const boxes = shapes.map((shape) => ({ shape, bounds: editor.getShapePageBounds(shape)! })).sort((a, b) => a.bounds.y - b.bounds.y || a.bounds.x - b.bounds.x);
+	if (!boxes.length) return;
+	const origin = at ?? { x: Math.min(...boxes.map((box) => box.bounds.x)), y: Math.min(...boxes.map((box) => box.bounds.y)) };
+	let x = onGrid(origin.x), y = onGrid(origin.y), rowHeight = 0;
+	const updates = boxes.map(({ shape, bounds }, index) => {
+		if (index && index % columns === 0) { x = onGrid(origin.x); y += rowHeight + GAP; rowHeight = 0; }
+		// A shape's x and y are its rotation origin; move it by how far its bounds must go.
+		const update = { id: shape.id, type: shape.type, x: shape.x + (x - bounds.x), y: shape.y + (y - bounds.y) };
+		x += onGrid(bounds.w) + GAP;
+		rowHeight = Math.max(rowHeight, onGrid(bounds.h));
+		return update;
+	});
+	editor.animateShapes(updates, ANIMATION);
+}
+
+function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0], api: TableApi): unknown {
+	switch (op.op) {
+		case 'read': {
+			const shapes = editor.getCurrentPageShapesSorted();
+			return { items: shapes.map((shape) => itemOf(editor, shape)), selected: editor.getSelectedShapeIds().map((id) => id.replace(/^shape:/, '')) };
+		}
+		case 'add_blocks':
+			return { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at }).map((id) => id.replace(/^shape:/, '')) };
+		case 'add_note': {
+			const id = createShapeId();
+			const spot = op.at ?? openSpot(editor, { w: 200, h: 200 });
+			editor.markHistoryStoppingPoint('add note');
+			editor.createShape({ id, type: 'note', x: onGrid(spot.x), y: onGrid(spot.y), props: { richText: toRichText(op.text.slice(0, 2000)) } });
+			return { added: [id.replace(/^shape:/, '')] };
+		}
+		case 'move': {
+			editor.markHistoryStoppingPoint('move');
+			const shapes = new Map(shapesFor(editor, op.moves.map((move) => move.id)).map((shape) => [shape.id.replace(/^shape:/, ''), shape]));
+			const updates = op.moves.flatMap((move) => {
+				const shape = shapes.get(move.id.replace(/^shape:/, ''));
+				if (!shape) return [];
+				const props = editor.isShapeOfType(shape, BLOCK_SHAPE) && (move.w || move.h) ? { props: { ...(move.w ? { w: onGrid(move.w) } : {}), ...(move.h ? { h: onGrid(move.h) } : {}) } } : {};
+				return [{ id: shape.id, type: shape.type, x: move.x === undefined ? shape.x : onGrid(move.x), y: move.y === undefined ? shape.y : onGrid(move.y), ...props } as TLShapePartial];
+			});
+			editor.animateShapes(updates, ANIMATION);
+			return { moved: updates.length };
+		}
+		case 'arrange': {
+			const shapes = shapesFor(editor, op.ids);
+			editor.markHistoryStoppingPoint('arrange');
+			if (op.layout === 'pack') editor.packShapes(shapes, GAP);
+			else layoutShapes(editor, shapes, op.layout === 'row' ? shapes.length : op.layout === 'column' ? 1 : Math.max(1, op.columns ?? Math.ceil(Math.sqrt(shapes.length))), op.at);
+			return { arranged: shapes.length };
+		}
+		case 'remove': {
+			const shapes = shapesFor(editor, op.ids);
+			if (!op.ids.length) return { removed: 0 };
+			editor.markHistoryStoppingPoint('remove');
+			editor.deleteShapes(shapes);
+			return { removed: shapes.length };
+		}
+		case 'select': {
+			const shapes = shapesFor(editor, op.ids);
+			editor.select(...shapes.map((shape) => shape.id));
+			if (op.zoom !== false && shapes.length) editor.zoomToSelection({ animation: { duration: 320 } });
+			return { selected: shapes.length };
+		}
+	}
 }
 
 /** A table's canvas: tldraw without its own interface, drawn in the site's colours. */
