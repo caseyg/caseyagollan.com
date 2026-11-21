@@ -6,14 +6,18 @@ import { processPesos } from './src/lib/server/publishing/pesos/importer.ts';
 import { syncWebmentions } from './src/lib/server/webmentions.ts';
 import { publishFeedUpdates } from './src/lib/server/websub.ts';
 import { syncBackfeed } from './src/lib/server/backfeed.ts';
+import { cursorRequest } from './src/lib/server/cursors/route.ts';
 
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
+export { CursorRoom } from './src/lib/server/cursors/room.ts';
 
 export default {
-  fetch(request, env, context) {
+  async fetch(request, env, context) {
     // Storybook is deployed separately (wrangler.storybook.jsonc) under the same /storybook/ path.
     const { pathname } = new URL(request.url);
     if (env.STORYBOOK && (pathname === '/storybook' || pathname.startsWith('/storybook/'))) return env.STORYBOOK.fetch(request);
+    // Live cursors and cursor chat: one Durable Object per page, at /parties/cursors/<page>.
+    if (pathname.startsWith('/parties/')) return cursorRequest(request, env);
     return application.fetch(request, env, context);
   },
   async scheduled(event, env, _context) {
