@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-20T10:23:05.277Z",
+  "updatedAt": "2026-11-21T10:22:37.065Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -3383,6 +3383,11 @@
     },
     {
       "service": "bluesky",
+      "handle": "markhurst.bsky.social",
+      "name": "Mark Hurst"
+    },
+    {
+      "service": "bluesky",
       "handle": "martin.kleppmann.com",
       "name": "Martin Kleppmann"
     },
@@ -4255,6 +4260,11 @@
       "service": "mastodon",
       "handle": "p2173@norcal.social",
       "name": "p2173"
+    },
+    {
+      "service": "bluesky",
+      "handle": "pa.ulst.ar",
+      "name": "Paul Starr"
     },
     {
       "service": "bluesky",
