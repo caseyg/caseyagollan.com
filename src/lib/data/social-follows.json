@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-24T10:22:03.091Z",
+  "updatedAt": "2026-11-25T10:24:05.362Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -1234,7 +1234,7 @@
     {
       "service": "bluesky",
       "handle": "danhon.com",
-      "name": "Dan \"copper line\" Hon"
+      "name": "Dan \"Decorative Horde\" Hon"
     },
     {
       "service": "mastodon",
