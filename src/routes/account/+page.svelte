@@ -151,7 +151,7 @@
 	{#if session && !session.authenticated && session.signInWith}
 		<Section title="Owner sign-in">
 			<p>This is a preview of the site. Sign in with your passkey on {issuerName(session.signInWith)} and you'll come back here signed in. Publishing stays off on previews.</p>
-			<Button variant="primary" href={previewSignInHref(previewReturn)}>Sign in with {issuerName(session.signInWith)}</Button>
+			<Button variant="primary" href={previewSignInHref(previewReturn)} data-sveltekit-reload>Sign in with {issuerName(session.signInWith)}</Button>
 		</Section>
 	{:else if session && !session.authenticated}
 		<Section title="Owner sign-in">

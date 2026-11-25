@@ -33,7 +33,7 @@
 <p>{message}</p>
 {#if via}
 	<p>This is a preview, so you sign in with your passkey on {issuerName(via)} and come back here.</p>
-	<Button variant="primary" href={previewSignInHref(page.url.pathname + page.url.search + page.url.hash)}>Sign in with {issuerName(via)}</Button>
+	<Button variant="primary" href={previewSignInHref(page.url.pathname + page.url.search + page.url.hash)} data-sveltekit-reload>Sign in with {issuerName(via)}</Button>
 {:else}
 	{#if signInError}<Notice tone="error">{signInError}</Notice>{/if}
 	{#if ready && !passkeysSupported}<Notice tone="error">This browser does not support passkeys. Open this page in a browser with passkey support to sign in.</Notice>{/if}
