@@ -41,10 +41,18 @@ Delete and undelete are left out on purpose: an agent reading untrusted pages sh
 
 The site's `/chat` agent uses the same server in process, through a small MCP client that sends the same JSON-RPC messages. It is offered only when every message the agent is answering came from the site owner's own passkey session; the Worker checks that on each turn. The agent then holds a single-use token accepted only by that call's Micropub handler (`ownerMicropub`), with `create update draft` scopes.
 
+What that use taught about the tool shapes (2026-11-25): an agent with a small context cannot take `micropub_list_posts` as specified above. Twenty posts' full sources ran to 30,000 characters a call, and a question as plain as "what's new this week?" spent several such calls. The chat now keeps `micropub_create_post` and `micropub_update_post` from this server unchanged, and for reading asks Micropub itself with two requests any client could make:
+
+- A list of one line per post: `GET ?q=source&limit=…&properties[]=name&properties[]=content&properties[]=published&properties[]=post-status&…`, each item cut down to its URL, status, type, date and opening words. An option for drafts only looks through two pages of 100 before answering, and says how far back it looked.
+- One post's source for editing: `GET ?q=source&url=…&p3k-content-type=text/markdown`, without the site's own bookkeeping properties.
+
+It leaves out `micropub_config`. The server at `/micropub/mcp` is unchanged; a `summary` option on `micropub_list_posts` doing the same would be the natural addition for other agents.
+
 ## Open questions
 
 - Should `q=config` advertise the MCP endpoint (for example `"mcp": "https://example.com/micropub/mcp"`) so MCP-capable clients can find it from the Micropub endpoint?
 - MCP's own authorization spec is OAuth 2.1 with protected-resource metadata. An IndieAuth server is already OAuth 2.0 with PKCE; publishing `/.well-known/oauth-protected-resource` for `/micropub/mcp` would let generic MCP clients sign in without a pasted token.
 - A media tool (`micropub_upload`) needs a way to pass files that MCP doesn't settle yet.
+- Should `micropub_list_posts` return summaries by default, with full sources on request? Agents rarely want twenty posts' sources, and their context is the scarce thing.
 
 Code: `src/lib/server/chat/micropub-mcp.ts`, route `src/routes/micropub/mcp/+server.ts`, tests in `tests/chat.test.ts`.

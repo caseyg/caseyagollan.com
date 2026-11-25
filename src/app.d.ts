@@ -30,6 +30,7 @@ declare global {
 				ChatThread?: DurableObjectNamespace;
 				/** The inference.coop model /chat answers with. */
 				CHAT_MODEL?: string;
+				CHAT_REASONING_EFFORT?: string;
 				CHAT_MONTHLY_BUDGET?: string;
 				KAGI_API_KEY: string;
 				/** Are.na personal access token; reads Casey’s private blocks for the owner only. */

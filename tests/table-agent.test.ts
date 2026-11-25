@@ -31,13 +31,13 @@ describe('table chat', () => {
 
 	test('only Casey changes tables; table tools only in table threads', () => {
 		expect(isOwnerTool('table_arrange')).toBe(true);
-		expect(isOwnerTool('create_table')).toBe(true);
+		expect(isOwnerTool('table_new')).toBe(true);
 		expect(isOwnerTool('micropub_create_post')).toBe(true);
 		expect(isOwnerTool('table_read')).toBe(false);
 		expect(isOwnerTool('show_page')).toBe(false);
 		expect(isOwnerTool('go_to')).toBe(false);
 		expect(isTableTool('table_read')).toBe(true);
-		expect(isTableTool('create_table')).toBe(false);
+		expect(isTableTool('table_new')).toBe(false);
 	});
 
 	test('go_to stays on this site', () => {
@@ -94,9 +94,25 @@ describe('table chat pictures', () => {
 
 	test('table_look is Casey’s, view_image anyone’s', () => {
 		expect(isOwnerTool('table_look')).toBe(true);
-		expect(isOwnerTool('table_tidy')).toBe(true);
+		expect(isOwnerTool('table_add')).toBe(true);
 		expect(isOwnerTool('view_image')).toBe(false);
 		expect(toolLabel('table_arrange', { layout: 'columns' })).toBe('Arranged the table in columns');
+	});
+
+	test('steps of the newer tools read plainly', () => {
+		expect(toolLabel('search_site', { query: 'calm technology' })).toBe('Searched the site for “calm technology”');
+		expect(toolLabel('search_site', { days: 7 })).toBe('Looked through posts from the last 7 days');
+		expect(toolLabel('search_site', { type: 'note' })).toBe('Looked through the newest notes');
+		expect(toolLabel('search_site', { type: 'like', since: '2026-10-01' })).toBe('Looked through likes since 2026-10-01');
+		expect(toolLabel('fetch_page', {})).toBe('Read this page');
+		expect(toolLabel('micropub_list_posts', { drafts_only: true })).toBe('Looked for drafts');
+		expect(toolLabel('table_new', { name: 'Calm tech' })).toBe('Made a table, “Calm tech”');
+		expect(toolLabel('table_add', { items: [{ note: 'a' }, { text: 'b' }, { url: '/x' }, { search: 'oliveros' }] })).toBe('Added 2 notes, 1 link and results for “oliveros”');
+		expect(toolLabel('table_arrange', { layout: 'tidy' })).toBe('Tidied the table');
+		expect(toolLabel('table_arrange', { align: 'left', ids: ['a', 'b'] })).toBe('Lined up 2 items');
+		expect(toolLabel('table_group', { ids: ['a', 'b'], name: 'Sources' })).toBe('Framed 2 items as “Sources”');
+		expect(toolLabel('table_edit', { edits: [{ id: 'a', text: 'x' }], remove: ['b', 'c'] })).toBe('Edited 1 item, removed 2 items');
+		expect(toolLabel('table_edit', { rename: 'Listening' })).toBe('Renamed the table “Listening”');
 	});
 });
 

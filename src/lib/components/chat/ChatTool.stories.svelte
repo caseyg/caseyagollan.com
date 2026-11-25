@@ -26,4 +26,10 @@
 
 <Story name="Table change" args={{ step: { tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' } }} />
 
+<!-- `table_add`: one step puts a whole part of the table down, whatever it is made of. -->
+<Story name="Table add" args={{ step: { tool: 'table_add', label: 'Added 6 notes, 1 link and results for “oliveros”', status: 'done' } }} />
+
+<!-- `search_site` without words lists by date. -->
+<Story name="Browsed by date" args={{ step: { tool: 'search_site', label: 'Looked through posts from the last 7 days', status: 'done', links: [{ url: '/2026/11/24/3mynekhkgwk2u/', title: 'Commission on Federal Paperwork, 1976–1977' }] } }} />
+
 <Story name="Took you somewhere" args={{ step: { tool: 'go_to', label: 'Took you to /library', status: 'done' } }} />

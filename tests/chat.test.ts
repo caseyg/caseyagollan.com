@@ -5,7 +5,7 @@ import { chatViewer, startVisitorSession, viewerFrom, withViewer, VIEWER_HEADER 
 import { discoverIndieAuth, finishLogin, instanceOrigin, LOGIN_COOKIE, profileAddress, safeReturn, startLogin } from '../src/lib/server/chat/login';
 import { callMicropubTool, handleMcpHttp, handleMcpMessage, micropubMcpClient, MICROPUB_TOOLS, type MicropubCall } from '../src/lib/server/chat/micropub-mcp';
 import { streamCompletion } from '../src/lib/server/chat/model';
-import { agentSearchDocument, searchDocuments } from '../src/lib/server/chat/site-search';
+import { agentSearchDocument, daysBefore, findDocuments, localDate, searchDocuments } from '../src/lib/server/chat/site-search';
 
 function bucket() {
 	const objects = new Map<string, string>();
@@ -318,8 +318,8 @@ describe('RepeatGuard', () => {
 		const guard = new RepeatGuard();
 		expect(guard.check('table_read', {})).toBeUndefined();
 		expect(guard.check('table_read', {})).toBeUndefined();
-		expect(guard.check('table_read', {})).toContain('put things on it now');
-		expect(guard.check('table_add_note', { text: 'a' })).toBeUndefined();
+		expect(guard.check('table_read', {})).toContain('Don’t read it again');
+		expect(guard.check('table_add', { items: [{ note: 'a' }] })).toBeUndefined();
 		expect(guard.check('table_read', {})).toBeUndefined();
 		expect(guard.check('fetch_page', { url: '/' })).toBeUndefined();
 		expect(guard.check('fetch_page', { url: '/' })).toBeUndefined();
@@ -342,5 +342,229 @@ describe('go_to only goes to real pages', () => {
 		expect(await realSitePath('/2025/12/09/post/', origin, assets)).toBe('/2025/12/09/post/');
 		expect(await realSitePath('/made-up-page', origin, assets)).toBeNull();
 		expect(await realSitePath('/', origin, assets)).toBe('/');
+	});
+});
+
+describe('search_site finds and browses', () => {
+	const doc = (url: string, type: string, date: string | undefined, text: string, tags = '') => agentSearchDocument(url, `${type} ${date ?? ''}`.trim(), type, { ...(date ? { date } : {}), tags }, `<p>${text}</p>`);
+	const docs = [
+		doc('/2026/11/24/like-a/', 'like', '2026-11-24', 'A liked post about paperwork'),
+		doc('/2026/11/23/like-b/', 'like', '2026-11-23', 'Another liked post'),
+		doc('/2026/11/20/repost/', 'repost', '2026-11-20', 'A reposted post'),
+		doc('/2026/11/17/writing-again/', 'note', '2026-11-17', 'Writing and sharing a bit again here', 'indieweb'),
+		doc('/2026/11/17/photo/', 'photo', '2026-11-17', 'A photo of a letter'),
+		doc('/2026/10/02/older/', 'article', '2026-10-02', 'An older article about paperwork', 'indieweb, micropub'),
+		doc('/library/1', 'book', undefined, 'A book about paperwork'),
+		doc('/wiki/tools', 'wiki', undefined, 'Calm tools')
+	];
+
+	test('without words it lists a range by date, own posts first, with a count of each kind', () => {
+		const found = findDocuments(docs, { since: '2026-11-15' });
+		expect(found.total).toBe(5);
+		expect(found.by_type).toEqual({ like: 2, repost: 1, note: 1, photo: 1 });
+		expect(found.results.map((result) => result.type)).toEqual(['note', 'photo', 'like', 'like', 'repost']);
+		expect(found.results[0]).toMatchObject({ url: '/2026/11/17/writing-again/', date: '2026-11-17', text: 'Writing and sharing a bit again here' });
+	});
+
+	test('a week of only likes still says when Casey last posted', () => {
+		const found = findDocuments(docs, { since: '2026-11-18' });
+		expect(found.by_type).toEqual({ like: 2, repost: 1 });
+		expect(found.note).toContain('None of Casey’s own posts fall in these dates');
+		expect(found.note).toContain('/2026/11/17/writing-again/');
+		// Asking only for likes isn't asking about Casey's own posts.
+		expect(findDocuments(docs, { since: '2026-11-18', type: 'like' }).note).toBeUndefined();
+	});
+
+	test('`post` means Casey’s own posts; dates leave out what has none', () => {
+		expect(findDocuments(docs, { type: 'post' }).results.map((result) => result.type)).toEqual(['note', 'photo', 'article']);
+		expect(findDocuments(docs, { type: 'notes' }).total).toBe(1);
+		expect(findDocuments(docs, { until: '2026-10-31' }).results.map((result) => result.url)).toEqual(['/2026/10/02/older/']);
+		expect(findDocuments(docs, { tag: 'Micropub' }).total).toBe(1);
+	});
+
+	test('with words it searches within the range and counts every match', () => {
+		const found = findDocuments(docs, { query: 'paperwork' });
+		expect(found.total).toBe(3);
+		expect(found.by_type).toEqual({ like: 1, article: 1, book: 1 });
+		expect(findDocuments(docs, { query: 'paperwork', since: '2026-11-01' }).results.map((result) => result.url)).toEqual(['/2026/11/24/like-a/']);
+		expect(findDocuments(docs, { query: 'nothing here' })).toMatchObject({ total: 0, results: [] });
+		expect(findDocuments(docs, { query: 'paperwork', limit: 1 }).note).toContain('Showing 1 of 3');
+	});
+
+	test('an Are.na channel says it is one', () => {
+		const channel = agentSearchDocument('https://www.are.na/casey-gollan/calm', 'Calm', 'arena', { date: '2026-11-23', kind: 'channel' }, '<p>Research</p>');
+		expect(channel.k).toBe('channel');
+		expect(findDocuments([channel], { query: 'calm' }).results[0]).toMatchObject({ type: 'arena', kind: 'channel' });
+		expect(findDocuments([channel], { query: 'calm' }).note).toContain('everything that matched');
+		expect(docs.every((one) => one.k === undefined)).toBe(true);
+	});
+
+	test('dates are the site’s own days', () => {
+		expect(localDate(new Date('2026-11-26T03:30:00Z'), 'America/New_York')).toBe('2026-11-25');
+		expect(daysBefore('2026-11-25', 7)).toBe('2026-11-18');
+		expect(daysBefore('2026-03-01', 1)).toBe('2026-02-28');
+	});
+});
+
+describe('the chat’s tools', () => {
+	const index = [
+		agentSearchDocument('/2026/11/24/like-a/', 'Post by Someone', 'like', { date: '2026-11-24' }, '<p>A liked post</p>'),
+		agentSearchDocument('/2026/11/17/writing-again/', 'Note · 2026-11-17', 'note', { date: '2026-11-17' }, '<p>Writing again</p>')
+	];
+	const long = `<html><head><title>Long</title></head><body><article><h1>Long</h1>${Array.from({ length: 400 }, (_, n) => `<p>Paragraph ${n} of a long page, with enough words in it to take up some room.</p>`).join('')}</article></body></html>`;
+	const assets = { fetch: async (request: Request) => {
+		const path = new URL(request.url).pathname;
+		if (path === '/pagefind/agent-index.json') return Response.json(index);
+		if (path === '/long/') return new Response(long, { headers: { 'content-type': 'text/html' } });
+		return new Response('<html><head><title>Here</title></head><body><article><h1>Here</h1><p>The page Casey is on.</p></article></body></html>', { headers: { 'content-type': 'text/html' } });
+	} } as unknown as Fetcher;
+	const out = async (tool: { execute: (...args: never[]) => unknown }, args: unknown) => ((await (tool.execute as (args: unknown, api: unknown, context: unknown) => Promise<{ output: { text: string }[] }>)(args, {}, {})).output[0].text);
+
+	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[] } = {}) {
+		const { chatExtension } = await import('../src/lib/server/chat/tools');
+		const went: string[] = [];
+		const ops = options.ops ?? [];
+		let made = 0;
+		const thread = {
+			table: () => options.table,
+			tableOp: async (op: { op: string; notes?: unknown[]; urls?: string[]; ids?: string[] }) => {
+				ops.push(op);
+				if (op.op === 'read') return { items: options.items?.() ?? [] };
+				if (op.op === 'add_notes') return { added: op.notes!.map(() => `n${++made}`), layout: 'no overlaps' };
+				if (op.op === 'add_links') return { added: op.urls!.map(() => `b${++made}`) };
+				if (op.op === 'add_from_search') return { added: [{ id: `b${++made}`, title: 'Found', url: '/x' }] };
+				if (op.op === 'frame') return { added: ['f1'], holds: op.ids };
+				return { layout: 'no overlaps' };
+			},
+			readTable: async () => ({ items: options.items?.() ?? [] }),
+			createTable: async () => ({ id: 'new123', url: '/tables/new123' }),
+			navigate: async (path: string) => { went.push(path); return true; },
+			tableOpened: async () => true,
+			page: () => ({ path: '/2026/11/17/writing-again/' })
+		};
+		const extension = chatExtension({ env: { ASSETS: assets } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
+		const tool = (name: string) => extension.tools!.find((one) => one.name === name)!;
+		return { extension, tool, went, ops };
+	}
+
+	test('there are few of them, each described briefly', async () => {
+		const { extension } = await setup({ micropub: async () => Response.json({}) });
+		const names = extension.tools!.map((tool) => tool.name);
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look']);
+		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
+		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
+		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
+		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(24_000);
+	});
+
+	test('the prompt says what day it is and where things are', async () => {
+		const { extension } = await setup();
+		const site = await extension.sections!.find((section) => section.key === 'site')!.render({} as never, {} as never);
+		expect(site).toContain('Today is Wednesday, 2026-11-25. A week ago was 2026-11-18');
+		expect(site).toContain('Notes /type/notes');
+	});
+
+	test('search_site lists the last days without words', async () => {
+		const { tool } = await setup();
+		const found = JSON.parse(await out(tool('search_site'), { days: 7 }));
+		expect(found).toMatchObject({ dates: '2026-11-18 to 2026-11-25', total: 1, by_type: { like: 1 } });
+		expect(found.results[0].url).toBe('https://caseyagollan.com/2026/11/24/like-a/');
+		expect(found.note).toContain('https://caseyagollan.com/2026/11/17/writing-again/'.replace('https://caseyagollan.com', ''));
+	});
+
+	test('fetch_page reads the asker’s page when given none, and long pages a part at a time', async () => {
+		const { tool } = await setup();
+		expect(await out(tool('fetch_page'), {})).toContain('The page Casey is on.');
+		const first = await out(tool('fetch_page'), { url: '/long/' });
+		expect(first.length).toBeLessThan(8_600);
+		const next = Number(/from=(\d+)/.exec(first)?.[1]);
+		expect(next).toBe(8_000);
+		const second = await out(tool('fetch_page'), { url: '/long/', from: next });
+		expect(second).toContain('[Continuing from character 8000.]');
+		expect(second).not.toContain('Paragraph 0 of');
+	});
+
+	test('the post list is a line per post, and looks back for drafts itself', async () => {
+		const asked: string[] = [];
+		const post = (n: number, draft = false) => ({ type: ['h-entry'], properties: { url: [`https://caseyagollan.com/2026/11/${String(n).padStart(2, '0')}/p/`], published: [`2026-11-${String(n).padStart(2, '0')}T10:00:00-05:00`], content: ['x'.repeat(5000)], ...(draft ? { 'post-status': ['draft'] } : {}) } });
+		const micropub: MicropubCall = async (query) => {
+			asked.push(query);
+			const after = new URLSearchParams(query.slice(1)).get('after');
+			return Response.json(after ? { items: [post(2, true)] } : { items: [post(20), post(19)], paging: { after: 'next' } });
+		};
+		const { tool } = await setup({ micropub });
+		const listed = JSON.parse(await out(tool('micropub_list_posts'), {}));
+		expect(listed.posts).toHaveLength(2);
+		expect(listed.posts[0]).toEqual({ url: 'https://caseyagollan.com/2026/11/20/p/', status: 'published', type: 'note', date: '2026-11-20', text: `${'x'.repeat(160)}…` });
+		expect(asked[0]).toContain('properties%5B%5D=content');
+		const drafts = JSON.parse(await out(tool('micropub_list_posts'), { drafts_only: true }));
+		expect(drafts.posts.map((line: { status: string }) => line.status)).toEqual(['draft']);
+		expect(drafts.looked_through).toBe('the 3 newest posts, back to 2026-11-02');
+		expect(asked.at(-1)).toContain('after=next');
+	});
+
+	test('table_add puts a whole comparison on the table in one change', async () => {
+		const ops: { op: string }[] = [];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => [1, 2, 3, 4, 5, 6].map((n) => ({ id: `n${n}`, type: 'note', text: `Cell ${n}`, x: n * 220, y: 0, w: 200, h: 200 })) });
+		const done = JSON.parse(await out(tool('table_add'), { items: [1, 2, 3, 4, 5, 6].map((n) => ({ note: `Cell ${n}` })), columns: 3, frame: 'Compared' }));
+		expect(ops.map((op) => op.op)).toEqual(['add_notes', 'frame', 'read']);
+		expect(ops[0]).toMatchObject({ columns: 3, notes: [{ text: 'Cell 1', style: 'note' }, {}, {}, {}, {}, {}] });
+		expect(done).toMatchObject({ added: 6, frame: 'f1', on_table: 6 });
+		expect(done.items[0]).toEqual({ id: 'n1', type: 'note', text: 'Cell 1', x: 220, y: 0, w: 200, h: 200 });
+		expect(done.issues).toBeUndefined();
+	});
+
+	test('a mix of notes, links and search results is arranged together', async () => {
+		const ops: { op: string; ids?: string[]; below?: string }[] = [];
+		const { tool } = await setup({ table: 'abc123', ops });
+		await out(tool('table_add'), { items: [{ search: 'oliveros', limit: 3 }, { url: '/library/1' }, { text: 'Why these belong together.' }], layout: 'row', below: 'n9' });
+		expect(ops.map((op) => op.op)).toEqual(['add_from_search', 'add_links', 'add_notes', 'arrange', 'read']);
+		expect(ops[3]).toMatchObject({ layout: 'row', ids: ['b1', 'b2', 'n3'], below: 'n9' });
+	});
+
+	test('an item is its first property with words in it, whatever else the model filled in', async () => {
+		const ops: { op: string; notes?: unknown[]; urls?: string[] }[] = [];
+		const { tool } = await setup({ table: 'abc123', ops });
+		await out(tool('table_add'), { items: [{ note: 'Micropub', text: '', w: 240 }, { note: 'ignored', url: '/library/1', search: 'also ignored' }, { text: 'A paragraph.', note: '' }] });
+		expect(ops.map((op) => op.op)).toEqual(['add_links', 'add_notes', 'arrange', 'read']);
+		expect(ops[0].urls).toEqual(['/library/1']);
+		expect(ops[1].notes).toEqual([{ text: 'Micropub', style: 'note' }, { text: 'A paragraph.', style: 'text' }]);
+		expect(out(tool('table_add'), { items: [{ note: '' }] })).rejects.toThrow('Nothing was added');
+	});
+
+	test('an empty item leaves a cell of a grid of notes open', async () => {
+		const ops: { op: string; notes?: unknown[] }[] = [];
+		const { tool } = await setup({ table: 'abc123', ops });
+		await out(tool('table_add'), { items: [{}, { note: 'Micropub' }, { note: 'POSSE' }, { note: 'What it is' }, { text: 'An API.' }, { text: 'A practice.' }], columns: 3 });
+		expect(ops[0]).toMatchObject({ op: 'add_notes', columns: 3 });
+		expect(ops[0].notes).toEqual([{ text: '', blank: true }, { text: 'Micropub', style: 'note' }, { text: 'POSSE', style: 'note' }, { text: 'What it is', style: 'note' }, { text: 'An API.', style: 'text' }, { text: 'A practice.', style: 'text' }]);
+	});
+
+	test('table_new makes the table and opens it, and works with no table open', async () => {
+		const { tool, went, extension } = await setup();
+		const made = JSON.parse(await out(tool('table_new'), { name: 'Calm tech' }));
+		expect(made).toMatchObject({ url: '/tables/new123', draft: true, on_table: 0 });
+		expect(made.table).toContain('Open beside the chat');
+		expect(went).toEqual(['/tables/new123']);
+		const { isTableTool, isOwnerTool } = await import('../src/lib/server/chat/tools');
+		expect(isTableTool('table_new')).toBe(false);
+		expect(isOwnerTool('table_new')).toBe(true);
+		expect(isOwnerTool('table_read')).toBe(false);
+		expect(extension.tools!.filter((one) => one.name.startsWith('table_') && one.name !== 'table_read').every((one) => isOwnerTool(one.name))).toBe(true);
+	});
+
+	test('the last round of a run is asked without tools, so it ends in an answer', async () => {
+		const { extension } = await setup();
+		const hooks = extension.hooks as unknown as { handlers: { beforeProviderRequest?: (request: unknown, api: unknown, context: unknown) => Promise<{ payload: { tools?: unknown[]; reasoning_effort?: string; messages: { role: string; content: string }[] } } | undefined> } }[];
+		const before = hooks.find((hook) => hook.handlers.beforeProviderRequest)!.handlers.beforeProviderRequest!;
+		const payload = { model: 'm', tool_choice: 'auto', tools: [{ type: 'function', function: { name: 'search_site' } }], messages: [{ role: 'user', content: 'hi' }] };
+		const at = (turns: number) => before({ payload }, { conversationId: 'c', snapshot: async () => ({ run: { turns } }), entries: async () => ({ items: [] }) }, {});
+		// Every request says how hard to think; unset, the gateway's model thinks without limit.
+		expect((await at(3))!.payload).toMatchObject({ reasoning_effort: 'low', tools: payload.tools });
+		const last = (await at(7))!.payload;
+		expect(last.tools).toBeUndefined();
+		expect('tool_choice' in last).toBe(false);
+		expect(last.messages.at(-1)!.content).toContain('Answer now from what you have');
+		expect(payload.messages).toHaveLength(1);
 	});
 });

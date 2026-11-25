@@ -35,6 +35,8 @@ import { readTable, writeTable } from '../tables';
 export interface ChatAgentEnv extends PublishingEnvironment {
 	INFERENCE_COOP_API_KEY?: string;
 	CHAT_MODEL?: string;
+	/** How hard the model thinks before each step: low (the default), medium or high. */
+	CHAT_REASONING_EFFORT?: string;
 	/** Another OpenAI-compatible gateway, for local testing; inference.coop otherwise. */
 	CHAT_INFERENCE_URL?: string;
 	/** US dollars each person may spend a month; default 3. Casey is not capped. */
@@ -65,7 +67,7 @@ const TABLE_RESULT_MAX = 2_000_000;
 
 const MAX_MESSAGES = 300;
 const PER_PERSON_PER_HOUR = 20;
-/** Tool rounds one answer may take. */
+/** Tool rounds one answer may take. The last request of a run is made without tools (`chatExtension`), so it ends in an answer. */
 const MAX_TURNS = 8;
 /** An owner connection counts as Casey for this long; after that, reconnecting checks again. */
 const OWNER_CONNECTION_TTL = 12 * 3600_000;
@@ -77,7 +79,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	readonly harness = new PiHarness({
 		harness: ({ storage, context, onWake }) => {
 			const { models } = chatModels(this.env);
-			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks() }));
+			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT }));
 			return Harness.open(storage, {
 				models, registry: this.registry, onWake, identity: { attribution: null },
 				// A failed answer doesn't hold up the next person's message.
@@ -119,6 +121,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 				return { id: table.id, url: `/tables/${table.id}`, note: 'A draft: only Casey sees it until it’s published. go_to it to open it and fill it in.' };
 			},
 			tableOpened: (id) => this.tableOpened(id),
+			page: () => this.speakerPage(),
 			navigate: async (path) => {
 				const to = this.meta('last_speaker');
 				if (!to) return false;
@@ -132,6 +135,18 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 				});
 			}
 		};
+	}
+
+	/** The page the person who last wrote is on, from the browser they used most recently. */
+	private speakerPage(): ChatPage | undefined {
+		const speaker = this.meta('last_speaker');
+		let found: ConnectionState | undefined;
+		for (const connection of this.getConnections<ConnectionState>()) {
+			const state = connection.state;
+			if (!speaker || state?.viewer?.id !== speaker || !state.page) continue;
+			if (!found || (state.active ?? state.at) >= (found.active ?? found.at)) found = state;
+		}
+		return found?.page;
 	}
 
 	/** A page to send someone to once their browser connects; see `navigate`. */

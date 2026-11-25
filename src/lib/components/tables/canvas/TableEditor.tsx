@@ -20,7 +20,7 @@ import {
 } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
-import { LOOK_MAX_SIDE, type TableItem, type TableLink, type TableLook, type TableOp, type TableStroke } from '$lib/table-agent';
+import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { SiteBlockShapeUtil, blockOf, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
@@ -81,13 +81,13 @@ const GAP = GRID;
  * Where a block added without a drop point goes: the middle of the view, or just right of the block
  * it was taken from, or the nearest free place around there, so it isn't set down on top of another.
  */
-function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block): { x: number; y: number } {
+function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block, ignore: TLShapeId[] = []): { x: number; y: number } {
 	const viewport = editor.getViewportPageBounds();
 	const key = near && blockKey(near);
 	const source = key ? editor.getCurrentPageShapes().find((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE) && blockKey((shape as SiteBlockShape).props) === key) : undefined;
 	const beside = source && editor.getShapePageBounds(source);
 	const start = beside ? { x: onGrid(beside.maxX + GAP), y: onGrid(beside.minY) } : { x: onGrid(viewport.center.x - size.w / 2), y: onGrid(viewport.center.y - size.h / 2) };
-	const taken = editor.getCurrentPageShapes().map((shape) => editor.getShapePageBounds(shape)).filter((bounds) => bounds !== undefined);
+	const taken = editor.getCurrentPageShapes().filter((shape) => !ignore.includes(shape.id)).map((shape) => editor.getShapePageBounds(shape)).filter((bounds) => bounds !== undefined);
 	const free = (x: number, y: number) => !taken.some((b) => x < b.maxX + GAP && x + size.w + GAP > b.minX && y < b.maxY + GAP && y + size.h + GAP > b.minY);
 	const step = GRID * 2;
 	for (let ring = 0; ring <= 20; ring++) {
@@ -297,6 +297,58 @@ function placeNew(editor: Editor, id: TLShapeId, op: { at?: { x: number; y: numb
 	if (moves.length) place(editor, moves);
 }
 
+/** The top-left a place names: just below or right of an item, or a point; undefined when it names neither. */
+function originOf(editor: Editor, place: TablePlace): { x: number; y: number } | undefined {
+	const anchorId = place.below ?? place.right_of;
+	const anchor = anchorId ? editor.getShapePageBounds(`shape:${anchorId.replace(/^shape:/, '')}` as TLShapeId) : undefined;
+	if (anchor) return place.below ? { x: anchor.x, y: anchor.maxY + GAP } : { x: anchor.maxX + GAP, y: anchor.y };
+	return place.at;
+}
+
+const layoutOf = (layout: TableLayout, boxes: Box[], columns: number, at: { x: number; y: number } | undefined, gap: number) =>
+	layout === 'row' ? rowLayout(boxes, at, gap) : layout === 'column' ? columnLayout(boxes, at, gap) : layout === 'columns' ? columnsLayout(boxes, columns, at, gap) : gridLayout(boxes, columns, at, gap);
+
+/**
+ * Several notes in one change: made, measured (notes grow with their text), set out together
+ * a grid step apart, and anything they land on pushed down. One undo takes them all back.
+ */
+function addNotes(editor: Editor, op: { notes: TableNote[]; layout?: TableLayout; columns?: number } & TablePlace) {
+	const ids: TLShapeId[] = [];
+	// A blank keeps its place in the layout and makes nothing.
+	const cells: (TLShapeId | null)[] = [];
+	editor.markHistoryStoppingPoint('add notes');
+	editor.run(() => {
+		for (const note of op.notes) {
+			if (note.blank) { cells.push(null); continue; }
+			const id = createShapeId();
+			const text = toRichText(String(note.text ?? '').slice(0, 2000));
+			const color = note.color ? { color: note.color } : {};
+			if (note.style === 'text') editor.createShape({ id, type: 'text', x: 0, y: 0, props: { richText: text, autoSize: false, w: Math.max(160, Math.min(800, note.w ?? 360)), ...color } });
+			else editor.createShape({ id, type: 'note', x: 0, y: 0, props: { richText: text, ...color } });
+			ids.push(id);
+			cells.push(id);
+		}
+	});
+	if (!ids.length) return ids;
+	const measured = new Map(boxesOf(editor, ids.map((id) => editor.getShape(id)!)).map((box) => [box.id, box]));
+	// Every box starts at the origin, so the layouts' reading order is the order given.
+	const boxes: Box[] = cells.map((id, index) => (id ? { ...measured.get(short(id))!, x: 0, y: 0 } : { id: `blank-${index}`, x: 0, y: 0, w: 200, h: 0 }));
+	const columns = Math.max(1, Math.min(boxes.length, op.columns ?? Math.min(boxes.length, 4)));
+	// Laid out at the origin first to learn how much room the set needs, then moved to a place with that much free.
+	const draft = layoutOf(op.layout === 'pack' ? 'grid' : op.layout ?? 'grid', boxes, columns, { x: 0, y: 0 }, GAP);
+	const sizes = new Map(boxes.map((box) => [box.id, box]));
+	const size = draft.reduce((room, spot) => ({ w: Math.max(room.w, spot.x + sizes.get(spot.id)!.w), h: Math.max(room.h, spot.y + sizes.get(spot.id)!.h) }), { w: 0, h: 0 });
+	const byId = new Map(draft.map((spot) => [spot.id, spot]));
+	const origin = originOf(editor, op) ?? openSpot(editor, size, undefined, ids);
+	editor.updateShapes(ids.map((id) => { const shape = editor.getShape(id)!, spot = byId.get(short(id))!; return { id, type: shape.type, x: onGrid(origin.x) + spot.x, y: onGrid(origin.y) + spot.y }; }));
+	// Set beside or at something named, they may land on what's already there: that is pushed down, not covered.
+	const moves = tidyLayout(boxesOf(editor, shapesFor(editor, undefined).filter(SOLID)), GAP, short(ids[0]));
+	if (moves.length) place(editor, moves);
+	const added = editor.getShapePageBounds(ids[0]);
+	if (added && !editor.getViewportPageBounds().contains(added)) editor.zoomToFit({ animation: { duration: 220 } });
+	return ids;
+}
+
 /** Draws the table to a picture the assistant can look at, each item numbered, overlaps outlined in red. */
 async function look(editor: Editor, ids?: string[]): Promise<TableLook | { empty: true }> {
 	const shapes = ids?.length ? shapesFor(editor, ids) : editor.getCurrentPageShapesSorted();
@@ -490,6 +542,10 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			const bounds = editor.getShapePageBounds(id)!;
 			return { added: [{ id: id.replace(/^shape:/, ''), x: Math.round(bounds.x), y: Math.round(bounds.y), w: Math.round(bounds.w), h: Math.round(bounds.h) }], ...report };
 		}
+		case 'add_notes': {
+			const ids = addNotes(editor, op);
+			return changed(editor, { added: ids.map((id) => short(id)) });
+		}
 		case 'move': {
 			editor.markHistoryStoppingPoint('move');
 			const shapes = new Map(shapesFor(editor, op.moves.map((move) => move.id)).map((shape) => [shape.id.replace(/^shape:/, ''), shape]));
@@ -510,7 +566,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			const boxes = boxesOf(editor, shapes);
 			const columns = Math.max(1, op.columns ?? Math.ceil(Math.sqrt(shapes.length)));
 			if (op.layout === 'pack') editor.packShapes(shapes, gap);
-			else place(editor, op.layout === 'row' ? rowLayout(boxes, op.at, gap) : op.layout === 'column' ? columnLayout(boxes, op.at, gap) : op.layout === 'columns' ? columnsLayout(boxes, columns, op.at, gap) : gridLayout(boxes, columns, op.at, gap));
+			else place(editor, layoutOf(op.layout, boxes, columns, originOf(editor, op), gap));
 			return changed(editor, { arranged: shapes.length });
 		}
 		case 'align': {
