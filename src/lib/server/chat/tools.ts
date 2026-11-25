@@ -40,6 +40,8 @@ export interface ThreadHooks {
 	createTable(name: string): Promise<{ id: string; url: string; note?: string }>;
 	/** Send the person who asked to a page of the site, waiting briefly for their page to connect; false if it never does. */
 	navigate(path: string): Promise<boolean>;
+	/** Wait until Casey's page shows this table and can take changes; false if it doesn't in time. */
+	tableOpened(id: string): Promise<boolean>;
 }
 
 const text = (value: string) => ({ output: [{ type: 'text' as const, text: value }] });
@@ -180,7 +182,12 @@ export function chatExtension(deps: ToolDeps): Extension {
 			const path = sitePath(String((args as { path?: string }).path ?? ''), deps.origin());
 			if (!path) throw new Error('go_to only goes to pages on this site.');
 			if (!(await thread?.navigate(path))) throw new Error('Their browser isn’t connected to the chat right now; link the page instead.');
-			return json({ path });
+			// Going to a table: wait for it to open, so the rest of this answer can work on it.
+			const table = /^\/tables\/([a-z0-9]+)\/?(?:[?#]|$)/.exec(path)?.[1];
+			if (!table || !thread) return json({ path });
+			return json((await thread.tableOpened(table))
+				? { path, table: 'Open beside the chat now. The table_* tools work on it: fill it in.' }
+				: { path, table: 'Still opening. Try table_read in a moment before changing it.' });
 		}
 	};
 
@@ -305,7 +312,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'create_table',
-			description: 'Make a new, empty draft table for Casey, and get its address. Use go_to to open it.',
+			description: 'Make a new, empty draft table for Casey, and get its address. Then go_to it: once it is open, the table_* tools fill it in.',
 			parameters: { type: 'object', properties: { name: { type: 'string', maxLength: 120 } }, required: ['name'] },
 			async execute(args) { return json(await thread.createTable(String((args as { name?: string }).name ?? '').slice(0, 120))); }
 		}
