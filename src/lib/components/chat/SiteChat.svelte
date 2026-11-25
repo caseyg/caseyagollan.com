@@ -97,12 +97,15 @@
 
 	// Make room for a docked chat: a sidebar on wide screens, the folded sheet on narrow ones.
 	const dock = $derived(!hidden && mode === 'docked' ? (narrow.current ? 'sheet' : 'side') : null);
+	// Both live on <html>, so every change restyles the whole page: set each only when it changes.
 	$effect(() => {
 		const root = document.documentElement;
 		if (dock) root.dataset.chatDock = dock;
 		else delete root.dataset.chatDock;
-		root.style.setProperty('--chat-sheet-rest', `${sheetRestHeight}px`);
 		return () => { delete root.dataset.chatDock; };
+	});
+	$effect(() => {
+		document.documentElement.style.setProperty('--chat-sheet-rest', `${sheetRestHeight}px`);
 	});
 
 	async function send(text: string): Promise<boolean> {

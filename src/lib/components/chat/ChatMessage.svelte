@@ -2,8 +2,8 @@
 	import type { ChatMessage } from '$lib/chat';
 	import { PROVIDER_LABELS } from '$lib/chat';
 	import { Avatar, Icon, Prose } from '$lib/components/ui';
-	import remend from 'remend';
 	import { renderContent } from '$lib/utils/renderContent';
+	import { createStreamingRenderer } from '$lib/utils/streamingMarkdown';
 	import ChatTool from './ChatTool.svelte';
 
 	interface Props {
@@ -16,8 +16,11 @@
 
 	let { message, own = false, compact = false }: Props = $props();
 
-	// While it streams, close unfinished bold, code and links (Streamdown's remend) so half a reply renders cleanly.
-	const html = $derived(renderContent(message.status === 'streaming' ? remend(message.content) : message.content, 'markdown'));
+	// While it streams, only the block being written is rendered again (and its open bold, code and
+	// links closed), so each new word costs one paragraph, not the whole reply. Done, it renders whole.
+	const streamBlocks = createStreamingRenderer();
+	const streaming = $derived(message.status === 'streaming');
+	const blocks = $derived(streaming ? streamBlocks(message.content) : [renderContent(message.content, 'markdown')]);
 	const time = $derived(new Date(message.createdAt));
 	const author = $derived(message.author);
 </script>
@@ -48,7 +51,7 @@
 			</div>
 		{/if}
 		{#if message.content}
-			<Prose class="text"><!-- eslint-disable-next-line svelte/no-at-html-tags -->{@html html}</Prose>
+			<Prose class="text">{#each blocks as block, index (index)}<!-- eslint-disable-next-line svelte/no-at-html-tags -->{@html block}{/each}</Prose>
 		{/if}
 		{#if message.status === 'streaming'}
 			<span class="typing" aria-label="Writing">

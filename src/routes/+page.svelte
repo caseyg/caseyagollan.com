@@ -452,10 +452,18 @@
     onMount(() => {
         if (browser) {
             void loadCuration();
-            // Load telescopic text library as a script
+            loadAnalyticsWhenIdle();
+            // The telescopic text library and its styles, loaded after the page shows (the bio has
+            // plain text until then), so another site's stylesheet never holds up the first paint.
+            const styles = document.createElement("link");
+            styles.rel = "stylesheet";
+            styles.href = "https://unpkg.com/telescopic-text@1.2.4/lib/index.css";
+            const styled = new Promise((resolve) => { styles.onload = styles.onerror = resolve; });
+            document.head.appendChild(styles);
             const script = document.createElement("script");
             script.src = "https://unpkg.com/telescopic-text@1.2.4/lib/index.js";
-            script.onload = () => {
+            script.onload = async () => {
+                await styled;
                 try {
                     const { createTelescopicTextFromBulletedList } =
                         window.telescopicText || window;
@@ -477,6 +485,29 @@
             document.head.appendChild(script);
         }
     });
+
+    /**
+     * Google Analytics, once the page has loaded and gone quiet: gtag.js is a big script that would
+     * otherwise run while a phone is still drawing the page.
+     */
+    function loadAnalyticsWhenIdle() {
+        // Once a visit, as the tag in the page's head was before.
+        if ("gtag" in window) return;
+        const start = () => {
+            const w = window as unknown as { dataLayer: unknown[]; gtag: (...args: unknown[]) => void };
+            w.dataLayer = w.dataLayer || [];
+            w.gtag = function () { w.dataLayer.push(arguments); };
+            w.gtag("js", new Date());
+            w.gtag("config", "G-YX0XVKSRCH");
+            const tag = document.createElement("script");
+            tag.async = true;
+            tag.src = "https://www.googletagmanager.com/gtag/js?id=G-YX0XVKSRCH";
+            document.head.appendChild(tag);
+        };
+        const idle = () => ("requestIdleCallback" in window ? requestIdleCallback(start, { timeout: 5000 }) : setTimeout(start, 2000));
+        if (document.readyState === "complete") idle();
+        else addEventListener("load", idle, { once: true });
+    }
 
     async function handleTopicClick(topic: string | null) {
         if (!topic) {
@@ -651,23 +682,7 @@
     <meta property="og:url" content="https://caseyagollan.com" />
     <meta property="og:image" content="https://caseyagollan.com/sisu.gif" />
     <meta name="theme-color" content="#0000ff" />
-    <link
-        href="https://unpkg.com/telescopic-text@1.2.4/lib/index.css"
-        rel="stylesheet"
-    />
     <link rel="feed" href="/posts/" type="text/html" title="All Posts" />
-    <script
-        async
-        src="https://www.googletagmanager.com/gtag/js?id=G-YX0XVKSRCH"
-    ></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag() {
-            dataLayer.push(arguments);
-        }
-        gtag("js", new Date());
-        gtag("config", "G-YX0XVKSRCH");
-    </script>
 </svelte:head>
 
 <!-- Full-viewport 3-pane interface -->

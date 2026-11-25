@@ -26,6 +26,10 @@ export class LiveThread {
 	#timer?: ReturnType<typeof setTimeout>;
 	#closed = false;
 
+	/** Streamed text not yet shown, by message id; shown once a frame (see #receive). */
+	#pending = new Map<string, string>();
+	#frame = 0;
+
 	#page?: ChatPage;
 	#onchange?: () => void;
 	#options: LiveThreadOptions;
@@ -64,6 +68,7 @@ export class LiveThread {
 
 	close() {
 		this.#closed = true;
+		this.#flush();
 		clearTimeout(this.#timer);
 		this.#socket?.close();
 	}
@@ -95,9 +100,26 @@ export class LiveThread {
 
 	#find(id: string) { return this.snapshot.messages.find((message) => message.id === id); }
 
+	/** Add the streamed text that's waiting to its messages. */
+	#flush = () => {
+		if (this.#frame) cancelAnimationFrame(this.#frame);
+		this.#frame = 0;
+		for (const [id, text] of this.#pending) { const message = this.#find(id); if (message) message.content += text; }
+		this.#pending.clear();
+	};
+
 	#receive(data: string) {
 		let event: ChatServerEvent | TableOpEvent;
 		try { event = JSON.parse(data); } catch { return; }
+		// A reply arrives a few characters a message, far more often than the screen draws. Gather them
+		// and update once a frame, so the page renders the reply once a frame rather than once a message.
+		if (event.type === 'chat:delta') {
+			this.#pending.set(event.id, (this.#pending.get(event.id) ?? '') + event.text);
+			if (!this.#frame) this.#frame = typeof requestAnimationFrame === 'undefined' ? (queueMicrotask(this.#flush), -1) : requestAnimationFrame(this.#flush);
+			return;
+		}
+		// Anything else may replace or finish a message, so it lands after the text before it.
+		if (this.#pending.size) this.#flush();
 		switch (event.type) {
 			case 'table:op': void this.#tableOp(event); break;
 			case 'chat:navigate': if (typeof event.path === 'string' && event.path.startsWith('/') && !event.path.startsWith('//')) this.#options.onnavigate?.(event.path); break;
@@ -109,7 +131,6 @@ export class LiveThread {
 				else { this.snapshot.messages.push(event.message); if (event.message.role === 'user') this.#onchange?.(); }
 				break;
 			}
-			case 'chat:delta': { const message = this.#find(event.id); if (message) message.content += event.text; break; }
 			case 'chat:tools': { const message = this.#find(event.id); if (message) message.tools = event.tools; break; }
 			case 'chat:done': { const message = this.#find(event.id); if (message) { message.status = event.status; message.content = event.content; } this.#onchange?.(); break; }
 			case 'chat:title': this.snapshot.thread.title = event.title; this.#onchange?.(); break;

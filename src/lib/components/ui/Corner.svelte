@@ -51,36 +51,53 @@
 		const name = `--corner-${side}`;
 		const width = (corner: string) => parseFloat(root.style.getPropertyValue(`--corner-${corner}`)) || 0;
 		const inset = () => parseFloat(getComputedStyle(node).top) || 0;
+		// Every change to <html>'s style restyles the whole page, so write a value only when it changed.
+		const set = (property: string, value: string) => {
+			if (root.style.getPropertyValue(property) !== value) root.style.setProperty(property, value);
+		};
 		// The end corner's width with everything in it, remembered while it is condensed.
 		let fullWidth = 0;
 		const fit = () => {
 			if (side !== 'end' || getComputedStyle(node).position !== 'fixed') return;
 			if (!crowded) fullWidth = node.offsetWidth;
 			const start = width('start-need');
-			crowded = start > 0 && fullWidth + start + 3 * inset() > root.clientWidth;
+			const next = start > 0 && fullWidth + start + 3 * inset() > root.clientWidth;
+			if (next !== crowded) crowded = next;
 		};
-		const update = () => {
+		const measureNow = () => {
+			frame = 0;
+			if (!node.isConnected) return;
 			const pinned = getComputedStyle(node).position === 'fixed';
-			root.style.setProperty(name, `${pinned ? node.offsetWidth : 0}px`);
+			set(name, `${pinned ? node.offsetWidth : 0}px`);
 			if (side === 'start') {
-				root.style.setProperty('--corner-start-need', `${pinned ? startNeed(node) : 0}px`);
-				window.dispatchEvent(new Event(EVENT));
+				const need = `${pinned ? startNeed(node) : 0}px`;
+				if (root.style.getPropertyValue('--corner-start-need') !== need) {
+					set('--corner-start-need', need);
+					window.dispatchEvent(new Event(EVENT));
+				}
 			} else {
 				fit();
 			}
 			const gap = root.clientWidth - width('start') - width('end') - 2 * inset();
-			root.toggleAttribute('data-bar-room', gap >= DATE_ROOM);
+			if (root.hasAttribute('data-bar-room') !== gap >= DATE_ROOM) root.toggleAttribute('data-bar-room', gap >= DATE_ROOM);
 		};
-		const observer = new ResizeObserver(update);
+		// Measuring makes the browser lay the page out, and while a page hydrates or a menu fills, its
+		// contents change many times a frame. Measure once, in the next frame, however many changes came.
+		// A resize is reported once a frame, after layout, so it's measured at once.
+		let frame = 0;
+		const update = () => { frame ||= requestAnimationFrame(measureNow); };
+		const observer = new ResizeObserver(() => { cancelAnimationFrame(frame); measureNow(); });
 		observer.observe(node);
 		// Held at its cap, the start corner keeps its size while what it holds grows, so watch that too.
 		const contents = new MutationObserver(update);
 		if (side === 'start') contents.observe(node, { childList: true, subtree: true, characterData: true });
 		window.addEventListener('resize', update);
 		if (side === 'end') window.addEventListener(EVENT, fit);
-		update();
+		// No first measure here: this runs while the page hydrates, so measuring now lays out a half-built
+		// page. The observer reports the corner's size once layout is done, before the first frame is drawn.
 		return {
 			destroy() {
+				cancelAnimationFrame(frame);
 				observer.disconnect();
 				contents.disconnect();
 				window.removeEventListener('resize', update);
