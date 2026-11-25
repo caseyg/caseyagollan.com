@@ -135,8 +135,6 @@
 			href={threadId ? chatHref(threadId) : undefined}
 			error={live?.error || startError}
 			offline={live?.status === 'offline'}
-			placeholder={onTable ? 'Ask about this table' : 'Ask about this page'}
-			intro={onTable ? undefined : 'Ask about this page, or anything on the site. The chat stays with you as you move around.'}
 			sheet={narrow.current}
 			bind:sheetExpanded
 			bind:sheetRestHeight

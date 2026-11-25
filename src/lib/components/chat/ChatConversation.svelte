@@ -10,9 +10,11 @@
 		viewerId?: string;
 		/** Shown when there are no messages yet. */
 		empty?: Snippet;
+		/** Text-only messages for a narrow chat (see ChatMessage). */
+		compact?: boolean;
 	}
 
-	let { messages, viewerId, empty }: Props = $props();
+	let { messages, viewerId, empty, compact = false }: Props = $props();
 
 	let end = $state<HTMLElement>();
 	/** Whether the reader is at the end; new text keeps them there, and doesn't pull them back if they scrolled up. */
@@ -37,9 +39,9 @@
 </script>
 
 <!-- A thread's messages in order. Stays at the newest while the agent writes, like AI Elements' Conversation. -->
-<section class="chat-conversation" aria-label="Messages" aria-live="polite" aria-busy={last?.status === 'streaming'}>
+<section class="chat-conversation" class:compact aria-label="Messages" aria-live="polite" aria-busy={last?.status === 'streaming'}>
 	{#each messages as message (message.id)}
-		<ChatMessage {message} own={!!viewerId && message.author?.id === viewerId} />
+		<ChatMessage {message} {compact} own={!!viewerId && message.author?.id === viewerId} />
 	{:else}
 		{@render empty?.()}
 	{/each}
@@ -56,7 +58,7 @@
 		flex-direction: column;
 	}
 
-	.chat-conversation > :global(.chat-message + .chat-message) {
+	.chat-conversation:not(.compact) > :global(.chat-message + .chat-message) {
 		border-top: 1px solid var(--border-subtle);
 	}
 
@@ -71,6 +73,14 @@
 		display: flex;
 		justify-content: center;
 		pointer-events: none;
+	}
+
+	.compact .end {
+		scroll-margin-bottom: 0;
+	}
+
+	.compact .jump {
+		bottom: var(--space-2);
 	}
 
 	.jump :global(.button) {

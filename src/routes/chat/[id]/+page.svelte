@@ -49,7 +49,7 @@
 		{#if live.error || form?.error}<Notice tone="error">{live.error || form?.error}</Notice>{/if}
 		{#if live.status === 'offline'}<Notice>Reconnecting… new messages will show up when it’s back.</Notice>{/if}
 		{#if viewer}
-			<ChatPromptInput {viewer} bind:value={text} onsend={live.status === 'live' ? send : undefined} returnTo={href} tools={live.tools} placeholder="Reply" />
+			<ChatPromptInput {viewer} bind:value={text} onsend={live.status === 'live' ? send : undefined} returnTo={href} tools={live.tools} label="Reply" compact />
 		{:else}
 			<ChatSignIn returnTo={href} error={data.signinError} open={!!data.signinError} />
 		{/if}

@@ -10,9 +10,11 @@
 		message: ChatMessage;
 		/** Marks the viewer's own messages. */
 		own?: boolean;
+		/** Text only, for a narrow chat: your messages as quiet bubbles on the right, answers full width, no names, pictures or times. */
+		compact?: boolean;
 	}
 
-	let { message, own = false }: Props = $props();
+	let { message, own = false, compact = false }: Props = $props();
 
 	// While it streams, close unfinished bold, code and links (Streamdown's remend) so half a reply renders cleanly.
 	const html = $derived(renderContent(message.status === 'streaming' ? remend(message.content) : message.content, 'markdown'));
@@ -21,16 +23,16 @@
 </script>
 
 <!-- One message: a person's, with their name and how they signed in, or the agent's, with its steps above the answer. -->
-<article class="chat-message chat-message--{message.role}" class:own data-status={message.status}>
-	<div class="who">
+<article class="chat-message chat-message--{message.role}" class:own class:compact data-status={message.status}>
+	{#if !compact}<div class="who">
 		{#if message.role === 'assistant'}
 			<span class="agent-mark" aria-hidden="true"><Icon name="sparkle" size={16} /></span>
 		{:else}
 			<Avatar src={author?.photo} name={author?.name} size="sm" />
 		{/if}
-	</div>
+	</div>{/if}
 	<div class="body">
-		<header>
+		{#if !compact}<header>
 			{#if message.role === 'assistant'}
 				<span class="name">Assistant</span>
 				{#if message.model}<span class="meta">{message.model}</span>{/if}
@@ -39,7 +41,7 @@
 				<span class="meta">{author.via === 'owner' ? 'site owner' : `via ${PROVIDER_LABELS[author.via]}`}</span>
 			{/if}
 			<time class="meta" datetime={time.toISOString()}>{time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
-		</header>
+		</header>{/if}
 		{#if message.tools?.length}
 			<div class="steps">
 				{#each message.tools as step, index (index)}<ChatTool {step} />{/each}
@@ -62,6 +64,24 @@
 		grid-template-columns: 2rem minmax(0, 1fr);
 		gap: var(--space-3);
 		padding: var(--space-3) 0;
+	}
+
+	.chat-message.compact {
+		display: block;
+		padding: var(--space-2) 0;
+	}
+
+	.compact.chat-message--user .body {
+		width: fit-content;
+		max-width: 85%;
+		margin-left: auto;
+		padding: var(--space-1) var(--space-3);
+		border-radius: var(--radius-lg);
+		background: var(--surface-2);
+	}
+
+	.compact.chat-message--user .body :global(.text p) {
+		margin: 0;
 	}
 
 	.agent-mark {

@@ -19,9 +19,13 @@
 		returnTo?: string;
 		/** Tools the agent has for this viewer, named under the box once it's open. */
 		tools?: string[];
+		/** One box and a send button, nothing else: no picture, no “Writing as”, no tools line. */
+		compact?: boolean;
+		/** The box's accessible name when it shows no placeholder. */
+		label?: string;
 	}
 
-	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [] }: Props = $props();
+	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message' }: Props = $props();
 
 	let sending = $state(false);
 	const tooLong = $derived(value.length > CHAT_MAX_MESSAGE);
@@ -48,25 +52,26 @@
 	const toolText = $derived(tools.map((tool) => TOOL_NAMES[tool] ?? tool).join(', '));
 </script>
 
-<!-- The composer: one quiet line until it's used, then the box, who you are, and Send. -->
-<form class="chat-prompt" class:open method="POST" {action} onsubmit={submit}>
+<!-- The composer: one quiet line until it's used, then the box, who you are, and Send. Compact, it's only the box and Send. -->
+<form class="chat-prompt" class:open={open && !compact} class:compact method="POST" {action} onsubmit={submit}>
 	<div class="box">
-		<Avatar src={viewer.photo} name={viewer.name} size="sm" />
+		{#if !compact}<Avatar src={viewer.photo} name={viewer.name} size="sm" />{/if}
 		<Textarea
 			class="input"
 			name="text"
 			bind:value
 			{placeholder}
-			rows={open ? 3 : 1}
+			rows={open && !compact ? 3 : 1}
 			autoResize
 			maxlength={CHAT_MAX_MESSAGE + 200}
-			aria-label={placeholder}
+			aria-label={placeholder || label}
 			onfocus={() => (open = true)}
 			onkeydown={keydown}
 		/>
-		{#if !open}<Button variant="icon" size="sm" icon="send" label="Send" type="submit" disabled={!ready} />{/if}
+		{#if compact && tooLong}<span class="limit">{value.length} / {CHAT_MAX_MESSAGE}</span>{/if}
+		{#if !open || compact}<Button class="send" variant={compact ? 'primary' : 'icon'} size="sm" icon="send" label="Send" aria-label="Send" type="submit" disabled={!ready} />{/if}
 	</div>
-	{#if open}
+	{#if open && !compact}
 		<div class="footer">
 			<span class="as">
 				{viewer.owner ? 'Writing as Casey' : `${viewer.name} via ${PROVIDER_LABELS[viewer.via]}`}
@@ -91,6 +96,33 @@
 		border-radius: var(--radius-lg);
 		background: var(--surface-1);
 		transition: border-color var(--duration) var(--ease);
+	}
+
+	.chat-prompt.compact {
+		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+		border-radius: var(--radius-lg);
+	}
+
+	.compact .box {
+		align-items: flex-end;
+	}
+
+	.compact .box :global(.input) {
+		min-height: 1.75rem;
+		padding: 0.2rem 0;
+	}
+
+	/* Send: a round button that only takes colour once there's something to send. */
+	.compact :global(.send) {
+		flex-shrink: 0;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border-radius: var(--radius-full);
+	}
+
+	.compact .limit {
+		align-self: center;
 	}
 
 	.chat-prompt:focus-within {
