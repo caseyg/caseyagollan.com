@@ -3,7 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { type ChatPage, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
+	import { chatHref, type ChatPage, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { LiveThread } from '$lib/chat-client.svelte';
 	import { siteChat } from '$lib/site-chat.svelte';
 	import ChatOverlay, { type ChatOverlayMode } from './ChatOverlay.svelte';
@@ -148,6 +148,7 @@
 			tools={live?.tools ?? []}
 			onsend={send}
 			returnTo={page.url.pathname}
+			href={threadId ? chatHref(threadId) : undefined}
 			error={live?.error || startError}
 			offline={live?.status === 'offline'}
 			sheet={narrow.current}
