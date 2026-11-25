@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import type { ComponentProps } from 'svelte';
 	import ChatOverlay from './ChatOverlay.svelte';
-	import { owner, tableConversation, visitor } from './fixtures';
+	import { owner, tableConversation, threads as fixtureThreads, visitor } from './fixtures';
 
 	const { Story } = defineMeta({
 		title: 'Chat/ChatOverlay',
@@ -12,8 +12,8 @@
 	});
 </script>
 
-<!-- Over a table's canvas: a pill, a floating panel, or a sidebar the canvas makes room for. On a phone, docked is a bottom sheet. -->
-{#snippet stage(args: ComponentProps<typeof ChatOverlay>, mode: 'minimized' | 'floating' | 'docked')}
+<!-- Over a table's canvas: a round 💬 button, or a sidebar the canvas makes room for. On a phone, docked is a bottom sheet. -->
+{#snippet stage(args: ComponentProps<typeof ChatOverlay>, mode: 'minimized' | 'docked')}
 	<div class="stage" data-chat={mode}>
 		<div class="canvas">Canvas</div>
 		<div class="dock">
@@ -23,8 +23,6 @@
 {/snippet}
 
 <Story name="Minimized">{#snippet template(args)}{@render stage(args, 'minimized')}{/snippet}</Story>
-
-<Story name="Floating">{#snippet template(args)}{@render stage(args, 'floating')}{/snippet}</Story>
 
 <Story name="Docked">{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
 
@@ -42,12 +40,12 @@
 
 <Story name="Docked on a phone, folded" parameters={{ viewport: { defaultViewport: 'mobile1' } }}>{#snippet template(args)}{@render phone(args, false)}{/snippet}</Story>
 
-<!-- On any page of the site: Casey's chat follows them around, with New chat in the title bar. -->
-<Story name="On any page" args={{ title: 'New chat', messages: [], onnew: () => {} }}>{#snippet template(args)}{@render stage(args, 'floating')}{/snippet}</Story>
+<!-- On any page of the site: Casey's chat follows them around, with All chats and New chat in the title bar. -->
+<Story name="On any page" args={{ title: 'New chat', messages: [], onnew: () => {}, onpick: () => {}, onlistthreads: () => {}, threads: fixtureThreads }}>{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
 
-<Story name="Visitor, signed out" args={{ viewer: null, messages: [] }}>{#snippet template(args)}{@render stage(args, 'floating')}{/snippet}</Story>
+<Story name="Visitor, signed out" args={{ viewer: null, messages: [] }}>{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
 
-<Story name="Visitor, signed in" args={{ viewer: visitor, tools: ['search_site', 'fetch_page', 'show_page', 'table_read'] }}>{#snippet template(args)}{@render stage(args, 'floating')}{/snippet}</Story>
+<Story name="Visitor, signed in" args={{ viewer: visitor, tools: ['search_site', 'fetch_page', 'show_page', 'table_read'] }}>{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
 
 <style>
 	.stage {
@@ -69,7 +67,7 @@
 
 	.dock {
 		position: absolute;
-		left: var(--space-4);
+		right: var(--space-4);
 		bottom: var(--space-4);
 	}
 

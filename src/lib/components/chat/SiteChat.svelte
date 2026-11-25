@@ -3,7 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { chatHref, type ChatPage, type ChatSnapshot, type ChatViewer } from '$lib/chat';
+	import { chatHref, type ChatPage, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { LiveThread } from '$lib/chat-client.svelte';
 	import { siteChat } from '$lib/site-chat.svelte';
 	import ChatOverlay, { type ChatOverlayMode } from './ChatOverlay.svelte';
@@ -27,6 +27,7 @@
 	let live = $state<LiveThread>();
 	let startError = $state<string | null>(null);
 	let loaded = $state(false);
+	let threads = $state<ChatThreadSummary[] | null>(null);
 
 	const narrow = new MediaQuery('max-width: 899px', false);
 	// /chat has its own full-page chat.
@@ -40,7 +41,8 @@
 
 	onMount(() => {
 		const saved = read(MODE_KEY) ?? read('table-chat');
-		if (saved === 'floating' || saved === 'docked' || saved === 'minimized') mode = saved;
+		// Open was once floating or docked; both are docked now.
+		if (saved === 'floating' || saved === 'docked') mode = 'docked';
 		sheetExpanded = (read(SHEET_KEY) ?? read('table-chat-sheet')) !== 'folded';
 		threadId = read(THREAD_KEY);
 		loaded = true;
@@ -116,6 +118,17 @@
 		return true;
 	}
 
+	async function listThreads() {
+		const response = await fetch('/api/chat?threads', { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+		const body = (await response?.json().catch(() => null)) as { threads?: ChatThreadSummary[] } | null;
+		threads = body?.threads ?? [];
+	}
+
+	function pick(id: string) {
+		threadId = id;
+		startError = null;
+	}
+
 	function startOver() {
 		threadId = null;
 		startError = null;
@@ -139,21 +152,27 @@
 			bind:sheetExpanded
 			bind:sheetRestHeight
 			onnew={threadId ? startOver : undefined}
+			{threads}
+			onlistthreads={listThreads}
+			onpick={pick}
+			current={threadId ?? undefined}
 		/>
 	</div>
 {/if}
 
 <style>
-	/* A pill or a floating panel at bottom left, a sidebar on wide screens, or a sheet along the bottom on narrow ones. */
+	/* A round 💬 button at bottom right, a sidebar on wide screens, or a sheet along the bottom on narrow ones. */
 	.site-chat {
 		position: fixed;
 		z-index: var(--z-menu);
-		left: var(--space-4);
+		right: var(--space-4);
 		bottom: var(--space-4);
 	}
 
-	.site-chat[data-mode='floating'] {
-		bottom: calc(var(--space-4) + 4rem);
+	/* On a table the canvas toolbar and tldraw's watermark own the bottom, so the button waits under the navigation. */
+	.site-chat[data-mode='minimized'][data-table] {
+		bottom: auto;
+		top: calc(var(--nav-lane) + var(--space-2));
 	}
 
 	@media (min-width: 900px) {
@@ -172,31 +191,13 @@
 	}
 
 	@media (max-width: 600px) {
-		.site-chat {
-			left: var(--space-2);
-			right: var(--space-2);
-		}
-
 		.site-chat[data-mode='minimized'] {
-			right: auto;
+			right: var(--space-2);
 			bottom: var(--space-2);
 		}
 
-		/* On a table the canvas toolbar owns the bottom, so the pill waits under the navigation. */
 		.site-chat[data-mode='minimized'][data-table] {
-			left: auto;
-			right: var(--space-2);
 			bottom: auto;
-			top: calc(var(--nav-lane) + var(--space-2));
-		}
-
-		.site-chat[data-mode='floating'] {
-			bottom: calc(3rem + 3.5rem);
-		}
-
-		.site-chat[data-mode='docked'] {
-			left: 0;
-			right: 0;
 		}
 	}
 </style>

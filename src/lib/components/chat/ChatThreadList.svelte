@@ -5,25 +5,39 @@
 	interface Props {
 		threads: ChatThreadSummary[];
 		now?: number;
+		/** Open a chat in place instead of following its link, as the site-wide chat does. */
+		onselect?: (id: string) => void;
+		/** The chat that's open, marked as current. */
+		current?: string;
+		/** One line per chat: title and when it last moved, no people or counts. */
+		compact?: boolean;
 	}
 
-	let { threads, now = Date.now() }: Props = $props();
+	let { threads, now = Date.now(), onselect, current, compact = false }: Props = $props();
+
+	function select(event: MouseEvent, id: string) {
+		if (!onselect || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+		event.preventDefault();
+		onselect(id);
+	}
 
 	const ago = (at: number) => chatAgo(at, now);
 </script>
 
 <!-- Chat threads, most recently active first: title, who's in it, and when it last moved. -->
 {#if threads.length}
-	<ul class="chat-thread-list">
+	<ul class="chat-thread-list" class:compact>
 		{#each threads as thread (thread.id)}
 			<li>
-				<a href={chatHref(thread.id)}>
+				<a href={chatHref(thread.id)} aria-current={thread.id === current ? 'true' : undefined} onclick={(event) => select(event, thread.id)}>
 					<span class="title">{thread.title}</span>
 					<span class="meta">
-						<span class="people" aria-label="{thread.participants?.length ?? 0} people">
-							{#each (thread.participants ?? []).slice(0, 4) as person (person.id)}<Avatar src={person.photo} name={person.name} size="sm" />{/each}
-						</span>
-						<Count value={thread.messageCount} label="{thread.messageCount} messages" />
+						{#if !compact}
+							<span class="people" aria-label="{thread.participants?.length ?? 0} people">
+								{#each (thread.participants ?? []).slice(0, 4) as person (person.id)}<Avatar src={person.photo} name={person.name} size="sm" />{/each}
+							</span>
+							<Count value={thread.messageCount} label="{thread.messageCount} messages" />
+						{/if}
 						<time datetime={new Date(thread.updatedAt).toISOString()}>{ago(thread.updatedAt)}</time>
 					</span>
 				</a>
@@ -92,5 +106,25 @@
 
 	.empty {
 		color: var(--text-muted);
+	}
+
+	.compact a {
+		flex-wrap: nowrap;
+		padding: var(--space-2) 0;
+		font-size: var(--fs-sm);
+	}
+
+	.compact .title {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.compact .meta {
+		flex-shrink: 0;
+	}
+
+	a[aria-current] .title {
+		font-weight: var(--fw-semibold);
 	}
 </style>
