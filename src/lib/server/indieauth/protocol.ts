@@ -1,5 +1,6 @@
 import { AUTH_ERRORS, AUTH_SCOPES, authError, authSettings, authStore, tokenName, type AuthRPC, type IndieAuthEnvironment } from './contracts';
 import { validateClient } from './clients';
+import { finishPreviewSignIn, startPreviewSignIn } from './preview';
 import { safePublicFetch, type PublicFetcher } from '../publishing/public-fetch';
 const COOKIE = '__Host-indieauth-session';
 function scalar(value: unknown, max = 4096): string { if (typeof value !== 'string' || !value.length || value.length > max) authError('invalid_request'); return value; }
@@ -39,6 +40,13 @@ export function createIndieAuthHandler(env: IndieAuthEnvironment, dependencies: 
  const rateKey=Array.from(await digest(`${request.headers.get('cf-connecting-ip')??'unknown'}:${url.pathname}`),b=>b.toString(16).padStart(2,'0')).join('');
  if(!await store.invoke('rateLimit',{key:rateKey}))authError('slow_down');
  const query=parameters(url.searchParams);
+ if(settings.previewIssuer) {
+ // Previews sign in through the preview issuer and serve only the owner-session routes.
+ if(request.method==='GET'&&url.pathname==='/auth/preview')return await startPreviewSignIn(request,settings);
+ if(request.method==='GET'&&url.pathname==='/auth/preview/callback')return await finishPreviewSignIn(request,settings,store);
+ const allowed=request.method==='GET'?['/auth/session','/auth/tokens','/auth/credentials']:['/auth/logout'];
+ if(!allowed.includes(url.pathname))return reply({error:'invalid_request'},404);
+ }
  if(url.pathname==='/.well-known/oauth-authorization-server'&&request.method==='GET')return reply({issuer:settings.issuer,authorization_endpoint:origin+'/auth',token_endpoint:origin+'/auth/token',revocation_endpoint:origin+'/auth/revoke',introspection_endpoint:origin+'/auth/introspect',response_types_supported:['code'],grant_types_supported:['authorization_code'],code_challenge_methods_supported:['S256'],scopes_supported:AUTH_SCOPES,token_endpoint_auth_methods_supported:['none']});
  if(['/auth','/auth/authorize'].includes(url.pathname)&&request.method==='GET') {
  if(query.response_type!=='code'||query.code_challenge_method!=='S256'||!/^[A-Za-z0-9_-]{43}$/.test(query.code_challenge??''))authError('invalid_request');
@@ -59,7 +67,7 @@ export function createIndieAuthHandler(env: IndieAuthEnvironment, dependencies: 
  }
  const session=request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(COOKIE+'='))?.slice(COOKIE.length+1)??'';
  if(request.method==='GET') {
- if(url.pathname==='/auth/session'){const info=session?await store.invoke('session',{token:session}):null;return reply({authenticated:!!info,...(info??{}),...await store.invoke('status',{})});}
+ if(url.pathname==='/auth/session'){const info=session?await store.invoke('session',{token:session}):null;return reply({authenticated:!!info,...(info??{}),...await store.invoke('status',{}),...(settings.previewIssuer?{signInWith:settings.previewIssuer}:{})});}
  if(!session||!await store.invoke('session',{token:session}))authError('invalid_owner_auth');
  if(url.pathname==='/auth/request')return reply(await store.invoke('request',{id:scalar(query.id)}));
  if(url.pathname==='/auth/tokens')return reply(await store.invoke('listTokens',{session}));

@@ -5,12 +5,13 @@
 	import { Button, Checkbox, CheckboxGroup, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
 	import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
-	import { passkeyError, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
+	import { issuerName, passkeyError, previewSignInHref, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
 	import { rememberOwner } from '$lib/owner';
 	import NewsletterSettings from '$lib/components/NewsletterSettings.svelte';
 	import BlueskySettings from '$lib/components/BlueskySettings.svelte';
 
-	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean };
+	/** `signInWith` is set on branch previews, which sign in through that site instead of a passkey. */
+	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean; signInWith?: string };
 	type Request = { clientId: string; redirectUri: string; scope: string[] };
 	type Token = AuthOperations['listTokens']['output'][number];
 	type Credential = { id: string; createdAt: number; deviceType?: string; backedUp?: boolean };
@@ -36,6 +37,8 @@
 	let loadedRequestId = $state<string | null>(null);
 	let requestError = $state('');
 	const requestId = $derived(page.url.searchParams.get('request'));
+	const previewFailed = $derived(page.url.searchParams.get('signin') === 'failed');
+	const previewReturn = $derived(safeReturnTo(page.url.searchParams.get('returnTo'), page.url.origin) ?? '/account');
 	function returnToPage() {
 		const target = safeReturnTo(page.url.searchParams.get('returnTo'), page.url.origin);
 		if (!target || requestId) return false;
@@ -141,10 +144,16 @@
 	{#if error}<Notice tone="error">{error}</Notice>{/if}
 	<p class="status" role="status" aria-live="polite">{busy ? 'Please wait…' : notice}</p>
 	{#if !ready && !error}<p>Loading account…</p>{/if}
-	{#if ready && !passkeysSupported}<Notice tone="error">This browser does not support passkeys. Open this page in a browser with passkey support to sign in or add a passkey.</Notice>{/if}
+	{#if previewFailed && !session?.authenticated}<Notice tone="error">Sign-in could not be completed. Please try again.</Notice>{/if}
+	{#if ready && !passkeysSupported && !session?.signInWith}<Notice tone="error">This browser does not support passkeys. Open this page in a browser with passkey support to sign in or add a passkey.</Notice>{/if}
 	{#if requestError}<Notice tone="error">{requestError}</Notice>{/if}
 	{#if requestId && session && !session.authenticated}<p>Sign in to review this app's access request.</p>{/if}
-	{#if session && !session.authenticated}
+	{#if session && !session.authenticated && session.signInWith}
+		<Section title="Owner sign-in">
+			<p>This is a preview of the site. Sign in with your passkey on {issuerName(session.signInWith)} and you'll come back here signed in. Publishing stays off on previews.</p>
+			<Button variant="primary" href={previewSignInHref(previewReturn)}>Sign in with {issuerName(session.signInWith)}</Button>
+		</Section>
+	{:else if session && !session.authenticated}
 		<Section title="Owner sign-in">
 			<p>Use a passkey to manage this site's connected apps and access tokens.</p>
 			{#if session.credentialCount > 0}<Button variant="primary" disabled={busy || !passkeysSupported} onclick={login}>Sign in with passkey</Button>{/if}
@@ -177,6 +186,9 @@
 		<p><a href="/readwise">Review Readwise bookmarks →</a></p>
 		<NewsletterSettings csrf={session.csrf} />
 		<BlueskySettings csrf={session.csrf} result={page.url.searchParams.get('bluesky')} message={page.url.searchParams.get('message')} />
+		{#if session.signInWith}
+		<p class="hint">Signed in to this preview through {issuerName(session.signInWith)}. Passkeys and access tokens are managed there.</p>
+		{:else}
 		<Section title="Passkeys">
 			<p>Keep a second passkey so you can sign in if a device is unavailable.</p>
 			<Button disabled={busy || !passkeysSupported} onclick={register}>Add passkey</Button>
@@ -198,6 +210,7 @@
 				<div class="actions"><Button disabled={busy} onclick={() => run(async () => { await navigator.clipboard.writeText(newToken); notice = 'Token copied.'; })}>Copy token</Button>
 				<Button variant="quiet" disabled={busy} onclick={() => { newToken = ''; }}>Dismiss token</Button></div></div>{/if}
 		</Section>
+		{/if}
 		<Button disabled={busy} onclick={() => run(async () => { await api('/auth/logout', { csrf: session?.csrf }); rememberOwner(false); newToken = ''; await refresh(); notice = 'You are signed out.'; })}>Sign out</Button>
 	{/if}
 </Page>

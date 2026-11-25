@@ -10,6 +10,7 @@ import { syncBackfeed } from './src/lib/server/backfeed.ts';
 import { routeAgentRequest } from 'agents';
 import { chatViewer, withViewer } from './src/lib/server/chat/identity.ts';
 import { CHAT_OWNER_ONLY } from './src/lib/chat.ts';
+import { withPreviewOrigin } from './src/lib/server/indieauth/contracts.ts';
 
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 export { ChatThread } from './src/lib/server/chat/agent.ts';
@@ -34,7 +35,9 @@ async function chatAgentRequest(request, env) {
 }
 
 export default {
-  fetch(request, env, context) {
+  fetch(request, workerEnv, context) {
+    // On branch previews, owner sign-in is bound to the host this request came in on.
+    const env = withPreviewOrigin(workerEnv, request);
     // Storybook is deployed separately (wrangler.storybook.jsonc) under the same /storybook/ path.
     const { pathname } = new URL(request.url);
     if (env.STORYBOOK && (pathname === '/storybook' || pathname.startsWith('/storybook/'))) return env.STORYBOOK.fetch(request);

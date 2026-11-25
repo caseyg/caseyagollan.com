@@ -71,15 +71,20 @@
 	 * that implement a Durable Object, so branch builds use Previews instead.
 	 * Previews inherit nothing from the settings above except assets and
 	 * compatibility settings, and each Preview gets its own AUTH_STORE namespace.
-	 * Sign-in, publishing, and imports stay off: passkeys are bound to the
-	 * production hostname, and previews must not write content or post socially.
+	 * Passkeys are bound to the production hostname, so Casey signs in to a preview
+	 * through production instead: AUTH_PREVIEW_ISSUER makes the preview an IndieAuth
+	 * client of caseyagollan.com (src/lib/server/indieauth/preview.ts). The preview
+	 * holds no passkeys and issues no tokens. Publishing and imports stay off: previews
+	 * must not write content or post socially.
 	 * Media, screenshots, and the insight cache are read from production.
 	 */
 	"previews": {
 		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }] },
 		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }],
 		"vars": {
-			"AUTH_ENABLED": "false",
+			"AUTH_ENABLED": "true",
+			"AUTH_ME": "https://caseyagollan.com/",
+			"AUTH_PREVIEW_ISSUER": "https://caseyagollan.com/",
 			"PUBLISHING_ENABLED": "false",
 			"PESOS_ENABLED": "false",
 			"PUBLISHING_DELIVERY_ENABLED": "false",
