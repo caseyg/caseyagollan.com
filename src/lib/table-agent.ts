@@ -42,7 +42,8 @@ export interface TablePlace { at?: TablePoint; below?: string; right_of?: string
 
 export type TableOp =
 	| { op: 'add_from_search'; query: string; filter?: 'all' | 'post' | 'book' | 'wiki' | 'arena' | 'raindrop'; limit?: number; columns?: number; at?: TablePoint }
-	| { op: 'add_links'; urls: string[]; columns?: number; at?: TablePoint }
+	/** `find`: for a page on this site, words its search finds it by (its title, then its first words), so it's added as the rich block the Add menu gives, not a bare link. */
+	| { op: 'add_links'; urls: string[]; find?: Record<string, string[]>; columns?: number; at?: TablePoint }
 	| { op: 'add_blocks'; blocks: Block[]; columns?: number; at?: TablePoint }
 	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number; color?: TableColor } & TablePlace)
 	/** Several notes at once, set out together from their measured sizes: a comparison's cells in one change. */

@@ -25,7 +25,7 @@ import { charge, costOf, DEFAULT_MONTHLY_BUDGET, resetsOn, spent } from './budge
 import { viewerFrom } from './identity';
 import { DEFAULT_CHAT_MODEL, ModelError, streamCompletion } from './model';
 import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type SayData } from './projection';
-import { chatModels } from './provider';
+import { chatModels, COMPACTION } from './provider';
 import { saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
 import { itemsFromDocument, tableThreadId, type TableOp, type TableOpReply } from '../../table-agent';
@@ -83,7 +83,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			return Harness.open(storage, {
 				models, registry: this.registry, onWake, identity: { attribution: null },
 				// A failed answer doesn't hold up the next person's message.
-				settings: { afterFailedRun: 'continue', retry: { maxRetries: 2 } }
+				settings: { afterFailedRun: 'continue', retry: { maxRetries: 2 }, compaction: COMPACTION }
 			}, context);
 		},
 		defaults: { model: chatModels(this.env).model, maxTurns: MAX_TURNS }
@@ -409,7 +409,9 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 					// Send the finished answer whole, so a page that missed part of it along the way still shows it.
 					const answer = next.at(-1);
 					if (answer?.role === 'assistant') this.send({ type: 'chat:message', message: answer });
-					console.log(JSON.stringify({ event: 'chat_run_end', thread: this.meta('id'), status: answer?.role === 'assistant' ? answer.status : 'no_answer', chars: answer?.role === 'assistant' ? answer.content.length : 0, tools: answer?.role === 'assistant' ? answer.tools?.map((use) => `${use.tool}:${use.status}`) : undefined }));
+					// Why a failed answer stopped (Pi's reason and the gateway's message), so a screenshot of “the answer stopped” can be traced.
+					const failure = answer?.role === 'assistant' && answer.status === 'failed' && live.runFailure ? { reason: live.runFailure.reason, detail: live.runFailure.detail?.slice(0, 300) } : undefined;
+					console.log(JSON.stringify({ event: 'chat_run_end', thread: this.meta('id'), status: answer?.role === 'assistant' ? answer.status : 'no_answer', ...(failure ? { failure } : {}), chars: answer?.role === 'assistant' ? answer.content.length : 0, tools: answer?.role === 'assistant' ? answer.tools?.map((use) => `${use.tool}:${use.status}`) : undefined }));
 					await this.index(next);
 					await this.bill().catch((error) => console.warn(JSON.stringify({ event: 'chat_bill_failed', detail: String(error).slice(0, 200) })));
 					this.changed();

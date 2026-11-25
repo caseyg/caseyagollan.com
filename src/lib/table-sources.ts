@@ -1,6 +1,6 @@
 import { searchPrivateArena, searchRaindrop } from './arena-client';
 import { loadPagefind, plainExcerpt, type PagefindData } from './pagefind';
-import { ARENA_ICON, POST_ICON, type Block, type BlockKind } from './tables';
+import { ARENA_ICON, linkBlock, POST_ICON, type Block, type BlockKind } from './tables';
 
 const PAGE_SIZE = 24;
 
@@ -70,4 +70,22 @@ export function withOwnerSources(search: typeof searchBlocks = searchBlocks, sou
 		if (found === null && !arena.length && !raindrop.length) return null;
 		return [...(found ?? []), ...arena, ...raindrop];
 	};
+}
+
+const samePage = (a: string, b: string) => a.replace(/[?#].*$/, '').replace(/\/+$/, '') === b.replace(/[?#].*$/, '').replace(/\/+$/, '');
+
+/**
+ * A link as a block. A page on this site that its search finds by one of `find` (its title, its
+ * first words) comes back as the same rich block the Add menu gives: picture, type and excerpt.
+ * Anything else, or a page the search doesn't find, is a plain link block.
+ */
+export async function linkedBlock(url: string, find: readonly string[] = [], origin?: string, search: typeof searchBlocks = searchBlocks): Promise<Block | null> {
+	const link = linkBlock(url, origin);
+	if (!link || !link.url.startsWith('/')) return link;
+	for (const words of find) {
+		const found = await search(words.slice(0, 200), 'all', 12).catch(() => null);
+		const match = found?.find((block) => samePage(block.url, link.url));
+		if (match) return match;
+	}
+	return link;
 }

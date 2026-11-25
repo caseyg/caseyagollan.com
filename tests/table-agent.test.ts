@@ -141,3 +141,19 @@ describe('table chat drawing', () => {
 		expect(isOwnerTool('table_connect')).toBe(true);
 	});
 });
+
+describe('links the chat adds', () => {
+	const post = { kind: 'post' as const, url: '/2026/11/24/paperwork/', title: 'Commission on Federal Paperwork', meta: 'repost · 2026-11-24', image: '/media/paperwork.jpg', icon: '🔁' };
+	const search = async (words: string) => words.includes('Paperwork') ? [{ kind: 'post' as const, url: '/2026/11/20/other/', title: 'Other' }, post] : [];
+
+	test('a page on this site becomes the rich block its search finds', async () => {
+		const { linkedBlock } = await import('../src/lib/table-sources');
+		expect(await linkedBlock('https://caseyagollan.com/2026/11/24/paperwork', ['Nope', 'Commission on Federal Paperwork'], undefined, search)).toEqual(post);
+	});
+
+	test('anything else stays a plain link', async () => {
+		const { linkedBlock } = await import('../src/lib/table-sources');
+		expect(await linkedBlock('https://caseyagollan.com/2026/11/24/missing/', ['Paperwork'], undefined, search)).toMatchObject({ kind: 'link', url: '/2026/11/24/missing/' });
+		expect(await linkedBlock('https://example.com/a', ['Paperwork'], undefined, search)).toMatchObject({ kind: 'link', url: 'https://example.com/a' });
+	});
+});

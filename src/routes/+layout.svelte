@@ -17,8 +17,18 @@
 
 	// Casey's chat follows them around the site. Visitors never load it: chat is owner-only for now.
 	let chatViewer = $state<ChatViewer | null>(null);
+	const framed = () => {
+		try {
+			return window.self !== window.top;
+		} catch {
+			return true;
+		}
+	};
 	onMount(() => {
 		void (async () => {
+			// A page shown inside another (a table's preview in a chat answer or a post) is not
+			// where Casey is: a second chat there opened inside the first.
+			if (framed()) return;
 			if (CHAT_OWNER_ONLY && !(await ownerSignedIn())) return;
 			const response = await fetch('/api/chat', { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
 			if (response?.ok) chatViewer = ((await response.json()) as { viewer: ChatViewer }).viewer;

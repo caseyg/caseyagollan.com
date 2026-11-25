@@ -527,9 +527,17 @@ describe('the chat’s tools', () => {
 		const { tool } = await setup({ table: 'abc123', ops });
 		await out(tool('table_add'), { items: [{ note: 'Micropub', text: '', w: 240 }, { note: 'ignored', url: '/library/1', search: 'also ignored' }, { text: 'A paragraph.', note: '' }] });
 		expect(ops.map((op) => op.op)).toEqual(['add_links', 'add_notes', 'arrange', 'read']);
-		expect(ops[0].urls).toEqual(['/library/1']);
+		expect(ops[0].urls).toEqual(['https://caseyagollan.com/library/1']);
 		expect(ops[1].notes).toEqual([{ text: 'Micropub', style: 'note' }, { text: 'A paragraph.', style: 'text' }]);
 		expect(out(tool('table_add'), { items: [{ note: '' }] })).rejects.toThrow('Nothing was added');
+	});
+
+	test('a post on this site is sent with the words its search finds it by, for a rich block', async () => {
+		const ops: { op: string; urls?: string[]; find?: Record<string, string[]> }[] = [];
+		const { tool } = await setup({ table: 'abc123', ops });
+		await out(tool('table_add'), { items: [{ url: '/2026/11/24/like-a' }, { url: 'https://example.com/elsewhere' }] });
+		expect(ops[0].urls).toEqual(['https://caseyagollan.com/2026/11/24/like-a', 'https://example.com/elsewhere']);
+		expect(ops[0].find).toEqual({ 'https://caseyagollan.com/2026/11/24/like-a': ['Post by Someone', 'A liked post'] });
 	});
 
 	test('an empty item leaves a cell of a grid of notes open', async () => {
