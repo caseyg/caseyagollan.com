@@ -3,6 +3,7 @@ import { readTable } from '$lib/server/tables';
 import { chatViewer } from '$lib/server/chat/identity';
 import { threadStub } from '$lib/server/chat/threads';
 import { tableThreadId } from '$lib/table-agent';
+import { CHAT_OWNER_ONLY } from '$lib/chat';
 import { isOwner } from '$lib/server/tables-api';
 import { isPublished, validId, type Table } from '$lib/tables';
 import type { PageServerLoad } from './$types';
@@ -35,7 +36,10 @@ async function tableChat(table: Table, request: Request, env: App.Platform['env'
 	const stub = threadStub(env ?? {}, tableThreadId(table.id));
 	if (!stub || !env) return null;
 	try {
-		const [snapshot, viewer] = await Promise.all([stub.openTable(table.id, url.origin + '/', table.name), chatViewer(request, env).catch(() => null)]);
+		const viewer = await chatViewer(request, env).catch(() => null);
+		// Owner-only for now: visitors get no overlay, and no thread is made for them.
+		if (CHAT_OWNER_ONLY && !viewer?.owner) return null;
+		const snapshot = await stub.openTable(table.id, url.origin + '/', table.name);
 		return snapshot ? { snapshot, viewer, signinError: url.searchParams.get('signin')?.slice(0, 200) ?? null } : null;
 	} catch (e) {
 		console.error('Table chat error:', e);

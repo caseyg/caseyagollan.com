@@ -5,7 +5,7 @@
 	import { searchPrivateArena } from '$lib/arena-client';
 	import { pageCommands } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
-	import { SECTIONS } from '$lib/site-sections';
+	import { visibleSections } from '$lib/site-sections';
 	import { CommandPalette, PullDown, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
 
 	interface Props {
@@ -44,7 +44,6 @@
 		});
 	}
 
-	const places: CommandOption[] = SECTIONS.map(({ href, label, icon, keywords }) => ({ value: `go:${href}`, label, icon, keywords }));
 	const write: CommandOption = {
 		value: 'write',
 		label: 'Write a post',
@@ -63,6 +62,8 @@
 	let menuRequested = false;
 	// Writing is offered only while the owner is signed in; the composer checks the session itself too.
 	let owner = $state(false);
+	// Owner-only sections (Chat, for now) are places only for the owner.
+	const places: CommandOption[] = $derived(visibleSections(owner).map(({ href, label, icon, keywords }) => ({ value: `go:${href}`, label, icon, keywords })));
 	$effect(() => {
 		if (open) ownerSignedIn().then((signedIn) => (owner = signedIn));
 	});

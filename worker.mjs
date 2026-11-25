@@ -9,6 +9,7 @@ import { syncBackfeed } from './src/lib/server/backfeed.ts';
 
 import { routeAgentRequest } from 'agents';
 import { chatViewer, withViewer } from './src/lib/server/chat/identity.ts';
+import { CHAT_OWNER_ONLY } from './src/lib/chat.ts';
 
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 export { ChatThread } from './src/lib/server/chat/agent.ts';
@@ -23,7 +24,10 @@ async function chatAgentRequest(request, env) {
     onBeforeConnect: async (req, route) => {
       if (route.className !== 'ChatThread' || !/^[a-z0-9]{10}$/.test(route.name)) return new Response('Not found', { status: 404 });
       if (req.headers.get('origin') && new URL(req.headers.get('origin')).host !== new URL(req.url).host) return new Response('Forbidden', { status: 403 });
-      return withViewer(req, await chatViewer(req, env).catch(() => null));
+      const viewer = await chatViewer(req, env).catch(() => null);
+      // Owner-only for now (CHAT_OWNER_ONLY in src/lib/chat.ts).
+      if (CHAT_OWNER_ONLY && !viewer?.owner) return new Response('Not found', { status: 404 });
+      return withViewer(req, viewer);
     },
     onBeforeRequest: () => new Response('Not found', { status: 404 })
   });

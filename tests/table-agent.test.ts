@@ -69,3 +69,12 @@ describe('table chat', () => {
 		expect(toolLabel('go_to', { path: '/library' })).toBe('Took you to /library');
 	});
 });
+
+describe('chat is owner-only for now', () => {
+	test('the nav and palette show Chat only to the owner', async () => {
+		const { visibleSections } = await import('../src/lib/site-sections');
+		expect(visibleSections(false).some((section) => section.id === 'chat')).toBe(false);
+		expect(visibleSections(true).some((section) => section.id === 'chat')).toBe(true);
+		expect(visibleSections(false).map((section) => section.id)).toEqual(['home', 'library', 'posts', 'wiki', 'tables']);
+	});
+});

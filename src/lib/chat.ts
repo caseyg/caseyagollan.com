@@ -86,6 +86,9 @@ export type ChatClientEvent =
 	| { type: 'table:ready' }
 	| import('./table-agent').TableOpReply;
 
+/** For now chat is Casey's alone: /chat, its sign-in, its sockets and the table overlay need the owner's session. */
+export const CHAT_OWNER_ONLY = true;
+
 export const CHAT_MAX_MESSAGE = 4000;
 export const CHAT_ID = /^[a-z0-9]{10}$/;
 
