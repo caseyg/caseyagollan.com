@@ -1,0 +1,26 @@
+<script module lang="ts">
+	import { defineMeta } from '@storybook/addon-svelte-csf';
+	import ChatTool from './ChatTool.svelte';
+
+	const { Story } = defineMeta({
+		title: 'Chat/ChatTool',
+		component: ChatTool,
+		args: { step: { tool: 'search_site', label: 'Searched the site for “cooperatives”', status: 'done', links: [{ url: '/library/', title: 'Library' }, { url: '/wiki/cooperatives', title: 'Cooperatives' }] } }
+	});
+</script>
+
+<!-- Gray, like the site's other in-feed controls; links open on demand. -->
+<Story name="Search with links" />
+
+<Story name="Running" args={{ step: { tool: 'fetch_page', label: 'Read indieweb.org/Micropub', status: 'running' } }} />
+
+<Story name="Failed" args={{ step: { tool: 'fetch_page', label: 'Read example.com/private', status: 'failed' } }} />
+
+<Story name="Micropub" args={{ step: { tool: 'micropub_update_post', label: 'Updated a post', status: 'done' } }} />
+
+<!-- `show_page`: the page as a card everyone reading can open. -->
+<Story name="Page peek" args={{ step: { tool: 'show_page', label: 'Showed Syndication threads over Micropub', status: 'done', peek: { url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub', excerpt: 'A post can carry its social copy as a reply chain, and the endpoint advertises it in q=config.' } } }} />
+
+<Story name="Table change" args={{ step: { tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' } }} />
+
+<Story name="Took you somewhere" args={{ step: { tool: 'go_to', label: 'Took you to /library', status: 'done' } }} />

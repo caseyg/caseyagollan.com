@@ -7,13 +7,38 @@ import { syncWebmentions } from './src/lib/server/webmentions.ts';
 import { publishFeedUpdates } from './src/lib/server/websub.ts';
 import { syncBackfeed } from './src/lib/server/backfeed.ts';
 
+import { routeAgentRequest } from 'agents';
+import { chatViewer, withViewer } from './src/lib/server/chat/identity.ts';
+import { CHAT_OWNER_ONLY } from './src/lib/chat.ts';
+
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
+export { ChatThread } from './src/lib/server/chat/agent.ts';
+
+/**
+ * /chat threads are Agents (one Durable Object each) at /agents/chat-thread/<id>. Only
+ * their WebSockets are public: the Worker works out who is connecting and tells the agent
+ * in a header it sets itself. Plain HTTP to an agent is refused.
+ */
+async function chatAgentRequest(request, env) {
+  return routeAgentRequest(request, env, {
+    onBeforeConnect: async (req, route) => {
+      if (route.className !== 'ChatThread' || !/^[a-z0-9]{10}$/.test(route.name)) return new Response('Not found', { status: 404 });
+      if (req.headers.get('origin') && new URL(req.headers.get('origin')).host !== new URL(req.url).host) return new Response('Forbidden', { status: 403 });
+      const viewer = await chatViewer(req, env).catch(() => null);
+      // Owner-only for now (CHAT_OWNER_ONLY in src/lib/chat.ts).
+      if (CHAT_OWNER_ONLY && !viewer?.owner) return new Response('Not found', { status: 404 });
+      return withViewer(req, viewer);
+    },
+    onBeforeRequest: () => new Response('Not found', { status: 404 })
+  });
+}
 
 export default {
   fetch(request, env, context) {
     // Storybook is deployed separately (wrangler.storybook.jsonc) under the same /storybook/ path.
     const { pathname } = new URL(request.url);
     if (env.STORYBOOK && (pathname === '/storybook' || pathname.startsWith('/storybook/'))) return env.STORYBOOK.fetch(request);
+    if (pathname.startsWith('/agents/')) return chatAgentRequest(request, env).then((response) => response ?? new Response('Not found', { status: 404 }));
     return application.fetch(request, env, context);
   },
   async scheduled(event, env, _context) {

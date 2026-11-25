@@ -2,7 +2,9 @@
 	import Search from './Search.svelte';
 	import SitePalette from './SitePalette.svelte';
 	import { Corner, SegmentedPill } from '$lib/components/ui';
-	import { SECTIONS as sections, type Section } from '$lib/site-sections';
+	import { onMount } from 'svelte';
+	import { ownerSignedIn } from '$lib/owner';
+	import { visibleSections, type Section } from '$lib/site-sections';
 
 	let {
 		currentPage,
@@ -20,6 +22,10 @@
 	// Set by the corner when the full row would leave a page's trail too little room, as on a phone.
 	let crowded = $state(false);
 	const condensed = $derived(forceCondensed || crowded);
+	// Owner-only sections (Chat, for now) appear once the owner's session is confirmed.
+	let owner = $state(false);
+	onMount(() => { ownerSignedIn().then((signedIn) => (owner = signedIn)); });
+	const sections = $derived(visibleSections(owner || currentPage === 'chat'));
 	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));
 
 	// Condensed, the sections fold into one menu that names the section being viewed.
