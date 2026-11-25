@@ -10,10 +10,22 @@ import type { Element, ElementContent, Root, RootContent } from 'hast';
 import { parseHTML } from 'linkedom';
 import { safePublicFetch, type PublicFetcher } from '../publishing/public-fetch';
 
-/** Characters of Markdown handed to the model; the rest is cut with a note. */
-export const PAGE_LIMIT = 24_000;
+/**
+ * Characters of Markdown handed to the model at a time: about two thousand tokens, so reading
+ * three pages at once still fits the chat's context. The rest is there to ask for (`from`).
+ */
+export const PAGE_LIMIT = 8_000;
 
-export interface FetchedPage { url: string; title: string; author?: string; published?: string; description?: string; markdown: string; truncated: boolean }
+export interface FetchedPage {
+	url: string; title: string; author?: string; published?: string; description?: string;
+	/** The part asked for: `PAGE_LIMIT` characters from `from`. */
+	markdown: string;
+	/** Whether the page goes on past this part. */
+	truncated: boolean;
+	/** Where this part starts, and how long the whole page is, in characters. */
+	from: number;
+	total: number;
+}
 
 const text = (node: ElementContent | RootContent): string =>
 	node.type === 'text' ? node.value : node.type === 'element' ? node.children.map(text).join('') : '';
@@ -82,7 +94,8 @@ export function readableMarkdown(html: string, base: string): string {
 }
 
 /** Read a page: its title, byline and main text as Markdown. */
-export async function fetchPage(address: string, options: { origin: string; assets?: Pick<Fetcher, 'fetch'>; fetcher?: PublicFetcher }): Promise<FetchedPage> {
+export async function fetchPage(address: string, options: { origin: string; assets?: Pick<Fetcher, 'fetch'>; fetcher?: PublicFetcher; from?: number }): Promise<FetchedPage> {
+	const from = Math.max(0, Math.floor(Number(options.from) || 0));
 	let url: URL;
 	try { url = new URL(address, options.origin); } catch { throw new Error('That isn’t a web address.'); }
 	url.hash = '';
@@ -95,7 +108,7 @@ export async function fetchPage(address: string, options: { origin: string; asse
 	const type = response.headers.get('content-type') ?? '';
 	const body = await response.text();
 	if (!/html|xml/i.test(type)) {
-		if (/^text\/|json/i.test(type)) return { url: url.href, title: url.pathname.split('/').pop() || url.host, markdown: body.slice(0, PAGE_LIMIT), truncated: body.length > PAGE_LIMIT };
+		if (/^text\/|json/i.test(type)) return { url: url.href, title: url.pathname.split('/').pop() || url.host, markdown: body.slice(from, from + PAGE_LIMIT), truncated: body.length > from + PAGE_LIMIT, from, total: body.length };
 		throw new Error(`${url.host} sent ${type.split(';')[0] || 'something'} rather than a page.`);
 	}
 	const { document } = parseHTML(body);
@@ -107,7 +120,9 @@ export async function fetchPage(address: string, options: { origin: string; asse
 		...(article.author ? { author: article.author } : {}),
 		...(article.published ? { published: article.published } : {}),
 		...(article.description ? { description: article.description } : {}),
-		markdown: markdown.slice(0, PAGE_LIMIT),
-		truncated: markdown.length > PAGE_LIMIT
+		markdown: markdown.slice(from, from + PAGE_LIMIT),
+		truncated: markdown.length > from + PAGE_LIMIT,
+		from,
+		total: markdown.length
 	};
 }

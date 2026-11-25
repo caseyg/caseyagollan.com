@@ -30,7 +30,14 @@ export interface TableLink { from: string; to: string; label?: string; color?: T
 /** A pen stroke: points on the page (a line is two), or a loop drawn around an item. */
 export interface TableStroke { points?: TablePoint[]; around?: string; closed?: boolean; color?: TableColor; size?: 's' | 'm' | 'l' | 'xl' }
 
-/** Where a new note goes: a point, or just below or right of an item already there. */
+/**
+ * One note of several: a sticky note, or (style `text`) a wrapped text card `w` wide. `blank`
+ * makes nothing and leaves its cell of the layout empty: the corner of a comparison that has
+ * headings along the top and down the side.
+ */
+export interface TableNote { text: string; style?: 'note' | 'text'; w?: number; color?: TableColor; blank?: boolean }
+
+/** Where new or arranged things go: a point, or just below or right of an item already there. */
 export interface TablePlace { at?: TablePoint; below?: string; right_of?: string }
 
 export type TableOp =
@@ -38,6 +45,8 @@ export type TableOp =
 	| { op: 'add_links'; urls: string[]; columns?: number; at?: TablePoint }
 	| { op: 'add_blocks'; blocks: Block[]; columns?: number; at?: TablePoint }
 	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number; color?: TableColor } & TablePlace)
+	/** Several notes at once, set out together from their measured sizes: a comparison's cells in one change. */
+	| ({ op: 'add_notes'; notes: TableNote[]; layout?: TableLayout; columns?: number } & TablePlace)
 	| { op: 'connect'; links: TableLink[] }
 	| { op: 'draw'; strokes: TableStroke[] }
 	| { op: 'frame'; name: string; ids?: string[]; at?: TablePoint; w?: number; h?: number; color?: TableColor }
@@ -45,7 +54,7 @@ export type TableOp =
 	| { op: 'ungroup'; ids: string[] }
 	| { op: 'edit'; edits: { id: string; text?: string; color?: TableColor }[] }
 	| { op: 'move'; moves: ({ id: string } & Partial<TablePoint> & { w?: number; h?: number })[] }
-	| { op: 'arrange'; layout: TableLayout; ids?: string[]; columns?: number; gap?: number; at?: TablePoint }
+	| ({ op: 'arrange'; layout: TableLayout; ids?: string[]; columns?: number; gap?: number } & TablePlace)
 	| { op: 'align'; ids: string[]; align?: TableAlign; distribute?: 'horizontal' | 'vertical' }
 	| { op: 'tidy'; ids?: string[] }
 	| { op: 'look'; ids?: string[] }
@@ -104,8 +113,11 @@ export function tableThreadId(tableId: string): string {
 	return (a.toString(36).padStart(7, '0').slice(-5) + b.toString(36).padStart(7, '0').slice(-5));
 }
 
-/** The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's open page. */
-export const TABLE_OWNER_TOOLS = ['table_add_from_search', 'table_add_links', 'table_add_note', 'table_move', 'table_arrange', 'table_align', 'table_tidy', 'table_look', 'table_connect', 'table_draw', 'table_frame', 'table_group', 'table_edit', 'table_remove', 'table_select', 'table_rename'] as const;
+/**
+ * The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's
+ * open page. Everything but `table_new` needs a table open beside the chat.
+ */
+export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look'] as const;
 
 /** What is on a saved table, from its tldraw document, for when no canvas is open to ask. */
 export function itemsFromDocument(document: unknown): TableItem[] {

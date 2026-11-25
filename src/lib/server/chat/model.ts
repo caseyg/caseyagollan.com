@@ -25,13 +25,15 @@ export class ModelError extends Error {
 
 export async function streamCompletion(options: {
 	apiKey: string; model: string; baseUrl?: string; messages: ModelMessage[]; tools?: ModelTool[];
-	onText?: (text: string) => void; signal?: AbortSignal; fetcher?: typeof fetch; maxTokens?: number;
+	onText?: (text: string) => void; signal?: AbortSignal; fetcher?: typeof fetch; maxTokens?: number; reasoningEffort?: string;
 }): Promise<Completion> {
 	const response = await (options.fetcher ?? fetch)(`${options.baseUrl ?? INFERENCE_BASE_URL}/chat/completions`, {
 		method: 'POST',
 		headers: { authorization: `Bearer ${options.apiKey}`, 'content-type': 'application/json', accept: 'text/event-stream' },
 		body: JSON.stringify({
 			model: options.model, stream: true, messages: options.messages, max_tokens: options.maxTokens ?? 4000,
+			// Unset, the gateway's GLM thinks without limit and can spend its whole allowance before writing a word.
+			reasoning_effort: options.reasoningEffort ?? 'low',
 			...(options.tools?.length ? { tools: options.tools, tool_choice: 'auto' } : {})
 		}),
 		signal: options.signal

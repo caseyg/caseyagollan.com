@@ -139,23 +139,40 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 
 /** What readers see for a step: the query, the address, or what Micropub was asked to do. */
 export function toolLabel(name: string, args: Record<string, unknown>): string {
-	if (name === 'search_site') return `Searched the site for “${String(args.query ?? '').slice(0, 80)}”`;
+	if (name === 'search_site') {
+		const query = String(args.query ?? '').trim().slice(0, 80);
+		if (query) return `Searched the site for “${query}”`;
+		const kind = typeof args.type === 'string' && args.type !== 'post' ? `${args.type === 'reply' ? 'replie' : args.type}s` : 'posts';
+		const when = Number(args.days) > 0 ? ` from the last ${Number(args.days) === 1 ? 'day' : `${Math.round(Number(args.days))} days`}` : typeof args.since === 'string' ? ` since ${args.since.slice(0, 10)}` : typeof args.until === 'string' ? ` up to ${args.until.slice(0, 10)}` : '';
+		return `Looked through ${when ? '' : 'the newest '}${kind}${when}${typeof args.tag === 'string' && args.tag ? ` tagged ${args.tag.slice(0, 40)}` : ''}`;
+	}
+	if (name === 'fetch_page' && !String(args.url ?? '').trim()) return 'Read this page';
 	if (name === 'fetch_page') { try { const url = new URL(String(args.url)); return `Read ${url.host}${url.pathname === '/' ? '' : url.pathname}`.slice(0, 100); } catch { return `Read ${String(args.url ?? '').slice(0, 80)}`; } }
 	if (name === 'micropub_create_post') return args.post_status === 'published' ? 'Published a post' : 'Saved a draft';
 	if (name === 'micropub_update_post') return 'Updated a post';
-	if (name === 'micropub_list_posts') return 'Looked through recent posts';
+	if (name === 'micropub_list_posts') return args.drafts_only ? 'Looked for drafts' : 'Looked through recent posts';
 	if (name === 'micropub_get_post') return 'Opened a post';
 	if (name === 'micropub_config') return 'Checked the Micropub setup';
 	if (name === 'show_page') return `Opened a preview of ${String(args.url ?? '').replace(/^https?:\/\//, '').slice(0, 80)}`;
 	if (name === 'go_to') return `Took you to ${String(args.path ?? '').slice(0, 80)}`;
-	if (name === 'create_table') return `Made a table, “${String(args.name ?? '').slice(0, 60)}”`;
+	if (name === 'create_table' || name === 'table_new') return `Made a table, “${String(args.name ?? '').slice(0, 60)}”`;
+	if (name === 'table_add') {
+		const items = Array.isArray(args.items) ? args.items as Record<string, unknown>[] : [];
+		const notes = items.filter((item) => typeof item?.note === 'string' || typeof item?.text === 'string').length, links = items.filter((item) => typeof item?.url === 'string').length;
+		const searches = items.filter((item) => typeof item?.search === 'string').map((item) => `“${String(item.search).slice(0, 40)}”`);
+		const parts = [notes ? `${notes} note${notes === 1 ? '' : 's'}` : '', links ? `${links} link${links === 1 ? '' : 's'}` : '', searches.length ? `results for ${searches.join(', ')}` : ''].filter(Boolean);
+		return `Added ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'to the table'}`.slice(0, 120);
+	}
 	if (name === 'table_read') return 'Read the table';
 	if (name === 'table_look') return 'Looked at the table';
 	if (name === 'table_connect') { const n = Array.isArray(args.links) ? args.links.length : 0; return `Drew ${n === 1 ? 'an arrow' : `${n} arrows`}`; }
 	if (name === 'table_draw') return Array.isArray(args.strokes) && args.strokes.some((stroke) => (stroke as { around?: unknown })?.around) ? 'Circled something' : 'Drew on the table';
 	if (name === 'table_frame') return `Framed ${args.ids ? count(args.ids, 'item') : 'a space'} as “${String(args.name ?? '').slice(0, 60)}”`;
-	if (name === 'table_group') return `${args.ungroup ? 'Ungrouped' : 'Grouped'} ${count(args.ids, 'item')}`;
-	if (name === 'table_edit') return `Edited ${count(args.edits, 'item')}`;
+	if (name === 'table_group') return typeof args.name === 'string' && args.name && !args.ungroup ? `Framed ${count(args.ids, 'item')} as “${args.name.slice(0, 60)}”` : `${args.ungroup ? 'Ungrouped' : 'Grouped'} ${count(args.ids, 'item')}`;
+	if (name === 'table_edit') {
+		const parts = [Array.isArray(args.edits) && args.edits.length ? `edited ${count(args.edits, 'item')}` : '', Array.isArray(args.remove) && args.remove.length ? `removed ${count(args.remove, 'item')}` : '', typeof args.rename === 'string' && args.rename ? `renamed the table “${args.rename.slice(0, 60)}”` : ''].filter(Boolean).join(', ');
+		return parts ? parts[0].toUpperCase() + parts.slice(1) : 'Edited the table';
+	}
 	if (name === 'table_tidy') return `Tidied ${args.ids ? count(args.ids, 'item') : 'the table'}`;
 	if (name === 'table_align') return `${args.align ? 'Lined up' : 'Spaced out'} ${count(args.ids, 'item')}`;
 	if (name === 'view_image') return `Looked at ${String(args.url ?? '').replace(/^https?:\/\//, '').slice(0, 80)}`;
@@ -163,6 +180,7 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'table_add_links') return `Added ${count(args.urls, 'link')}`;
 	if (name === 'table_add_note') return args.style === 'text' ? 'Added some text' : 'Added a note';
 	if (name === 'table_move') return `Moved ${count(args.moves, 'item')}`;
+	if (name === 'table_arrange' && (args.layout === 'tidy' || !args.layout)) return args.layout === 'tidy' ? `Tidied ${args.ids ? count(args.ids, 'item') : 'the table'}` : `${args.align ? 'Lined up' : 'Spaced out'} ${count(args.ids, 'item')}`;
 	if (name === 'table_arrange') return `Arranged ${args.ids ? count(args.ids, 'item') : 'the table'} ${args.layout === 'pack' ? 'packed together' : args.layout === 'columns' ? 'in columns' : `in a ${args.layout === 'row' || args.layout === 'column' ? args.layout : 'grid'}`}`;
 	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
 	if (name === 'table_select') return `Pointed out ${count(args.ids, 'item')}`;
@@ -197,7 +215,11 @@ export function peekFrom(output: string): ChatToolUse['peek'] | undefined {
 /** Public links from a public tool's output, for the reader to follow. Never Micropub output. */
 export function linksFrom(name: string, output: string): { url: string; title: string }[] {
 	try {
-		if (name === 'search_site') return (JSON.parse(output) as { url: string; title: string }[]).slice(0, 5).map(({ url, title }) => ({ url, title }));
+		if (name === 'search_site') {
+			// Older threads hold a bare list; the tool now answers `{ total, results }`.
+			const found = JSON.parse(output) as { url: string; title: string }[] | { results?: { url: string; title: string }[] };
+			return (Array.isArray(found) ? found : found.results ?? []).slice(0, 5).map(({ url, title }) => ({ url, title }));
+		}
 		const title = /^# (.+)$/m.exec(output)?.[1], url = /^URL: (.+)$/m.exec(output)?.[1];
 		return url ? [{ url, title: title ?? url }] : [];
 	} catch { return []; }
