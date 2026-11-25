@@ -20,6 +20,16 @@ export const TABLE_LAYOUTS: readonly TableLayout[] = ['grid', 'columns', 'row', 
 export type TableAlign = 'left' | 'center-horizontal' | 'right' | 'top' | 'center-vertical' | 'bottom';
 export const TABLE_ALIGNS: readonly TableAlign[] = ['left', 'center-horizontal', 'right', 'top', 'center-vertical', 'bottom'];
 
+/** tldraw's colours, as its style panel names them. */
+export const TABLE_COLORS = ['white', 'grey', 'black', 'light-violet', 'violet', 'blue', 'light-blue', 'yellow', 'orange', 'green', 'light-green', 'light-red', 'red'] as const;
+export type TableColor = (typeof TABLE_COLORS)[number];
+
+/** An arrow between two items, bound to both so it follows them when they move. */
+export interface TableLink { from: string; to: string; label?: string; color?: TableColor; bend?: number; kind?: 'arc' | 'elbow'; dash?: 'draw' | 'solid' | 'dashed' | 'dotted'; both_ends?: boolean }
+
+/** A pen stroke: points on the page (a line is two), or a loop drawn around an item. */
+export interface TableStroke { points?: TablePoint[]; around?: string; closed?: boolean; color?: TableColor; size?: 's' | 'm' | 'l' | 'xl' }
+
 /** Where a new note goes: a point, or just below or right of an item already there. */
 export interface TablePlace { at?: TablePoint; below?: string; right_of?: string }
 
@@ -27,7 +37,13 @@ export type TableOp =
 	| { op: 'add_from_search'; query: string; filter?: 'all' | 'post' | 'book' | 'wiki' | 'arena' | 'raindrop'; limit?: number; columns?: number; at?: TablePoint }
 	| { op: 'add_links'; urls: string[]; columns?: number; at?: TablePoint }
 	| { op: 'add_blocks'; blocks: Block[]; columns?: number; at?: TablePoint }
-	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number } & TablePlace)
+	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number; color?: TableColor } & TablePlace)
+	| { op: 'connect'; links: TableLink[] }
+	| { op: 'draw'; strokes: TableStroke[] }
+	| { op: 'frame'; name: string; ids?: string[]; at?: TablePoint; w?: number; h?: number; color?: TableColor }
+	| { op: 'group'; ids: string[] }
+	| { op: 'ungroup'; ids: string[] }
+	| { op: 'edit'; edits: { id: string; text?: string; color?: TableColor }[] }
 	| { op: 'move'; moves: ({ id: string } & Partial<TablePoint> & { w?: number; h?: number })[] }
 	| { op: 'arrange'; layout: TableLayout; ids?: string[]; columns?: number; gap?: number; at?: TablePoint }
 	| { op: 'align'; ids: string[]; align?: TableAlign; distribute?: 'horizontal' | 'vertical' }
@@ -48,6 +64,11 @@ export interface TableItem {
 	/** A block's picture, which `view_image` can look at. */
 	image?: string;
 	text?: string;
+	/** An arrow's ends: the ids of the items it joins, when it is tied to them. */
+	from?: string;
+	to?: string;
+	/** The frame or group an item sits in. */
+	parent?: string;
 	x: number;
 	y: number;
 	w: number;
@@ -84,15 +105,24 @@ export function tableThreadId(tableId: string): string {
 }
 
 /** The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's open page. */
-export const TABLE_OWNER_TOOLS = ['table_add_from_search', 'table_add_links', 'table_add_note', 'table_move', 'table_arrange', 'table_align', 'table_tidy', 'table_look', 'table_remove', 'table_select', 'table_rename'] as const;
+export const TABLE_OWNER_TOOLS = ['table_add_from_search', 'table_add_links', 'table_add_note', 'table_move', 'table_arrange', 'table_align', 'table_tidy', 'table_look', 'table_connect', 'table_draw', 'table_frame', 'table_group', 'table_edit', 'table_remove', 'table_select', 'table_rename'] as const;
 
 /** What is on a saved table, from its tldraw document, for when no canvas is open to ask. */
 export function itemsFromDocument(document: unknown): TableItem[] {
 	const store = (document as { store?: Record<string, unknown> } | null)?.store;
 	if (!store || typeof store !== 'object') return [];
 	const items: TableItem[] = [];
+	// Arrows tied to items keep their ends in binding records.
+	const ends = new Map<string, { from?: string; to?: string }>();
 	for (const record of Object.values(store)) {
-		const shape = record as { typeName?: string; id?: string; type?: string; x?: number; y?: number; props?: Record<string, unknown> } | null;
+		const binding = record as { typeName?: string; type?: string; fromId?: string; toId?: string; props?: { terminal?: string } } | null;
+		if (binding?.typeName !== 'binding' || binding.type !== 'arrow' || typeof binding.fromId !== 'string' || typeof binding.toId !== 'string') continue;
+		const arrow = ends.get(binding.fromId) ?? {};
+		arrow[binding.props?.terminal === 'start' ? 'from' : 'to'] = binding.toId.replace(/^shape:/, '');
+		ends.set(binding.fromId, arrow);
+	}
+	for (const record of Object.values(store)) {
+		const shape = record as { typeName?: string; id?: string; type?: string; x?: number; y?: number; parentId?: string; props?: Record<string, unknown> } | null;
 		if (shape?.typeName !== 'shape' || typeof shape.id !== 'string' || typeof shape.type !== 'string') continue;
 		const props = shape.props ?? {};
 		const block = shape.type === 'site-block';
@@ -105,8 +135,10 @@ export function itemsFromDocument(document: unknown): TableItem[] {
 		if (block && typeof props.title === 'string') item.title = props.title;
 		if (block && typeof props.url === 'string') item.url = props.url;
 		if (block && typeof props.image === 'string' && props.image) item.image = props.image;
-		const text = block ? props.excerpt : plainText(props.richText);
+		const text = block ? props.excerpt : shape.type === 'frame' ? props.name : plainText(props.richText);
 		if (typeof text === 'string' && text) item.text = text.slice(0, block ? 200 : 400);
+		Object.assign(item, ends.get(shape.id) ?? {});
+		if (shape.parentId?.startsWith('shape:')) item.parent = shape.parentId.slice(6);
 		items.push(item);
 	}
 	return items.sort((a, b) => a.y - b.y || a.x - b.x);

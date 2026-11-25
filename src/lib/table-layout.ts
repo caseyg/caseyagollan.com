@@ -94,6 +94,8 @@ export interface LayoutIssues {
 	overlaps: { ids: [string, string]; by: number }[];
 	/** Pairs that touch or nearly do: less than half a grid step apart. */
 	crowded: [string, string][];
+	/** Arrows drawn through a card they don't join: [arrow, card]. */
+	crossings?: [string, string][];
 }
 
 /**
@@ -114,4 +116,31 @@ export function layoutIssues(boxes: Box[]): LayoutIssues {
 		}
 	}
 	return { overlaps: overlaps.sort((a, b) => b.by - a.by).slice(0, 30), crowded: crowded.slice(0, 30) };
+}
+
+/** Whether the straight line from a to b passes through a box (shrunk by `inset`, so grazing an edge doesn't count). */
+export function segmentHitsBox(a: { x: number; y: number }, b: { x: number; y: number }, box: Box, inset = 6): boolean {
+	const [minX, minY, maxX, maxY] = [box.x + inset, box.y + inset, box.x + box.w - inset, box.y + box.h - inset];
+	if (minX >= maxX || minY >= maxY) return false;
+	// Liang–Barsky: clip the segment to the box; it hits if anything is left.
+	let t0 = 0, t1 = 1;
+	const dx = b.x - a.x, dy = b.y - a.y;
+	for (const [p, q] of [[-dx, a.x - minX], [dx, maxX - a.x], [-dy, a.y - minY], [dy, maxY - a.y]]) {
+		if (p === 0) { if (q < 0) return false; continue; }
+		const t = q / p;
+		if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
+		else { if (t < t0) return false; if (t < t1) t1 = t; }
+	}
+	return t0 < t1;
+}
+
+/**
+ * Arrows that run through cards they don't join, which hides those cards' text: each arrow
+ * as the straight line between the centres of what it joins, and the items it may cross
+ * (`skip` names its own ends and the frames they sit in).
+ */
+export function arrowCrossings(arrows: { id: string; a: { x: number; y: number }; b: { x: number; y: number }; skip: string[] }[], boxes: Box[]): [string, string][] {
+	const crossings: [string, string][] = [];
+	for (const arrow of arrows) for (const box of boxes) if (!arrow.skip.includes(box.id) && segmentHitsBox(arrow.a, arrow.b, box)) crossings.push([arrow.id, box.id]);
+	return crossings.slice(0, 30);
 }

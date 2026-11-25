@@ -151,6 +151,11 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'create_table') return `Made a table, “${String(args.name ?? '').slice(0, 60)}”`;
 	if (name === 'table_read') return 'Read the table';
 	if (name === 'table_look') return 'Looked at the table';
+	if (name === 'table_connect') { const n = Array.isArray(args.links) ? args.links.length : 0; return `Drew ${n === 1 ? 'an arrow' : `${n} arrows`}`; }
+	if (name === 'table_draw') return Array.isArray(args.strokes) && args.strokes.some((stroke) => (stroke as { around?: unknown })?.around) ? 'Circled something' : 'Drew on the table';
+	if (name === 'table_frame') return `Framed ${args.ids ? count(args.ids, 'item') : 'a space'} as “${String(args.name ?? '').slice(0, 60)}”`;
+	if (name === 'table_group') return `${args.ungroup ? 'Ungrouped' : 'Grouped'} ${count(args.ids, 'item')}`;
+	if (name === 'table_edit') return `Edited ${count(args.edits, 'item')}`;
 	if (name === 'table_tidy') return `Tidied ${args.ids ? count(args.ids, 'item') : 'the table'}`;
 	if (name === 'table_align') return `${args.align ? 'Lined up' : 'Spaced out'} ${count(args.ids, 'item')}`;
 	if (name === 'view_image') return `Looked at ${String(args.url ?? '').replace(/^https?:\/\//, '').slice(0, 80)}`;

@@ -99,3 +99,29 @@ describe('table chat pictures', () => {
 		expect(toolLabel('table_arrange', { layout: 'columns' })).toBe('Arranged the table in columns');
 	});
 });
+
+describe('table chat drawing', () => {
+	test('a saved table’s arrows name the items they join; framed items name their frame', () => {
+		const document = {
+			schema: {},
+			store: {
+				'shape:f': { typeName: 'shape', id: 'shape:f', type: 'frame', parentId: 'page:1', x: 0, y: 0, props: { w: 600, h: 400, name: 'Deep listening' } },
+				'shape:a': { typeName: 'shape', id: 'shape:a', type: 'note', parentId: 'shape:f', x: 40, y: 40, props: { richText: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Cistern' }] }] } } },
+				'shape:arrow': { typeName: 'shape', id: 'shape:arrow', type: 'arrow', parentId: 'page:1', x: 0, y: 500, props: {} },
+				'binding:1': { typeName: 'binding', id: 'binding:1', type: 'arrow', fromId: 'shape:arrow', toId: 'shape:a', props: { terminal: 'start' } },
+				'binding:2': { typeName: 'binding', id: 'binding:2', type: 'arrow', fromId: 'shape:arrow', toId: 'shape:f', props: { terminal: 'end' } }
+			}
+		};
+		const items = itemsFromDocument(document);
+		expect(items.find((item) => item.id === 'f')).toMatchObject({ type: 'frame', text: 'Deep listening' });
+		expect(items.find((item) => item.id === 'a')).toMatchObject({ parent: 'f' });
+		expect(items.find((item) => item.id === 'arrow')).toMatchObject({ from: 'a', to: 'f' });
+	});
+
+	test('drawing steps read plainly', () => {
+		expect(toolLabel('table_connect', { links: [{}, {}] })).toBe('Drew 2 arrows');
+		expect(toolLabel('table_draw', { strokes: [{ around: 'x' }] })).toBe('Circled something');
+		expect(toolLabel('table_frame', { name: 'Sources', ids: ['a', 'b'] })).toBe('Framed 2 items as “Sources”');
+		expect(isOwnerTool('table_connect')).toBe(true);
+	});
+});

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { columnLayout, columnsLayout, gridLayout, layoutIssues, tidyLayout, type Box, type Placement } from '../src/lib/table-layout';
+import { arrowCrossings, columnLayout, columnsLayout, segmentHitsBox, gridLayout, layoutIssues, tidyLayout, type Box, type Placement } from '../src/lib/table-layout';
 
 const apply = (boxes: Box[], placements: Placement[]) => boxes.map((box) => ({ ...box, ...placements.find((place) => place.id === box.id) }));
 
@@ -56,4 +56,10 @@ describe('table layout', () => {
 test('a card put somewhere on purpose stays; what it lands on moves', () => {
 	const boxes: Box[] = [{ id: 'old', x: 0, y: 100, w: 200, h: 200 }, { id: 'new', x: 0, y: 100, w: 300, h: 100 }];
 	expect(tidyLayout(boxes, 20, 'new')).toEqual([{ id: 'old', x: 0, y: 220 }]);
+});
+
+test('an arrow through a card it doesn’t join is a crossing', () => {
+	const boxes: Box[] = [{ id: 'a', x: 0, y: 0, w: 100, h: 100 }, { id: 'mid', x: 150, y: 0, w: 100, h: 100 }, { id: 'b', x: 300, y: 0, w: 100, h: 100 }, { id: 'below', x: 150, y: 200, w: 100, h: 100 }];
+	expect(arrowCrossings([{ id: 'arrow', a: { x: 50, y: 50 }, b: { x: 350, y: 50 }, skip: ['a', 'b'] }], boxes)).toEqual([['arrow', 'mid']]);
+	expect(segmentHitsBox({ x: 0, y: 150 }, { x: 400, y: 150 }, boxes[1])).toBe(false);
 });
