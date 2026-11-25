@@ -1,5 +1,6 @@
 export { default as Avatar } from './Avatar.svelte';
 export { default as Button } from './Button.svelte';
+export { default as BottomSheet } from './BottomSheet.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
 export { default as CheckboxGroup } from './CheckboxGroup.svelte';
 export { default as Divider } from './Divider.svelte';

@@ -62,7 +62,10 @@ export async function finishPreviewSignIn(request: Request, settings: AuthSettin
 	const issuer = settings.previewIssuer!;
 	const [state, verifier, encodedReturn] = cookie(request, PREVIEW_STATE_COOKIE)?.split('.') ?? [];
 	const code = url.searchParams.get('code');
-	if (!state || !verifier || !code || url.searchParams.get('state') !== state || url.searchParams.get('iss') !== issuer) return failed(url.origin);
+	if (!state || !verifier || !code || url.searchParams.get('state') !== state || url.searchParams.get('iss') !== issuer) {
+		console.warn('preview sign-in: state or issuer did not match', { cookie: !!state, code: !!code });
+		return failed(url.origin);
+	}
 	let returnTo = '/account';
 	try { returnTo = safeReturnTo(new TextDecoder().decode(Uint8Array.from(atob(encodedReturn.replaceAll('-', '+').replaceAll('_', '/')), (c) => c.charCodeAt(0))), url.origin) ?? returnTo; } catch { /* Fall back to the account page. */ }
 	const { clientId, redirectUri } = previewClient(url.origin);
@@ -74,10 +77,19 @@ export async function finishPreviewSignIn(request: Request, settings: AuthSettin
 			headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
 			body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: clientId, redirect_uri: redirectUri, code_verifier: verifier }).toString()
 		});
-		if (!response.ok) return failed(url.origin);
+		if (!response.ok) {
+			console.warn('preview sign-in: the issuer refused the code', response.status);
+			return failed(url.origin);
+		}
 		me = ((await response.json()) as { me?: unknown }).me;
-	} catch { return failed(url.origin); }
-	if (me !== settings.me) return failed(url.origin);
+	} catch (error) {
+		console.warn('preview sign-in: could not reach the issuer', error instanceof Error ? error.message : error);
+		return failed(url.origin);
+	}
+	if (me !== settings.me) {
+		console.warn('preview sign-in: the code was for someone else');
+		return failed(url.origin);
+	}
 	const session = await store.invoke('previewSession', { me });
 	const maxAge = Math.max(0, Math.floor((session.expiresAt - Date.now()) / 1000));
 	// The account page records the owner hint for static pages, then forwards to returnTo.
