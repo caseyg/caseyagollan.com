@@ -34,9 +34,13 @@
 		sheetExpanded?: boolean;
 		/** The folded sheet's height in pixels, for the page to keep its content clear of it. */
 		sheetRestHeight?: number;
+		/** Shown before the first message. */
+		intro?: string;
+		/** Starts a new chat, from the title bar. */
+		onnew?: () => void;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = 'Ask about this table', sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0) }: Props = $props();
+	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = 'Ask about this table', sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew }: Props = $props();
 
 	let text = $state('');
 	const replies = $derived(messages.filter((message) => message.role === 'assistant').length);
@@ -48,6 +52,7 @@
 {#snippet titleBar()}
 	{#if href}<a class="title" {href}>{title}</a>{:else}<span class="title">{title}</span>{/if}
 	<div class="controls">
+		{#if onnew}<Button variant="icon" size="sm" icon="plus" label="New chat" onclick={onnew} />{/if}
 		<Button variant="icon" size="sm" icon="sidebar" label={dockLabel} pressed={mode === 'docked'} onclick={() => (mode = mode === 'docked' ? 'floating' : 'docked')} />
 		<Button variant="icon" size="sm" icon="close" label="Minimize the chat" onclick={() => (mode = 'minimized')} />
 	</div>
@@ -55,7 +60,7 @@
 
 {#snippet conversation()}
 	<ChatConversation {messages} viewerId={viewer?.id}>
-		{#snippet empty()}<p class="empty">Ask about what’s on this table, or{viewer?.owner ? ' ask to add things, set them out or tidy up.' : ' what it’s about.'}</p>{/snippet}
+		{#snippet empty()}<p class="empty">{intro ?? `Ask about what’s on this table, or${viewer?.owner ? ' ask to add things, set them out or tidy up.' : ' what it’s about.'}`}</p>{/snippet}
 	</ChatConversation>
 {/snippet}
 
@@ -87,7 +92,7 @@
 		{#snippet peek()}
 			<span class="latest">
 				{#if latest?.writing}<span class="pill-dot" aria-label="writing"></span>{/if}
-				<span class="line">{latest?.text || (messages.length ? title : 'Ask about what’s on this table')}</span>
+				<span class="line">{latest?.text || (messages.length ? title : intro ?? 'Ask about what’s on this table')}</span>
 			</span>
 		{/snippet}
 		{#snippet footer()}<div class="composer">{@render composer()}</div>{/snippet}

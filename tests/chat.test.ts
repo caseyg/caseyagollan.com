@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { chatAgo, chatTitle, latestAssistantLine, threadTitle, type ChatMessage } from '../src/lib/chat';
+import { chatAgo, chatPage, chatTitle, latestAssistantLine, threadTitle, type ChatMessage } from '../src/lib/chat';
 import { readableMarkdown } from '../src/lib/server/chat/fetch-page';
 import { chatViewer, startVisitorSession, viewerFrom, withViewer, VIEWER_HEADER } from '../src/lib/server/chat/identity';
 import { discoverIndieAuth, finishLogin, instanceOrigin, LOGIN_COOKIE, profileAddress, safeReturn, startLogin } from '../src/lib/server/chat/login';
@@ -277,5 +277,18 @@ describe('latestAssistantLine', () => {
 		expect(latestAssistantLine([ask, reply('', { status: 'streaming', tools: [step] })])).toEqual({ text: 'Searched for cooperatives…', writing: true });
 		expect(latestAssistantLine([ask, reply('', { status: 'streaming' })])).toEqual({ text: 'Thinking…', writing: true });
 		expect(latestAssistantLine([ask, reply('', { status: 'failed' })])?.text).toBe('The assistant couldn’t answer.');
+	});
+});
+
+describe('chatPage', () => {
+	test('keeps a path on this site, a tidy title and a table id', () => {
+		expect(chatPage({ path: '/posts/2026/hello/', title: '  Hello\n world ', table: 'abc-123' })).toEqual({ path: '/posts/2026/hello/', title: 'Hello world', table: 'abc-123' });
+	});
+
+	test('refuses anything that isn’t a path here', () => {
+		expect(chatPage({ path: 'https://example.com/' })).toBeNull();
+		expect(chatPage({ path: '//example.com/' })).toBeNull();
+		expect(chatPage(null)).toBeNull();
+		expect(chatPage({ path: '/x', table: 'Not An Id!', title: 3 })).toEqual({ path: '/x' });
 	});
 });

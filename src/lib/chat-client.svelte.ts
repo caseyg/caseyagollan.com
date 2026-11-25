@@ -2,7 +2,7 @@
  * A /chat thread in the browser: the server-rendered snapshot, kept live over the
  * thread agent's WebSocket (`/agents/chat-thread/<id>`), reconnecting with backoff.
  */
-import { CHAT_AGENT, type ChatClientEvent, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatViewer } from '$lib/chat';
+import { CHAT_AGENT, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatViewer } from '$lib/chat';
 import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 export interface LiveThreadOptions {
@@ -26,6 +26,7 @@ export class LiveThread {
 	#timer?: ReturnType<typeof setTimeout>;
 	#closed = false;
 
+	#page?: ChatPage;
 	#onchange?: () => void;
 	#options: LiveThreadOptions;
 
@@ -49,7 +50,8 @@ export class LiveThread {
 		socket.onopen = () => {
 			this.#retry = 0;
 			this.status = 'live';
-			if (this.#options.ontableop) this.#send({ type: 'table:ready' });
+			if (this.#page) this.#send({ type: 'page:here', page: this.#page });
+			else if (this.#options.ontableop) this.#send({ type: 'table:ready' });
 		};
 		socket.onmessage = (event) => { if (typeof event.data === 'string') this.#receive(event.data); };
 		socket.onclose = () => {
@@ -72,6 +74,12 @@ export class LiveThread {
 		this.error = '';
 		this.#socket.send(JSON.stringify({ type: 'chat:say', text }));
 		return true;
+	}
+
+	/** Tell the thread which page this browser is on now (and its table), so the assistant knows what “this page” is. */
+	here(page: ChatPage) {
+		this.#page = page;
+		this.#send({ type: 'page:here', page });
 	}
 
 	#send(event: ChatClientEvent) {
@@ -106,6 +114,7 @@ export class LiveThread {
 			case 'chat:done': { const message = this.#find(event.id); if (message) { message.status = event.status; message.content = event.content; } this.#onchange?.(); break; }
 			case 'chat:title': this.snapshot.thread.title = event.title; this.#onchange?.(); break;
 			case 'chat:error': this.error = event.error; break;
+			case 'chat:abilities': this.tools = event.tools; break;
 		}
 	}
 }

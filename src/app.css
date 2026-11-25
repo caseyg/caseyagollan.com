@@ -183,3 +183,14 @@ body {
 		display: none !important;
 	}
 }
+
+/* Room for Casey's docked chat (SiteChat): a sidebar on wide screens, its folded sheet on narrow ones. */
+@media (min-width: 900px) {
+	html[data-chat-dock='side'] body {
+		padding-right: 24rem;
+	}
+}
+
+html[data-chat-dock='sheet'] body {
+	padding-bottom: var(--chat-sheet-rest, 0px);
+}
