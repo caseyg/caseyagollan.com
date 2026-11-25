@@ -1,18 +1,21 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TableWireframe, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
 	import { PageHeader } from '$lib/components/ui';
 	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
-	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
+	import { linkedBlock, searchBlocks, withOwnerSources } from '$lib/table-sources';
 	import { pagePieces } from '$lib/table-pieces';
 	import { wikiHref } from '$lib/wiki/links';
-	import { blockKey, linkBlock, type Block } from '$lib/tables';
+	import { blockKey, type Block } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
 	import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
+	// The layout gives each table its own page; saves keep to the table this page opened,
+	// even one that lands as the page goes.
+	const id = untrack(() => data.id);
 
 	let session = $state<TablesSession | null>(null);
 	// The owner's Add menu also finds private Are.na blocks and Raindrop bookmarks.
@@ -42,7 +45,7 @@
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
 	$effect(() => {
 		if (!data.chat?.viewer?.owner) return;
-		return offerTable({ table: data.id, thread: data.chat.snapshot.thread.id, ontableop: tableOp });
+		return offerTable({ table: id, thread: data.chat.snapshot.thread.id, ontableop: tableOp });
 	});
 
 	/** What the assistant asked of the table, done here so it animates, saves and undoes like Casey's own edits. */
@@ -58,7 +61,7 @@
 				return { ok: true, result: { added: ids.map((shapeId, index) => ({ id: shapeId.replace(/^shape:/, ''), title: found[index]?.title, url: found[index]?.url })) } };
 			}
 			case 'add_links': {
-				const blocks = op.urls.map((url) => linkBlock(url, location.origin)).filter((block): block is Block => !!block);
+				const blocks = (await Promise.all(op.urls.map((url) => linkedBlock(url, op.find?.[url], location.origin)))).filter((block): block is Block => !!block);
 				if (!blocks.length) return { ok: false, error: 'None of those were links.' };
 				const ids = api.addBlocks(blocks, op.at, { columns: op.columns ?? Math.min(blocks.length, 3), page: !!op.at, select: true });
 				return { ok: true, result: { added: ids.map((shapeId) => shapeId.replace(/^shape:/, '')) } };
@@ -82,7 +85,7 @@
 		void (async () => {
 			session = await tablesSession();
 			if (!data.table) {
-				const local = session.mode === 'demo' ? readDemoTable(data.id) : null;
+				const local = session.mode === 'demo' ? readDemoTable(id) : null;
 				if (!local) {
 					missing = true;
 					return;
@@ -100,6 +103,8 @@
 		window.addEventListener('beforeunload', warn);
 		return () => {
 			window.removeEventListener('beforeunload', warn);
+			// Leaving for another page (or another table): save what's waiting now.
+			if (pending !== undefined) void flush();
 		};
 	});
 
@@ -135,7 +140,7 @@
 		const next = pending;
 		pending = undefined;
 		status = 'saving';
-		saving = saveTable(session, data.id, { document: next })
+		saving = saveTable(session, id, { document: next })
 			.then(() => {
 				if (pending === undefined) status = 'saved';
 			})
@@ -152,7 +157,7 @@
 		const previous = name;
 		name = next;
 		try {
-			name = (await saveTable(session, data.id, { name: next })).name;
+			name = (await saveTable(session, id, { name: next })).name;
 		} catch (error) {
 			console.error(error);
 			name = previous;
@@ -174,7 +179,7 @@
 		if (!session) return;
 		published = next;
 		try {
-			published = (await saveTable(session, data.id, { published: next })).published !== false;
+			published = (await saveTable(session, id, { published: next })).published !== false;
 		} catch (error) {
 			console.error(error);
 			published = !next;

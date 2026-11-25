@@ -88,6 +88,26 @@ export const SCENARIOS: Scenario[] = [
 		]
 	},
 	{
+		// Casey's ask on the home page notes table (chat dm2wwyw4rf): eight searches, then the answer stopped with an error.
+		name: 'table-illustrate',
+		ask: 'Illustrate each part with images/links from my site connected with arrows',
+		page: '/tables/evaltable1',
+		pageTitle: 'Home page notes',
+		table: [
+			{ id: 'n1', type: 'note', text: 'Recently shipped: agents for product teams, a dashboard tracking 70+ product strategy metrics, and a research library connecting 1,000+ UX insights to roadmaps.', x: 0, y: 0, w: 240, h: 200 },
+			{ id: 'n2', type: 'note', text: 'Outside work: knowledge gardening in Obsidian, writing personal software, reading about alternative organizing and technology critique.', x: 0, y: 240, w: 240, h: 200 },
+			{ id: 'n3', type: 'note', text: 'Open platforms: writing and speaking about the need for interoperable systems in enterprise product development.', x: 280, y: 0, w: 240, h: 200 },
+			{ id: 'n4', type: 'note', text: 'Local-first, decentralized, and indieweb software: Obsidian, IndieKit, prototyping Otso.', x: 280, y: 240, w: 240, h: 200 },
+			{ id: 'n5', type: 'note', text: 'Operations as design: advocating for the invisible work behind the work.', x: 280, y: 480, w: 240, h: 200 }
+		],
+		checks: [
+			{ name: 'answers', pass: (seen) => seen.answer.length > 40 },
+			{ name: 'adds at least three blocks', pass: (seen) => seen.items.filter((item) => item.url).length >= 3 },
+			{ name: 'draws at least three arrows', pass: (seen) => seen.items.filter((item) => item.type === 'arrow').length >= 3 },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) }
+		]
+	},
+	{
 		name: 'new-table',
 		ask: 'Make a new table called Calm tech and put my calm technology Are.na channels on it.',
 		page: '/tables',

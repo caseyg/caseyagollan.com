@@ -23,7 +23,7 @@ import { GenerationTask, hook, LiveDoc, ToolTask, type Extension, type HookApi, 
 import { fetchPage, PAGE_LIMIT } from './fetch-page';
 import { MICROPUB_TOOLS, micropubMcpClient, type MicropubCall } from './micropub-mcp';
 import { SAY_KIND, type SayData } from './projection';
-import { daysBefore, findDocuments, loadAgentIndex, localDate, SEARCH_TYPES } from './site-search';
+import { daysBefore, findDocuments, loadAgentIndex, localDate, SEARCH_TYPES, type AgentSearchDocument } from './site-search';
 import { publishingConfig, type PublishingEnvironment } from '../publishing/config';
 import { TABLE_ALIGNS, TABLE_COLORS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, type TableAlign, type TableColor, type TableItem, type TableLink, type TableNote, type TablePlace, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
 import { imageFromDataUrl, viewImage } from './view-image';
@@ -240,6 +240,24 @@ export function chatExtension(deps: ToolDeps): Extension {
 	const timeZone = config?.timeZone ?? 'America/New_York';
 	const thread = deps.thread;
 	const maxTurns = deps.maxTurns ?? 8;
+	/**
+	 * For each of this site's pages among `urls`, what its search finds it by: its title, then its
+	 * first words. Casey's page looks it up and adds the same rich block (picture, type, excerpt)
+	 * as the Add menu does, rather than a bare link showing its path.
+	 */
+	const findHints = async (urls: string[]): Promise<Record<string, string[]> | undefined> => {
+		const origin = deps.origin();
+		const documents = await loadAgentIndex(deps.env.ASSETS, origin).catch(() => [] as AgentSearchDocument[]);
+		const trim = (path: string) => path.replace(/[?#].*$/, '').replace(/\/+$/, '');
+		const byPath = new Map(documents.map((doc) => [trim(doc.u), doc]));
+		const find: Record<string, string[]> = {};
+		for (const url of urls) {
+			const path = sitePath(url, origin);
+			const doc = path ? byPath.get(trim(path)) : undefined;
+			if (doc) find[url] = [doc.t, doc.x.split(/\s+/).slice(0, 10).join(' ')].filter((words) => words.trim());
+		}
+		return Object.keys(find).length ? find : undefined;
+	};
 	const effort = deps.reasoningEffort || 'low';
 
 	const searchSite: ToolRegistration = {
@@ -529,7 +547,8 @@ export function chatExtension(deps: ToolDeps): Extension {
 				const said_ = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : undefined;
 				for (const item of items) {
 					const url = said_(item.url), search = url ? undefined : said_(item.search), card = said_(item.text), sticky = said_(item.note);
-					if (url) urls.push(url);
+					// This site's pages go as full addresses: a bare path isn't a link to Casey's page.
+					if (url) { const path = sitePath(url, deps.origin()); urls.push(path ? new URL(path, deps.origin()).href : url); }
 					else if (search) {
 						const result = await run({ op: 'add_from_search', query: search.slice(0, 200), filter: item.filter as never, limit: Math.min(12, Number(item.limit) || 6), columns });
 						const got = idsOf(result.added);
@@ -540,7 +559,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 					// An item with no words holds a cell of the grid open: the corner of a comparison with headings on both sides.
 					else notes.push({ text: '', blank: true });
 				}
-				if (urls.length) { added.push(...idsOf((await run({ op: 'add_links', urls: urls.slice(0, 24), columns })).added)); kinds++; }
+				if (urls.length) { added.push(...idsOf((await run({ op: 'add_links', urls: urls.slice(0, 24), find: await findHints(urls.slice(0, 24)), columns })).added)); kinds++; }
 				let issues: unknown;
 				const cells = notes.filter((note) => !note.blank);
 				if (cells.length) {
