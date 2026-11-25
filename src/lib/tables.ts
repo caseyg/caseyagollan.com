@@ -173,3 +173,18 @@ export function linkBlock(input: string, origin?: string): Block | null {
 	if (local) return { kind: 'link', url: `${url.pathname}${url.search}${url.hash}`, title: path || 'caseyagollan.com', meta: 'caseyagollan.com', icon: '🏠' };
 	return { kind: 'link', url: url.href, title, meta: host, image: `/api/screenshot?url=${encodeURIComponent(url.href)}` };
 }
+
+/** Whose Are.na a channel is, as its card says. */
+export const ARENA_USER_NAME = 'Casey Gollan';
+
+/**
+ * What an Are.na block is, read from its line (`Channel · 12 blocks`, `Image · site.com`, `Private · Text`):
+ * its type in lower case, whether only Casey can see it, and the rest of the line.
+ */
+export function arenaKind(block: Pick<Block, 'meta'>): { type: string; private: boolean; detail: string } {
+	const parts = (block.meta ?? '').split(' · ').map((part) => part.trim()).filter(Boolean);
+	const hidden = parts[0] === 'Private';
+	if (hidden) parts.shift();
+	const type = parts.shift()?.toLowerCase() || 'block';
+	return { type, private: hidden, detail: parts.join(' · ') };
+}
