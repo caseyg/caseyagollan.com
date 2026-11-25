@@ -15,7 +15,7 @@ import { MICROPUB_TOOLS, micropubMcpClient } from './micropub-mcp';
 import { SAY_KIND, type SayData } from './projection';
 import { loadAgentIndex, searchDocuments } from './site-search';
 import { publishingConfig, type PublishingEnvironment } from '../publishing/config';
-import { TABLE_ALIGNS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, type TableAlign, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
+import { TABLE_ALIGNS, TABLE_COLORS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, type TableAlign, type TableColor, type TableLink, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
 import { imageFromDataUrl, viewImage } from './view-image';
 import { ownerMicropub } from '../publishing/post-editor';
 
@@ -46,6 +46,9 @@ const text = (value: string) => ({ output: [{ type: 'text' as const, text: value
 const json = (value: unknown) => text(JSON.stringify(value));
 const POINT = { x: { type: 'number', description: 'Left edge, in canvas units.' }, y: { type: 'number', description: 'Top edge, in canvas units.' } };
 const IDS = { type: 'array', items: { type: 'string' }, maxItems: 100 };
+const COLOR = { type: 'string', enum: [...TABLE_COLORS] };
+const color = (value: unknown): TableColor | undefined => TABLE_COLORS.find((name) => name === value);
+const list = (value: unknown, max: number) => (Array.isArray(value) ? value : []).filter((item): item is Record<string, unknown> => !!item && typeof item === 'object').slice(0, max);
 const at = (args: { x?: unknown; y?: unknown }) => typeof args.x === 'number' && typeof args.y === 'number' ? { x: args.x, y: args.y } : undefined;
 const strings = (value: unknown, max: number) => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, max) : [];
 export const isMicropubTool = (name: string) => name.startsWith('micropub_');
@@ -67,7 +70,15 @@ const PREAMBLE = [
 const TABLE_SECTION = [
 	'This chat belongs to one of Casey’s tables: a canvas of blocks (posts, books, wiki pages, Are.na blocks, links), sticky notes, text and drawings. Its readers see it beside the chat.',
 	'table_read lists what is on it, with ids, kinds, titles and measured boxes in canvas units (x grows right, y grows down; the dot grid is 20), plus any overlaps. Read before changing things, and refer to items by those ids.',
-	'When Casey asks, the other table_* tools add blocks from the site’s search or from links, add notes and text, move and resize, set things out, align, tidy, remove, select and zoom to things, and rename the table. Casey sees each change and can undo it. Say briefly what you changed.',
+	'When Casey asks, the other table_* tools do everything the table’s own toolbar does: add blocks from the site’s search or from links, add sticky notes and text (table_add_note), draw arrows between items (table_connect), draw with the pen (table_draw), put items in named frames (table_frame) or groups (table_group), change a note’s, text’s, arrow label’s or frame’s words and colour (table_edit), move and resize, set things out, align, tidy, erase (table_remove), select and zoom to things, and rename the table. Casey sees each change and can undo it. Say briefly what you changed. Don’t tell Casey the table can’t do something these tools do.',
+	[
+		'Showing how things relate:',
+		'- To show that one item leads to, supports or explains another, connect them with table_connect: arrows are tied to both items, follow them when they move, and can carry a short label (“recorded in”, “source”). Lay the items out first, then connect them.',
+		'- To gather a topic, put its items in a table_frame with a short name; the frame moves with its items. Use table_group for items that should move as one without a visible box.',
+		'- Use table_draw sparingly, for emphasis: `around` an item draws a loop around it; points draw a line or underline.',
+		'- Keep arrow labels to one to three words, and leave at least 120 units between items you connect so the label has room. An arrow shouldn’t run through a card it doesn’t join: changes report these as `crossings`; fix them by moving items, or with a `bend`.',
+		'- Arrows and drawings don’t count as overlaps; frames and groups hold their items by design. A loop drawn `around` an item follows it when you move it.'
+	].join('\n'),
 	[
 		'Laying out a table well:',
 		'- Never guess sizes. Blocks are about 240×240 (books 180×300); notes are 200 wide and grow taller with their text; text cards wrap at the width you give. Use the w and h that table_read and each change report.',
@@ -202,8 +213,8 @@ export function chatExtension(deps: ToolDeps): Extension {
 		{
 			name: 'table_add_note',
 			description: 'Put a note on the table: a sticky note for a few words, or (style `text`) a wrapped text card for a paragraph. Place it below or right of an item by id, at a point, or leave both out for an open spot in view. Anything it lands on is pushed down. Reports its measured size.',
-			parameters: { type: 'object', properties: { text: { type: 'string' }, style: { type: 'string', enum: ['note', 'text'], description: 'note (default): a 200-wide sticky note that grows with its text. text: a card that wraps at w.' }, w: { type: 'number', description: 'Width of a text card, 160–800; 360 if left out.' }, below: { type: 'string', description: 'Id of the item to put it under.' }, right_of: { type: 'string', description: 'Id of the item to put it beside.' }, ...POINT }, required: ['text'] },
-			execute: op((args) => ({ op: 'add_note', text: String(args.text ?? ''), style: args.style === 'text' ? 'text' : 'note', w: Number(args.w) || undefined, at: at(args), below: typeof args.below === 'string' ? args.below : undefined, right_of: typeof args.right_of === 'string' ? args.right_of : undefined }))
+			parameters: { type: 'object', properties: { text: { type: 'string' }, style: { type: 'string', enum: ['note', 'text'], description: 'note (default): a 200-wide sticky note that grows with its text. text: a card that wraps at w.' }, w: { type: 'number', description: 'Width of a text card, 160–800; 360 if left out.' }, below: { type: 'string', description: 'Id of the item to put it under.' }, right_of: { type: 'string', description: 'Id of the item to put it beside.' }, color: COLOR, ...POINT }, required: ['text'] },
+			execute: op((args) => ({ op: 'add_note', text: String(args.text ?? ''), style: args.style === 'text' ? 'text' : 'note', w: Number(args.w) || undefined, at: at(args), below: typeof args.below === 'string' ? args.below : undefined, right_of: typeof args.right_of === 'string' ? args.right_of : undefined, color: color(args.color) }))
 		},
 		{
 			name: 'table_move',
@@ -216,6 +227,36 @@ export function chatExtension(deps: ToolDeps): Extension {
 			description: 'Set items out from their measured sizes, a gap apart, so nothing overlaps: grid (columns and rows line up), columns (masonry: each item into the shortest column, for notes and text of different lengths), row, column, or pack (tightest, order not kept). x and y set the top-left; leave out ids to arrange everything.',
 			parameters: { type: 'object', properties: { layout: { type: 'string', enum: [...TABLE_LAYOUTS] }, ids: IDS, columns: { type: 'integer', minimum: 1, maximum: 20 }, gap: { type: 'number', description: 'Space between items; 20 (one grid step) if left out.' }, ...POINT }, required: ['layout'] },
 			execute: op((args) => ({ op: 'arrange', layout: (TABLE_LAYOUTS.includes(args.layout as TableLayout) ? args.layout : 'grid') as TableLayout, ids: args.ids ? strings(args.ids, 100) : undefined, columns: Number(args.columns) || undefined, gap: typeof args.gap === 'number' ? args.gap : undefined, at: at(args) }))
+		},
+		{
+			name: 'table_connect',
+			description: 'Draw arrows between items, tied to both so they follow when items move. Each can have a short label, a colour, a bend (curve, -300 to 300), elbow routing, a dash style, and heads at both ends.',
+			parameters: { type: 'object', properties: { links: { type: 'array', maxItems: 50, items: { type: 'object', properties: { from: { type: 'string', description: 'Id of the item the arrow starts at.' }, to: { type: 'string', description: 'Id of the item it points to.' }, label: { type: 'string', maxLength: 200 }, color: COLOR, bend: { type: 'number' }, kind: { type: 'string', enum: ['arc', 'elbow'] }, dash: { type: 'string', enum: ['draw', 'solid', 'dashed', 'dotted'] }, both_ends: { type: 'boolean' } }, required: ['from', 'to'] } } }, required: ['links'] },
+			execute: op((args) => ({ op: 'connect', links: list(args.links, 50).filter((link) => typeof link.from === 'string' && typeof link.to === 'string').map((link) => ({ from: String(link.from), to: String(link.to), label: typeof link.label === 'string' ? link.label.slice(0, 200) : undefined, color: color(link.color), bend: typeof link.bend === 'number' ? link.bend : undefined, kind: link.kind === 'elbow' ? 'elbow' : undefined, dash: (['draw', 'solid', 'dashed', 'dotted'] as const).find((dash) => dash === link.dash), both_ends: link.both_ends === true } satisfies TableLink)) }))
+		},
+		{
+			name: 'table_draw',
+			description: 'Draw with the pen: a loop around an item (`around`), or a stroke through points in canvas units (two points make a line).',
+			parameters: { type: 'object', properties: { strokes: { type: 'array', maxItems: 20, items: { type: 'object', properties: { around: { type: 'string', description: 'Id of an item to circle.' }, points: { type: 'array', maxItems: 200, items: { type: 'object', properties: POINT, required: ['x', 'y'] } }, closed: { type: 'boolean' }, color: COLOR, size: { type: 'string', enum: ['s', 'm', 'l', 'xl'] } } } } }, required: ['strokes'] },
+			execute: op((args) => ({ op: 'draw', strokes: list(args.strokes, 20).map((stroke) => ({ around: typeof stroke.around === 'string' ? stroke.around : undefined, points: list(stroke.points, 200).map((point) => ({ x: Number(point.x), y: Number(point.y) })), closed: stroke.closed === true, color: color(stroke.color), size: (['s', 'm', 'l', 'xl'] as const).find((size) => size === stroke.size) } satisfies TableStroke)) }))
+		},
+		{
+			name: 'table_frame',
+			description: 'Make a named frame: around items (they move into it and travel with it), or an empty one at x, y of size w × h.',
+			parameters: { type: 'object', properties: { name: { type: 'string', maxLength: 120 }, ids: IDS, color: COLOR, w: { type: 'number' }, h: { type: 'number' }, ...POINT }, required: ['name'] },
+			execute: op((args) => ({ op: 'frame', name: String(args.name ?? ''), ids: args.ids ? strings(args.ids, 100) : undefined, color: color(args.color), w: Number(args.w) || undefined, h: Number(args.h) || undefined, at: at(args) }))
+		},
+		{
+			name: 'table_group',
+			description: 'Group items so they move as one, or (ungroup) take groups and frames apart, leaving their items where they are.',
+			parameters: { type: 'object', properties: { ids: IDS, ungroup: { type: 'boolean' } }, required: ['ids'] },
+			execute: op((args) => ({ op: args.ungroup === true ? 'ungroup' : 'group', ids: strings(args.ids, 100) }))
+		},
+		{
+			name: 'table_edit',
+			description: 'Change the words or colour of notes, text, arrows (their label) and frames (their name). Blocks show their page and can’t be edited.',
+			parameters: { type: 'object', properties: { edits: { type: 'array', maxItems: 50, items: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' }, color: COLOR }, required: ['id'] } } }, required: ['edits'] },
+			execute: op((args) => ({ op: 'edit', edits: list(args.edits, 50).filter((edit) => typeof edit.id === 'string').map((edit) => ({ id: String(edit.id), text: typeof edit.text === 'string' ? edit.text : undefined, color: color(edit.color) })) }))
 		},
 		{
 			name: 'table_align',

@@ -3,12 +3,15 @@ import {
 	DefaultColorStyle,
 	DefaultFontStyle,
 	Tldraw,
+	b64Vecs,
 	createShapeId,
+	getArrowBindings,
 	getSnapshot,
 	react,
 	renderPlaintextFromRichText,
 	toRichText,
 	type Editor,
+	type TLArrowShape,
 	type TLEditorSnapshot,
 	type TLShape,
 	type TLShapePartial,
@@ -17,8 +20,8 @@ import {
 } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
-import { LOOK_MAX_SIDE, type TableItem, type TableLook, type TableOp } from '$lib/table-agent';
-import { GRID, onGrid, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
+import { LOOK_MAX_SIDE, type TableItem, type TableLink, type TableLook, type TableOp, type TableStroke } from '$lib/table-agent';
+import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { SiteBlockShapeUtil, blockOf, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
@@ -180,7 +183,8 @@ const ANIMATION = { animation: { duration: 320 } };
 /** The shapes an operation names, by the ids `read` reports; unknown ids are left out. */
 function shapesFor(editor: Editor, ids: string[] | undefined): TLShape[] {
 	const all = editor.getCurrentPageShapesSorted();
-	if (!ids?.length) return all.filter((shape) => shape.type !== 'arrow');
+	// Everything means everything on the table itself: what sits in a frame or group moves with it.
+	if (!ids?.length) return all.filter((shape) => shape.type !== 'arrow' && shape.parentId === editor.getCurrentPageId());
 	const wanted = new Set(ids.map((id) => (id.startsWith('shape:') ? id : `shape:${id}`)));
 	return all.filter((shape) => wanted.has(shape.id));
 }
@@ -188,12 +192,18 @@ function shapesFor(editor: Editor, ids: string[] | undefined): TLShape[] {
 function itemOf(editor: Editor, shape: TLShape): TableItem {
 	const bounds = editor.getShapePageBounds(shape)!;
 	const base = { id: shape.id.replace(/^shape:/, ''), x: Math.round(bounds.x), y: Math.round(bounds.y), w: Math.round(bounds.w), h: Math.round(bounds.h) };
+	const parent = shape.parentId.startsWith('shape:') ? { parent: shape.parentId.slice(6) } : {};
 	if (editor.isShapeOfType(shape, BLOCK_SHAPE)) {
 		const props = (shape as SiteBlockShape).props;
-		return { ...base, type: props.kind, title: props.title, url: props.url, ...(props.excerpt ? { text: props.excerpt.slice(0, 200) } : {}), ...(props.image ? { image: props.image } : {}) };
+		return { ...base, ...parent, type: props.kind, title: props.title, url: props.url, ...(props.excerpt ? { text: props.excerpt.slice(0, 200) } : {}), ...(props.image ? { image: props.image } : {}) };
 	}
 	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
-	return { ...base, type: shape.type, ...(rich ? { text: renderPlaintextFromRichText(editor, rich).slice(0, 400) } : {}) };
+	const text = shape.type === 'frame' ? (shape.props as { name: string }).name : rich ? renderPlaintextFromRichText(editor, rich) : '';
+	const ends = shape.type === 'arrow' ? getArrowBindings(editor, shape as TLArrowShape) : undefined;
+	return {
+		...base, ...parent, type: shape.type, ...(text ? { text: text.slice(0, 400) } : {}),
+		...(ends?.start ? { from: ends.start.toId.replace(/^shape:/, '') } : {}), ...(ends?.end ? { to: ends.end.toId.replace(/^shape:/, '') } : {})
+	};
 }
 
 /** Shapes that take up room on the table; arrows and drawings run over things by design. */
@@ -222,13 +232,50 @@ function place(editor: Editor, placements: Placement[]) {
 /** What's wrong with the table now, once moves have finished animating. */
 async function settled(editor: Editor) {
 	await new Promise((resolve) => setTimeout(resolve, ANIMATION.animation.duration + 60));
-	return layoutIssues(boxesOf(editor, editor.getCurrentPageShapesSorted().filter(SOLID)));
+	followTargets(editor);
+	return issuesOf(editor);
+}
+
+/** Overlaps, crammed items, and arrows run through cards they don't join. */
+function issuesOf(editor: Editor) {
+	const shapes = editor.getCurrentPageShapesSorted();
+	const boxes = boxesOf(editor, shapes.filter(SOLID));
+	const issues = layoutIssues(boxes);
+	const ancestors = (id: TLShapeId) => editor.getShapeAncestors(id).map((shape) => short(shape.id));
+	const arrows = shapes.filter((shape): shape is TLArrowShape => shape.type === 'arrow').flatMap((arrow) => {
+		const ends = getArrowBindings(editor, arrow);
+		if (!ends.start || !ends.end) return [];
+		const a = editor.getShapePageBounds(ends.start.toId)?.center, b = editor.getShapePageBounds(ends.end.toId)?.center;
+		if (!a || !b || arrow.props.kind === 'elbow') return [];
+		const skip = [short(ends.start.toId), short(ends.end.toId), ...ancestors(ends.start.toId), ...ancestors(ends.end.toId)];
+		// A bent arrow, as two straight runs through the top of its curve (tldraw's bend is how far that is from the chord).
+		const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+		const top = { x: (a.x + b.x) / 2 - ((b.y - a.y) / length) * arrow.props.bend, y: (a.y + b.y) / 2 + ((b.x - a.x) / length) * arrow.props.bend };
+		return Math.abs(arrow.props.bend) < 20 ? [{ id: short(arrow.id), a, b, skip }] : [{ id: short(arrow.id), a, b: top, skip }, { id: short(arrow.id), a: top, b, skip }];
+	});
+	const seen = new Set<string>();
+	const crossings = arrowCrossings(arrows, boxes.filter((box) => editor.getShape(`shape:${box.id}` as TLShapeId)?.type !== 'frame')).filter((pair) => !seen.has(pair.join()) && !!seen.add(pair.join()));
+	return crossings.length ? { ...issues, crossings } : issues;
+}
+
+/** A loop drawn around an item (`meta.around`) follows it when the assistant moves it. */
+function followTargets(editor: Editor) {
+	const updates = editor.getCurrentPageShapes().flatMap((shape) => {
+		const { around, center } = shape.meta as { around?: unknown; center?: { x: number; y: number } };
+		if (typeof around !== 'string' || !center) return [];
+		const box = editor.getShapePageBounds(`shape:${around}` as TLShapeId);
+		if (!box) return [];
+		const dx = box.center.x - center.x, dy = box.center.y - center.y;
+		if (Math.abs(dx) + Math.abs(dy) < 1) return [];
+		return [{ id: shape.id, type: shape.type, x: shape.x + dx, y: shape.y + dy, meta: { ...shape.meta, center: { x: box.center.x, y: box.center.y } } }];
+	});
+	if (updates.length) editor.updateShapes(updates);
 }
 
 /** What a change reports: what it did, plus any overlaps left, so the assistant can fix them before it answers. */
 async function changed(editor: Editor, result: Record<string, unknown>) {
 	const issues = await settled(editor);
-	const clean = !issues.overlaps.length && !issues.crowded.length;
+	const clean = !issues.overlaps.length && !issues.crowded.length && !issues.crossings?.length;
 	return { ...result, ...(clean ? { layout: 'no overlaps' } : { issues }) };
 }
 
@@ -246,7 +293,7 @@ function placeNew(editor: Editor, id: TLShapeId, op: { at?: { x: number; y: numb
 	const shape = editor.getShape(id)!;
 	editor.updateShape({ id, type: shape.type, x: onGrid(target.x), y: onGrid(target.y) });
 	// Anything it lands on is pushed down (and on down its column), not covered.
-	const moves = tidyLayout(boxesOf(editor, editor.getCurrentPageShapesSorted().filter(SOLID)), GAP, id.replace(/^shape:/, ''));
+	const moves = tidyLayout(boxesOf(editor, shapesFor(editor, undefined).filter(SOLID)), GAP, id.replace(/^shape:/, ''));
 	if (moves.length) place(editor, moves);
 }
 
@@ -264,7 +311,7 @@ async function look(editor: Editor, ids?: string[]): Promise<TableLook | { empty
 	const toPicture = (x: number, y: number) => ({ x: (x - bounds.x + padding) * scale, y: (y - bounds.y + padding) * scale });
 	const solid = shapes.filter(SOLID);
 	const boxes = boxesOf(editor, solid);
-	const issues = layoutIssues(boxes);
+	const issues = ids?.length ? layoutIssues(boxes) : issuesOf(editor);
 
 	context.fillStyle = '#2b2b2f';
 	context.fillRect(0, 0, canvas.width, canvas.height);
@@ -316,11 +363,115 @@ async function look(editor: Editor, ids?: string[]): Promise<TableLook | { empty
 	return { image: canvas.toDataURL('image/jpeg', 0.72), width: canvas.width, height: canvas.height, key, issues };
 }
 
+const shapeOf = (editor: Editor, id: string) => editor.getShape(`shape:${id.replace(/^shape:/, '')}` as TLShapeId);
+const short = (id: string) => id.replace(/^shape:/, '');
+
+/** Arrows tied to the items at each end (tldraw arrow bindings), so they follow when things move. */
+function connect(editor: Editor, links: TableLink[]) {
+	const added: string[] = [];
+	const missing: string[] = [];
+	editor.run(() => {
+		for (const link of links) {
+			const from = shapeOf(editor, link.from), to = shapeOf(editor, link.to);
+			if (!from || !to || from.id === to.id) { missing.push(`${link.from}→${link.to}`); continue; }
+			const a = editor.getShapePageBounds(from)!.center, b = editor.getShapePageBounds(to)!.center;
+			const id = createShapeId();
+			editor.createShape<TLArrowShape>({
+				id, type: 'arrow', x: a.x, y: a.y,
+				props: {
+					start: { x: 0, y: 0 }, end: { x: b.x - a.x, y: b.y - a.y }, kind: link.kind ?? 'arc', bend: Math.max(-300, Math.min(300, link.bend ?? 0)),
+					color: link.color ?? 'white', dash: link.dash ?? 'draw', arrowheadStart: link.both_ends ? 'arrow' : 'none', arrowheadEnd: 'arrow',
+					richText: toRichText((link.label ?? '').slice(0, 200))
+				}
+			});
+			const end = (terminal: 'start' | 'end', target: TLShape) => ({ type: 'arrow' as const, fromId: id, toId: target.id, props: { terminal, normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false, snap: 'none' as const } });
+			editor.createBindings([end('start', from), end('end', to)]);
+			added.push(short(id));
+		}
+	});
+	return { added, ...(missing.length ? { not_found: missing } : {}) };
+}
+
+/** Pen strokes in page units: a path through points, or a loop drawn around an item. */
+function draw(editor: Editor, strokes: TableStroke[]) {
+	const added: string[] = [];
+	editor.run(() => {
+		for (const stroke of strokes) {
+			let points = (stroke.points ?? []).filter((point) => Number.isFinite(point?.x) && Number.isFinite(point?.y)).slice(0, 500);
+			let closed = !!stroke.closed;
+			const around = stroke.around ? shapeOf(editor, stroke.around) : undefined;
+			let meta = {};
+			if (around) {
+				const box = editor.getShapePageBounds(around)!;
+				meta = { around: short(around.id), center: { x: box.center.x, y: box.center.y } };
+				const rx = box.w / 2 + 24, ry = box.h / 2 + 24;
+				points = Array.from({ length: 49 }, (_, index) => ({ x: box.center.x + rx * Math.cos((index / 48) * Math.PI * 2), y: box.center.y + ry * Math.sin((index / 48) * Math.PI * 2) }));
+				closed = true;
+			}
+			if (points.length < 2) continue;
+			// Straight runs get points along them, so the pen's wobble reads as hand-drawn.
+			const dense = points.flatMap((point, index) => {
+				const next = points[index + 1];
+				if (!next) return [point];
+				const steps = Math.max(1, Math.ceil(Math.hypot(next.x - point.x, next.y - point.y) / 16));
+				return Array.from({ length: steps }, (_, step) => ({ x: point.x + ((next.x - point.x) * step) / steps, y: point.y + ((next.y - point.y) * step) / steps }));
+			});
+			const origin = dense[0];
+			const id = createShapeId();
+			editor.createShape({
+				id, type: 'draw', x: origin.x, y: origin.y, meta,
+				props: {
+					segments: [{ type: 'free', path: b64Vecs.encodePoints(dense.map((point) => ({ x: point.x - origin.x, y: point.y - origin.y, z: 0.5 }))) }],
+					isComplete: true, isClosed: closed, isPen: false, color: stroke.color ?? 'white', size: stroke.size ?? 'm'
+				}
+			});
+			added.push(short(id));
+		}
+	});
+	return { added };
+}
+
+/** A named frame: around items (which move into it), or empty at a place. */
+function frame(editor: Editor, op: Extract<TableOp, { op: 'frame' }>) {
+	const inside = op.ids?.length ? shapesFor(editor, op.ids) : [];
+	const pad = 40;
+	const around = inside.length ? editor.getShapesPageBounds(inside.map((shape) => shape.id)) : null;
+	const x = around ? onGrid(around.x - pad) : onGrid(op.at?.x ?? editor.getViewportPageBounds().center.x - 200);
+	const y = around ? onGrid(around.y - pad) : onGrid(op.at?.y ?? editor.getViewportPageBounds().center.y - 150);
+	const w = around ? Math.ceil((around.w + pad * 2) / GRID) * GRID : Math.max(120, op.w ?? 400);
+	const h = around ? Math.ceil((around.h + pad * 2) / GRID) * GRID : Math.max(120, op.h ?? 300);
+	const id = createShapeId();
+	editor.run(() => {
+		editor.createShape({ id, type: 'frame', x, y, props: { w, h, name: op.name.slice(0, 120), color: op.color ?? 'white' } });
+		if (inside.length) editor.reparentShapes(inside, id);
+		// A frame is drawn under what it holds, and under arrows that cross it.
+		editor.sendToBack([id]);
+	});
+	return { added: [short(id)], holds: inside.map((shape) => short(shape.id)) };
+}
+
+/** New text for notes, text, arrow labels and frame names, and new colours. */
+function edit(editor: Editor, edits: Extract<TableOp, { op: 'edit' }>['edits']) {
+	const updates = edits.flatMap(({ id, text, color }) => {
+		const shape = shapeOf(editor, id);
+		if (!shape || editor.isShapeOfType(shape, BLOCK_SHAPE)) return [];
+		const props: Record<string, unknown> = {};
+		if (text !== undefined) {
+			if (shape.type === 'frame') props.name = text.slice(0, 120);
+			else if ('richText' in shape.props) props.richText = toRichText(text.slice(0, 2000));
+		}
+		if (color && 'color' in shape.props) props.color = color;
+		return Object.keys(props).length ? [{ id: shape.id, type: shape.type, props } as TLShapePartial] : [];
+	});
+	editor.updateShapes(updates);
+	return { edited: updates.length };
+}
+
 async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0], api: TableApi): Promise<unknown> {
 	switch (op.op) {
 		case 'read': {
 			const shapes = editor.getCurrentPageShapesSorted();
-			return { items: shapes.map((shape) => itemOf(editor, shape)), selected: editor.getSelectedShapeIds().map((id) => id.replace(/^shape:/, '')), issues: layoutIssues(boxesOf(editor, shapes.filter(SOLID))) };
+			return { items: shapes.map((shape) => itemOf(editor, shape)), selected: editor.getSelectedShapeIds().map((id) => id.replace(/^shape:/, '')), issues: issuesOf(editor) };
 		}
 		case 'look':
 			return look(editor, op.ids);
@@ -331,8 +482,9 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			const text = toRichText(op.text.slice(0, 2000));
 			editor.markHistoryStoppingPoint('add note');
 			// Long text reads better as a wrapped text card than a sticky note, which shrinks its type to fit.
-			if (op.style === 'text') editor.createShape({ id, type: 'text', x: 0, y: 0, props: { richText: text, autoSize: false, w: Math.max(160, Math.min(800, op.w ?? 360)) } });
-			else editor.createShape({ id, type: 'note', x: 0, y: 0, props: { richText: text } });
+			const color = op.color ? { color: op.color } : {};
+			if (op.style === 'text') editor.createShape({ id, type: 'text', x: 0, y: 0, props: { richText: text, autoSize: false, w: Math.max(160, Math.min(800, op.w ?? 360)), ...color } });
+			else editor.createShape({ id, type: 'note', x: 0, y: 0, props: { richText: text, ...color } });
 			placeNew(editor, id, op);
 			const report = await changed(editor, {});
 			const bounds = editor.getShapePageBounds(id)!;
@@ -374,6 +526,38 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			editor.markHistoryStoppingPoint('tidy');
 			return changed(editor, { moved: place(editor, tidyLayout(boxesOf(editor, shapes))) });
 		}
+		case 'connect':
+			editor.markHistoryStoppingPoint('connect');
+			return changed(editor, connect(editor, op.links));
+		case 'draw':
+			editor.markHistoryStoppingPoint('draw');
+			return draw(editor, op.strokes);
+		case 'frame':
+			editor.markHistoryStoppingPoint('frame');
+			return changed(editor, frame(editor, op));
+		case 'group': {
+			const shapes = shapesFor(editor, op.ids);
+			if (shapes.length < 2) return { grouped: 0, note: 'Name at least two items.' };
+			const id = createShapeId();
+			editor.markHistoryStoppingPoint('group');
+			editor.groupShapes(shapes, { groupId: id, select: false });
+			return { group: short(id), holds: shapes.map((shape) => short(shape.id)) };
+		}
+		case 'ungroup': {
+			const shapes = shapesFor(editor, op.ids).filter((shape) => shape.type === 'group' || shape.type === 'frame');
+			editor.markHistoryStoppingPoint('ungroup');
+			const groups = shapes.filter((shape) => shape.type === 'group');
+			if (groups.length) editor.ungroupShapes(groups, { select: false });
+			// A frame lets go of what it holds and goes.
+			for (const shape of shapes.filter((shape) => shape.type === 'frame')) {
+				editor.reparentShapes(editor.getSortedChildIdsForParent(shape.id), editor.getCurrentPageId());
+				editor.deleteShapes([shape.id]);
+			}
+			return { ungrouped: shapes.length };
+		}
+		case 'edit':
+			editor.markHistoryStoppingPoint('edit');
+			return changed(editor, edit(editor, op.edits));
 		case 'remove': {
 			const shapes = shapesFor(editor, op.ids);
 			if (!op.ids.length) return { removed: 0 };
