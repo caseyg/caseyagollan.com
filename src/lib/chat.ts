@@ -114,6 +114,31 @@ export function threadTitle(text: string): string {
 	return clean.length >= 3 ? chatTitle(clean) : '';
 }
 
+/**
+ * The assistant's most recent line, as plain text, for a folded chat to show: the last line of its
+ * latest reply with the Markdown taken out, what it's doing while it hasn't written yet, or null
+ * before it has answered at all.
+ */
+export function latestAssistantLine(messages: ChatMessage[]): { text: string; writing: boolean } | null {
+	const message = messages.findLast((item) => item.role === 'assistant');
+	if (!message) return null;
+	const writing = message.status === 'streaming';
+	const prose = message.content
+		.replace(/<think>[\s\S]*?(<\/think>|$)/gi, '')
+		.replace(/```[\s\S]*?(```|$)/g, '')
+		.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+		.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+	const lines = prose
+		.split('\n')
+		.map((line) => line.replace(/^\s*(#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)+/, '').replace(/[*_`~]+/g, '').replace(/\s+/g, ' ').trim())
+		.filter((line) => line && !/^[-|:\s]+$/.test(line));
+	const last = lines.at(-1);
+	if (last) return { text: last, writing };
+	const step = message.tools?.findLast((tool) => tool.status === 'running') ?? message.tools?.at(-1);
+	if (writing) return { text: step ? `${step.label}…` : 'Thinking…', writing };
+	return { text: message.status === 'failed' ? 'The assistant couldn’t answer.' : step?.label ?? '', writing };
+}
+
 /** When a thread last moved, briefly: “just now”, “5 min ago”, “3 h ago”, then the date. */
 export function chatAgo(at: number, now = Date.now()): string {
 	const minutes = Math.round((now - at) / 60_000);

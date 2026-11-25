@@ -13,6 +13,7 @@
 	import { LiveThread } from '$lib/chat-client.svelte';
 	import { chatHref } from '$lib/chat';
 	import { goto } from '$app/navigation';
+	import { MediaQuery } from 'svelte/reactivity';
 	import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
@@ -43,13 +44,22 @@
 
 	// The table's chat: anyone reads along; Casey's page also makes the changes the assistant asks for.
 	const CHAT_MODE_KEY = 'table-chat';
+	const CHAT_SHEET_KEY = 'table-chat-sheet';
 	let chatMode = $state<ChatOverlayMode>('minimized');
+	// Too narrow for a sidebar beside the canvas, docked is a bottom sheet the canvas stops above.
+	const narrow = new MediaQuery('max-width: 899px', false);
+	let sheetExpanded = $state(true);
+	let sheetRestHeight = $state(0);
 	// svelte-ignore state_referenced_locally
 	const live = data.chat ? new LiveThread(data.chat.snapshot, data.chat.viewer, undefined, { onnavigate: (path) => void goto(path), ontableop: data.chat.viewer?.owner ? tableOp : undefined }) : undefined;
 	const chatHereHref = `/tables/${data.id}`;
+	const chatSheet = $derived(!!live && chatMode === 'docked' && narrow.current);
 
 	$effect(() => {
-		try { localStorage.setItem(CHAT_MODE_KEY, chatMode); } catch { /* private window */ }
+		try {
+			localStorage.setItem(CHAT_MODE_KEY, chatMode);
+			localStorage.setItem(CHAT_SHEET_KEY, sheetExpanded ? 'open' : 'folded');
+		} catch { /* private window */ }
 	});
 
 	/** What the assistant asked of the table, done here so it animates, saves and undoes like Casey's own edits. */
@@ -90,6 +100,7 @@
 		try {
 			const saved = localStorage.getItem(CHAT_MODE_KEY);
 			if (saved === 'floating' || saved === 'docked' || saved === 'minimized') chatMode = saved;
+			sheetExpanded = localStorage.getItem(CHAT_SHEET_KEY) !== 'folded';
 		} catch { /* private window */ }
 		live?.connect();
 		void (async () => {
@@ -226,7 +237,8 @@
 
 <PageHeader trail={[{ ...TABLES_CRUMB, href: listHref }, nameSegment]} title={name || 'Table'} />
 
-<main class="stage" class:chat-docked={live && chatMode === 'docked'}>
+<!-- With the chat in a bottom sheet, the canvas ends above the folded sheet; the open sheet only covers it, so the camera stays put. -->
+<main class="stage" class:chat-docked={live && chatMode === 'docked'} style:bottom={chatSheet && sheetRestHeight ? `${sheetRestHeight}px` : undefined}>
 	{#if !session && !missing}
 		<!-- Sent with the page, so the table's outline is there from the first paint. -->
 		<TableWireframe {document} />
@@ -269,6 +281,9 @@
 	<div class="dock--chat" data-mode={chatMode}>
 		<ChatOverlay
 			bind:mode={chatMode}
+			sheet={narrow.current}
+			bind:sheetExpanded
+			bind:sheetRestHeight
 			title={live.snapshot.thread.title}
 			messages={live.messages}
 			viewer={live.viewer}
@@ -352,17 +367,11 @@
 	}
 
 	@media (max-width: 899px) {
-		/* Too narrow to sit beside the canvas: docked floats like a sheet. */
+		/* Too narrow to sit beside the canvas: docked is a sheet along the bottom. */
 		.dock--chat[data-mode='docked'] {
-			bottom: calc(var(--space-4) + 4rem);
-		}
-
-		.dock--chat[data-mode='docked'] :global(.chat-overlay) {
-			width: min(24rem, calc(100vw - 2 * var(--space-2)));
-			height: min(36rem, 70vh);
-			border: 1px solid var(--border);
-			border-radius: var(--radius-lg);
-			overflow: hidden;
+			left: 0;
+			right: 0;
+			bottom: 0;
 		}
 	}
 
@@ -378,9 +387,13 @@
 			top: calc(var(--nav-lane) + var(--space-2));
 		}
 
-		.dock--chat[data-mode='floating'],
-		.dock--chat[data-mode='docked'] {
+		.dock--chat[data-mode='floating'] {
 			bottom: calc(3rem + 3.5rem);
+		}
+
+		.dock--chat[data-mode='docked'] {
+			left: 0;
+			right: 0;
 		}
 	}
 

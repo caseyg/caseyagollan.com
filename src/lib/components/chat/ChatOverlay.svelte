@@ -1,11 +1,11 @@
 <script lang="ts" module>
-	/** Folded to a pill, floating over the page, or docked beside it as a sidebar. */
+	/** Folded to a pill, floating over the page, or docked: a sidebar beside it, or a bottom sheet on narrow screens. */
 	export type ChatOverlayMode = 'minimized' | 'floating' | 'docked';
 </script>
 
 <script lang="ts">
-	import type { ChatMessage, ChatViewer } from '$lib/chat';
-	import { Button, Notice } from '$lib/components/ui';
+	import { latestAssistantLine, type ChatMessage, type ChatViewer } from '$lib/chat';
+	import { BottomSheet, Button, Notice } from '$lib/components/ui';
 	import ChatConversation from './ChatConversation.svelte';
 	import ChatPromptInput from './ChatPromptInput.svelte';
 	import ChatSignIn from './ChatSignIn.svelte';
@@ -28,18 +28,52 @@
 		signinError?: string | null;
 		offline?: boolean;
 		placeholder?: string;
+		/** Docked means a bottom sheet instead of a sidebar, for screens too narrow to share. */
+		sheet?: boolean;
+		/** The bottom sheet is pulled up; folded, it shows the newest reply's last line and the composer. */
+		sheetExpanded?: boolean;
+		/** The folded sheet's height in pixels, for the page to keep its content clear of it. */
+		sheetRestHeight?: number;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = 'Ask about this table' }: Props = $props();
+	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = 'Ask about this table', sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0) }: Props = $props();
 
 	let text = $state('');
 	const replies = $derived(messages.filter((message) => message.role === 'assistant').length);
 	const working = $derived(messages.at(-1)?.status === 'streaming');
+	const latest = $derived(latestAssistantLine(messages));
+	const dockLabel = $derived(mode === 'docked' ? 'Float the chat' : sheet ? 'Dock the chat along the bottom' : 'Dock the chat beside the page');
 </script>
+
+{#snippet titleBar()}
+	{#if href}<a class="title" {href}>{title}</a>{:else}<span class="title">{title}</span>{/if}
+	<div class="controls">
+		<Button variant="icon" size="sm" icon="sidebar" label={dockLabel} pressed={mode === 'docked'} onclick={() => (mode = mode === 'docked' ? 'floating' : 'docked')} />
+		<Button variant="icon" size="sm" icon="close" label="Minimize the chat" onclick={() => (mode = 'minimized')} />
+	</div>
+{/snippet}
+
+{#snippet conversation()}
+	<ChatConversation {messages} viewerId={viewer?.id}>
+		{#snippet empty()}<p class="empty">Ask about what’s on this table, or{viewer?.owner ? ' ask to add things, set them out or tidy up.' : ' what it’s about.'}</p>{/snippet}
+	</ChatConversation>
+{/snippet}
+
+{#snippet composer()}
+	{#if error}<Notice tone="error">{error}</Notice>{/if}
+	{#if offline}<Notice>Reconnecting…</Notice>{/if}
+	{#if viewer}
+		<ChatPromptInput {viewer} bind:value={text} {onsend} {action} {returnTo} {tools} {placeholder} />
+	{:else}
+		<ChatSignIn {returnTo} error={signinError} open={!!signinError} />
+	{/if}
+{/snippet}
 
 <!--
 	A chat beside something else on the page, such as a table's canvas: a pill when folded,
 	a panel floating in the corner, or a sidebar the page makes room for (`data-mode="docked"`).
+	With `sheet`, docked is a bottom sheet instead, which folds to the newest reply's last line and the
+	composer so the page above stays usable, and keeps its place in the conversation while folded.
 -->
 {#if mode === 'minimized'}
 	<button type="button" class="chat-overlay-pill" onclick={() => (mode = 'floating')} aria-label="Open the chat, {title}">
@@ -47,29 +81,23 @@
 		<span class="pill-label">Chat</span>
 		{#if working}<span class="pill-dot" aria-label="writing"></span>{:else if replies}<span class="pill-count">{messages.length}</span>{/if}
 	</button>
+{:else if mode === 'docked' && sheet}
+	<BottomSheet class="chat-overlay chat-overlay--sheet" label="Chat: {title}" bind:expanded={sheetExpanded} bind:restHeight={sheetRestHeight} expandLabel="Show the whole chat" collapseLabel="Fold the chat down to see the table">
+		{#snippet header()}<div class="bar">{@render titleBar()}</div>{/snippet}
+		{#snippet peek()}
+			<span class="latest">
+				{#if latest?.writing}<span class="pill-dot" aria-label="writing"></span>{/if}
+				<span class="line">{latest?.text || (messages.length ? title : 'Ask about what’s on this table')}</span>
+			</span>
+		{/snippet}
+		{#snippet footer()}<div class="composer">{@render composer()}</div>{/snippet}
+		<div class="scroll">{@render conversation()}</div>
+	</BottomSheet>
 {:else}
 	<section class="chat-overlay" data-mode={mode} aria-label="Chat: {title}">
-		<header>
-			{#if href}<a class="title" {href}>{title}</a>{:else}<span class="title">{title}</span>{/if}
-			<div class="controls">
-				<Button variant="icon" size="sm" icon="sidebar" label={mode === 'docked' ? 'Float the chat' : 'Dock the chat beside the page'} pressed={mode === 'docked'} onclick={() => (mode = mode === 'docked' ? 'floating' : 'docked')} />
-				<Button variant="icon" size="sm" icon="close" label="Minimize the chat" onclick={() => (mode = 'minimized')} />
-			</div>
-		</header>
-		<div class="scroll">
-			<ChatConversation {messages} viewerId={viewer?.id}>
-				{#snippet empty()}<p class="empty">Ask about what’s on this table, or{viewer?.owner ? ' ask to add things, set them out or tidy up.' : ' what it’s about.'}</p>{/snippet}
-			</ChatConversation>
-		</div>
-		<footer>
-			{#if error}<Notice tone="error">{error}</Notice>{/if}
-			{#if offline}<Notice>Reconnecting…</Notice>{/if}
-			{#if viewer}
-				<ChatPromptInput {viewer} bind:value={text} {onsend} {action} {returnTo} {tools} {placeholder} />
-			{:else}
-				<ChatSignIn {returnTo} error={signinError} open={!!signinError} />
-			{/if}
-		</footer>
+		<header class="bar">{@render titleBar()}</header>
+		<div class="scroll">{@render conversation()}</div>
+		<footer class="composer">{@render composer()}</footer>
 	</section>
 {/if}
 
@@ -145,7 +173,7 @@
 		border-left: 1px solid var(--border);
 	}
 
-	header {
+	.bar {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
@@ -182,11 +210,52 @@
 		font-size: var(--fs-sm);
 	}
 
+	/* In the sheet, the sheet's body scrolls; this only pads it. */
+	:global(.chat-overlay--sheet) .scroll {
+		overflow: visible;
+	}
+
+	:global(.chat-overlay--sheet) {
+		font-size: var(--fs-base);
+	}
+
+	:global(.chat-overlay--sheet) .bar {
+		border-bottom: 0;
+	}
+
+	:global(.chat-overlay--sheet) .composer {
+		border-top: 0;
+	}
+
+	:global(.chat-overlay--sheet:not(.expanded)) .composer {
+		padding-top: 0;
+	}
+
+	.latest {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+	}
+
+	.latest .pill-dot {
+		flex-shrink: 0;
+		align-self: center;
+	}
+
+	/* One or two lines of the newest reply, so the folded sheet stays about the same height. */
+	.line {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
+
 	.empty {
 		color: var(--text-muted);
 	}
 
-	footer {
+	.composer {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);

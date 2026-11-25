@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { chatAgo, chatTitle, threadTitle } from '../src/lib/chat';
+import { chatAgo, chatTitle, latestAssistantLine, threadTitle, type ChatMessage } from '../src/lib/chat';
 import { readableMarkdown } from '../src/lib/server/chat/fetch-page';
 import { chatViewer, startVisitorSession, viewerFrom, withViewer, VIEWER_HEADER } from '../src/lib/server/chat/identity';
 import { discoverIndieAuth, finishLogin, instanceOrigin, LOGIN_COOKIE, profileAddress, safeReturn, startLogin } from '../src/lib/server/chat/login';
@@ -251,5 +251,31 @@ describe('Pi transcript as chat messages', () => {
 		expect(costOf([{ model: [{ role: 'assistant', usage: { cost: { total: 0.5 } } }] }])).toBe(0.5);
 		expect(priceOf('unknown').input).toBe(1.8);
 		expect(resetsOn(Date.UTC(2026, 10, 18))).toBe('December 1');
+	});
+});
+
+describe('latestAssistantLine', () => {
+	const reply = (content: string, extra: Partial<ChatMessage> = {}): ChatMessage => ({ id: 'a', role: 'assistant', content, status: 'done', createdAt: 0, ...extra });
+	const ask: ChatMessage = { id: 'u', role: 'user', content: 'Set these out', status: 'done', createdAt: 0 };
+
+	test('is null before the assistant has answered', () => {
+		expect(latestAssistantLine([ask])).toBeNull();
+	});
+
+	test('takes the last line of the newest reply, without Markdown', () => {
+		const text = 'I set out **three** books.\n\n- Moved [Rebel Cities](https://example.com) to the *left*\n- Added `a note`';
+		expect(latestAssistantLine([reply('Old'), ask, reply(text)])).toEqual({ text: 'Added a note', writing: false });
+	});
+
+	test('skips code blocks and table rules', () => {
+		expect(latestAssistantLine([reply('Here it is:\n```js\nx()\n```\n| a |\n|---|')])?.text).toBe('| a |');
+		expect(latestAssistantLine([reply('Done.\n```\ncode')])?.text).toBe('Done.');
+	});
+
+	test('says what it is doing before it writes', () => {
+		const step = { tool: 'search_site', label: 'Searched for cooperatives', status: 'running' as const };
+		expect(latestAssistantLine([ask, reply('', { status: 'streaming', tools: [step] })])).toEqual({ text: 'Searched for cooperatives…', writing: true });
+		expect(latestAssistantLine([ask, reply('', { status: 'streaming' })])).toEqual({ text: 'Thinking…', writing: true });
+		expect(latestAssistantLine([ask, reply('', { status: 'failed' })])?.text).toBe('The assistant couldn’t answer.');
 	});
 });
