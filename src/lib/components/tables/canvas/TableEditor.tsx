@@ -22,7 +22,7 @@ import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
-import { SiteBlockShapeUtil, blockOf, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
+import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
 export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser';
@@ -131,7 +131,7 @@ function apiFor(editor: Editor): TableApi {
 					}
 					const id = createShapeId();
 					const props = blockProps(block);
-					editor.createShape<SiteBlockShape>({ id, type: BLOCK_SHAPE, x, y, props });
+					editor.createShape<SiteBlockShape>({ id, type: BLOCK_SHAPE, x, y, props, meta: fitsToPost(block) ? { fit: true } : {} });
 					ids.push(id);
 					x += props.w + GAP;
 					rowHeight = Math.max(rowHeight, props.h);

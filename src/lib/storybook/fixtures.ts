@@ -20,6 +20,23 @@ export const reply: Post = { ...note, type: 'reply', inReplyTo: savedPost.url, s
 export const photo: Post = { ...note, type: 'photo', photo: [{ url: '/sisu.gif', alt: 'Sisu, an animated illustration' }] };
 export const reaction: Post = { ...note, type: 'like', content: '', syndication: [], properties: { 'like-of': [savedPost.url] }, socialSnapshots: [savedPost] };
 export const repost: Post = { ...reaction, type: 'repost', properties: { 'repost-of': [savedPost.url] } };
+// A repost of a Bluesky post with a link card, and a like of a Mastodon post, as tables draw them. Saved media must
+// live under files.caseyagollan.com/publishing/social/; this avatar is a real saved file.
+const savedAvatar = 'https://files.caseyagollan.com/publishing/social/9d2d08fc3b03d6aedb727e409e777c895b9a6ecae116f49505c4df11e651e85e.webp';
+const blueskyPost = {
+	...savedPost, url: 'https://bsky.app/profile/did:plc:example/post/3paperwork',
+	author: { name: 'Nick Seaver', handle: '@nickseaver.website', url: 'https://bsky.app/profile/nickseaver.website', avatar: savedAvatar },
+	published: '2026-10-20T15:30:00-05:00',
+	html: '<p>stumbled on a set of incredible 1970s illustrations in some government reports, so had to spend a day collecting them into a website to share with my friends on the computer: <a href="https://nickseaver.net/paperwork">nickseaver.net/paperwork</a></p>',
+	preview: { url: 'https://nickseaver.net/paperwork', title: 'Commission on Federal Paperwork, 1976–1977', description: 'Illustrations from the U.S. Commission on Federal Paperwork. Drawn by Carol.', site: 'nickseaver.net' }
+};
+const mastodonPost = {
+	...savedPost, url: 'https://social.coop/@friend/113', platform: 'mastodon' as const,
+	author: { name: 'A Friend', handle: '@friend@social.coop', url: 'https://social.coop/@friend' },
+	html: '<p>Calm technology is mostly about what a tool chooses not to tell you.</p>'
+};
+export const blueskyRepost: Post = { ...repost, slug: 'storybook-repost', properties: { 'repost-of': [blueskyPost.url] }, socialSnapshots: [blueskyPost] };
+export const mastodonLike: Post = { ...reaction, slug: 'storybook-like', properties: { 'like-of': [mastodonPost.url] }, socialSnapshots: [mastodonPost] };
 export const unsavedLike: Post = { ...reaction, properties: { 'like-of': ['https://example.com/ideas'] }, socialSnapshots: [] };
 
 /* Tables: blocks as the block picker makes them from site search. */
@@ -32,11 +49,15 @@ export const blocks = {
 	wiki: { kind: 'wiki', url: 'https://cag.wiki/Aesthetic+Crisis', title: 'Aesthetic Crisis', meta: 'cag.wiki', excerpt: 'Architects dressed up for the 1931 Beaux Arts Ball; photo from the collection of Christopher Gray. What is the nature of the crisis? It is hard to say.' },
 	arenaChannel: { kind: 'arena', url: 'https://www.are.na/casey-gollan/is-this-this-website', title: 'Is This This Website?', meta: 'Channel · 5 blocks', icon: '✳️', excerpt: 'Metaphors for websites — discuss!' },
 	arenaImage: { kind: 'arena', url: 'https://www.are.na/block/2092617', title: 'Light Phone 2', meta: 'Image · indiegogo.com', icon: '🖼️', image: 'https://images.are.na/eyJidWNrZXQiOiJhcmVuYV9pbWFnZXMiLCJrZXkiOiIyMDkyNjE3L29yaWdpbmFsXzk5ZjA3MzhjMjE1MTUyZGQxYThkZmExODMyNzg1YzYxLmpwZyIsImVkaXRzIjp7InJlc2l6ZSI6eyJ3aWR0aCI6NDAwLCJoZWlnaHQiOjQwMCwiZml0IjoiaW5zaWRlIiwid2l0aG91dEVubGFyZ2VtZW50Ijp0cnVlfSwid2VicCI6eyJxdWFsaXR5Ijo3NX0sImpwZWciOnsicXVhbGl0eSI6NzV9LCJyb3RhdGUiOm51bGx9fQ==' },
+	arenaPrivateChannel: { kind: 'arena', url: 'https://www.are.na/casey-gollan/drafts', title: 'Drafts', meta: 'Private · Channel · 31 blocks', icon: '✳️' },
+	arenaLink: { kind: 'arena', url: 'https://www.are.na/block/3010101', title: 'tabletop.grantcuster.com', meta: 'Link · grantcuster.com', icon: '🔗', image: '/library/img/0321918622.jpg' },
 	arenaText: { kind: 'arena', url: 'https://www.are.na/block/1970355', title: 'Sander Moolin', meta: 'Text', icon: '📝', excerpt: '"Beaker is a client and a server rolled into one"' },
 	raindrop: { kind: 'raindrop', url: 'https://www.robinsloan.com/lab/new-avenues/', title: 'New avenues for the internet', meta: 'Raindrop · robinsloan.com · 2026-10-02', icon: '📄', excerpt: 'Notes on small, homemade software and the web as a place you can still build a house.' },
 	link: { kind: 'link', url: 'https://tabletop.grantcuster.com/', title: 'tabletop.grantcuster.com', meta: 'tabletop.grantcuster.com', image: '/library/img/0321918622.jpg' },
 	image: { kind: 'image', url: '/2025/11/29/changelog/', title: 'Dark Matters, on the shelf', meta: 'From 2025-11-29 Changelog', image: '/library/img/0822359383.jpg' },
 	quote: { kind: 'quote', url: '/wiki/aesthetic-crisis#:~:text=What%20is%20the%20nature', title: 'Aesthetic Crisis', excerpt: 'What is the nature of the crisis? It is hard to say. Architects dressed up as their own buildings, and the city went on without them.' },
+	repost: { kind: 'post', url: '/2026/11/24/storybook-repost/', title: 'Post by Nick Seaver', meta: 'repost · 2026-11-24', icon: '🔁', excerpt: 'stumbled on a set of incredible 1970s illustrations in some government reports' },
+	like: { kind: 'post', url: '/2026/11/24/storybook-like/', title: 'Post by A Friend', meta: 'like · 2026-11-24', icon: '⭐', excerpt: 'Calm technology is mostly about what a tool chooses not to tell you.' },
 	socialPost: { kind: 'post', url: 'https://bsky.app/profile/shannonmattern.bsky.social/post/3abc', title: 'Shannon Mattern', meta: '@shannonmattern.bsky.social', icon: '🦋', excerpt: 'Small, weird, local: a torch worth carrying.' },
 	longTitle: { kind: 'book', url: '/library/0306808935', title: 'Talking Music: Conversations With John Cage, Philip Glass, Laurie Anderson, And 5 Generations Of American Experimental Composers', meta: 'Duckworth, William · 1999' }
 } satisfies Record<string, Block>;

@@ -5,9 +5,9 @@
  import { localizeLinks } from '$lib/wiki/links';
  import './social-card.css';
  /** Someone else's post, saved from Bluesky or Mastodon, drawn as a SocialPost. */
- let { snapshot, connected = false, source = true, marks }: { snapshot: SocialSnapshot; connected?: boolean; /** Show the 🦋/🐘 link out. */ source?: boolean; marks?: { icon: string; label: string; href?: string }[] } = $props();
+ let { snapshot, connected = false, source = true, marks, byline = true }: { snapshot: SocialSnapshot; connected?: boolean; /** Show the 🦋/🐘 link out. */ source?: boolean; marks?: { icon: string; label: string; href?: string }[]; /** Off, only the post's content (see SocialPost). */ byline?: boolean } = $props();
 </script>
 
-<SocialPost author={snapshot.author} date={snapshot.published} url={snapshot.sourceUrl ?? snapshot.url} sources={source ? [socialSnapshotSource(snapshot)] : []} {connected} {marks}>
+<SocialPost author={snapshot.author} date={snapshot.published} url={snapshot.sourceUrl ?? snapshot.url} sources={source ? [socialSnapshotSource(snapshot)] : []} {connected} {marks} {byline}>
  <div class="social-card-scope">{@html localizeLinks(renderSocialSnapshotBody(snapshot))}</div>
 </SocialPost>
