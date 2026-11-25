@@ -45,6 +45,8 @@
 	let open = $state<HTMLElement>();
 	let peekClip = $state<HTMLElement>();
 	let peekButton = $state<HTMLElement>();
+	let grip = $state<HTMLElement>();
+	let foot = $state<HTMLElement>();
 
 	/** Height of the open part while a finger drags the grip; null when it rests. */
 	let dragHeight = $state<number | null>(null);
@@ -65,14 +67,17 @@
 
 	$effect(() => {
 		if (!sheet || typeof ResizeObserver === 'undefined') return;
-		// What the sheet measures folded, worked out in any state so the page can leave room for it from the start.
+		// What the sheet measures folded, worked out in any state so the page can leave room for it from the start:
+		// the parts that show when folded (grip, peek, footer), never the ones that animate as it folds. Measuring
+		// those mid-fold gave a slightly different number each frame, and each one made the page lay out again.
 		const measure = () => {
 			if (!sheet) return;
-			const folded = sheet.offsetHeight - (open?.offsetHeight ?? 0) - (peekClip?.offsetHeight ?? 0) + (peekButton?.offsetHeight ?? 0);
-			if (folded > 0) restHeight = folded;
+			const style = getComputedStyle(sheet);
+			const folded = Math.round((grip?.offsetHeight ?? 0) + (peekButton?.offsetHeight ?? 0) + (foot?.clientHeight ?? 0) + parseFloat(style.borderTopWidth) + parseFloat(style.paddingBottom));
+			if (folded > 0 && folded !== restHeight) restHeight = folded;
 		};
 		const observer = new ResizeObserver(measure);
-		for (const element of [sheet, open, peekClip, peekButton]) if (element) observer.observe(element);
+		for (const element of [sheet, grip, peekButton, foot]) if (element) observer.observe(element);
 		return () => observer.disconnect();
 	});
 
@@ -132,6 +137,7 @@
 -->
 <section bind:this={sheet} class="bottom-sheet {className}" class:expanded class:dragging={dragHeight !== null} aria-label={label}>
 	<button
+		bind:this={grip}
 		type="button"
 		class="grip"
 		aria-expanded={expanded}
@@ -156,7 +162,7 @@
 			<button bind:this={peekButton} type="button" class="peek" onclick={() => (expanded = true)} aria-label={expandLabel}>{@render peek()}</button>
 		</div>
 	{/if}
-	{#if footer}<footer>{@render footer()}</footer>{/if}
+	{#if footer}<footer bind:this={foot}>{@render footer()}</footer>{/if}
 </section>
 
 <style>
@@ -220,7 +226,9 @@
 		transition: none;
 	}
 
+	/* Its size is set, so what changes inside (a reply streaming in) never makes the page around it lay out again. */
 	.inner {
+		contain: layout paint;
 		display: flex;
 		flex-direction: column;
 		max-height: calc(100dvh - var(--nav-lane, 0px) - 10rem);

@@ -30,10 +30,30 @@
 	// Follow streaming text while the reader is at the end.
 	const last = $derived(messages.at(-1));
 	const size = $derived(`${messages.length}:${last?.content.length ?? 0}:${last?.tools?.length ?? 0}`);
+	// At most once a frame: each scroll makes the browser lay the page out, and replies arrive a few words at a time.
+	let follow = 0;
 	$effect(() => {
 		void size;
-		if (atEnd) end?.scrollIntoView({ block: 'end' });
+		if (!atEnd || follow || !end) return;
+		follow = requestAnimationFrame(() => {
+			follow = 0;
+			if (!end) return;
+			const scroller = scrollParent(end);
+			// In a scrolling box, scroll only it; scrollIntoView would also move the page behind it.
+			if (scroller) scroller.scrollTop = scroller.scrollHeight;
+			else end.scrollIntoView({ block: 'end' });
+		});
 	});
+	$effect(() => () => cancelAnimationFrame(follow));
+
+	let scroller: HTMLElement | null | undefined;
+	function scrollParent(element: HTMLElement): HTMLElement | null {
+		if (scroller?.isConnected && scroller.contains(element)) return scroller;
+		for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) {
+			if (/(auto|scroll)/.test(getComputedStyle(node).overflowY)) return (scroller = node);
+		}
+		return (scroller = null);
+	}
 
 	const jump = () => end?.scrollIntoView({ block: 'end', behavior: 'smooth' });
 </script>
