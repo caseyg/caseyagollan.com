@@ -16,6 +16,8 @@ export interface IndieAuthEnvironment {
  AUTH_SETUP_TOKEN?: string; AUTH_INTROSPECTION_TOKEN?: string; AUTH_TOKEN_TTL_SECONDS?: string;
  AUTH_STORE?: DurableObjectNamespace;
  ASSETS?: Pick<Fetcher, 'fetch'>;
+ /** On previews: the production Worker, for redeeming the sign-in code. A Worker can't fetch a custom domain served by its own script over the network. */
+ AUTH_ISSUER?: Pick<Fetcher, 'fetch'>;
 }
 export interface AuthorizationRequest { clientId: string; redirectUri: string; state?: string; scope: string[]; codeChallenge: string; clientName?: string }
 export interface SessionInfo { csrf: string; expiresAt: number }

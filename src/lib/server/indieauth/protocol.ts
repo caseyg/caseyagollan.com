@@ -43,7 +43,7 @@ export function createIndieAuthHandler(env: IndieAuthEnvironment, dependencies: 
  if(settings.previewIssuer) {
  // Previews sign in through the preview issuer and serve only the owner-session routes.
  if(request.method==='GET'&&url.pathname==='/auth/preview')return await startPreviewSignIn(request,settings);
- if(request.method==='GET'&&url.pathname==='/auth/preview/callback')return await finishPreviewSignIn(request,settings,store);
+ if(request.method==='GET'&&url.pathname==='/auth/preview/callback')return await finishPreviewSignIn(request,settings,store,env.AUTH_ISSUER?(input,init)=>env.AUTH_ISSUER!.fetch(new Request(input,init)):undefined);
  const allowed=request.method==='GET'?['/auth/session','/auth/tokens','/auth/credentials']:['/auth/logout'];
  if(!allowed.includes(url.pathname))return reply({error:'invalid_request'},404);
  }

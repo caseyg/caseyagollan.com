@@ -80,7 +80,8 @@
 	 */
 	"previews": {
 		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }] },
-		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }],
+		/** AUTH_ISSUER is production itself: a preview redeems sign-in codes through it, since fetching caseyagollan.com from this script never reaches it. */
+		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }, { "binding": "AUTH_ISSUER", "service": "caseyagollan" }],
 		"vars": {
 			"AUTH_ENABLED": "true",
 			"AUTH_ME": "https://caseyagollan.com/",
