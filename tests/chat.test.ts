@@ -328,3 +328,19 @@ describe('RepeatGuard', () => {
 		expect(guard.check('fetch_page', { url: '/' })).toBeUndefined();
 	});
 });
+
+describe('go_to only goes to real pages', () => {
+	test('resolves section names and refuses pages the site doesn’t have', async () => {
+		const { realSitePath } = await import('../src/lib/server/chat/tools');
+		const built = new Set(['/about/', '/2025/12/09/post/']);
+		const assets = { fetch: async (request: Request) => new Response(null, { status: built.has(new URL(request.url).pathname) ? 200 : 404 }) } as unknown as Fetcher;
+		const origin = 'https://caseyagollan.com/';
+		expect(await realSitePath('/notes', origin, assets)).toBe('/type/notes');
+		expect(await realSitePath('/Note/', origin, assets)).toBe('/type/notes');
+		expect(await realSitePath('/books', origin, assets)).toBe('/library');
+		expect(await realSitePath('/tables/abc123', origin, assets)).toBe('/tables/abc123');
+		expect(await realSitePath('/2025/12/09/post/', origin, assets)).toBe('/2025/12/09/post/');
+		expect(await realSitePath('/made-up-page', origin, assets)).toBeNull();
+		expect(await realSitePath('/', origin, assets)).toBe('/');
+	});
+});
