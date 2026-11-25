@@ -46,6 +46,8 @@ interface ConnectionState { viewer: ChatViewer | null; at: number; /** Casey's t
 
 /** How long the assistant waits for Casey's table page to make a change. */
 const TABLE_OP_TIMEOUT = 30_000;
+/** The largest answer Casey's table page may send: a `look` picture is a few hundred kilobytes. */
+const TABLE_RESULT_MAX = 2_000_000;
 
 const MAX_MESSAGES = 300;
 const PER_PERSON_PER_HOUR = 20;
@@ -403,7 +405,8 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	}
 
 	async onMessage(connection: Connection<ConnectionState>, raw: WSMessage) {
-		if (typeof raw !== 'string' || raw.length > CHAT_MAX_MESSAGE * 2) return;
+		// Casey's table page answers `look` with a picture, so it may send more than a message.
+		if (typeof raw !== 'string' || raw.length > (connection.state?.canvas ? TABLE_RESULT_MAX : CHAT_MAX_MESSAGE * 2)) return;
 		let event: ChatClientEvent;
 		try { event = JSON.parse(raw); } catch { return; }
 		const state = connection.state;
@@ -427,6 +430,6 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 
 	private toolNames(owner: boolean): string[] {
 		const table = this.meta('table');
-		return ['search_site', 'fetch_page', 'show_page', ...(table ? ['table_read'] : []), ...(owner && table ? ['table'] : []), ...(owner && publishingConfig(this.env) ? ['micropub'] : [])];
+		return ['search_site', 'fetch_page', 'show_page', 'view_image', ...(table ? ['table_read'] : []), ...(owner && table ? ['table'] : []), ...(owner && publishingConfig(this.env) ? ['micropub'] : [])];
 	}
 }

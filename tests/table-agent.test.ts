@@ -78,3 +78,24 @@ describe('chat is owner-only for now', () => {
 		expect(visibleSections(false).map((section) => section.id)).toEqual(['home', 'library', 'posts', 'wiki', 'tables']);
 	});
 });
+
+describe('table chat pictures', () => {
+	test('table_look shows its snapshot; view_image shows the address, not the bytes', () => {
+		const entries = [
+			{ id: 'e1', kind: 'chat.say', data: { id: 's1', author: { id: 'c', name: 'Casey', via: 'owner' }, owner: true, at: 1, text: 'Tidy this up' } },
+			{ id: 'e2', kind: 'message', model: [{ role: 'assistant', content: [{ type: 'toolCall', id: 'c1', name: 'table_look', arguments: {} }, { type: 'toolCall', id: 'c2', name: 'view_image', arguments: { url: 'https://files.caseyagollan.com/a.jpg' } }], timestamp: 2 }] },
+			{ id: 'e3', kind: 'message', model: [{ role: 'toolResult', toolCallId: 'c1', toolName: 'table_look', isError: false, content: [{ type: 'text', text: 'The table' }, { type: 'image', mimeType: 'image/jpeg', data: 'AAAA' }] }] },
+			{ id: 'e4', kind: 'message', model: [{ role: 'toolResult', toolCallId: 'c2', toolName: 'view_image', isError: false, content: [{ type: 'text', text: 'The picture at https://files.caseyagollan.com/a.jpg:' }, { type: 'image', mimeType: 'image/jpeg', data: 'BBBB' }] }] }
+		];
+		const [, reply] = projectMessages(entries as never, {}, 3);
+		expect(reply.tools?.[0]).toMatchObject({ tool: 'table_look', label: 'Looked at the table', picture: { src: 'data:image/jpeg;base64,AAAA' } });
+		expect(reply.tools?.[1]).toMatchObject({ tool: 'view_image', picture: { src: 'https://files.caseyagollan.com/a.jpg' } });
+	});
+
+	test('table_look is Casey’s, view_image anyone’s', () => {
+		expect(isOwnerTool('table_look')).toBe(true);
+		expect(isOwnerTool('table_tidy')).toBe(true);
+		expect(isOwnerTool('view_image')).toBe(false);
+		expect(toolLabel('table_arrange', { layout: 'columns' })).toBe('Arranged the table in columns');
+	});
+});

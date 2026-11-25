@@ -42,9 +42,10 @@ export const tableAsk: ChatMessage = { id: 't1', role: 'user', author: casey, co
 export const tableAnswer: ChatMessage = {
 	id: 't2', role: 'assistant', model: 'glm-flash-green', status: 'done', createdAt: at + 215_000,
 	tools: [
-		{ tool: 'table_read', label: 'Looked at the table', status: 'done' },
+		{ tool: 'table_read', label: 'Read the table', status: 'done' },
 		{ tool: 'table_add_from_search', label: 'Added results for “cooperatives”', status: 'done' },
 		{ tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' },
+		{ tool: 'table_look', label: 'Looked at the table', status: 'done', picture: { src: 'table-look.jpg', alt: 'What the assistant saw of the table, each item numbered' } },
 		{ tool: 'show_page', label: 'Showed Platform cooperativism', status: 'done', peek: { url: 'https://caseyagollan.com/wiki/platform-cooperativism', title: 'Platform cooperativism', excerpt: 'Notes on worker- and user-owned platforms, and the reading list that goes with them.' } }
 	],
 	content: 'Added six posts and set everything out in a three-column grid. The wiki page above has the reading list they come from.'

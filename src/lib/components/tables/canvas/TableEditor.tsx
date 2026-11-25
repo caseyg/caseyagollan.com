@@ -17,7 +17,8 @@ import {
 } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
-import type { TableItem, TableOp } from '$lib/table-agent';
+import { LOOK_MAX_SIDE, type TableItem, type TableLook, type TableOp } from '$lib/table-agent';
+import { GRID, onGrid, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { SiteBlockShapeUtil, blockOf, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
@@ -44,7 +45,7 @@ export interface TableApi {
 	 */
 	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
-	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'rename' }>): unknown;
+	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'rename' }>): Promise<unknown>;
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
@@ -70,9 +71,8 @@ export interface TableEditorProps {
 
 const shapeUtils = [SiteBlockShapeUtil];
 /** The dot grid's spacing; blocks snap to it, and are set out a grid step apart. */
-export const GRID = 20;
+export { GRID };
 const GAP = GRID;
-const onGrid = (value: number) => Math.round(value / GRID) * GRID;
 
 /**
  * Where a block added without a drop point goes: the middle of the view, or just right of the block
@@ -190,43 +190,153 @@ function itemOf(editor: Editor, shape: TLShape): TableItem {
 	const base = { id: shape.id.replace(/^shape:/, ''), x: Math.round(bounds.x), y: Math.round(bounds.y), w: Math.round(bounds.w), h: Math.round(bounds.h) };
 	if (editor.isShapeOfType(shape, BLOCK_SHAPE)) {
 		const props = (shape as SiteBlockShape).props;
-		return { ...base, type: props.kind, title: props.title, url: props.url, ...(props.excerpt ? { text: props.excerpt.slice(0, 200) } : {}) };
+		return { ...base, type: props.kind, title: props.title, url: props.url, ...(props.excerpt ? { text: props.excerpt.slice(0, 200) } : {}), ...(props.image ? { image: props.image } : {}) };
 	}
 	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
 	return { ...base, type: shape.type, ...(rich ? { text: renderPlaintextFromRichText(editor, rich).slice(0, 400) } : {}) };
 }
 
-/** Sets shapes out in a grid (or one row, or one column) from a corner, in reading order, a grid step apart. */
-function layoutShapes(editor: Editor, shapes: TLShape[], columns: number, at?: { x: number; y: number }) {
-	const boxes = shapes.map((shape) => ({ shape, bounds: editor.getShapePageBounds(shape)! })).sort((a, b) => a.bounds.y - b.bounds.y || a.bounds.x - b.bounds.x);
-	if (!boxes.length) return;
-	const origin = at ?? { x: Math.min(...boxes.map((box) => box.bounds.x)), y: Math.min(...boxes.map((box) => box.bounds.y)) };
-	let x = onGrid(origin.x), y = onGrid(origin.y), rowHeight = 0;
-	const updates = boxes.map(({ shape, bounds }, index) => {
-		if (index && index % columns === 0) { x = onGrid(origin.x); y += rowHeight + GAP; rowHeight = 0; }
-		// A shape's x and y are its rotation origin; move it by how far its bounds must go.
-		const update = { id: shape.id, type: shape.type, x: shape.x + (x - bounds.x), y: shape.y + (y - bounds.y) };
-		x += onGrid(bounds.w) + GAP;
-		rowHeight = Math.max(rowHeight, onGrid(bounds.h));
-		return update;
+/** Shapes that take up room on the table; arrows and drawings run over things by design. */
+const SOLID = (shape: TLShape) => !['arrow', 'draw', 'line', 'highlight'].includes(shape.type);
+
+/** Each shape's measured box on the page: a note's height includes how far it grew with its text. */
+function boxesOf(editor: Editor, shapes: TLShape[]): Box[] {
+	return shapes.flatMap((shape) => {
+		const bounds = editor.getShapePageBounds(shape);
+		return bounds ? [{ id: shape.id.replace(/^shape:/, ''), x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h }] : [];
 	});
-	editor.animateShapes(updates, ANIMATION);
 }
 
-function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0], api: TableApi): unknown {
+/** Moves shapes so their bounds' top-left lands on each placement, animated. */
+function place(editor: Editor, placements: Placement[]) {
+	const updates = placements.flatMap(({ id, x, y }) => {
+		const shape = editor.getShape(`shape:${id}` as TLShapeId);
+		const bounds = shape && editor.getShapePageBounds(shape);
+		// A shape's x and y are its rotation origin; move it by how far its bounds must go.
+		return shape && bounds ? [{ id: shape.id, type: shape.type, x: shape.x + (x - bounds.x), y: shape.y + (y - bounds.y) }] : [];
+	});
+	editor.animateShapes(updates, ANIMATION);
+	return updates.length;
+}
+
+/** What's wrong with the table now, once moves have finished animating. */
+async function settled(editor: Editor) {
+	await new Promise((resolve) => setTimeout(resolve, ANIMATION.animation.duration + 60));
+	return layoutIssues(boxesOf(editor, editor.getCurrentPageShapesSorted().filter(SOLID)));
+}
+
+/** What a change reports: what it did, plus any overlaps left, so the assistant can fix them before it answers. */
+async function changed(editor: Editor, result: Record<string, unknown>) {
+	const issues = await settled(editor);
+	const clean = !issues.overlaps.length && !issues.crowded.length;
+	return { ...result, ...(clean ? { layout: 'no overlaps' } : { issues }) };
+}
+
+/**
+ * Where a new note goes: below or right of an item (and on down past anything in the way), at a
+ * point, or the nearest open place in view. Measured after it's made, since notes grow with text.
+ */
+function placeNew(editor: Editor, id: TLShapeId, op: { at?: { x: number; y: number }; below?: string; right_of?: string }) {
+	const bounds = editor.getShapePageBounds(id)!;
+	const anchorId = op.below ?? op.right_of;
+	const anchor = anchorId ? editor.getShapePageBounds(`shape:${anchorId.replace(/^shape:/, '')}` as TLShapeId) : undefined;
+	const target = anchor
+		? op.below ? { x: anchor.x, y: anchor.maxY + GAP } : { x: anchor.maxX + GAP, y: anchor.y }
+		: op.at ?? openSpot(editor, { w: bounds.w, h: bounds.h });
+	const shape = editor.getShape(id)!;
+	editor.updateShape({ id, type: shape.type, x: onGrid(target.x), y: onGrid(target.y) });
+	// Anything it lands on is pushed down (and on down its column), not covered.
+	const moves = tidyLayout(boxesOf(editor, editor.getCurrentPageShapesSorted().filter(SOLID)), GAP, id.replace(/^shape:/, ''));
+	if (moves.length) place(editor, moves);
+}
+
+/** Draws the table to a picture the assistant can look at, each item numbered, overlaps outlined in red. */
+async function look(editor: Editor, ids?: string[]): Promise<TableLook | { empty: true }> {
+	const shapes = ids?.length ? shapesFor(editor, ids) : editor.getCurrentPageShapesSorted();
+	if (!shapes.length) return { empty: true };
+	const bounds = editor.getShapesPageBounds(shapes.map((shape) => shape.id))!;
+	const padding = 40;
+	const scale = Math.min(1.5, LOOK_MAX_SIDE / (Math.max(bounds.w, bounds.h) + padding * 2));
+	const canvas = document.createElement('canvas');
+	canvas.width = Math.round((bounds.w + padding * 2) * scale);
+	canvas.height = Math.round((bounds.h + padding * 2) * scale);
+	const context = canvas.getContext('2d')!;
+	const toPicture = (x: number, y: number) => ({ x: (x - bounds.x + padding) * scale, y: (y - bounds.y + padding) * scale });
+	const solid = shapes.filter(SOLID);
+	const boxes = boxesOf(editor, solid);
+	const issues = layoutIssues(boxes);
+
+	context.fillStyle = '#2b2b2f';
+	context.fillRect(0, 0, canvas.width, canvas.height);
+	try {
+		// tldraw's own export: blocks drawn by their Svelte cards, notes and text as they look.
+		const { blob } = await editor.toImage(shapes, { format: 'png', background: true, darkMode: true, padding, scale, pixelRatio: 1 });
+		const bitmap = await createImageBitmap(blob);
+		context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+		bitmap.close();
+	} catch {
+		// No export (a picture that wouldn't load, say): a plan of the boxes, titled, still shows the layout.
+		context.font = `${Math.max(10, 13 * scale)}px sans-serif`;
+		for (const shape of solid) {
+			const item = itemOf(editor, shape);
+			const { x, y } = toPicture(item.x, item.y);
+			context.fillStyle = '#44444a';
+			context.fillRect(x, y, item.w * scale, item.h * scale);
+			context.strokeStyle = '#8a8a92';
+			context.strokeRect(x, y, item.w * scale, item.h * scale);
+			context.fillStyle = '#fff';
+			context.fillText((item.title ?? item.text ?? item.type).slice(0, 40), x + 6, y + 30 * scale, item.w * scale - 12);
+		}
+	}
+
+	const overlapping = new Set(issues.overlaps.flatMap((overlap) => overlap.ids));
+	context.lineWidth = Math.max(2, 3 * scale);
+	context.strokeStyle = '#ff3b30';
+	for (const box of boxes) {
+		if (!overlapping.has(box.id)) continue;
+		const { x, y } = toPicture(box.x, box.y);
+		context.strokeRect(x, y, box.w * scale, box.h * scale);
+	}
+	const key: TableLook['key'] = [];
+	const radius = Math.max(9, 12 * scale);
+	context.textAlign = 'center';
+	context.textBaseline = 'middle';
+	context.font = `bold ${Math.round(radius * 1.1)}px sans-serif`;
+	solid.forEach((shape, index) => {
+		const item = itemOf(editor, shape);
+		key.push({ n: index + 1, id: item.id, type: item.type, ...(item.title ? { title: item.title.slice(0, 80) } : item.text ? { title: item.text.slice(0, 60) } : {}) });
+		const { x, y } = toPicture(item.x, item.y);
+		context.beginPath();
+		context.arc(x, y, radius, 0, Math.PI * 2);
+		context.fillStyle = overlapping.has(item.id) ? '#ff3b30' : '#ffd60a';
+		context.fill();
+		context.fillStyle = '#000';
+		context.fillText(String(index + 1), x, y + 1);
+	});
+	return { image: canvas.toDataURL('image/jpeg', 0.72), width: canvas.width, height: canvas.height, key, issues };
+}
+
+async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0], api: TableApi): Promise<unknown> {
 	switch (op.op) {
 		case 'read': {
 			const shapes = editor.getCurrentPageShapesSorted();
-			return { items: shapes.map((shape) => itemOf(editor, shape)), selected: editor.getSelectedShapeIds().map((id) => id.replace(/^shape:/, '')) };
+			return { items: shapes.map((shape) => itemOf(editor, shape)), selected: editor.getSelectedShapeIds().map((id) => id.replace(/^shape:/, '')), issues: layoutIssues(boxesOf(editor, shapes.filter(SOLID))) };
 		}
+		case 'look':
+			return look(editor, op.ids);
 		case 'add_blocks':
-			return { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at }).map((id) => id.replace(/^shape:/, '')) };
+			return changed(editor, { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at }).map((id) => id.replace(/^shape:/, '')) });
 		case 'add_note': {
 			const id = createShapeId();
-			const spot = op.at ?? openSpot(editor, { w: 200, h: 200 });
+			const text = toRichText(op.text.slice(0, 2000));
 			editor.markHistoryStoppingPoint('add note');
-			editor.createShape({ id, type: 'note', x: onGrid(spot.x), y: onGrid(spot.y), props: { richText: toRichText(op.text.slice(0, 2000)) } });
-			return { added: [id.replace(/^shape:/, '')] };
+			// Long text reads better as a wrapped text card than a sticky note, which shrinks its type to fit.
+			if (op.style === 'text') editor.createShape({ id, type: 'text', x: 0, y: 0, props: { richText: text, autoSize: false, w: Math.max(160, Math.min(800, op.w ?? 360)) } });
+			else editor.createShape({ id, type: 'note', x: 0, y: 0, props: { richText: text } });
+			placeNew(editor, id, op);
+			const report = await changed(editor, {});
+			const bounds = editor.getShapePageBounds(id)!;
+			return { added: [{ id: id.replace(/^shape:/, ''), x: Math.round(bounds.x), y: Math.round(bounds.y), w: Math.round(bounds.w), h: Math.round(bounds.h) }], ...report };
 		}
 		case 'move': {
 			editor.markHistoryStoppingPoint('move');
@@ -234,18 +344,35 @@ function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0], api: 
 			const updates = op.moves.flatMap((move) => {
 				const shape = shapes.get(move.id.replace(/^shape:/, ''));
 				if (!shape) return [];
-				const props = editor.isShapeOfType(shape, BLOCK_SHAPE) && (move.w || move.h) ? { props: { ...(move.w ? { w: onGrid(move.w) } : {}), ...(move.h ? { h: onGrid(move.h) } : {}) } } : {};
+				const resizable = editor.isShapeOfType(shape, BLOCK_SHAPE) || shape.type === 'text';
+				const props = resizable && (move.w || move.h) ? { props: { ...(move.w ? { w: onGrid(move.w) } : {}), ...(move.h && shape.type !== 'text' ? { h: onGrid(move.h) } : {}), ...(shape.type === 'text' ? { autoSize: false } : {}) } } : {};
 				return [{ id: shape.id, type: shape.type, x: move.x === undefined ? shape.x : onGrid(move.x), y: move.y === undefined ? shape.y : onGrid(move.y), ...props } as TLShapePartial];
 			});
 			editor.animateShapes(updates, ANIMATION);
-			return { moved: updates.length };
+			return changed(editor, { moved: updates.length });
 		}
 		case 'arrange': {
-			const shapes = shapesFor(editor, op.ids);
+			const shapes = shapesFor(editor, op.ids).filter(SOLID);
 			editor.markHistoryStoppingPoint('arrange');
-			if (op.layout === 'pack') editor.packShapes(shapes, GAP);
-			else layoutShapes(editor, shapes, op.layout === 'row' ? shapes.length : op.layout === 'column' ? 1 : Math.max(1, op.columns ?? Math.ceil(Math.sqrt(shapes.length))), op.at);
-			return { arranged: shapes.length };
+			const gap = Math.max(0, Math.min(200, op.gap ?? GAP));
+			const boxes = boxesOf(editor, shapes);
+			const columns = Math.max(1, op.columns ?? Math.ceil(Math.sqrt(shapes.length)));
+			if (op.layout === 'pack') editor.packShapes(shapes, gap);
+			else place(editor, op.layout === 'row' ? rowLayout(boxes, op.at, gap) : op.layout === 'column' ? columnLayout(boxes, op.at, gap) : op.layout === 'columns' ? columnsLayout(boxes, columns, op.at, gap) : gridLayout(boxes, columns, op.at, gap));
+			return changed(editor, { arranged: shapes.length });
+		}
+		case 'align': {
+			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			if (shapes.length < 2) return { aligned: 0, note: 'Name at least two items.' };
+			editor.markHistoryStoppingPoint('align');
+			if (op.align) editor.alignShapes(shapes, op.align);
+			if (op.distribute && shapes.length > 2) editor.distributeShapes(shapes, op.distribute);
+			return changed(editor, { aligned: shapes.length });
+		}
+		case 'tidy': {
+			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			editor.markHistoryStoppingPoint('tidy');
+			return changed(editor, { moved: place(editor, tidyLayout(boxesOf(editor, shapes))) });
 		}
 		case 'remove': {
 			const shapes = shapesFor(editor, op.ids);

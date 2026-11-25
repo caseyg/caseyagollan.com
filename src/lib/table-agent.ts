@@ -9,15 +9,30 @@ import type { Block } from './tables';
 /** Where something goes on the table, in canvas units (the dot grid is 20). */
 export interface TablePoint { x: number; y: number }
 
-export type TableLayout = 'grid' | 'row' | 'column' | 'pack';
+/**
+ * `grid`: columns as wide as their widest item, rows as tall as their tallest. `columns`:
+ * masonry, each item into the shortest column (best for notes and text of different
+ * lengths). `row`, `column`: one line. `pack`: as tight as possible, order not kept.
+ */
+export type TableLayout = 'grid' | 'columns' | 'row' | 'column' | 'pack';
+export const TABLE_LAYOUTS: readonly TableLayout[] = ['grid', 'columns', 'row', 'column', 'pack'];
+
+export type TableAlign = 'left' | 'center-horizontal' | 'right' | 'top' | 'center-vertical' | 'bottom';
+export const TABLE_ALIGNS: readonly TableAlign[] = ['left', 'center-horizontal', 'right', 'top', 'center-vertical', 'bottom'];
+
+/** Where a new note goes: a point, or just below or right of an item already there. */
+export interface TablePlace { at?: TablePoint; below?: string; right_of?: string }
 
 export type TableOp =
 	| { op: 'add_from_search'; query: string; filter?: 'all' | 'post' | 'book' | 'wiki' | 'arena' | 'raindrop'; limit?: number; columns?: number; at?: TablePoint }
 	| { op: 'add_links'; urls: string[]; columns?: number; at?: TablePoint }
 	| { op: 'add_blocks'; blocks: Block[]; columns?: number; at?: TablePoint }
-	| { op: 'add_note'; text: string; at?: TablePoint }
+	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number } & TablePlace)
 	| { op: 'move'; moves: ({ id: string } & Partial<TablePoint> & { w?: number; h?: number })[] }
-	| { op: 'arrange'; layout: TableLayout; ids?: string[]; columns?: number; at?: TablePoint }
+	| { op: 'arrange'; layout: TableLayout; ids?: string[]; columns?: number; gap?: number; at?: TablePoint }
+	| { op: 'align'; ids: string[]; align?: TableAlign; distribute?: 'horizontal' | 'vertical' }
+	| { op: 'tidy'; ids?: string[] }
+	| { op: 'look'; ids?: string[] }
 	| { op: 'remove'; ids: string[] }
 	| { op: 'select'; ids: string[]; zoom?: boolean }
 	| { op: 'rename'; name: string }
@@ -30,6 +45,8 @@ export interface TableItem {
 	type: string;
 	title?: string;
 	url?: string;
+	/** A block's picture, which `view_image` can look at. */
+	image?: string;
 	text?: string;
 	x: number;
 	y: number;
@@ -38,6 +55,18 @@ export interface TableItem {
 }
 
 export type TableOpResult = { ok: true; result: unknown } | { ok: false; error: string };
+
+/** What `look` sends back: a picture of the table with each item numbered, and the key to the numbers. */
+export interface TableLook {
+	/** A JPEG data URL, at most `LOOK_MAX_SIDE` pixels on its long side. */
+	image: string;
+	width: number;
+	height: number;
+	/** Item number on the picture, its id, and what it is. */
+	key: { n: number; id: string; type: string; title?: string }[];
+	issues: import('./table-layout').LayoutIssues;
+}
+export const LOOK_MAX_SIDE = 1280;
 
 /** Messages between the thread and the table page, beside the chat's own. */
 export type TableOpEvent = { type: 'table:op'; id: string } & TableOp;
@@ -54,8 +83,8 @@ export function tableThreadId(tableId: string): string {
 	return (a.toString(36).padStart(7, '0').slice(-5) + b.toString(36).padStart(7, '0').slice(-5));
 }
 
-/** The ops only Casey's runs may make: everything but reading. */
-export const TABLE_WRITE_TOOLS = ['table_add_from_search', 'table_add_links', 'table_add_note', 'table_move', 'table_arrange', 'table_remove', 'table_select', 'table_rename'] as const;
+/** The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's open page. */
+export const TABLE_OWNER_TOOLS = ['table_add_from_search', 'table_add_links', 'table_add_note', 'table_move', 'table_arrange', 'table_align', 'table_tidy', 'table_look', 'table_remove', 'table_select', 'table_rename'] as const;
 
 /** What is on a saved table, from its tldraw document, for when no canvas is open to ask. */
 export function itemsFromDocument(document: unknown): TableItem[] {
@@ -75,6 +104,7 @@ export function itemsFromDocument(document: unknown): TableItem[] {
 		};
 		if (block && typeof props.title === 'string') item.title = props.title;
 		if (block && typeof props.url === 'string') item.url = props.url;
+		if (block && typeof props.image === 'string' && props.image) item.image = props.image;
 		const text = block ? props.excerpt : plainText(props.richText);
 		if (typeof text === 'string' && text) item.text = text.slice(0, block ? 200 : 400);
 		items.push(item);

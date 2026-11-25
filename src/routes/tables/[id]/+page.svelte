@@ -78,7 +78,7 @@
 				return { ok: true, result: { name } };
 			}
 			default:
-				return { ok: true, result: api.perform(op) };
+				return { ok: true, result: await api.perform(op) };
 		}
 	}
 

@@ -27,7 +27,7 @@ export interface Entry { id: string; kind: string; model?: readonly unknown[]; d
 interface Text { type: 'text'; text: string }
 interface Call { type: 'toolCall'; id: string; name: string; arguments: Record<string, unknown> }
 interface Assistant { role: 'assistant'; content: (Text | Call | { type: string })[]; model?: string; timestamp?: number; stopReason?: string; errorMessage?: string }
-interface ToolResult { role: 'toolResult'; toolCallId: string; toolName: string; content: { type: string; text?: string }[]; isError: boolean }
+interface ToolResult { role: 'toolResult'; toolCallId: string; toolName: string; content: { type: string; text?: string; data?: string; mimeType?: string }[]; isError: boolean }
 export interface Live {
 	run?: unknown;
 	generation?: { message?: Assistant; retry?: { at: number; error: string } };
@@ -98,6 +98,10 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 				const links = linksFrom(result.toolName, textOf(result.content));
 				if (links.length) call.use.links = links;
 			}
+			if (!result.isError && (result.toolName === 'table_look' || result.toolName === 'view_image')) {
+				const picture = pictureFrom(result.toolName, call.args, result.content);
+				if (picture) call.use.picture = picture;
+			}
 			if (!result.isError && result.toolName === 'show_page') {
 				const peek = peekFrom(textOf(result.content));
 				if (peek) { call.use.peek = peek; call.use.label = `Showed ${peek.title}`.slice(0, 100); }
@@ -145,12 +149,16 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'show_page') return `Opened a preview of ${String(args.url ?? '').replace(/^https?:\/\//, '').slice(0, 80)}`;
 	if (name === 'go_to') return `Took you to ${String(args.path ?? '').slice(0, 80)}`;
 	if (name === 'create_table') return `Made a table, “${String(args.name ?? '').slice(0, 60)}”`;
-	if (name === 'table_read') return 'Looked at the table';
+	if (name === 'table_read') return 'Read the table';
+	if (name === 'table_look') return 'Looked at the table';
+	if (name === 'table_tidy') return `Tidied ${args.ids ? count(args.ids, 'item') : 'the table'}`;
+	if (name === 'table_align') return `${args.align ? 'Lined up' : 'Spaced out'} ${count(args.ids, 'item')}`;
+	if (name === 'view_image') return `Looked at ${String(args.url ?? '').replace(/^https?:\/\//, '').slice(0, 80)}`;
 	if (name === 'table_add_from_search') return `Added results for “${String(args.query ?? '').slice(0, 60)}”`;
 	if (name === 'table_add_links') return `Added ${count(args.urls, 'link')}`;
-	if (name === 'table_add_note') return 'Added a note';
+	if (name === 'table_add_note') return args.style === 'text' ? 'Added some text' : 'Added a note';
 	if (name === 'table_move') return `Moved ${count(args.moves, 'item')}`;
-	if (name === 'table_arrange') return `Arranged ${args.ids ? count(args.ids, 'item') : 'the table'} ${args.layout === 'pack' ? 'packed together' : `in a ${args.layout === 'row' || args.layout === 'column' ? args.layout : 'grid'}`}`;
+	if (name === 'table_arrange') return `Arranged ${args.ids ? count(args.ids, 'item') : 'the table'} ${args.layout === 'pack' ? 'packed together' : args.layout === 'columns' ? 'in columns' : `in a ${args.layout === 'row' || args.layout === 'column' ? args.layout : 'grid'}`}`;
 	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
 	if (name === 'table_select') return `Pointed out ${count(args.ids, 'item')}`;
 	if (name === 'table_rename') return `Renamed the table “${String(args.name ?? '').slice(0, 60)}”`;
@@ -158,6 +166,19 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 }
 
 const count = (list: unknown, noun: string) => { const n = Array.isArray(list) ? list.length : 0; return `${n} ${noun}${n === 1 ? '' : 's'}`; };
+
+/**
+ * What readers see of a picture the assistant looked at: the table snapshot itself (a small
+ * JPEG it drew), or the address of the image it fetched, never the fetched bytes.
+ */
+export function pictureFrom(name: string, args: Record<string, unknown>, content: ToolResult['content']): ChatToolUse['picture'] | undefined {
+	if (name === 'view_image') {
+		const url = /^The picture at (\S+):$/.exec(content.find((part) => part.type === 'text')?.text ?? '')?.[1] ?? String(args.url ?? '');
+		return /^https?:\/\//.test(url) ? { src: url, alt: 'The picture the assistant looked at' } : undefined;
+	}
+	const image = content.find((part) => part.type === 'image' && part.mimeType === 'image/jpeg' && typeof part.data === 'string');
+	return image ? { src: `data:image/jpeg;base64,${image.data}`, alt: 'What the assistant saw of the table, each item numbered' } : undefined;
+}
 
 /** The preview `show_page` made: a page's address, title and opening lines. */
 export function peekFrom(output: string): ChatToolUse['peek'] | undefined {
