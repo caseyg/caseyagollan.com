@@ -25,6 +25,8 @@ export interface ToolDeps {
 	origin: () => string;
 	/** After a run answered, for work outside Pi such as naming the thread. */
 	onRunEnd?: () => void;
+	/** Whether only Casey has ever written in this thread, so every run in it is Casey's alone. */
+	onlyOwner?: () => boolean;
 	/** What the thread does for the tools that reach past Pi: a table, a browser. */
 	thread?: ThreadHooks;
 }
@@ -59,6 +61,32 @@ const WRITES = new Set<string>([...TABLE_OWNER_TOOLS, 'create_table']);
 export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name);
 export const isTableTool = (name: string) => name.startsWith('table_');
 
+/** How many times a run may make the very same call (same tool, same arguments) before it's refused. */
+export const REPEAT_LIMIT = 2;
+
+/**
+ * Counts each run's identical calls, so a model stuck re-reading the table gets told to move on.
+ * A change to the table starts the reads' count over, since what they'd see has changed.
+ */
+export class RepeatGuard {
+	#seen = new Map<string, number>();
+
+	check(name: string, args: unknown): string | undefined {
+		if (name !== 'table_read' && name !== 'table_look' && (isTableTool(name) || name === 'create_table')) {
+			for (const key of [...this.#seen.keys()]) if (key.startsWith('table_read ') || key.startsWith('table_look ')) this.#seen.delete(key);
+		}
+		const key = `${name} ${JSON.stringify(args ?? {})}`;
+		const count = (this.#seen.get(key) ?? 0) + 1;
+		this.#seen.set(key, count);
+		if (count <= REPEAT_LIMIT) return undefined;
+		return name === 'table_read' || name === 'table_look'
+			? 'You already read the table and nothing on it has changed since. Don’t read it again: put things on it now (table_add_note, table_add_links, table_add_from_search), or answer.'
+			: `You already called ${name} with exactly these arguments ${REPEAT_LIMIT} times this turn. Do something else, or answer.`;
+	}
+
+	reset() { this.#seen.clear(); }
+}
+
 const PREAMBLE = [
 	'You are the assistant in a public chat on caseyagollan.com, Casey Gollan’s personal website. Anyone can read these threads; people who have signed in with their website, Mastodon or Bluesky take part. Several people may be in one thread: each user message starts with who wrote it.',
 	'Answer in Markdown. Keep replies short and conversational unless asked for more. When you use something from the site or the web, link to it.',
@@ -73,6 +101,7 @@ const PREAMBLE = [
 const TABLE_SECTION = [
 	'A table is open beside this chat: one of Casey’s canvases of blocks (posts, books, wiki pages, Are.na blocks, links), sticky notes, text and drawings. It is the table Casey has open now, or this chat’s own table when Casey has none open. The table_* tools act on it.',
 	'table_read lists what is on it, with ids, kinds, titles and measured boxes in canvas units (x grows right, y grows down; the dot grid is 20), plus any overlaps. Read before changing things, and refer to items by those ids.',
+	'A table here is a canvas, not rows and columns: there is no tool that writes rows, and you never need one. To put words on it, add notes with table_add_note (style `text` for a sentence or more); to put pages on it, use table_add_links or table_add_from_search. For a comparison or a grid, add one note per cell or per item, then set them out with table_arrange (`grid`, with as many columns as the comparison has) and name the parts with table_frame. Do this yourself; never paste a Markdown table for Casey to copy instead.',
 	'When Casey asks, the other table_* tools do everything the table’s own toolbar does: add blocks from the site’s search or from links, add sticky notes and text (table_add_note), draw arrows between items (table_connect), draw with the pen (table_draw), put items in named frames (table_frame) or groups (table_group), change a note’s, text’s, arrow label’s or frame’s words and colour (table_edit), move and resize, set things out, align, tidy, erase (table_remove), select and zoom to things, and rename the table. Casey sees each change and can undo it. Say briefly what you changed. Don’t tell Casey the table can’t do something these tools do.',
 	[
 		'Showing how things relate:',
@@ -153,6 +182,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 	} satisfies ToolRegistration)) : [];
 
 	const thread = deps.thread;
+	const repeats = new RepeatGuard();
 	const showPage: ToolRegistration = {
 		name: 'show_page',
 		description: 'Show a preview card of a page (its title and opening lines) in the chat, for everyone reading to open.',
@@ -330,19 +360,22 @@ export function chatExtension(deps: ToolDeps): Extension {
 					const nameOf = (tool: { function?: { name?: string }; name?: string }) => tool.function?.name ?? tool.name ?? '';
 					if (!payload?.tools?.length) return undefined;
 					const table = !!thread?.table();
-					const owner = payload.tools.some((tool) => isOwnerTool(nameOf(tool))) && await ownerRun(api, context);
+					const owner = payload.tools.some((tool) => isOwnerTool(nameOf(tool))) && (deps.onlyOwner?.() || await ownerRun(api, context));
 					const tools = payload.tools.filter((tool) => (owner || !isOwnerTool(nameOf(tool))) && (table || !isTableTool(nameOf(tool))));
 					if (tools.length === payload.tools.length) return undefined;
+					console.log(JSON.stringify({ event: 'chat_tools_withheld', owner, table, offered: tools.length, withheld: payload.tools.length - tools.length }));
 					return { payload: { ...payload, tools: tools.length ? tools : undefined, ...(tools.length ? {} : { tool_choice: undefined }) } };
 				},
-				afterRun() { deps.onRunEnd?.(); return undefined; }
+				afterRun() { repeats.reset(); deps.onRunEnd?.(); return undefined; }
 			}),
 			// And refuse a Micropub call the model makes anyway.
 			hook(ToolTask, {
 				async beforeTool(call, api, context) {
 					if (isTableTool(call.name) && !thread?.table()) return { block: 'There’s no table open beside this chat. Ask Casey to open one.' };
+					const repeated = repeats.check(call.name, call.arguments);
+					if (repeated) return { block: repeated };
 					if (!isOwnerTool(call.name)) return undefined;
-					return (await ownerRun(api, context)) ? undefined : { block: 'Only Casey can use this tool, and only when Casey alone is asking.' };
+					return (deps.onlyOwner?.() || await ownerRun(api, context)) ? undefined : { block: 'Only Casey can use this tool, and only when Casey alone is asking.' };
 				}
 			})
 		]

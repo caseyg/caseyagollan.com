@@ -49,6 +49,8 @@ interface ConnectionState {
 	canvas?: boolean;
 	/** The page this browser is on, which the chat now follows across the site. */
 	page?: ChatPage;
+	/** When this browser last said anything: the freshest of Casey's open pages takes the table's changes. */
+	active?: number;
 }
 
 /** How long go_to waits for the asker's page to connect, such as while a new chat's page loads. */
@@ -75,7 +77,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	readonly harness = new PiHarness({
 		harness: ({ storage, context, onWake }) => {
 			const { models } = chatModels(this.env);
-			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), thread: this.hooks() }));
+			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks() }));
 			return Harness.open(storage, {
 				models, registry: this.registry, onWake, identity: { attribution: null },
 				// A failed answer doesn't hold up the next person's message.
@@ -105,7 +107,9 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			tableOp: (op) => this.tableOp(op),
 			readTable: async () => {
 				if (this.canvas()) return this.tableOp({ op: 'read' });
-				const table = await readTable(this.env.PUBLISHING_STATE, this.table() ?? '');
+				const id = this.table();
+				if (!id) throw new Error('There’s no table open beside this chat. Ask Casey to open one.');
+				const table = await readTable(this.env.PUBLISHING_STATE, id);
 				return { name: table?.name, items: itemsFromDocument(table?.document), note: 'As last saved; Casey doesn’t have the table open.' };
 			},
 			createTable: async (name) => {
@@ -147,7 +151,12 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	/** Casey's open page for this thread's table, freshest first. */
 	private canvas(): Connection<ConnectionState> | undefined {
 		let found: Connection<ConnectionState> | undefined;
-		for (const connection of this.getConnections<ConnectionState>()) if (connection.state?.canvas && connection.state.viewer?.owner) found = connection;
+		for (const connection of this.getConnections<ConnectionState>()) {
+			const state = connection.state;
+			if (!state?.canvas || !state.viewer?.owner) continue;
+			// A page left open in another tab (or a phone's sleeping browser) still looks connected; prefer the one Casey used last.
+			if (!found || (state.active ?? state.at) >= (found.state?.active ?? found.state?.at ?? 0)) found = connection;
+		}
 		return found;
 	}
 
@@ -176,6 +185,8 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			const timer = setTimeout(() => {
 				this.tableOps.delete(id);
 				console.warn(JSON.stringify({ event: 'chat_table_op_timeout', op: op.op, table: connection.state?.page?.table }));
+				// That page isn't answering: stop sending it changes until it says where it is again.
+				if (connection.state) connection.setState({ ...connection.state, canvas: false });
 				reject(new Error('The table didn’t answer in time.'));
 			}, TABLE_OP_TIMEOUT);
 			this.tableOps.set(id, { resolve, reject, timer });
@@ -334,9 +345,13 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		// Where they were, so “this page” means something: the chat follows Casey around the site.
 		const page = chatPage(where);
 		const on = page ? ` while on ${new URL(page.path, this.origin()).href}${page.title ? ` (“${page.title}”)` : ''}${page.table ? `, a table` : ''}` : '';
-		await this.follow();
-		await this.harness.submit(`${who} wrote${on}:\n\n${text}`, { operationId: id, entry: { kind: SAY_KIND, data: data as never } });
+		// Recorded before the run starts: who has written here decides whether Casey's tools are offered.
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
+		await this.follow();
+		await this.harness.submit(`${who} wrote${on}:\n\n${text}`, { operationId: id, entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
+			this.sql`DELETE FROM chat_said WHERE id = ${id}`;
+			throw error;
+		});
 		this.setMeta('updated', String(at));
 		this.setMeta('last_speaker', author.id);
 		this.ctx.waitUntil(this.index());
@@ -468,6 +483,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		if (typeof raw !== 'string' || raw.length > (connection.state?.canvas ? TABLE_RESULT_MAX : CHAT_MAX_MESSAGE * 2)) return;
 		let event: ChatClientEvent;
 		try { event = JSON.parse(raw); } catch { return; }
+		if (connection.state) connection.setState({ ...connection.state, active: Date.now() });
 		const state = connection.state;
 		const viewer = state?.viewer && (!state.viewer.owner || Date.now() - state.at < OWNER_CONNECTION_TTL) ? state.viewer : state?.viewer ? { ...state.viewer, owner: false } : null;
 		// Casey's table page says it's there to take edits, and answers them.
@@ -493,6 +509,12 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			return { error: 'That didn’t send. Try again.' };
 		});
 		if ('error' in result) connection.send(JSON.stringify({ type: 'chat:error', error: result.error } satisfies ChatServerEvent));
+	}
+
+	/** Whether only Casey has written in this thread. */
+	private onlyOwner(): boolean {
+		const rows = this.sql<{ author: string }>`SELECT author FROM chat_said`;
+		return rows.length > 0 && rows.every((row) => (JSON.parse(row.author) as ChatAuthor).via === 'owner');
 	}
 
 	private toolNames(owner: boolean): string[] {
