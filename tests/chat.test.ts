@@ -311,3 +311,20 @@ describe('go_to a table', () => {
 		expect(opened).toEqual(['abc123', 'zzz999']);
 	});
 });
+
+describe('RepeatGuard', () => {
+	test('refuses a third identical call, and a change to the table lets reads start over', async () => {
+		const { RepeatGuard } = await import('../src/lib/server/chat/tools');
+		const guard = new RepeatGuard();
+		expect(guard.check('table_read', {})).toBeUndefined();
+		expect(guard.check('table_read', {})).toBeUndefined();
+		expect(guard.check('table_read', {})).toContain('put things on it now');
+		expect(guard.check('table_add_note', { text: 'a' })).toBeUndefined();
+		expect(guard.check('table_read', {})).toBeUndefined();
+		expect(guard.check('fetch_page', { url: '/' })).toBeUndefined();
+		expect(guard.check('fetch_page', { url: '/' })).toBeUndefined();
+		expect(guard.check('fetch_page', { url: '/' })).toContain('exactly these arguments');
+		guard.reset();
+		expect(guard.check('fetch_page', { url: '/' })).toBeUndefined();
+	});
+});
