@@ -35,6 +35,8 @@ export interface ChatToolUse {
 	links?: { url: string; title: string }[];
 	/** A page the assistant put in the chat to preview (`show_page`). */
 	peek?: { url: string; title: string; excerpt?: string };
+	/** A picture the assistant looked at (`view_image`), or its snapshot of a table (`table_look`). */
+	picture?: { src: string; alt: string };
 }
 
 export interface ChatMessage {

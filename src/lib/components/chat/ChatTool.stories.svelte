@@ -21,6 +21,9 @@
 <!-- `show_page`: the page as a card everyone reading can open. -->
 <Story name="Page peek" args={{ step: { tool: 'show_page', label: 'Showed Syndication threads over Micropub', status: 'done', peek: { url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub', excerpt: 'A post can carry its social copy as a reply chain, and the endpoint advertises it in q=config.' } } }} />
 
+<!-- `table_look`: the snapshot the assistant checked its layout against, items numbered, overlaps in red. Opens on demand. -->
+<Story name="Table snapshot" args={{ step: { tool: 'table_look', label: 'Looked at the table', status: 'done', picture: { src: 'table-look.jpg', alt: 'What the assistant saw of the table, each item numbered' } } }} />
+
 <Story name="Table change" args={{ step: { tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' } }} />
 
 <Story name="Took you somewhere" args={{ step: { tool: 'go_to', label: 'Took you to /library', status: 'done' } }} />

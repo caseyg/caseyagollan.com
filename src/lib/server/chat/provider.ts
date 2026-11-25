@@ -21,7 +21,8 @@ export function chatModels(env: { INFERENCE_COOP_API_KEY?: string; CHAT_MODEL?: 
 	const baseUrl = env.CHAT_INFERENCE_URL || INFERENCE_BASE_URL;
 	const model: Model<'openai-completions'> = {
 		id, name: id, api: 'openai-completions', provider: PROVIDER_ID, baseUrl,
-		reasoning: false, input: ['text'],
+		// glm-flash (GLM 5.3) reads images: `view_image` and `table_look` send pictures.
+		reasoning: false, input: ['text', 'image'],
 		// Dollars per million tokens, so each answer's usage carries its cost.
 		cost: { input: priceOf(id).input, output: priceOf(id).output, cacheRead: priceOf(id).input, cacheWrite: 0 },
 		contextWindow: CONTEXT_WINDOW, maxTokens: 4000,
