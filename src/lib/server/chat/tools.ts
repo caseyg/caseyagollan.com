@@ -38,8 +38,8 @@ export interface ThreadHooks {
 	/** What is on the table: from Casey's open page if there is one, else as saved. */
 	readTable(): Promise<unknown>;
 	createTable(name: string): Promise<{ id: string; url: string; note?: string }>;
-	/** Send the person who asked to a page of the site; false when their browser isn't connected. */
-	navigate(path: string): boolean;
+	/** Send the person who asked to a page of the site, waiting briefly for their page to connect; false if it never does. */
+	navigate(path: string): Promise<boolean>;
 }
 
 const text = (value: string) => ({ output: [{ type: 'text' as const, text: value }] });
@@ -167,7 +167,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 		async execute(args) {
 			const path = sitePath(String((args as { path?: string }).path ?? ''), deps.origin());
 			if (!path) throw new Error('go_to only goes to pages on this site.');
-			if (!thread?.navigate(path)) throw new Error('Their browser isn’t connected to the chat right now; link the page instead.');
+			if (!(await thread?.navigate(path))) throw new Error('Their browser isn’t connected to the chat right now; link the page instead.');
 			return json({ path });
 		}
 	};

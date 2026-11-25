@@ -44,6 +44,9 @@ export interface ChatAgentEnv extends PublishingEnvironment {
 
 interface ConnectionState { viewer: ChatViewer | null; at: number; /** Casey's table page, which can take the assistant's edits. */ canvas?: boolean }
 
+/** How long go_to waits for the asker's page to connect, such as while a new chat's page loads. */
+const NAVIGATE_WAIT = 20_000;
+
 /** How long the assistant waits for Casey's table page to make a change. */
 const TABLE_OP_TIMEOUT = 30_000;
 /** The largest answer Casey's table page may send: a `look` picture is a few hundred kilobytes. */
@@ -102,17 +105,33 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 				await writeTable(this.env.PUBLISHING_STATE, table);
 				return { id: table.id, url: `/tables/${table.id}`, note: 'A draft: only Casey sees it until it’s published.' };
 			},
-			navigate: (path) => {
+			navigate: async (path) => {
 				const to = this.meta('last_speaker');
-				let sent = false;
-				for (const connection of this.getConnections<ConnectionState>()) {
-					if (!to || connection.state?.viewer?.id !== to) continue;
-					connection.send(JSON.stringify({ type: 'chat:navigate', path } satisfies ChatServerEvent));
-					sent = true;
-				}
-				return sent;
+				if (!to) return false;
+				if (this.sendNavigate(to, path)) return true;
+				// Their page may still be on its way: a new chat's first answer starts while the
+				// browser is following the redirect to the thread, before its socket connects.
+				this.pendingNavigation?.done(false);
+				return new Promise<boolean>((resolve) => {
+					const timer = setTimeout(() => this.pendingNavigation?.done(false), NAVIGATE_WAIT);
+					this.pendingNavigation = { to, path, done: (sent) => { clearTimeout(timer); this.pendingNavigation = undefined; resolve(sent); } };
+				});
 			}
 		};
+	}
+
+	/** A page to send someone to once their browser connects; see `navigate`. */
+	private pendingNavigation?: { to: string; path: string; done: (sent: boolean) => void };
+
+	/** Send a person's open pages of this thread to a page of the site; false when none is open. */
+	private sendNavigate(to: string, path: string): boolean {
+		let sent = false;
+		for (const connection of this.getConnections<ConnectionState>()) {
+			if (connection.state?.viewer?.id !== to) continue;
+			connection.send(JSON.stringify({ type: 'chat:navigate', path } satisfies ChatServerEvent));
+			sent = true;
+		}
+		return sent;
 	}
 
 	/** Casey's open page for this thread's table, freshest first. */
@@ -402,6 +421,8 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const messages = this.watch ? this.shown : await this.messages();
 		const snapshot = { thread: this.summary(messages), messages };
 		connection.send(JSON.stringify({ type: 'chat:snapshot', snapshot, viewer, tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
+		const waiting = this.pendingNavigation;
+		if (waiting && viewer?.id === waiting.to) waiting.done(this.sendNavigate(waiting.to, waiting.path));
 	}
 
 	async onMessage(connection: Connection<ConnectionState>, raw: WSMessage) {

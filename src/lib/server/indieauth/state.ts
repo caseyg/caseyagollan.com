@@ -94,6 +94,13 @@ async function equal(a: string, b: string) {
     different |= x.charCodeAt(i) ^ y.charCodeAt(i);
   return different === 0;
 }
+/** The credential id a preview session carries: it came from the preview issuer, not a passkey here. */
+export const PREVIEW_CREDENTIAL = "indieauth-preview";
+/** What a preview never does: hold passkeys, take setup, or act as an IndieAuth server. */
+const PREVIEW_REFUSED = new Set<keyof AuthOperations>([
+  "registrationOptions", "registrationVerify", "authenticationOptions", "authenticationVerify",
+  "createRequest", "approveRequest", "exchangeCode", "personalToken", "removeCredential",
+]);
 export type WebAuthn = Pick<
   typeof import("@simplewebauthn/server"),
   | "generateRegistrationOptions"
@@ -161,13 +168,13 @@ export class IndieAuthState {
         if (!Number.isFinite(item.expiresAt) || item.expiresAt <= this.now())
           delete table[id];
     for (const [id, session] of Object.entries(db.sessions)) {
-      if (
-        !db.credentials.some(
-          (credential) => credential.id === session.credentialId,
-        )
-      )
+      if (!this.knownCredential(db, session.credentialId))
         delete db.sessions[id];
     }
+  }
+  private knownCredential(db: Database, credentialId: string) {
+    if (credentialId === PREVIEW_CREDENTIAL) return !!this.settings.previewIssuer;
+    return db.credentials.some((credential) => credential.id === credentialId);
   }
   private async scheduleAlarm(storage: StateStorage, db: Database) {
     let earliest = Infinity;
@@ -195,12 +202,7 @@ export class IndieAuthState {
   private async validSession(db: Database, token: string) {
     const id = await hash(token),
       session = db.sessions[id];
-    if (
-      !session ||
-      !db.credentials.some(
-        (credential) => credential.id === session.credentialId,
-      )
-    ) {
+    if (!session || !this.knownCredential(db, session.credentialId)) {
       delete db.sessions[id];
       return null;
     }
@@ -291,6 +293,8 @@ export class IndieAuthState {
   ): Promise<unknown> {
     // The shared RPC contract validates callers at compile time; security-sensitive values are checked here too.
     const a = raw as any;
+    if (this.settings.previewIssuer && PREVIEW_REFUSED.has(op))
+      authError("access_denied");
     switch (op) {
       case "status":
         return {
@@ -308,6 +312,11 @@ export class IndieAuthState {
         await this.owner(db, a);
         delete db.sessions[await hash(a.session)];
         return true;
+      case "previewSession":
+        // Only the Worker calls this, after the preview issuer confirmed `me` for a code it redeemed.
+        if (!this.settings.previewIssuer || a.me !== this.settings.me)
+          authError("access_denied");
+        return this.newSession(db, PREVIEW_CREDENTIAL);
       case "registrationOptions": {
         this.origin(a.origin);
         this.capacity(db.challenges);
