@@ -56,6 +56,8 @@ const NAVIGATE_WAIT = 20_000;
 
 /** How long the assistant waits for Casey's table page to make a change. */
 const TABLE_OP_TIMEOUT = 30_000;
+/** How long go_to waits for a table it sent Casey to to open and take changes. */
+const TABLE_OPEN_WAIT = 20_000;
 /** The largest answer Casey's table page may send: a `look` picture is a few hundred kilobytes. */
 const TABLE_RESULT_MAX = 2_000_000;
 
@@ -110,8 +112,9 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 				if (!this.env.PUBLISHING_STATE) throw new Error('Tables aren’t available here.');
 				const table = emptyTable(name.trim() || 'Untitled table');
 				await writeTable(this.env.PUBLISHING_STATE, table);
-				return { id: table.id, url: `/tables/${table.id}`, note: 'A draft: only Casey sees it until it’s published.' };
+				return { id: table.id, url: `/tables/${table.id}`, note: 'A draft: only Casey sees it until it’s published. go_to it to open it and fill it in.' };
 			},
+			tableOpened: (id) => this.tableOpened(id),
 			navigate: async (path) => {
 				const to = this.meta('last_speaker');
 				if (!to) return false;
@@ -148,6 +151,18 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		return found;
 	}
 
+	/** Waiting for Casey's page to show a table, after go_to sent them there. */
+	private tableWaits = new Set<{ id: string; done: (opened: boolean) => void }>();
+
+	private tableOpened(id: string): Promise<boolean> {
+		if (this.canvas()?.state?.page?.table === id) return Promise.resolve(true);
+		return new Promise((resolve) => {
+			const wait = { id, done: (opened: boolean) => { clearTimeout(timer); this.tableWaits.delete(wait); resolve(opened); } };
+			const timer = setTimeout(() => wait.done(false), TABLE_OPEN_WAIT);
+			this.tableWaits.add(wait);
+		});
+	}
+
 	/** The table the chat is about: the one Casey has open beside it, else the thread's own table. */
 	private table(): string | undefined {
 		return this.canvas()?.state?.page?.table ?? this.meta('table');
@@ -158,7 +173,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		if (!connection) return Promise.reject(new Error('Casey doesn’t have this table open, so it can’t be changed right now. Ask Casey to open it.'));
 		const id = randomToken(8);
 		return new Promise((resolve, reject) => {
-			const timer = setTimeout(() => { this.tableOps.delete(id); reject(new Error('The table didn’t answer in time.')); }, TABLE_OP_TIMEOUT);
+			const timer = setTimeout(() => {
+				this.tableOps.delete(id);
+				console.warn(JSON.stringify({ event: 'chat_table_op_timeout', op: op.op, table: connection.state?.page?.table }));
+				reject(new Error('The table didn’t answer in time.'));
+			}, TABLE_OP_TIMEOUT);
 			this.tableOps.set(id, { resolve, reject, timer });
 			connection.send(JSON.stringify({ type: 'table:op', id, ...op }));
 		});
@@ -357,6 +376,10 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 					this.watch = undefined;
 					await watch.stop();
 					this.setMeta('updated', String(Date.now()));
+					// Send the finished answer whole, so a page that missed part of it along the way still shows it.
+					const answer = next.at(-1);
+					if (answer?.role === 'assistant') this.send({ type: 'chat:message', message: answer });
+					console.log(JSON.stringify({ event: 'chat_run_end', thread: this.meta('id'), status: answer?.role === 'assistant' ? answer.status : 'no_answer', chars: answer?.role === 'assistant' ? answer.content.length : 0, tools: answer?.role === 'assistant' ? answer.tools?.map((use) => `${use.tool}:${use.status}`) : undefined }));
 					await this.index(next);
 					await this.bill().catch((error) => console.warn(JSON.stringify({ event: 'chat_bill_failed', detail: String(error).slice(0, 200) })));
 					this.changed();
@@ -456,6 +479,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		if (event?.type === 'page:here') {
 			const page = chatPage(event.page) ?? undefined;
 			connection.setState({ ...state!, page, canvas: !!(viewer?.owner && page?.table) });
+			if (viewer?.owner && page?.table) for (const wait of [...this.tableWaits]) if (wait.id === page.table) wait.done(true);
 			connection.send(JSON.stringify({ type: 'chat:abilities', tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
 			return;
 		}

@@ -292,3 +292,22 @@ describe('chatPage', () => {
 		expect(chatPage({ path: '/x', table: 'Not An Id!', title: 3 })).toEqual({ path: '/x' });
 	});
 });
+
+describe('go_to a table', () => {
+	test('waits for the table to open, so the same answer can fill it', async () => {
+		const { chatExtension } = await import('../src/lib/server/chat/tools');
+		const opened: string[] = [];
+		const thread = {
+			table: () => undefined, tableOp: async () => ({}), readTable: async () => ({}), createTable: async () => ({ id: 'x', url: '/tables/x' }),
+			navigate: async () => true,
+			tableOpened: async (id: string) => { opened.push(id); return id === 'abc123'; }
+		};
+		const extension = chatExtension({ env: {} as never, origin: () => 'https://caseyagollan.com/', thread });
+		const goTo = extension.tools!.find((tool) => tool.name === 'go_to')!;
+		const run = async (path: string) => JSON.parse(((await goTo.execute({ path }, {} as never, {} as never)) as { output: { text: string }[] }).output[0].text);
+		expect((await run('/tables/abc123')).table).toContain('Open beside the chat');
+		expect((await run('https://caseyagollan.com/tables/zzz999/')).table).toContain('Still opening');
+		expect(await run('/library')).toEqual({ path: '/library' });
+		expect(opened).toEqual(['abc123', 'zzz999']);
+	});
+});
