@@ -47,4 +47,10 @@
 		bottom: calc(var(--nav-inset) + env(safe-area-inset-bottom));
 		z-index: var(--z-nav);
 	}
+
+	/* Just above the chat's folded bottom sheet on phones, and under it when it's pulled up. */
+	:global(html[data-chat-dock='sheet']) .floating {
+		bottom: calc(var(--chat-sheet-rest, 0px) + var(--nav-inset));
+		z-index: calc(var(--z-menu) - 1);
+	}
 </style>
