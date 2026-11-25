@@ -163,6 +163,12 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		const parts = [notes ? `${notes} note${notes === 1 ? '' : 's'}` : '', links ? `${links} link${links === 1 ? '' : 's'}` : '', searches.length ? `results for ${searches.join(', ')}` : ''].filter(Boolean);
 		return `Added ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'to the table'}`.slice(0, 120);
 	}
+	if (name === 'table_pull') {
+		const blocks = Array.isArray(args.blocks) ? args.blocks.filter((one) => typeof one === 'string' && one.trim()) : [];
+		const what = args.images === false ? 'quotes' : args.quotes === false ? 'pictures' : 'pictures and quotes';
+		const from = blocks.some((one) => /^(all|everything|the whole table)$/i.test(String(one).trim())) ? 'the whole table' : blocks.length ? count(blocks, 'block') : 'the selected blocks';
+		return `Context pull: ${what} from ${from}`;
+	}
 	if (name === 'table_read') return 'Read the table';
 	if (name === 'table_look') return 'Looked at the table';
 	if (name === 'table_connect') { const n = Array.isArray(args.links) ? args.links.length : 0; return `Drew ${n === 1 ? 'an arrow' : `${n} arrows`}`; }

@@ -420,7 +420,7 @@ describe('the chat’s tools', () => {
 	} } as unknown as Fetcher;
 	const out = async (tool: { execute: (...args: never[]) => unknown }, args: unknown) => ((await (tool.execute as (args: unknown, api: unknown, context: unknown) => Promise<{ output: { text: string }[] }>)(args, {}, {})).output[0].text);
 
-	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[] } = {}) {
+	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; pieces?: (op: { block: string }) => unknown } = {}) {
 		const { chatExtension } = await import('../src/lib/server/chat/tools');
 		const went: string[] = [];
 		const ops = options.ops ?? [];
@@ -429,11 +429,12 @@ describe('the chat’s tools', () => {
 			table: () => options.table,
 			tableOp: async (op: { op: string; notes?: unknown[]; urls?: string[]; ids?: string[] }) => {
 				ops.push(op);
-				if (op.op === 'read') return { items: options.items?.() ?? [] };
+				if (op.op === 'read') return { items: options.items?.() ?? [], selected: options.selected ?? [] };
 				if (op.op === 'add_notes') return { added: op.notes!.map(() => `n${++made}`), layout: 'no overlaps' };
 				if (op.op === 'add_links') return { added: op.urls!.map(() => `b${++made}`) };
 				if (op.op === 'add_from_search') return { added: [{ id: `b${++made}`, title: 'Found', url: '/x' }] };
 				if (op.op === 'frame') return { added: ['f1'], holds: op.ids };
+				if (op.op === 'add_pieces') return options.pieces?.(op as never) ?? { added: [] };
 				return { layout: 'no overlaps' };
 			},
 			readTable: async () => ({ items: options.items?.() ?? [] }),
@@ -450,7 +451,7 @@ describe('the chat’s tools', () => {
 	test('there are few of them, each described briefly', async () => {
 		const { extension } = await setup({ micropub: async () => Response.json({}) });
 		const names = extension.tools!.map((tool) => tool.name);
-		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look']);
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look']);
 		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
@@ -538,6 +539,62 @@ describe('the chat’s tools', () => {
 		await out(tool('table_add'), { items: [{ url: '/2026/11/24/like-a' }, { url: 'https://example.com/elsewhere' }] });
 		expect(ops[0].urls).toEqual(['https://caseyagollan.com/2026/11/24/like-a', 'https://example.com/elsewhere']);
 		expect(ops[0].find).toEqual({ 'https://caseyagollan.com/2026/11/24/like-a': ['Post by Someone', 'A liked post'] });
+	});
+
+	test('table_pull takes pictures and quotes out of the selected blocks, framed beside each and joined to it', async () => {
+		const ops: { op: string; block?: string; ids?: string[]; at?: { x: number; y: number }; links?: unknown[]; name?: string; images?: boolean; quotes?: boolean }[] = [];
+		const blocks = [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: '/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'link', title: 'Calm technology', url: 'https://calmtech.com/', x: 0, y: 400, w: 240, h: 240 },
+			{ id: 'b3', type: 'book', title: 'Deep Listening', url: '/library/1', x: 0, y: 800, w: 180, h: 300 }
+		];
+		const pieces = (op: { block: string }) => op.block === 'b1'
+			? { source: 'Writing again', added: [{ id: 'p1', kind: 'image', text: 'A photo' }, { id: 'p2', kind: 'quote', text: 'I re-built this site on IndieWeb protocols!' }], more: { images: 0, quotes: 2 } }
+			: op.block === 'b2' ? { source: 'Calm technology', added: [{ id: 'p3', kind: 'quote', text: 'Technology should require the smallest possible amount of attention.' }], more: { images: 0, quotes: 0 } }
+				: { source: 'Deep Listening', added: [], note: 'Books have no page to take pictures or quotes from.' };
+		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, selected: ['b1', 'b2', 'b3'], pieces });
+		const done = JSON.parse(await out(tool('table_pull'), {}));
+		expect(ops.map((op) => op.op)).toEqual(['read', 'add_pieces', 'arrange', 'frame', 'add_pieces', 'arrange', 'add_pieces', 'tidy', 'connect', 'read']);
+		expect(ops[1]).toMatchObject({ block: 'b1', images: true, quotes: true });
+		// Two pieces go in a frame a little way right of their block; one piece stands alone.
+		expect(ops[2]).toMatchObject({ ids: ['p1', 'p2'], at: { x: 380, y: 40 } });
+		expect(ops[3]).toMatchObject({ name: 'From Writing again', ids: ['p1', 'p2'] });
+		expect(ops[5]).toMatchObject({ ids: ['p3'], at: { x: 340, y: 400 } });
+		expect(ops[8].links).toEqual([{ from: 'b1', to: 'f1' }, { from: 'b2', to: 'p3' }]);
+		expect(done.added).toBe(3);
+		expect(done.pulled).toEqual([
+			{ from: 'b1', title: 'Writing again', pictures: 1, quotes: ['I re-built this site on IndieWeb protocols!'], left_out: { images: 0, quotes: 2 } },
+			{ from: 'b2', title: 'Calm technology', pictures: 0, quotes: ['Technology should require the smallest possible amount of…'] },
+			{ from: 'b3', title: 'Deep Listening', pictures: 0, quotes: [], note: 'Books have no page to take pictures or quotes from.' }
+		]);
+	});
+
+	test('a context pull of the whole table reads every block but the pieces already pulled', async () => {
+		const ops: { op: string; block?: string }[] = [];
+		const blocks = [
+			{ id: 'b1', type: 'post', title: 'One', url: '/1/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'wiki', title: 'Two', url: 'https://cag.wiki/two', x: 0, y: 400, w: 240, h: 240 },
+			{ id: 'q1', type: 'quote', title: 'One', url: '/1/#:~:text=x', x: 400, y: 0, w: 300, h: 140 },
+			{ id: 'n1', type: 'note', text: 'A note', x: 0, y: 800, w: 200, h: 200 }
+		];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, pieces: () => ({ added: [] }) });
+		const done = JSON.parse(await out(tool('table_pull'), { blocks: ['all'] }));
+		expect(ops.filter((op) => op.op === 'add_pieces').map((op) => op.block)).toEqual(['b1', 'b2']);
+		expect(done.added).toBe(0);
+		const { toolLabel } = await import('../src/lib/server/chat/projection');
+		expect(toolLabel('table_pull', { blocks: ['all'] })).toBe('Context pull: pictures and quotes from the whole table');
+		expect(toolLabel('table_pull', { blocks: ['b1'], images: false })).toBe('Context pull: quotes from 1 block');
+		expect(toolLabel('table_pull', {})).toBe('Context pull: pictures and quotes from the selected blocks');
+	});
+
+	test('table_pull finds blocks by title words, and says which it couldn’t', async () => {
+		const ops: { op: string; block?: string; quotes?: boolean; match?: string[] }[] = [];
+		const blocks = [{ id: 'b1', type: 'arena', title: 'Ursula K. Le Guin: The Carrier Bag Theory', url: 'https://www.are.na/block/1', x: 0, y: 0, w: 240, h: 240 }];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, pieces: () => ({ added: [{ id: 'p1', kind: 'quote', text: 'A leaf a gourd a shell a net' }] }) });
+		await out(tool('table_pull'), { blocks: ['le guin'], images: false, match: ['gourd'] });
+		expect(ops[1]).toMatchObject({ op: 'add_pieces', block: 'b1', images: false, quotes: true, match: ['gourd'] });
+		expect(out(tool('table_pull'), { blocks: ['oliveros'] })).rejects.toThrow('No block on the table matches “oliveros”. The blocks are: b1 “Ursula K. Le Guin: The Carrier Bag');
+		expect(out(tool('table_pull'), {})).rejects.toThrow('Casey has no blocks selected');
 	});
 
 	test('an empty item leaves a cell of a grid of notes open', async () => {

@@ -5,6 +5,22 @@
  */
 import { columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '../../src/lib/table-layout';
 import { loadAgentIndex, searchDocuments } from '../../src/lib/server/chat/site-search';
+import { parseHTML } from 'linkedom';
+import { pickPieces, piecesFrom, piecesPath, quoteSize } from '../../src/lib/table-pieces';
+import { remotePagePieces } from '../../src/lib/server/table-pieces';
+import type { Block } from '../../src/lib/tables';
+
+const SITE = 'https://caseyagollan.com';
+
+/** A block's pieces as Casey's page finds them: this site's pages read live and taken apart, others through defuddle. */
+async function livePieces(block: Pick<Block, 'kind' | 'url'>): Promise<Block[]> {
+	const path = piecesPath(block) ?? (block.url.startsWith(SITE) ? piecesPath({ kind: block.kind, url: block.url.slice(SITE.length) }) : null);
+	if (path) {
+		const response = await fetch(new URL(path, SITE));
+		return response.ok ? piecesFrom(parseHTML(await response.text()).document as unknown as Document, path, SITE) : [];
+	}
+	return /^https?:/.test(block.url) ? remotePagePieces(block.url).catch(() => []) : [];
+}
 
 export interface FakeItem { id: string; type: string; title?: string; url?: string; text?: string; from?: string; to?: string; parent?: string; x: number; y: number; w: number; h: number }
 type Op = { op: string } & Record<string, any>;
@@ -13,7 +29,7 @@ const noteHeight = (text: string) => text.length <= 120 ? 200 : 200 + Math.ceil(
 const textHeight = (text: string, w: number) => 40 + Math.ceil(text.length / Math.max(8, w / 9)) * 28;
 const SOLID = (item: FakeItem) => !['arrow', 'draw'].includes(item.type);
 
-export function fakeTable(start: FakeItem[]) {
+export function fakeTable(start: FakeItem[], selected: string[] = []) {
 	const items: FakeItem[] = start.map((item) => ({ ...item }));
 	let next = 1;
 	let name = 'Table';
@@ -27,7 +43,8 @@ export function fakeTable(start: FakeItem[]) {
 	const addBlocks = (blocks: { title: string; url: string; kind: string; excerpt?: string }[], at?: { x: number; y: number }, columns = 3) => {
 		const origin = at ?? openSpot(240, 240);
 		return blocks.map((block, index) => {
-			const item: FakeItem = { id: id(), type: block.kind, title: block.title, url: block.url, ...(block.excerpt ? { text: block.excerpt } : {}), x: origin.x + (index % columns) * 260, y: origin.y + Math.floor(index / columns) * 260, w: block.kind === 'book' ? 180 : 240, h: block.kind === 'book' ? 300 : 240 };
+			const size = block.kind === 'quote' ? quoteSize(block.excerpt ?? '') : block.kind === 'book' ? { w: 180, h: 300 } : { w: 240, h: 240 };
+			const item: FakeItem = { id: id(), type: block.kind, title: block.title, url: block.url, ...(block.excerpt ? { text: block.excerpt } : {}), x: origin.x + (index % columns) * 340, y: origin.y + Math.floor(index / columns) * 480, ...size };
 			items.push(item);
 			return item;
 		});
@@ -45,7 +62,15 @@ export function fakeTable(start: FakeItem[]) {
 
 	async function perform(op: Op): Promise<unknown> {
 		switch (op.op) {
-			case 'read': return { name, items: items.map((item) => ({ ...item, ...(item.text ? { text: item.text.slice(0, 400) } : {}) })), selected: [], issues: issues() };
+			case 'read': return { name, items: items.map((item) => ({ ...item, ...(item.text ? { text: item.text.slice(0, 400) } : {}) })), selected, issues: issues() };
+			case 'add_pieces': {
+				const source = items.find((item) => item.id === op.block);
+				if (!source?.url) throw new Error(`${op.block} isn’t a block on the table.`);
+				const { picked, more } = pickPieces((await livePieces({ kind: source.type as Block['kind'], url: source.url })).filter((piece) => !items.some((item) => item.url === piece.url && item.type === piece.kind)), op);
+				if (!picked.length) return { source: source.title, added: [], note: 'Its page has no pictures or passages that aren’t on the table already.' };
+				const added = addBlocks(picked, { x: source.x + source.w + 20, y: source.y }, Math.min(picked.length, 3));
+				return { source: source.title, added: added.map((item, index) => ({ id: item.id, kind: item.type, text: (picked[index].excerpt ?? picked[index].title).slice(0, 80) })), more };
+			}
 			case 'look': return items.length ? { image: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', width: 1, height: 1, key: items.filter(SOLID).map((item, index) => ({ n: index + 1, id: item.id, type: item.type, title: (item.title ?? item.text ?? '').slice(0, 60) })), issues: issues() } : { empty: true };
 			case 'add_from_search': {
 				const found = searchDocuments(await loadAgentIndex(undefined, 'https://caseyagollan.com/'), op.query, { limit: op.limit ?? 6 })

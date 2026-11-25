@@ -6,11 +6,11 @@
 	import { PageHeader } from '$lib/components/ui';
 	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { linkedBlock, searchBlocks, withOwnerSources } from '$lib/table-sources';
-	import { pagePieces } from '$lib/table-pieces';
+	import { pagePieces, pickPieces } from '$lib/table-pieces';
 	import { wikiHref } from '$lib/wiki/links';
-	import { blockKey, type Block } from '$lib/tables';
+	import { blockKey, isBlockKind, type Block } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
-	import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
+	import type { TableItem, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
 	// The layout gives each table its own page; saves keep to the table this page opened,
@@ -65,6 +65,17 @@
 				if (!blocks.length) return { ok: false, error: 'None of those were links.' };
 				const ids = api.addBlocks(blocks, op.at, { columns: op.columns ?? Math.min(blocks.length, 3), page: !!op.at, select: true });
 				return { ok: true, result: { added: ids.map((shapeId) => shapeId.replace(/^shape:/, '')) } };
+			}
+			case 'add_pieces': {
+				const { items } = (await api.perform({ op: 'read' })) as { items: TableItem[] };
+				const item = items.find((one) => one.id === op.block.replace(/^shape:/, ''));
+				if (!item?.url || !isBlockKind(item.type)) return { ok: false, error: `${op.block} isn’t a block on the table: name a post, link, wiki page or Are.na block by its id.` };
+				const block: Block = { kind: item.type, url: item.url, title: item.title ?? item.url, image: item.image };
+				const placed = new Set(view.placed);
+				const { picked, more } = pickPieces((await pagePieces(block, wikiHref)).filter((piece) => !placed.has(blockKey(piece))), op);
+				if (!picked.length) return { ok: true, result: { source: item.title, added: [], note: block.kind === 'book' ? 'Books have no page to take pictures or quotes from.' : 'Its page has no pictures or passages that aren’t on the table already.' } };
+				const ids = api.addBlocks(picked, undefined, { near: block, columns: Math.min(picked.length, 3), select: false });
+				return { ok: true, result: { source: item.title, added: ids.map((shapeId, index) => ({ id: shapeId.replace(/^shape:/, ''), kind: picked[index].kind, text: (picked[index].excerpt ?? picked[index].title).slice(0, 80) })), more } };
 			}
 			case 'rename': {
 				const next = op.name.trim();
