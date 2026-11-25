@@ -34,9 +34,13 @@
 		sheetExpanded?: boolean;
 		/** The folded sheet's height in pixels, for the page to keep its content clear of it. */
 		sheetRestHeight?: number;
+		/** Shown before the first message. */
+		intro?: string;
+		/** Starts a new chat, from the title bar. */
+		onnew?: () => void;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = 'Ask about this table', sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0) }: Props = $props();
+	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew }: Props = $props();
 
 	let text = $state('');
 	const replies = $derived(messages.filter((message) => message.role === 'assistant').length);
@@ -48,14 +52,15 @@
 {#snippet titleBar()}
 	{#if href}<a class="title" {href}>{title}</a>{:else}<span class="title">{title}</span>{/if}
 	<div class="controls">
+		{#if onnew}<Button variant="icon" size="sm" icon="plus" label="New chat" onclick={onnew} />{/if}
 		<Button variant="icon" size="sm" icon="sidebar" label={dockLabel} pressed={mode === 'docked'} onclick={() => (mode = mode === 'docked' ? 'floating' : 'docked')} />
 		<Button variant="icon" size="sm" icon="close" label="Minimize the chat" onclick={() => (mode = 'minimized')} />
 	</div>
 {/snippet}
 
 {#snippet conversation()}
-	<ChatConversation {messages} viewerId={viewer?.id}>
-		{#snippet empty()}<p class="empty">Ask about what’s on this table, or{viewer?.owner ? ' ask to add things, set them out or tidy up.' : ' what it’s about.'}</p>{/snippet}
+	<ChatConversation {messages} viewerId={viewer?.id} compact>
+		{#snippet empty()}{#if intro}<p class="empty">{intro}</p>{/if}{/snippet}
 	</ChatConversation>
 {/snippet}
 
@@ -63,7 +68,7 @@
 	{#if error}<Notice tone="error">{error}</Notice>{/if}
 	{#if offline}<Notice>Reconnecting…</Notice>{/if}
 	{#if viewer}
-		<ChatPromptInput {viewer} bind:value={text} {onsend} {action} {returnTo} {tools} {placeholder} />
+		<ChatPromptInput {viewer} bind:value={text} {onsend} {action} {returnTo} {tools} {placeholder} label="Message the assistant" compact />
 	{:else}
 		<ChatSignIn {returnTo} error={signinError} open={!!signinError} />
 	{/if}
@@ -85,10 +90,10 @@
 	<BottomSheet class="chat-overlay chat-overlay--sheet" label="Chat: {title}" bind:expanded={sheetExpanded} bind:restHeight={sheetRestHeight} expandLabel="Show the whole chat" collapseLabel="Fold the chat down to see the table">
 		{#snippet header()}<div class="bar">{@render titleBar()}</div>{/snippet}
 		{#snippet peek()}
-			<span class="latest">
+			{#if latest || messages.length}<span class="latest">
 				{#if latest?.writing}<span class="pill-dot" aria-label="writing"></span>{/if}
-				<span class="line">{latest?.text || (messages.length ? title : 'Ask about what’s on this table')}</span>
-			</span>
+				<span class="line">{latest?.text || title}</span>
+			</span>{/if}
 		{/snippet}
 		{#snippet footer()}<div class="composer">{@render composer()}</div>{/snippet}
 		<div class="scroll">{@render conversation()}</div>
@@ -178,7 +183,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
 		border-bottom: 1px solid var(--border);
 	}
 
@@ -206,7 +211,7 @@
 		flex: 1;
 		min-height: 0;
 		overflow-y: auto;
-		padding: var(--space-3) var(--space-4);
+		padding: var(--space-1) var(--space-3);
 		font-size: var(--fs-sm);
 	}
 
@@ -259,7 +264,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
-		padding: var(--space-2) var(--space-3) var(--space-3);
+		padding: var(--space-2);
 		border-top: 1px solid var(--border);
 	}
 </style>

@@ -42,6 +42,9 @@
 
 <Story name="Docked on a phone, folded" parameters={{ viewport: { defaultViewport: 'mobile1' } }}>{#snippet template(args)}{@render phone(args, false)}{/snippet}</Story>
 
+<!-- On any page of the site: Casey's chat follows them around, with New chat in the title bar. -->
+<Story name="On any page" args={{ title: 'New chat', messages: [], onnew: () => {} }}>{#snippet template(args)}{@render stage(args, 'floating')}{/snippet}</Story>
+
 <Story name="Visitor, signed out" args={{ viewer: null, messages: [] }}>{#snippet template(args)}{@render stage(args, 'floating')}{/snippet}</Story>
 
 <Story name="Visitor, signed in" args={{ viewer: visitor, tools: ['search_site', 'fetch_page', 'show_page', 'table_read'] }}>{#snippet template(args)}{@render stage(args, 'floating')}{/snippet}</Story>

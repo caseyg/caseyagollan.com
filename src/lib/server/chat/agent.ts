@@ -17,7 +17,7 @@
 import { Agent, type Connection, type ConnectionContext, type WSMessage } from 'agents';
 import { PiHarness } from 'agents/harness/pi';
 import { createRegistry, Harness, type ConversationWatch } from '@earendil-works/pi-durable';
-import { CHAT_MAX_MESSAGE, chatTitle, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
+import { CHAT_MAX_MESSAGE, chatPage, chatTitle, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
 import { publishingConfig } from '../publishing/config';
 import type { PublishingEnvironment } from '../publishing/config';
 import { randomToken } from '../publishing/dpop';
@@ -42,7 +42,14 @@ export interface ChatAgentEnv extends PublishingEnvironment {
 	ASSETS?: Pick<Fetcher, 'fetch'>;
 }
 
-interface ConnectionState { viewer: ChatViewer | null; at: number; /** Casey's table page, which can take the assistant's edits. */ canvas?: boolean }
+interface ConnectionState {
+	viewer: ChatViewer | null;
+	at: number;
+	/** Casey's table page, which can take the assistant's edits. */
+	canvas?: boolean;
+	/** The page this browser is on, which the chat now follows across the site. */
+	page?: ChatPage;
+}
 
 /** How long go_to waits for the asker's page to connect, such as while a new chat's page loads. */
 const NAVIGATE_WAIT = 20_000;
@@ -92,11 +99,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 
 	private hooks(): ThreadHooks {
 		return {
-			table: () => this.meta('table'),
+			table: () => this.table(),
 			tableOp: (op) => this.tableOp(op),
 			readTable: async () => {
 				if (this.canvas()) return this.tableOp({ op: 'read' });
-				const table = await readTable(this.env.PUBLISHING_STATE, this.meta('table') ?? '');
+				const table = await readTable(this.env.PUBLISHING_STATE, this.table() ?? '');
 				return { name: table?.name, items: itemsFromDocument(table?.document), note: 'As last saved; Casey doesn’t have the table open.' };
 			},
 			createTable: async (name) => {
@@ -139,6 +146,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		let found: Connection<ConnectionState> | undefined;
 		for (const connection of this.getConnections<ConnectionState>()) if (connection.state?.canvas && connection.state.viewer?.owner) found = connection;
 		return found;
+	}
+
+	/** The table the chat is about: the one Casey has open beside it, else the thread's own table. */
+	private table(): string | undefined {
+		return this.canvas()?.state?.page?.table ?? this.meta('table');
 	}
 
 	private tableOp(op: TableOp): Promise<unknown> {
@@ -265,18 +277,18 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	}
 
 	/** Start the thread with its first message. */
-	async start(id: string, origin: string, viewer: ChatViewer, text: string): Promise<{ ok: true } | { error: string }> {
+	async start(id: string, origin: string, viewer: ChatViewer, text: string, page?: ChatPage): Promise<{ ok: true } | { error: string }> {
 		this.setup();
 		if (this.meta('id')) return { error: 'This thread already exists.' };
 		this.setMeta('id', id);
 		this.setMeta('origin', origin);
 		this.setMeta('created', String(Date.now()));
 		this.setMeta('title', chatTitle(text));
-		return this.say(viewer, text);
+		return this.say(viewer, text, page);
 	}
 
 	/** Add a message from a signed-in viewer (the form fallback and the WebSocket both end here). */
-	async say(viewer: ChatViewer | null, value: unknown): Promise<{ ok: true } | { error: string }> {
+	async say(viewer: ChatViewer | null, value: unknown, where?: unknown): Promise<{ ok: true } | { error: string }> {
 		this.setup();
 		if (!this.meta('id')) return { error: 'This thread doesn’t exist.' };
 		if (!viewer) return { error: 'Sign in to take part.' };
@@ -300,8 +312,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const data: SayData = { id, author, owner, at, text };
 		// The model reads who wrote each message; the page shows only what they wrote.
 		const who = `${author.name}${owner ? ' (Casey, the site’s owner)' : author.url ? ` (${author.url})` : ''}`;
+		// Where they were, so “this page” means something: the chat follows Casey around the site.
+		const page = chatPage(where);
+		const on = page ? ` while on ${new URL(page.path, this.origin()).href}${page.title ? ` (“${page.title}”)` : ''}${page.table ? `, a table` : ''}` : '';
 		await this.follow();
-		await this.harness.submit(`${who} wrote:\n\n${text}`, { operationId: id, entry: { kind: SAY_KIND, data: data as never } });
+		await this.harness.submit(`${who} wrote${on}:\n\n${text}`, { operationId: id, entry: { kind: SAY_KIND, data: data as never } });
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
 		this.setMeta('updated', String(at));
 		this.setMeta('last_speaker', author.id);
@@ -437,12 +452,19 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			if (viewer?.owner && this.meta('table')) connection.setState({ ...state!, canvas: true });
 			return;
 		}
+		// Casey moved to another page; a page with a table can take the assistant's edits.
+		if (event?.type === 'page:here') {
+			const page = chatPage(event.page) ?? undefined;
+			connection.setState({ ...state!, page, canvas: !!(viewer?.owner && page?.table) });
+			connection.send(JSON.stringify({ type: 'chat:abilities', tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
+			return;
+		}
 		if (event?.type === 'table:result') {
 			if (state?.canvas && typeof event.id === 'string') this.tableReply(event);
 			return;
 		}
 		if (event?.type !== 'chat:say') return;
-		const result = await this.say(viewer, event.text).catch((error) => {
+		const result = await this.say(viewer, event.text, state?.page).catch((error) => {
 			console.warn(JSON.stringify({ event: 'chat_say_failed', detail: String(error).slice(0, 300) }));
 			return { error: 'That didn’t send. Try again.' };
 		});
@@ -450,7 +472,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	}
 
 	private toolNames(owner: boolean): string[] {
-		const table = this.meta('table');
+		const table = this.table();
 		return ['search_site', 'fetch_page', 'show_page', 'view_image', ...(table ? ['table_read'] : []), ...(owner && table ? ['table'] : []), ...(owner && publishingConfig(this.env) ? ['micropub'] : [])];
 	}
 }

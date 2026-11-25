@@ -9,11 +9,7 @@
 	import { pagePieces } from '$lib/table-pieces';
 	import { wikiHref } from '$lib/wiki/links';
 	import { blockKey, linkBlock, type Block } from '$lib/tables';
-	import { ChatOverlay, type ChatOverlayMode } from '$lib/components/chat';
-	import { LiveThread } from '$lib/chat-client.svelte';
-	import { chatHref } from '$lib/chat';
-	import { goto } from '$app/navigation';
-	import { MediaQuery } from 'svelte/reactivity';
+	import { offerTable } from '$lib/site-chat.svelte';
 	import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
@@ -42,31 +38,17 @@
 		!editable ? undefined : status === 'failed' ? 'Couldn’t save' : status === 'saving' || status === 'unsaved' ? 'Saving…' : session?.mode === 'demo' ? 'Saved in this browser' : 'Saved'
 	);
 
-	// The table's chat: anyone reads along; Casey's page also makes the changes the assistant asks for.
-	const CHAT_MODE_KEY = 'table-chat';
-	const CHAT_SHEET_KEY = 'table-chat-sheet';
-	let chatMode = $state<ChatOverlayMode>('minimized');
-	// Too narrow for a sidebar beside the canvas, docked is a bottom sheet the canvas stops above.
-	const narrow = new MediaQuery('max-width: 899px', false);
-	let sheetExpanded = $state(true);
-	let sheetRestHeight = $state(0);
-	// svelte-ignore state_referenced_locally
-	const live = data.chat ? new LiveThread(data.chat.snapshot, data.chat.viewer, undefined, { onnavigate: (path) => void goto(path), ontableop: data.chat.viewer?.owner ? tableOp : undefined }) : undefined;
-	const chatHereHref = `/tables/${data.id}`;
-	const chatSheet = $derived(!!live && chatMode === 'docked' && narrow.current);
-
+	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
+	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
 	$effect(() => {
-		try {
-			localStorage.setItem(CHAT_MODE_KEY, chatMode);
-			localStorage.setItem(CHAT_SHEET_KEY, sheetExpanded ? 'open' : 'folded');
-		} catch { /* private window */ }
+		if (!data.chat?.viewer?.owner) return;
+		return offerTable({ table: data.id, thread: data.chat.snapshot.thread.id, ontableop: tableOp });
 	});
 
 	/** What the assistant asked of the table, done here so it animates, saves and undoes like Casey's own edits. */
 	async function tableOp(event: TableOpEvent): Promise<TableOpResult> {
 		if (!api || !editable) return { ok: false, error: 'The table isn’t ready to edit yet.' };
 		const { type: _type, id: _id, ...op } = event;
-		if (chatMode === 'minimized') chatMode = 'floating';
 		switch (op.op) {
 			case 'add_from_search': {
 				const placed = new Set(view.placed);
@@ -97,12 +79,6 @@
 	document = data.table?.document ?? null;
 
 	onMount(() => {
-		try {
-			const saved = localStorage.getItem(CHAT_MODE_KEY);
-			if (saved === 'floating' || saved === 'docked' || saved === 'minimized') chatMode = saved;
-			sheetExpanded = localStorage.getItem(CHAT_SHEET_KEY) !== 'folded';
-		} catch { /* private window */ }
-		live?.connect();
 		void (async () => {
 			session = await tablesSession();
 			if (!data.table) {
@@ -124,7 +100,6 @@
 		window.addEventListener('beforeunload', warn);
 		return () => {
 			window.removeEventListener('beforeunload', warn);
-			live?.close();
 		};
 	});
 
@@ -237,8 +212,8 @@
 
 <PageHeader trail={[{ ...TABLES_CRUMB, href: listHref }, nameSegment]} title={name || 'Table'} />
 
-<!-- With the chat in a bottom sheet, the canvas ends above the folded sheet; the open sheet only covers it, so the camera stays put. -->
-<main class="stage" class:chat-docked={live && chatMode === 'docked'} style:bottom={chatSheet && sheetRestHeight ? `${sheetRestHeight}px` : undefined}>
+<!-- Casey's docked chat takes the right side or, folded on a phone, the bottom: the canvas ends beside or above it (see .stage). -->
+<main class="stage">
 	{#if !session && !missing}
 		<!-- Sent with the page, so the table's outline is there from the first paint. -->
 		<TableWireframe {document} />
@@ -276,28 +251,6 @@
 		{/if}
 	{/if}
 </main>
-
-{#if live && session && !missing}
-	<div class="dock--chat" data-mode={chatMode}>
-		<ChatOverlay
-			bind:mode={chatMode}
-			sheet={narrow.current}
-			bind:sheetExpanded
-			bind:sheetRestHeight
-			title={live.snapshot.thread.title}
-			messages={live.messages}
-			viewer={live.viewer}
-			tools={live.tools}
-			onsend={live.status === 'live' ? (text) => live.say(text) : undefined}
-			action={chatHref(live.snapshot.thread.id)}
-			returnTo={chatHereHref}
-			href={chatHref(live.snapshot.thread.id)}
-			error={live.error}
-			signinError={data.chat?.signinError}
-			offline={live.status === 'offline'}
-		/>
-	</div>
-{/if}
 
 {#if editable}<RenameTable {name} anchor={renameAnchor} bind:open={renaming} onrename={rename} />{/if}
 
@@ -343,58 +296,16 @@
 		}
 	}
 
-	/* The chat: a pill or a floating panel at bottom left, or a sidebar the canvas makes room for. */
-	.dock--chat {
-		position: fixed;
-		z-index: var(--z-sticky);
-		left: var(--space-4);
-		bottom: var(--space-4);
-	}
-
-	.dock--chat[data-mode='floating'] {
-		bottom: calc(var(--space-4) + 4rem);
-	}
-
+	/* Casey's docked chat (SiteChat): a sidebar the canvas makes room for, or a sheet it ends above.
+	   Opening and folding the sheet only covers the canvas, so the camera stays put. */
 	@media (min-width: 900px) {
-		.stage.chat-docked {
+		:global(html[data-chat-dock='side']) .stage {
 			right: 24rem;
 		}
-
-		.dock--chat[data-mode='docked'] {
-			inset: var(--nav-lane) 0 0 auto;
-			width: 24rem;
-		}
 	}
 
-	@media (max-width: 899px) {
-		/* Too narrow to sit beside the canvas: docked is a sheet along the bottom. */
-		.dock--chat[data-mode='docked'] {
-			left: 0;
-			right: 0;
-			bottom: 0;
-		}
-	}
-
-	@media (max-width: 600px) {
-		.dock--chat {
-			left: var(--space-2);
-			right: var(--space-2);
-		}
-
-		.dock--chat[data-mode='minimized'] {
-			left: auto;
-			bottom: auto;
-			top: calc(var(--nav-lane) + var(--space-2));
-		}
-
-		.dock--chat[data-mode='floating'] {
-			bottom: calc(3rem + 3.5rem);
-		}
-
-		.dock--chat[data-mode='docked'] {
-			left: 0;
-			right: 0;
-		}
+	:global(html[data-chat-dock='sheet']) .stage {
+		bottom: var(--chat-sheet-rest, 0px);
 	}
 
 	.missing {

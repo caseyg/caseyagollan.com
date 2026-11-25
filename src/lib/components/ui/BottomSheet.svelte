@@ -178,7 +178,7 @@
 		justify-content: center;
 		flex-shrink: 0;
 		width: 100%;
-		padding: var(--space-2) 0 var(--space-1);
+		padding: var(--space-2) 0 6px;
 		border: 0;
 		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 		background: none;
@@ -252,7 +252,7 @@
 	.peek {
 		display: block;
 		width: 100%;
-		padding: 0 var(--space-4) var(--space-2);
+		padding: 0 var(--space-3) var(--space-1);
 		border: 0;
 		background: none;
 		color: var(--text-secondary);

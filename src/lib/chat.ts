@@ -78,6 +78,8 @@ export type ChatServerEvent =
 	| { type: 'chat:done'; id: string; status: ChatMessage['status']; content: string }
 	| { type: 'chat:title'; title: string }
 	| { type: 'chat:error'; error: string }
+	/** The tools changed, such as when Casey opened or left a table. */
+	| { type: 'chat:abilities'; tools: string[] }
 	/** Sent only to the person who asked: go to this page of the site. */
 	| { type: 'chat:navigate'; path: string };
 
@@ -86,7 +88,28 @@ export type ChatClientEvent =
 	| { type: 'chat:say'; text: string }
 	/** Casey's table page, ready to take the assistant's edits. */
 	| { type: 'table:ready' }
+	/** The page of the site this browser is on now, and the table on it, if any; sent on connect and after each navigation. */
+	| { type: 'page:here'; page: ChatPage }
 	| import('./table-agent').TableOpReply;
+
+/** Where someone was when they wrote: a path on this site, the page's title, and the table it shows. */
+export interface ChatPage {
+	path: string;
+	title?: string;
+	table?: string;
+}
+
+/** A page as sent by a browser, cleaned up; null when it isn't a path on this site. */
+export function chatPage(value: unknown): ChatPage | null {
+	if (!value || typeof value !== 'object') return null;
+	const { path, title, table } = value as Record<string, unknown>;
+	if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') || path.length > 500) return null;
+	return {
+		path,
+		...(typeof title === 'string' && title.trim() ? { title: title.replace(/\s+/g, ' ').trim().slice(0, 200) } : {}),
+		...(typeof table === 'string' && /^[a-z0-9-]{4,40}$/.test(table) ? { table } : {})
+	};
+}
 
 /** For now chat is Casey's alone: /chat, its sign-in, its sockets and the table overlay need the owner's session. */
 export const CHAT_OWNER_ONLY = true;
