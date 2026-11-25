@@ -3,7 +3,7 @@
 	import type { ActionData, PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import { CHAT_CRUMB, ChatConversation, ChatPromptInput, ChatSidebarToggle, ChatSignIn } from '$lib/components/chat';
-	import { invalidate } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { Notice, Page, PageHeader } from '$lib/components/ui';
 	import { LiveThread } from '$lib/chat-client.svelte';
 	import { chatHref } from '$lib/chat';
@@ -14,7 +14,8 @@
 	/** Moves this thread in the sidebar when it gets a message, a title or an answer. */
 	const relist = () => { clearTimeout(refresh); refresh = setTimeout(() => invalidate('chat:threads'), 400); };
 	// svelte-ignore state_referenced_locally
-	const live = new LiveThread(data.snapshot, data.viewer, relist);
+	// The assistant's go_to sends the person who asked to another page of the site.
+	const live = new LiveThread(data.snapshot, data.viewer, relist, { onnavigate: (path) => void goto(path) });
 	const viewer = $derived(live.viewer);
 	const thread = $derived(live.snapshot.thread);
 	const href = $derived(chatHref(thread.id));
