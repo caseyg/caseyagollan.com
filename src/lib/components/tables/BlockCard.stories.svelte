@@ -1,6 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { blocks } from '$lib/storybook/fixtures';
+	import { blocks, blueskyRepost, mastodonLike, note, reply } from '$lib/storybook/fixtures';
+	import { sourceView } from '$lib/table-post-source';
 	import BlockCard from './BlockCard.svelte';
 
 	const { Story } = defineMeta({ title: 'Tables/BlockCard', component: BlockCard, tags: ['!autodocs'] });
@@ -14,7 +15,20 @@
 		<div class="tile" style="width: 180px; height: 300px"><BlockCard block={blocks.bookNoCover} /></div>
 		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.wiki} /></div>
 		<div class="tile" style="width: 280px; height: 240px"><BlockCard block={blocks.link} /></div>
-		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.note} /></div>
+		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.note} source={null} /></div>
+	</div>
+</Story>
+
+<!-- Posts as they read where they came from: a repost of a Bluesky post, a like of a Mastodon one, a note, a reply
+     under the post it answers. On a table each fetches its post (`source.json`); here it is passed in. -->
+<Story asChild name="Like their source">
+	<div class="tiles">
+		<div class="tile" style="width: 360px; height: 520px"><BlockCard block={blocks.repost} source={sourceView(blueskyRepost)} /></div>
+		<div class="tile" style="width: 360px; height: 200px"><BlockCard block={blocks.like} source={sourceView(mastodonLike)} /></div>
+		<div class="tile" style="width: 360px; height: 180px"><BlockCard block={blocks.note} source={sourceView(note)} /></div>
+		<div class="tile" style="width: 360px; height: 300px"><BlockCard block={blocks.note} source={sourceView(reply)} /></div>
+		<div class="tile" style="width: 360px; height: 200px"><BlockCard block={blocks.socialPost} /></div>
+		<div class="tile" style="width: 360px; height: 200px"><BlockCard block={blocks.socialPost} details={false} /></div>
 	</div>
 </Story>
 
@@ -23,7 +37,7 @@
 	<div class="tiles">
 		<div class="tile" style="width: 280px; height: 240px"><BlockCard block={blocks.image} /></div>
 		<div class="tile" style="width: 300px; height: 180px"><BlockCard block={blocks.quote} /></div>
-		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.socialPost} /></div>
+		<div class="tile" style="width: 360px; height: 200px"><BlockCard block={blocks.socialPost} /></div>
 	</div>
 </Story>
 
@@ -34,15 +48,21 @@
 		<div class="tile" style="width: 180px; height: 300px"><BlockCard block={blocks.book} details={false} /></div>
 		<div class="tile" style="width: 280px; height: 240px"><BlockCard block={blocks.image} details={false} /></div>
 		<div class="tile" style="width: 300px; height: 180px"><BlockCard block={blocks.quote} details={false} /></div>
+		<div class="tile" style="width: 360px; height: 420px"><BlockCard block={blocks.repost} source={sourceView(blueskyRepost)} details={false} /></div>
+		<div class="tile" style="width: 360px; height: 200px"><BlockCard block={blocks.note} source={sourceView(reply)} details={false} /></div>
+		<div class="tile" style="width: 240px; height: 280px"><BlockCard block={blocks.arenaChannel} details={false} /></div>
 	</div>
 </Story>
 
-<!-- Casey's Are.na: channels, and blocks of each type, which open on Are.na. -->
+<!-- Casey's Are.na as Are.na draws it: channels ruled in their colour, pictures whole, text in a white square, titles under. -->
 <Story asChild name="Are.na">
 	<div class="tiles">
-		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.arenaChannel} /></div>
-		<div class="tile" style="width: 280px; height: 240px"><BlockCard block={blocks.arenaImage} /></div>
-		<div class="tile" style="width: 240px; height: 240px"><BlockCard block={blocks.arenaText} /></div>
+		<div class="tile" style="width: 240px; height: 280px"><BlockCard block={blocks.arenaChannel} /></div>
+		<div class="tile" style="width: 240px; height: 280px"><BlockCard block={blocks.arenaPrivateChannel} /></div>
+		<div class="tile" style="width: 240px; height: 280px"><BlockCard block={blocks.arenaImage} /></div>
+		<div class="tile" style="width: 240px; height: 280px"><BlockCard block={blocks.arenaLink} /></div>
+		<div class="tile" style="width: 240px; height: 280px"><BlockCard block={blocks.arenaText} /></div>
+		<div class="tile" style="width: 240px; height: 280px"><BlockCard block={blocks.arenaImage} details={false} /></div>
 	</div>
 </Story>
 

@@ -5,6 +5,7 @@ import {
 	Tldraw,
 	b64Vecs,
 	createShapeId,
+	fitFrameToContent,
 	getArrowBindings,
 	getSnapshot,
 	react,
@@ -23,7 +24,7 @@ import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
 import type { ChatSelectionItem } from '$lib/chat';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
-import { SiteBlockShapeUtil, blockOf, blockProps, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
+import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
 export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser';
@@ -136,7 +137,7 @@ function apiFor(editor: Editor): TableApi {
 					}
 					const id = createShapeId();
 					const props = blockProps(block);
-					editor.createShape<SiteBlockShape>({ id, type: BLOCK_SHAPE, x, y, props });
+					editor.createShape<SiteBlockShape>({ id, type: BLOCK_SHAPE, x, y, props, meta: fitsToPost(block) ? { fit: true } : {} });
 					ids.push(id);
 					x += props.w + GAP;
 					rowHeight = Math.max(rowHeight, props.h);
@@ -236,22 +237,61 @@ function boxesOf(editor: Editor, shapes: TLShape[]): Box[] {
 	});
 }
 
+/**
+ * A distance on the page, as the same distance in a shape's parent: a shape in a frame keeps its
+ * x and y from the frame's corner, so a place on the page is reached by moving it, not by setting them.
+ */
+function inParent(editor: Editor, shape: TLShape, by: { x: number; y: number }) {
+	const toParent = editor.getShapeParentTransform(shape).clone().invert();
+	const from = toParent.applyToPoint({ x: 0, y: 0 }), to = toParent.applyToPoint(by);
+	return { x: to.x - from.x, y: to.y - from.y };
+}
+
+/** Of these shapes, the ones not held by another of them: a frame's items move with the frame. */
+function outermost<T extends TLShape>(editor: Editor, shapes: T[]): T[] {
+	const ids = new Set(shapes.map((shape) => shape.id));
+	return shapes.filter((shape) => !editor.getShapeAncestors(shape).some((ancestor) => ids.has(ancestor.id)));
+}
+
 /** Moves shapes so their bounds' top-left lands on each placement, animated. */
 function place(editor: Editor, placements: Placement[]) {
 	const updates = placements.flatMap(({ id, x, y }) => {
 		const shape = editor.getShape(`shape:${id}` as TLShapeId);
 		const bounds = shape && editor.getShapePageBounds(shape);
+		if (!shape || !bounds) return [];
 		// A shape's x and y are its rotation origin; move it by how far its bounds must go.
-		return shape && bounds ? [{ id: shape.id, type: shape.type, x: shape.x + (x - bounds.x), y: shape.y + (y - bounds.y) }] : [];
+		const by = inParent(editor, shape, { x: x - bounds.x, y: y - bounds.y });
+		return [{ id: shape.id, type: shape.type, x: shape.x + by.x, y: shape.y + by.y }];
 	});
 	editor.animateShapes(updates, ANIMATION);
 	return updates.length;
+}
+
+/** Room a frame leaves around what it holds. */
+const FRAME_PAD = 40;
+
+/**
+ * A frame only draws what lies inside it, so one whose items have moved or grown past its edge
+ * hides them. Each such frame is resized to wrap what it holds; its items stay where they are.
+ */
+export function wrapFrames(editor: Editor) {
+	const frames = editor.getCurrentPageShapes().filter((shape) => shape.type === 'frame');
+	const loose = frames.filter((frame) => {
+		const { w, h } = frame.props as { w: number; h: number };
+		return editor.getSortedChildIdsForParent(frame.id).some((id) => {
+			const corners = editor.getShapeLocalTransform(id).applyToPoints(editor.getShapeGeometry(id).bounds.corners);
+			return corners.some((point) => point.x < -1 || point.y < -1 || point.x > w + 1 || point.y > h + 1);
+		});
+	});
+	if (loose.length) editor.run(() => loose.forEach((frame) => fitFrameToContent(editor, frame.id, { padding: FRAME_PAD })));
+	return loose.length;
 }
 
 /** What's wrong with the table now, once moves have finished animating. */
 async function settled(editor: Editor) {
 	await new Promise((resolve) => setTimeout(resolve, ANIMATION.animation.duration + 60));
 	followTargets(editor);
+	wrapFrames(editor);
 	return issuesOf(editor);
 }
 
@@ -568,18 +608,29 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 		case 'move': {
 			editor.markHistoryStoppingPoint('move');
 			const shapes = new Map(shapesFor(editor, op.moves.map((move) => move.id)).map((shape) => [shape.id.replace(/^shape:/, ''), shape]));
-			const updates = op.moves.flatMap((move) => {
+			// How far each moved shape travels on the page; parents are worked out before what they hold.
+			const travel = new Map<TLShapeId, { x: number; y: number }>();
+			const depth = (move: { id: string }) => { const shape = shapes.get(move.id.replace(/^shape:/, '')); return shape ? editor.getShapeAncestors(shape).length : 0; };
+			const updates = [...op.moves].sort((a, b) => depth(a) - depth(b)).flatMap((move) => {
 				const shape = shapes.get(move.id.replace(/^shape:/, ''));
 				if (!shape) return [];
 				const resizable = editor.isShapeOfType(shape, BLOCK_SHAPE) || shape.type === 'text';
 				const props = resizable && (move.w || move.h) ? { props: { ...(move.w ? { w: onGrid(move.w) } : {}), ...(move.h && shape.type !== 'text' ? { h: onGrid(move.h) } : {}), ...(shape.type === 'text' ? { autoSize: false } : {}) } } : {};
-				return [{ id: shape.id, type: shape.type, x: move.x === undefined ? shape.x : onGrid(move.x), y: move.y === undefined ? shape.y : onGrid(move.y), ...props } as TLShapePartial];
+				const bounds = editor.getShapePageBounds(shape);
+				if (!bounds) return [];
+				// A frame named along with what it holds carries those items with it: they move only the rest of the way.
+				const carrier = editor.getShapeAncestors(shape).reverse().find((ancestor) => travel.has(ancestor.id));
+				const carried = carrier ? travel.get(carrier.id)! : { x: 0, y: 0 };
+				const go = { x: move.x === undefined ? carried.x : onGrid(move.x) - bounds.x, y: move.y === undefined ? carried.y : onGrid(move.y) - bounds.y };
+				travel.set(shape.id, go);
+				const by = inParent(editor, shape, { x: go.x - carried.x, y: go.y - carried.y });
+				return [{ id: shape.id, type: shape.type, x: shape.x + by.x, y: shape.y + by.y, ...props } as TLShapePartial];
 			});
 			editor.animateShapes(updates, ANIMATION);
 			return changed(editor, { moved: updates.length });
 		}
 		case 'arrange': {
-			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			editor.markHistoryStoppingPoint('arrange');
 			const gap = Math.max(0, Math.min(200, op.gap ?? GAP));
 			const boxes = boxesOf(editor, shapes);
@@ -589,7 +640,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			return changed(editor, { arranged: shapes.length });
 		}
 		case 'align': {
-			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			if (shapes.length < 2) return { aligned: 0, note: 'Name at least two items.' };
 			editor.markHistoryStoppingPoint('align');
 			if (op.align) editor.alignShapes(shapes, op.align);
@@ -597,7 +648,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			return changed(editor, { aligned: shapes.length });
 		}
 		case 'tidy': {
-			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			editor.markHistoryStoppingPoint('tidy');
 			return changed(editor, { moved: place(editor, tidyLayout(boxesOf(editor, shapes))) });
 		}
@@ -660,6 +711,8 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			// Notes and text read in the site's sans, in white.
 			editor.setStyleForNextShapes(DefaultFontStyle, 'sans');
 			editor.setStyleForNextShapes(DefaultColorStyle, 'white');
+			// A table saved with items outside their frame (hidden by it) is put right as it opens.
+			editor.run(() => wrapFrames(editor), { history: 'ignore' });
 			if (editor.getCurrentPageShapeIds().size) editor.zoomToFit({ animation: { duration: 0 } });
 			else editor.resetZoom();
 
