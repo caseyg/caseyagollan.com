@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import type { ComponentProps } from 'svelte';
 	import ChatOverlay from './ChatOverlay.svelte';
-	import { owner, tableConversation, threads as fixtureThreads, visitor } from './fixtures';
+	import { owner, selection, selectionConversation, tableConversation, threads as fixtureThreads, visitor } from './fixtures';
 
 	const { Story } = defineMeta({
 		title: 'Chat/ChatOverlay',
@@ -25,6 +25,9 @@
 <Story name="Minimized">{#snippet template(args)}{@render stage(args, 'minimized')}{/snippet}</Story>
 
 <Story name="Docked">{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
+
+<!-- Things are selected on the canvas: the chip above the composer names what “these” will mean (× clears it), and a sent message keeps what was selected. -->
+<Story name="With a selection" args={{ messages: selectionConversation, selection }}>{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
 
 <!-- Docked on a phone: a bottom sheet over the canvas. Folded, it keeps the composer and the newest reply's last line, and the canvas ends above it. -->
 {#snippet phone(args: ComponentProps<typeof ChatOverlay>, expanded: boolean)}

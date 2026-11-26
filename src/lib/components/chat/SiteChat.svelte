@@ -3,7 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { chatHref, type ChatPage, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
+	import { chatHref, SELECTION_MAX, type ChatPage, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { LiveThread } from '$lib/chat-client.svelte';
 	import { siteChat } from '$lib/site-chat.svelte';
 	import ChatOverlay, { type ChatOverlayMode } from './ChatOverlay.svelte';
@@ -110,8 +110,10 @@
 
 	async function send(text: string): Promise<boolean> {
 		startError = null;
-		if (live) return live.status === 'live' && live.say(text);
-		const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, page: here() }) }).catch(() => null);
+		// What's selected on the table goes with the message: the assistant acts on just that when asked about “these”.
+		const selection = siteChat.table?.selection?.slice(0, SELECTION_MAX);
+		if (live) return live.status === 'live' && live.say(text, selection);
+		const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, page: here(), ...(selection?.length ? { selection } : {}) }) }).catch(() => null);
 		const body = (await response?.json().catch(() => null)) as { id?: string; error?: string } | null;
 		if (!response?.ok || !body?.id) {
 			startError = body?.error ?? 'That didn’t send. Try again.';
@@ -159,6 +161,8 @@
 			onlistthreads={listThreads}
 			onpick={pick}
 			current={threadId ?? undefined}
+			selection={siteChat.table?.selection ?? []}
+			ondeselect={() => siteChat.table?.deselect?.()}
 		/>
 	</div>
 {/if}

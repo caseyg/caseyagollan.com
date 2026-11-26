@@ -40,8 +40,8 @@ export function newThreadId(): string {
 /** A thread's agent, by id. Native `getByName`, so SvelteKit routes needn't bundle the Agents SDK. */
 export interface ChatThreadStub {
 	snapshot(): Promise<import('../../chat').ChatSnapshot | null>;
-	start(id: string, origin: string, viewer: import('../../chat').ChatViewer, text: string, page?: import('../../chat').ChatPage): Promise<{ ok: true } | { error: string }>;
-	say(viewer: import('../../chat').ChatViewer | null, text: string, page?: import('../../chat').ChatPage): Promise<{ ok: true } | { error: string }>;
+	start(id: string, origin: string, viewer: import('../../chat').ChatViewer, text: string, page?: import('../../chat').ChatPage, selection?: unknown): Promise<{ ok: true } | { error: string }>;
+	say(viewer: import('../../chat').ChatViewer | null, text: string, page?: import('../../chat').ChatPage, selection?: unknown): Promise<{ ok: true } | { error: string }>;
 	/** A table's thread, made on first ask; null when the thread id isn't that table's. */
 	openTable(tableId: string, origin: string, name: string): Promise<import('../../chat').ChatSnapshot | null>;
 }

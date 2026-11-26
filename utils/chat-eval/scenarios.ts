@@ -2,9 +2,18 @@
 import type { FakeItem } from './fake-table';
 
 interface Seen { answer: string; calls: { name: string; args: string; error?: boolean }[]; went: string[]; items: FakeItem[] }
-export interface Scenario { name: string; ask: string; page?: string; pageTitle?: string; table?: FakeItem[]; checks: { name: string; pass(seen: Seen): unknown }[] }
+export interface Scenario { name: string; ask: string; page?: string; pageTitle?: string; table?: FakeItem[]; selected?: string[]; checks: { name: string; pass(seen: Seen): unknown }[] }
 
 const used = (seen: Seen, name: RegExp) => seen.calls.filter((call) => name.test(call.name)).length;
+
+/** Five things side by side, for the scenarios where Casey has some of them selected. */
+const SELECTION_TABLE: FakeItem[] = [
+	{ id: 'b1', type: 'post', title: 'Writing again', url: 'https://caseyagollan.com/2026/11/17/writing-again/', text: 'I want to write here more often, in public, in small pieces.', x: 0, y: 0, w: 240, h: 240 },
+	{ id: 'b2', type: 'book', title: 'The Dispossessed', url: 'https://caseyagollan.com/library/9780061054884/', text: 'Ursula K. Le Guin. An ambiguous utopia: an anarchist moon and the planet it left.', x: 300, y: 0, w: 180, h: 300 },
+	{ id: 'b3', type: 'post', title: 'Hirschhorn', url: 'https://caseyagollan.com/2026/11/17/hirschhorn/', text: 'Thomas Hirschhorn on energy yes, quality no.', x: 600, y: 0, w: 240, h: 240 },
+	{ id: 'b4', type: 'book', title: 'Deep Listening', url: 'https://caseyagollan.com/library/9780595343652/', text: 'Pauline Oliveros. A composer’s sound practice: listening as attention to everything.', x: 900, y: 0, w: 180, h: 300 },
+	{ id: 'n1', type: 'note', text: 'Attention as a practice', x: 300, y: 400, w: 200, h: 200 }
+];
 
 export const SCENARIOS: Scenario[] = [
 	{
@@ -105,6 +114,98 @@ export const SCENARIOS: Scenario[] = [
 			{ name: 'adds at least three blocks', pass: (seen) => seen.items.filter((item) => item.url).length >= 3 },
 			{ name: 'draws at least three arrows', pass: (seen) => seen.items.filter((item) => item.type === 'arrow').length >= 3 },
 			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) }
+		]
+	},
+	{
+		// Casey's ask (2026-11-25): “pull in images and quotes” from blocks on a table, from chat.
+		name: 'table-pull',
+		ask: 'Pull in the images and quotes from these.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Writing again',
+		table: [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: 'https://caseyagollan.com/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'post', title: 'Hirschhorn', url: 'https://caseyagollan.com/2026/11/17/hirschhorn/', x: 0, y: 600, w: 240, h: 240 }
+		],
+		selected: ['b1', 'b2'],
+		checks: [
+			{ name: 'uses table_pull', pass: (seen) => used(seen, /^table_pull$/) >= 1 },
+			{ name: 'adds pieces taken from the blocks', pass: (seen) => seen.items.some((item) => item.type === 'quote' || item.type === 'image') },
+			{ name: 'joins pieces to their block', pass: (seen) => seen.items.some((item) => item.type === 'arrow' && ['b1', 'b2'].includes(item.from ?? '')) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'table-pull-named',
+		ask: 'Pull the quotes out of the Writing again post.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Writing again',
+		table: [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: 'https://caseyagollan.com/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'post', title: 'Hirschhorn', url: 'https://caseyagollan.com/2026/11/17/hirschhorn/', x: 0, y: 600, w: 240, h: 240 }
+		],
+		checks: [
+			{ name: 'pulls from Writing again only', pass: (seen) => seen.calls.some((call) => call.name === 'table_pull' && !call.error) && seen.items.filter((item) => item.type === 'arrow').every((arrow) => arrow.from === 'b1') },
+			{ name: 'quotes only', pass: (seen) => seen.items.some((item) => item.type === 'quote') && !seen.items.some((item) => item.type === 'image') },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'table-pull-all',
+		ask: 'Context pull the whole table.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Writing again',
+		table: [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: 'https://caseyagollan.com/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'post', title: 'Hirschhorn', url: 'https://caseyagollan.com/2026/11/17/hirschhorn/', x: 0, y: 600, w: 240, h: 240 },
+			{ id: 'n1', type: 'note', text: 'Why the site', x: 0, y: 1000, w: 200, h: 200 }
+		],
+		checks: [
+			{ name: 'pulls from both blocks', pass: (seen) => ['b1', 'b2'].every((id) => seen.items.some((item) => item.type === 'arrow' && item.from === id)) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		// Casey points at three of five cards and says “these”: one change, on those three only, with no read first.
+		name: 'selection-act',
+		ask: 'Frame these as Reading and make the note green.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Scratch',
+		table: SELECTION_TABLE,
+		selected: ['b2', 'b4', 'n1'],
+		checks: [
+			{ name: 'frames exactly the selection', pass: (seen) => { const frame = seen.items.find((item) => item.type === 'frame' && /reading/i.test(item.text ?? '')); return frame && ['b2', 'b4', 'n1'].every((id) => seen.items.find((item) => item.id === id)?.parent === frame.id) && !['b1', 'b3'].some((id) => seen.items.find((item) => item.id === id)?.parent); } },
+			{ name: 'edits the selected note', pass: (seen) => seen.calls.some((call) => call.name === 'table_edit' && !call.error && /n1|selected/.test(call.args) && /green/.test(call.args)) },
+			{ name: 'doesn’t read the whole table to find them', pass: (seen) => !seen.calls.some((call) => call.name === 'table_read' && !/ids/.test(call.args)) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'selection-summarize',
+		ask: 'What do these have in common? One sentence.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Scratch',
+		table: SELECTION_TABLE,
+		selected: ['b2', 'b4'],
+		checks: [
+			{ name: 'answers about the two selected', pass: (seen) => /le guin|dispossessed/i.test(seen.answer) && /oliveros|deep listening/i.test(seen.answer) },
+			{ name: 'doesn’t bring in the others', pass: (seen) => !/hirschhorn|writing again/i.test(seen.answer) },
+			{ name: 'changes nothing', pass: (seen) => !seen.calls.some((call) => /^table_(?!read|look)/.test(call.name)) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'selection-remove',
+		ask: 'Delete the selected ones.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Scratch',
+		table: SELECTION_TABLE,
+		selected: ['b1', 'b3'],
+		checks: [
+			{ name: 'removes exactly the selection', pass: (seen) => !seen.items.some((item) => ['b1', 'b3'].includes(item.id)) && ['b2', 'b4', 'n1'].every((id) => seen.items.some((item) => item.id === id)) },
+			{ name: 'one call', pass: (seen) => seen.calls.length === 1 }
 		]
 	},
 	{

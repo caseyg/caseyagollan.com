@@ -6,7 +6,7 @@
  *
  * Pure, so it is shared by the page's first render and the live socket, and tested alone.
  */
-import type { ChatAuthor, ChatMessage, ChatToolUse } from '../../chat';
+import type { ChatAuthor, ChatMessage, ChatSelection, ChatToolUse } from '../../chat';
 
 /** The entry kind people's messages are stored as, with their author in `data`. */
 export const SAY_KIND = 'chat.say';
@@ -20,6 +20,8 @@ export interface SayData {
 	at: number;
 	/** What they wrote, as shown; the model's copy starts with who wrote it. */
 	text: string;
+	/** What Casey had selected on the table (the first few described), shown beside the message. */
+	selection?: ChatSelection;
 }
 
 /** The parts of pi's records this reads, loosely typed so tests can build them by hand. */
@@ -76,7 +78,8 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 			reply = undefined;
 			lastSay = entry.data.id;
 			const said = typeof entry.data.text === 'string' ? entry.data.text : message && 'content' in message ? textOf(message.content as Text[] | string) : '';
-			messages.push({ id: entry.data.id, role: 'user', content: said, author: entry.data.author, status: 'done', createdAt: entry.data.at });
+			const selection = entry.data.selection;
+			messages.push({ id: entry.data.id, role: 'user', content: said, author: entry.data.author, status: 'done', createdAt: entry.data.at, ...(selection?.count ? { selection } : {}) });
 		} else if (message?.role === 'assistant') {
 			const assistant = message as Assistant;
 			const target = open(assistant.timestamp ?? now, assistant.model);
@@ -163,7 +166,13 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		const parts = [notes ? `${notes} note${notes === 1 ? '' : 's'}` : '', links ? `${links} link${links === 1 ? '' : 's'}` : '', searches.length ? `results for ${searches.join(', ')}` : ''].filter(Boolean);
 		return `Added ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'to the table'}`.slice(0, 120);
 	}
-	if (name === 'table_read') return 'Read the table';
+	if (name === 'table_pull') {
+		const blocks = Array.isArray(args.blocks) ? args.blocks.filter((one) => typeof one === 'string' && one.trim()) : [];
+		const what = args.images === false ? 'quotes' : args.quotes === false ? 'pictures' : 'pictures and quotes';
+		const from = blocks.some((one) => /^(all|everything|the whole table)$/i.test(String(one).trim())) ? 'the whole table' : blocks.length ? count(blocks, 'block') : 'the selected blocks';
+		return `Context pull: ${what} from ${from}`;
+	}
+	if (name === 'table_read') return Array.isArray(args.ids) && args.ids.length ? `Read ${count(args.ids, 'item')}` : 'Read the table';
 	if (name === 'table_look') return 'Looked at the table';
 	if (name === 'table_connect') { const n = Array.isArray(args.links) ? args.links.length : 0; return `Drew ${n === 1 ? 'an arrow' : `${n} arrows`}`; }
 	if (name === 'table_draw') return Array.isArray(args.strokes) && args.strokes.some((stroke) => (stroke as { around?: unknown })?.around) ? 'Circled something' : 'Drew on the table';
@@ -188,7 +197,13 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	return name.replace(/_/g, ' ');
 }
 
-const count = (list: unknown, noun: string) => { const n = Array.isArray(list) ? list.length : 0; return `${n} ${noun}${n === 1 ? '' : 's'}`; };
+/** “3 items”, or “the selected items” when the model named Casey's selection rather than ids. */
+const count = (list: unknown, noun: string) => {
+	const all = Array.isArray(list) ? list : [];
+	if (all.some((one) => typeof one === 'string' && /^(selected|selection|the selection|these|those)$/i.test(one.trim()))) return `the selected ${noun}s`;
+	if (all.some((one) => typeof (one as { id?: unknown } | null)?.id === 'string' && /^selected$/i.test(String((one as { id: string }).id).trim()))) return `the selected ${noun}s`;
+	return `${all.length} ${noun}${all.length === 1 ? '' : 's'}`;
+};
 
 /**
  * What readers see of a picture the assistant looked at: the table snapshot itself (a small

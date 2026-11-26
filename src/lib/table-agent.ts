@@ -5,6 +5,7 @@
  * Shared by the thread (server) and the table page (browser).
  */
 import type { Block } from './tables';
+import type { PieceChoice } from './table-pieces';
 
 /** Where something goes on the table, in canvas units (the dot grid is 20). */
 export interface TablePoint { x: number; y: number }
@@ -45,6 +46,8 @@ export type TableOp =
 	/** `find`: for a page on this site, words its search finds it by (its title, then its first words), so it's added as the rich block the Add menu gives, not a bare link. */
 	| { op: 'add_links'; urls: string[]; find?: Record<string, string[]>; columns?: number; at?: TablePoint }
 	| { op: 'add_blocks'; blocks: Block[]; columns?: number; at?: TablePoint }
+	/** A block's pictures and best passages, read from its page as the Add menu does, set down beside it. */
+	| ({ op: 'add_pieces'; block: string } & PieceChoice)
 	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number; color?: TableColor } & TablePlace)
 	/** Several notes at once, set out together from their measured sizes: a comparison's cells in one change. */
 	| ({ op: 'add_notes'; notes: TableNote[]; layout?: TableLayout; columns?: number } & TablePlace)
@@ -118,7 +121,7 @@ export function tableThreadId(tableId: string): string {
  * The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's
  * open page. Everything but `table_new` needs a table open beside the chat.
  */
-export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look'] as const;
+export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull'] as const;
 
 /** What is on a saved table, from its tldraw document, for when no canvas is open to ask. */
 export function itemsFromDocument(document: unknown): TableItem[] {

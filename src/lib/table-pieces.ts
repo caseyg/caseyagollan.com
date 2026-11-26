@@ -66,7 +66,7 @@ const SOURCE_ICON: [RegExp, string][] = [
 export function piecesFrom(document: Document, path: string, origin: string): Block[] {
 	const title = squash(document.querySelector('h1')?.textContent) || squash(document.title.split(' - ')[0]) || path;
 	const root = document.querySelector('.e-content, .wiki-body') ?? document.querySelector('article');
-	const scope = root?.closest('article') ?? root;
+	const scope = root?.closest('article.h-entry') ?? root?.closest('article') ?? root;
 	if (!root || !scope) return [];
 	return piecesIn(root, scope, { path, origin, title });
 }
@@ -87,9 +87,12 @@ export function piecesIn(root: Element, scope: Element, { path, origin, title, l
 	};
 
 	for (const element of Array.from(scope.querySelectorAll<HTMLElement>('article.social-post, img, p, blockquote, li'))) {
-		const card = element.closest('article.social-post');
+		// A post page may draw its own post as a social card around its content: that card is the page, not a post it shows.
+		const outer = element.closest('article.social-post');
+		const card = outer && !outer.contains(root) ? outer : null;
 		if (card && card !== element) continue;
-		if (element.matches('article.social-post')) {
+		if (!card && element.matches('article.social-post')) continue;
+		if (card) {
 			const author = squash(element.querySelector('.name')?.textContent);
 			const words = squash(element.querySelector('.body')?.textContent);
 			const link = element.querySelector<HTMLAnchorElement>('a.time')?.getAttribute('href');
@@ -102,7 +105,9 @@ export function piecesIn(root: Element, scope: Element, { path, origin, title, l
 			add({ kind: 'post', url: href, title: author, meta: handle || undefined, excerpt: words.slice(0, MAX_EXCERPT), image: picture ? pictureUrl(picture.getAttribute('src') ?? '', origin) : undefined, icon });
 			continue;
 		}
-		if (!root.contains(element)) continue;
+		// A photo post's pictures sit beside its words, not in them; the author's avatar is no piece.
+		const photo = element.matches('img.u-photo') && !element.closest('.h-card, .p-author, .avatar');
+		if (!root.contains(element) && !photo) continue;
 		if (element.matches('img')) {
 			const image = pictureUrl(element.getAttribute('src') ?? '', origin, local);
 			const size = Number(element.getAttribute('width')) || Infinity;
@@ -157,4 +162,61 @@ function remotePieces(block: Pick<Block, 'kind' | 'url'>): Promise<Block[]> {
 		cache.set(url, found);
 	}
 	return found;
+}
+
+/** What the chat asks to pull out of a block's page. */
+export interface PieceChoice {
+	/** Its pictures; true if left out. */
+	images?: boolean;
+	/** Its passages (paragraphs, quotations, the social posts it shows); true if left out. */
+	quotes?: boolean;
+	/** The most of each kind to take; 4 pictures and 3 quotes if left out. */
+	limit?: number;
+	/** Words a piece's text must hold (any one of them), to take particular passages or pictures. */
+	match?: string[];
+}
+
+const isQuote = (piece: Block) => piece.kind === 'quote' || piece.kind === 'post';
+const pieceText = (piece: Block) => squash(`${piece.excerpt ?? ''} ${piece.kind === 'image' ? piece.title : ''}`);
+
+/**
+ * How quotable a passage is: a few sentences that stand on their own read best on a table. Short
+ * scraps, walls of text, lists of links and lines that lean on what came before count less.
+ */
+export function quoteScore(text: string): number {
+	const words = squash(text);
+	const length = words.length;
+	let score = length < 60 ? length / 60 : length <= 360 ? 1.5 : Math.max(0.3, 1.5 - (length - 360) / 400);
+	if (/[.!?…”"’)]$/.test(words)) score += 0.4;
+	if (/[“”"]/.test(words)) score += 0.3;
+	if (/https?:\/\/|www\./.test(words)) score -= 0.6;
+	if (/^(and|but|so|or|this|that|these|it|also|then)\b/i.test(words)) score -= 0.3;
+	if (/^(posted|published|updated|share|subscribe|read more|tags?:|filed under|get new posts|follow along)/i.test(words)) score -= 1;
+	return score;
+}
+
+/**
+ * The pieces worth pulling out of a page, in the page's order: its first pictures, and its most
+ * quotable passages (or those holding `match`). Also how many of each it left out.
+ */
+export function pickPieces(pieces: Block[], choice: PieceChoice = {}): { picked: Block[]; more: { images: number; quotes: number } } {
+	const limit = Math.max(1, Math.min(12, Math.round(choice.limit ?? 0) || 0));
+	const match = (choice.match ?? []).map((words) => squash(words).toLowerCase()).filter(Boolean);
+	const matches = (piece: Block) => !match.length || match.some((words) => pieceText(piece).toLowerCase().includes(words));
+	const images = choice.images === false ? [] : pieces.filter((piece) => piece.kind === 'image' && matches(piece));
+	const quotes = choice.quotes === false ? [] : pieces.filter((piece) => isQuote(piece) && matches(piece));
+	const imageCount = choice.limit ? limit : 4;
+	const quoteCount = choice.limit ? limit : 3;
+	const best = new Set(
+		quotes
+			.map((piece, index) => ({ piece, index, score: quoteScore(piece.excerpt ?? '') }))
+			.sort((a, b) => b.score - a.score || a.index - b.index)
+			.slice(0, quoteCount)
+			.map(({ piece }) => piece)
+	);
+	const kept = new Set([...images.slice(0, imageCount), ...best]);
+	return {
+		picked: pieces.filter((piece) => kept.has(piece)),
+		more: { images: Math.max(0, images.length - imageCount), quotes: Math.max(0, quotes.length - quoteCount) }
+	};
 }
