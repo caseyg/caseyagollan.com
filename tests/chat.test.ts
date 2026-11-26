@@ -261,6 +261,34 @@ describe('Pi transcript as chat messages', () => {
 		expect(diffMessages([streaming[0], streaming[1]], [streaming[0], { ...streaming[1], content: 'Hello' }])).toEqual([{ type: 'chat:delta', id: 'r-m1', text: 'lo' }]);
 	});
 
+	test('messages sent while the assistant works show at once, and a steer splits the reply where it joined', () => {
+		const queued = (id: string, mode: string) => ({ id: `s${id}`, mode, entry: { kind: SAY_KIND, data: { id, author: ana, owner: false, at: 3000, text: `text ${id}` } } });
+		const working = [say('m1', 'Find posts'), answer('e2', [{ type: 'toolCall', id: 'c1', name: 'search_site', arguments: { query: 'x' } }])];
+		// The one that waits was sent first, but the one joining this answer is placed first.
+		const before = projectMessages(working, { run: {} }, 5000, [queued('later', 'followUp'), queued('steer', 'steer'), { id: 'w', mode: 'write', entry: { kind: 'app.note' } }]);
+		expect(before.map((message) => message.id)).toEqual(['m1', 'r-m1', 'steer', 'later']);
+		expect(before[2]).toMatchObject({ role: 'user', content: 'text steer', author: ana, status: 'done' });
+		expect(before[1].status).toBe('streaming');
+
+		// The steer is placed after the tool round: the reply so far ends, and a new one answers it.
+		const after = projectMessages([...working, result('e3', 'c1', 'search_site', '[]'), say('steer', 'text steer', 3000)], { run: {} }, 5000, [queued('later', 'followUp')]);
+		expect(after.map((message) => message.id)).toEqual(['m1', 'r-m1', 'steer', 'r-steer', 'later']);
+		expect(after[1].status).toBe('done');
+		expect(after[3].status).toBe('streaming');
+		const events = diffMessages(before, after);
+		expect(events.at(-1)).toEqual({ type: 'chat:order', ids: ['m1', 'r-m1', 'steer', 'r-steer', 'later'] });
+		expect(events.filter((event) => event.type === 'chat:message').map((event) => event.type === 'chat:message' && event.message.id)).toEqual(['r-steer']);
+		// New messages at the end need no order.
+		expect(diffMessages(before.slice(0, 2), before).map((event) => event.type)).toEqual(['chat:message', 'chat:message']);
+	});
+
+	test('a browser may name its message, within limits', () => {
+		const { chatSayId, chatAuthor } = require('../src/lib/chat') as typeof import('../src/lib/chat');
+		expect(chatSayId('abcDEF012_-xyz45')).toBe('abcDEF012_-xyz45');
+		for (const bad of ['short', 'has spaces in it!!', 'x'.repeat(40), 12, null, "a'; DROP TABLE x"]) expect(chatSayId(bad)).toBeNull();
+		expect(chatAuthor({ id: 'owner', name: 'Casey', via: 'indieauth', owner: true })).toEqual({ id: 'owner', name: 'Casey', via: 'owner' });
+	});
+
 	test('Micropub output never becomes a public link', () => {
 		const messages = projectMessages([
 			say('m1', 'Draft a note'),
