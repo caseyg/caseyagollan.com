@@ -374,9 +374,9 @@ describe('what Casey has selected on a table', () => {
 		expect(sayPrefix(who, 'https://caseyagollan.com/', page)).toBe('Casey Gollan (Casey, the site’s owner) wrote while on https://caseyagollan.com/tables/abc123 (“Scratch”), a table:');
 		expect(sayPrefix(who, 'https://caseyagollan.com/', page, chatSelection([{ id: 'b1', type: 'post', title: 'Writing again' }, { id: 'n1', type: 'note' }])))
 			.toBe('Casey Gollan (Casey, the site’s owner) wrote while on https://caseyagollan.com/tables/abc123 (“Scratch”), a table, with 2 things selected on the table (b1 (post “Writing again”), n1 (note)):');
-		const many = sayPrefix(who, 'https://caseyagollan.com/', page, chatSelection(Array.from({ length: 40 }, (_, index) => ({ id: `s${index}`, type: 'note' }))));
-		expect(many).toContain('with 40 things selected');
-		expect(many).toContain('s23 (note), and 16 more');
+		const many = sayPrefix(who, 'https://caseyagollan.com/', page, chatSelection(Array.from({ length: 80 }, (_, index) => ({ id: `s${index}`, type: 'note' }))));
+		expect(many).toContain('with 80 things selected');
+		expect(many).toContain('s59 (note), and 20 more');
 		expect(sayPrefix('Ana', 'https://caseyagollan.com/')).toBe('Ana wrote:');
 	});
 
