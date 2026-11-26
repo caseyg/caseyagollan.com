@@ -10,6 +10,7 @@
 	import { rememberOwner } from '$lib/owner';
 	import NewsletterSettings from '$lib/components/NewsletterSettings.svelte';
 	import BlueskySettings from '$lib/components/BlueskySettings.svelte';
+	import McpConnections from '$lib/components/account/McpConnections.svelte';
 	import AccountSignIn from '$lib/components/account/AccountSignIn.svelte';
 	import ConsentRequest from '$lib/components/account/ConsentRequest.svelte';
 	import Passkeys from '$lib/components/account/Passkeys.svelte';
@@ -216,6 +217,7 @@
 					<SkillsManager />
 				{:else if value === 'connections'}
 					<BlueskySettings csrf={owner.csrf} result={page.url.searchParams.get('bluesky')} message={page.url.searchParams.get('message')} />
+					<McpConnections csrf={owner.csrf} result={page.url.searchParams.get('mcp')} server={page.url.searchParams.get('server')} message={page.url.searchParams.get('message')} />
 				{:else if value === 'newsletter'}
 					<NewsletterSettings csrf={owner.csrf} />
 				{:else if value === 'security'}

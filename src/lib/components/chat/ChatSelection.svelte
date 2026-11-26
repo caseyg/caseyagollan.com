@@ -11,7 +11,10 @@
 		onclear?: () => void;
 	}
 
-	let { items, count = items.length, onclear }: Props = $props();
+	let { items, count: total, onclear }: Props = $props();
+
+	// Derived, not a prop default: a default is worked out once, so the chip kept its first count as the selection grew.
+	const count = $derived(total ?? items.length);
 
 	const only = $derived(count === 1 ? items[0] : undefined);
 	const label = $derived(only ? (only.title ?? `1 ${only.type}`) : `${count} selected`);

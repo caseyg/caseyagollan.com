@@ -16,7 +16,9 @@
  */
 import { Agent, type Connection, type ConnectionContext, type WSMessage } from 'agents';
 import { PiHarness } from 'agents/harness/pi';
-import { createRegistry, Harness, type ConversationWatch } from '@earendil-works/pi-durable';
+import { createRegistry, Harness, type ConversationWatch, type Extension } from '@earendil-works/pi-durable';
+import { createCodemodeExtension } from '@earendil-works/pi-durable/codemode';
+import { createInlineCodemodeSandbox } from '@earendil-works/pi-codemode/cloudflare';
 import { CHAT_MAX_MESSAGE, chatAuthor, chatPage, chatSayId, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
 import { canvasOrder, HIDDEN_TABLE_OP_TIMEOUT, TABLE_OP_TIMEOUT, unansweredTable } from './canvas';
 import { publishingConfig } from '../publishing/config';
@@ -30,11 +32,17 @@ import { chatModels, COMPACTION } from './provider';
 import { invokedSkill } from './skills';
 import { saveSearchDoc, saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
+import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, mcpToolName, sectionsWhen, serverNames } from './mcp-tools';
+import { McpAuthError, McpError, type McpSession, type McpToolResult } from '../mcp/client';
+import { markBroken, mcpDeps, sessionFor, usableServers, type McpEnv, type UsableServer } from '../mcp/connections';
+import type { McpServer } from '../../mcp-servers';
+import { cleanOff, groupKey, mcpGroupId, toolKey, toolWords, type ChatToolChoices, type ChatToolGroup } from '../../chat-tool-groups';
+import { OWN_TOOL_GROUPS } from './tools';
 import { itemsFromDocument, tableThreadId, type TableCancelEvent, type TableOp, type TableOpReply } from '../../table-agent';
 import { emptyTable, validId } from '../../tables';
 import { readTable, writeTable } from '../tables';
 
-export interface ChatAgentEnv extends PublishingEnvironment {
+export interface ChatAgentEnv extends PublishingEnvironment, McpEnv {
 	INFERENCE_COOP_API_KEY?: string;
 	CHAT_MODEL?: string;
 	/** How hard the model thinks before each step: low (the default), medium or high. */
@@ -70,6 +78,16 @@ const MAX_MESSAGES = 300;
 const PER_PERSON_PER_HOUR = 20;
 /** Tool rounds one answer may take. The last request of a run is made without tools (`chatExtension`), so it ends in an answer. */
 const MAX_TURNS = 8;
+/** How long the thread goes on its last look at which MCP servers are connected. */
+const MCP_FRESH = 60_000;
+/**
+ * How long a script may compute between tool calls, in QuickJS interrupt polls (about three
+ * seconds on Cloudflare). Scripts run in this object's own isolate, so a script that spins
+ * holds the thread's sockets up for that long and no longer; one waiting on a tool holds nothing.
+ */
+const SCRIPT_INTERRUPT_BUDGET = 30_000;
+/** Tokens of tool signatures the `codemode` prompt section may list; scripts find the rest with searchTools(). */
+const SCRIPT_TOOLS_BUDGET = 2_500;
 /** An owner connection counts as Casey for this long; after that, reconnecting checks again. */
 const OWNER_CONNECTION_TTL = 12 * 3600_000;
 
@@ -80,7 +98,12 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	readonly harness = new PiHarness({
 		harness: ({ storage, context, onWake }) => {
 			const { models } = chatModels(this.env);
-			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT, waitUntil: (promise) => this.ctx.waitUntil(promise) }));
+			const chat = chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT, waitUntil: (promise) => this.ctx.waitUntil(promise), mcp: () => serverNames(this.servers), off: (name) => this.toolOff(name) });
+			this.ownTools = (chat.tools ?? []).map((tool) => tool.name);
+			this.registry.install(chat);
+			// After the chat's own extension, so its prompt comes first.
+			this.chatInstalled = true;
+			this.installMcp();
 			return Harness.open(storage, {
 				models, registry: this.registry, onWake, identity: { attribution: null },
 				// A failed answer doesn't hold up the next person's message.
@@ -98,6 +121,132 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	constructor(ctx: DurableObjectState, env: ChatAgentEnv & Cloudflare.Env) {
 		super(ctx, env);
 		this.lifecycle.use(this.harness);
+	}
+
+	// ------------------------------------------------------------------ MCP servers and scripts
+
+	/** The MCP servers Casey has connected on /account, with the tools the chat may call. */
+	private servers: UsableServer[] = [];
+	/** Every connected server with its tools, whatever this chat has turned off: what the Tools menu lists. */
+	private available: UsableServer[] = [];
+	private ownTools: string[] = [];
+	private mcpAt = 0;
+	private mcpKey = '';
+	private chatInstalled = false;
+	private scripts?: Extension;
+	private mcpSessions = new Map<string, McpSession>();
+
+	/**
+	 * Look again at which servers are connected, and give Pi their tools: each as a tool only
+	 * scripts may call, plus `codemode` to run the scripts. Only in a thread Casey alone has
+	 * written in; anyone else's message takes them away again.
+	 */
+	private async syncMcp(force = false) {
+		const deps = mcpDeps(this.env);
+		if (!deps) return;
+		if (force || Date.now() - this.mcpAt >= MCP_FRESH) {
+		const servers = await usableServers(deps, (work) => this.ctx.waitUntil(work)).catch((error) => { console.warn(JSON.stringify({ event: 'chat_mcp_load_failed', detail: String(error).slice(0, 200) })); return undefined; });
+			// A failed look keeps what the thread had.
+			if (servers) { this.mcpAt = Date.now(); this.available = servers; }
+		}
+		this.applyMcp();
+	}
+
+	/** The servers and tools this chat's scripts may call: the connected ones, less what Casey turned off here. */
+	private applyMcp() {
+		const off = this.off();
+		this.servers = !this.onlyOwner() ? [] : this.available
+			.filter(({ server }) => !off.has(groupKey(mcpGroupId(server.id))))
+			.map((usable) => ({ ...usable, tools: usable.tools.filter((tool) => !off.has(toolKey(mcpToolName(usable.server, tool.name)))) }))
+			.filter(({ tools }) => tools.length);
+		this.installMcp();
+	}
+
+	// ------------------------------------------------------------------ What Casey turned off in this chat
+
+	private offSet?: Set<string>;
+	private off(): Set<string> {
+		if (!this.offSet) { let kept: unknown; try { kept = JSON.parse(this.meta('tools_off') ?? '[]'); } catch { kept = []; } this.offSet = new Set(cleanOff(kept)); }
+		return this.offSet;
+	}
+
+	/** Whether one of the chat's own tools is off here; the servers' tools are simply not installed. */
+	private toolOff(name: string): boolean {
+		const off = this.off();
+		if (!off.size) return false;
+		if (off.has(toolKey(name))) return true;
+		const group = OWN_TOOL_GROUPS.find((one) => one.has(name));
+		return !!group && off.has(groupKey(group.id));
+	}
+
+	/** The groups for the composer's Tools menu, and what is off. Casey's alone. */
+	private choices(): ChatToolChoices {
+		const own: ChatToolGroup[] = OWN_TOOL_GROUPS.map((group) => ({ id: group.id, name: group.name, summary: group.summary, tools: this.ownTools.filter(group.has).map((name) => ({ name, label: toolWords(name.replace(/^(table|micropub)_/, '')) })) })).filter((group) => group.tools.length);
+		const services: ChatToolGroup[] = this.available.map(({ server, tools }) => ({ id: mcpGroupId(server.id), name: server.name, summary: server.summary, service: true, tools: tools.map((tool) => ({ name: mcpToolName(server, tool.name), label: toolWords(tool.name) })) }));
+		return { groups: [...own, ...services], off: [...this.off()] };
+	}
+
+	private sendChoices(only?: Connection<ConnectionState>) {
+		const event = JSON.stringify({ type: 'chat:choices', ...this.choices() } satisfies ChatServerEvent);
+		for (const connection of only ? [only] : this.getConnections<ConnectionState>()) {
+			const state = connection.state;
+			if (state?.viewer?.owner && Date.now() - state.at < OWNER_CONNECTION_TTL) connection.send(event);
+		}
+	}
+
+	private setOff(value: unknown) {
+		const off = cleanOff(value);
+		this.setMeta('tools_off', JSON.stringify(off));
+		this.offSet = new Set(off);
+		this.applyMcp();
+		this.sendChoices();
+	}
+
+	private installMcp() {
+		if (!this.chatInstalled) return;
+		const key = JSON.stringify(this.servers.map(({ server, tools }) => [server.id, tools.map((tool) => tool.name)]));
+		if (key === this.mcpKey) return;
+		this.mcpKey = key;
+		if (!this.servers.length) {
+			this.registry.uninstall({ name: MCP_EXTENSION });
+			if (this.scripts) this.registry.uninstall(this.scripts);
+			this.scripts = undefined;
+			return;
+		}
+		this.registry.install(mcpExtension(this.servers, (server, tool, args) => this.mcpCall(server, tool, args)));
+		// The script's own tool and its prompt section. No `models.*`: scripts here only reach the MCP servers.
+		this.scripts = budgeted(sectionsWhen(createCodemodeExtension({ sandbox: this.sandbox(), namespaces: mcpNamespaces(this.servers), inlineBudget: SCRIPT_TOOLS_BUDGET, models: false }), () => this.onlyOwner()));
+		this.registry.install(this.scripts);
+	}
+
+	private scriptSandbox?: ReturnType<typeof createInlineCodemodeSandbox>;
+	private sandbox() {
+		return this.scriptSandbox ??= createInlineCodemodeSandbox({ interruptBudget: SCRIPT_INTERRUPT_BUDGET });
+	}
+
+	/** One call of one server's tool, with Casey's sign-in. What it read is never logged. */
+	private async mcpCall(server: McpServer, tool: string, args: Record<string, unknown>): Promise<McpToolResult> {
+		const deps = mcpDeps(this.env);
+		if (!deps || !this.onlyOwner()) throw new Error('Only Casey can use this tool.');
+		let session = this.mcpSessions.get(server.id);
+		if (!session) this.mcpSessions.set(server.id, session = sessionFor(deps, server));
+		const started = Date.now();
+		try {
+			const result = await session.callTool(tool, args);
+			console.log(JSON.stringify({ event: 'chat_mcp_call', server: server.id, tool, ms: Date.now() - started, chars: result.text.length, ...(result.isError ? { error: true } : {}) }));
+			return result;
+		} catch (error) {
+			this.mcpSessions.delete(server.id);
+			console.warn(JSON.stringify({ event: 'chat_mcp_call_failed', server: server.id, tool, ms: Date.now() - started, kind: (error as Error)?.name }));
+			if (error instanceof McpAuthError) {
+				await markBroken(deps, server, `${server.name} refused the sign-in`).catch(() => undefined);
+				this.mcpAt = 0;
+				throw new Error(`${server.name} needs connecting again on the Account page (/account). Tell Casey, and don’t try it again this turn.`);
+			}
+			// The server's own complaint (a wrong argument, say) is something the script's author can fix.
+			if (error instanceof McpError && !error.status?.toString().startsWith('5')) throw new Error(error.message);
+			throw new Error(`${server.name} couldn’t be reached just now. Tell Casey, and don’t try it again this turn.`);
+		}
 	}
 
 	// ------------------------------------------------------------------ tables and browsers
@@ -272,6 +421,8 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	async onStart() {
 		this.setup();
 		// A run Pi picked up again after an eviction: watch it so readers see it finish.
+		// A script Pi resumes needs its tools back before it runs again.
+		if (this.meta('id')) await this.syncMcp().catch(() => undefined);
 		if (this.meta('id') && await this.harness.session().busy().catch(() => false)) await this.follow();
 	}
 
@@ -403,6 +554,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const who = `${author.name}${owner ? ' (Casey, the site’s owner)' : author.url ? ` (${author.url})` : ''}`;
 		// Recorded before the run starts: who has written here decides whether Casey's tools are offered.
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
+		await this.syncMcp().catch(() => undefined);
 		await this.follow();
 		this.setMeta('selection', JSON.stringify(selection?.items.map((item) => item.id) ?? []));
 		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}${skill ? `\n\n${skill.text}` : ''}`, { operationId: id, whenBusy: options.queue === true ? 'followUp' : 'steer', entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
@@ -542,6 +694,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const messages = this.watch ? this.shown : await this.messages();
 		const snapshot = { thread: this.summary(messages), messages };
 		connection.send(JSON.stringify({ type: 'chat:snapshot', snapshot, viewer, tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
+		if (viewer?.owner) {
+			this.sendChoices(connection);
+			// The connected services, once they are known.
+			if (Date.now() - this.mcpAt >= MCP_FRESH) this.ctx.waitUntil(this.syncMcp().then(() => this.sendChoices(connection)).catch(() => undefined));
+		}
 		const waiting = this.pendingNavigation;
 		if (waiting && viewer?.id === waiting.to) waiting.done(this.sendNavigate(waiting.to, waiting.path));
 	}
@@ -568,6 +725,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			connection.setState({ ...state!, page, canvas: !!(viewer?.owner && page?.table) });
 			if (viewer?.owner && page?.table) for (const wait of [...this.tableWaits]) if (wait.id === page.table) wait.done(true);
 			connection.send(JSON.stringify({ type: 'chat:abilities', tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
+			return;
+		}
+		// Casey turned a group of tools, or one tool, on or off for this chat.
+		if (event?.type === 'chat:tools-off') {
+			if (viewer?.owner) this.setOff(event.off);
 			return;
 		}
 		if (event?.type === 'table:result') {

@@ -8,6 +8,9 @@
 		{ id: 'n1', type: 'note', title: 'Why the site' }
 	];
 
+	/** A selection that grows while the chip is on screen, as when Casey drags a box around more cards. */
+	let growing = $state([items[1]]);
+
 	const { Story } = defineMeta({
 		title: 'Chat/ChatSelection',
 		component: ChatSelection,
@@ -22,3 +25,11 @@
 
 <!-- Under a sent message: what was selected when it was written. -->
 <Story name="On a sent message" args={{ items, count: 12, onclear: undefined }} />
+
+<!-- The chip follows the selection as it changes: one card shows its title, more show their count. -->
+<Story name="Growing selection">
+	{#snippet template()}
+		<ChatSelection items={growing} onclear={() => (growing = [])} />
+		<button type="button" onclick={() => (growing = [...growing, { id: `s${growing.length}`, type: 'note', title: `Note ${growing.length}` }])}>Select one more</button>
+	{/snippet}
+</Story>

@@ -5,6 +5,8 @@
 	import { Autocomplete, AutocompleteContent, AutocompleteInput, AutocompleteItem, AutocompleteList } from '@ui-sdk/svelte/autocomplete';
 	import { matchSkills, slashQuery, type SkillSummary } from '$lib/chat-skills';
 	import { enabledSkills } from '$lib/chat-skills-client';
+	import type { ChatToolChoices } from '$lib/chat-tool-groups';
+	import ChatToolsMenu from './ChatToolsMenu.svelte';
 
 	interface Props {
 		viewer: ChatViewer;
@@ -28,6 +30,9 @@
 		returnTo?: string;
 		/** Tools the agent has for this viewer, named under the box once it's open. */
 		tools?: string[];
+		/** Casey's Tools menu: the groups of tools in this chat and what is off. Left out, there is no menu. */
+		choices?: ChatToolChoices | null;
+		onchoices?: (off: string[]) => void;
 		/** One box and a send button, nothing else: no picture, no “Writing as”, no tools line. */
 		compact?: boolean;
 		/** The box's accessible name when it shows no placeholder. */
@@ -39,7 +44,7 @@
 		skills?: SkillSummary[];
 	}
 
-	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false, skills }: Props = $props();
+	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false, choices = null, onchoices, skills }: Props = $props();
 
 	let sending = $state(false);
 	const tooLong = $derived(value.length > CHAT_MAX_MESSAGE);
@@ -62,13 +67,30 @@
 	// Slash commands: while a message is only `/` and part of a name, the skills that match are offered above the box.
 	let loaded = $state<SkillSummary[]>([]);
 	let asked = false;
-	const query = $derived(slashQuery(value));
-	const offered = $derived(query === null ? [] : matchSkills(skills ?? loaded, query));
+	// Plain functions, not `$derived`: the list's own handlers read these in the middle of an input
+	// event, and a derived read there was left stale once the box had been emptied.
+	const query = () => slashQuery(value);
+	const offered = () => { const asked = query(); return asked === null ? [] : matchSkills(skills ?? loaded, asked); };
 	/** Escape puts the list away until the text changes. */
 	let dismissed = $state('');
-	const suggesting = $derived(offered.length > 0 && dismissed !== value);
+	const suggesting = () => offered().length > 0 && dismissed !== value;
+	/** Only Casey putting the list away keeps it away (until the text changes); the list closing because the text stopped being a command doesn't. */
+	const DISMISSALS = new Set<string>(['escape-key', 'outside-press', 'focus-out', 'window-blur']);
+	$effect(() => { if (query() === null) dismissed = ''; });
+	/**
+	 * The list asks to open or close. It may ask before `value` has caught up with the key just
+	 * typed, so what the box holds is read from the event.
+	 */
+	function openChange(next: boolean, details: { reason: string; event?: Event; cancel(): void }) {
+		const target = details.event?.target;
+		const text = target instanceof HTMLTextAreaElement ? target.value : value;
+		const asked = slashQuery(text);
+		const some = asked !== null && matchSkills(skills ?? loaded, asked).length > 0;
+		if (next && !(some && dismissed !== text)) details.cancel();
+		else if (!next && DISMISSALS.has(details.reason)) dismissed = text;
+	}
 	$effect(() => {
-		if (query === null || skills || asked || !viewer.owner) return;
+		if (query() === null || skills || asked || !viewer.owner) return;
 		asked = true;
 		void enabledSkills().then((found) => { loaded = found; });
 	});
@@ -80,7 +102,7 @@
 	 */
 	function keydown(event: KeyboardEvent) {
 		if (!(event.target instanceof HTMLTextAreaElement)) return;
-		if (suggesting) return;
+		if (suggesting()) return;
 		event.stopPropagation();
 		held = modifier(event);
 		// Enter sends; Shift+Enter starts a new line.
@@ -105,8 +127,9 @@
 <form class="chat-prompt" class:open={open && !compact} class:compact method="POST" {action} onsubmit={submit}>
 	<div class="box" onkeydowncapture={keydown}>
 		{#if !compact}<Avatar src={viewer.photo} name={viewer.name} size="sm" />{/if}
+		{#if choices && onchoices && viewer.owner}<ChatToolsMenu {choices} onchange={onchoices} />{/if}
 		<!-- The box is an autocomplete only for slash commands: its list stays shut for any other text. -->
-		<Autocomplete bind:value open={suggesting} onOpenChange={(next, details) => { if (next && !suggesting) details.cancel(); else if (!next && suggesting) dismissed = value; }} filter={false} autoHighlight>
+		<Autocomplete bind:value open={suggesting()} onOpenChange={openChange} filter={false} autoHighlight>
 			<AutocompleteInput onfocus={() => (open = true)} aria-label={placeholder || label}>
 				{#snippet render({ props })}
 					<Textarea {...props} class="input" name="text" bind:value {placeholder} rows={open && !compact ? 3 : 1} autoResize maxlength={CHAT_MAX_MESSAGE + 200} />
@@ -114,7 +137,7 @@
 			</AutocompleteInput>
 			<AutocompleteContent class="skill-menu" side="top" align="start" sideOffset={8} collisionPadding={8}>
 				<AutocompleteList class="skill-menu-list" aria-label="Skills">
-					{#each offered as skill (skill.name)}
+					{#each offered() as skill (skill.name)}
 						<AutocompleteItem class="skill-menu-item" value={skill.name} label={`/${skill.name} `}>
 							<span class="skill-menu-name">/{skill.name}</span>
 							<span class="skill-menu-detail">{skill.description}</span>
@@ -157,6 +180,11 @@
 	.chat-prompt.compact {
 		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
 		border-radius: var(--radius-lg);
+	}
+
+	/* The Tools menu's button sits where the box's own padding was. */
+	.compact:has(:global(.chat-tools-trigger)) {
+		padding-left: var(--space-1);
 	}
 
 	.compact .box {

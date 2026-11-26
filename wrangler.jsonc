@@ -77,6 +77,11 @@
 	 * holds no passkeys and issues no tokens. Publishing and imports stay off: previews
 	 * must not write content or post socially.
 	 * Media, screenshots, and the insight cache are read from production.
+	 * Secrets are not inherited either: a new Preview copies the Worker's Previews Base secrets
+	 * (`npx wrangler preview base-config secret list`), which is where /chat's INFERENCE_COOP_API_KEY,
+	 * KAGI_API_KEY and the ARENA_PAT, RAINDROP_TOKEN and READWISE_ACCESS_TOKEN read tokens live. A Preview
+	 * made before a secret was added there needs `npx wrangler preview secret put <KEY> --name <preview>`.
+	 * Publishing and syndication tokens must never be added to Previews Base.
 	 */
 	"previews": {
 		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }] },

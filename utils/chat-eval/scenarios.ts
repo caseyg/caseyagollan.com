@@ -166,9 +166,31 @@ export const SCENARIOS: Scenario[] = [
 		checks: [
 			{ name: 'uses table_pull', pass: (seen) => used(seen, /^table_pull$/) >= 1 },
 			{ name: 'adds pieces taken from the blocks', pass: (seen) => seen.items.some((item) => item.type === 'quote' || item.type === 'image') },
-			{ name: 'joins pieces to their block', pass: (seen) => seen.items.some((item) => item.type === 'arrow' && ['b1', 'b2'].includes(item.from ?? '')) },
+			{ name: 'a line from a block to each of its pieces', pass: (seen) => pieces(seen.items).every((piece) => seen.items.some((item) => item.type === 'arrow' && ['b1', 'b2'].includes(item.from ?? '') && item.to === piece.id)) },
 			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
 			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		// Casey's table "Calm Technology — force map" (chat ahgpdsg054): a channel gave are.na's placeholder words, its blocks nothing.
+		name: 'table-pull-arena',
+		ask: 'pull context',
+		page: '/tables/evaltable1',
+		pageTitle: 'Calm Technology',
+		table: [
+			{ id: 'c1', type: 'arena', title: 'Index of Calm Technologies', url: 'https://www.are.na/casey-gollan/index-of-calm-technologies', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'a1', type: 'arena', title: 'Glow - macwright.org', url: 'https://www.are.na/block/2617940', x: 0, y: 400, w: 240, h: 240 },
+			{ id: 'a2', type: 'arena', title: 'Tea Kettle', url: 'https://www.are.na/block/1204699', x: 300, y: 0, w: 240, h: 240 }
+		],
+		selected: ['c1', 'a1'],
+		checks: [
+			{ name: 'pulls from the channel and the block', pass: (seen) => ['c1', 'a1'].every((id) => seen.items.some((item) => item.type === 'arrow' && item.from === id)) },
+			{ name: 'no placeholder words', pass: (seen) => !seen.items.some((item) => /lorem ipsum|example channel/i.test(item.text ?? '')) },
+			{ name: 'a line to each piece', pass: (seen) => pieces(seen.items).every((piece) => seen.items.some((item) => item.type === 'arrow' && item.to === piece.id)) },
+			{ name: 'no frames', pass: (seen) => !seen.items.some((item) => item.type === 'frame') },
+			{ name: 'what was there stays put', pass: (seen) => seen.items.find((item) => item.id === 'a2')?.x === 300 && seen.items.find((item) => item.id === 'a2')?.y === 0 },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
 		]
 	},
 	{
@@ -462,6 +484,8 @@ export const SCENARIOS: Scenario[] = [
 		]
 	}
 ];
+
+const pieces = (items: FakeItem[]) => items.filter((item) => item.type === 'quote' || item.type === 'image');
 
 function overlaps(items: FakeItem[]): boolean {
 	const solid = items.filter((item) => item.type !== 'arrow' && item.type !== 'frame' && item.type !== 'draw');
