@@ -126,6 +126,12 @@
 		color: var(--bg-primary);
 	}
 
+	a {
+		color: inherit;
+		text-decoration-thickness: from-font;
+		text-underline-offset: var(--underline-offset);
+	}
+
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
