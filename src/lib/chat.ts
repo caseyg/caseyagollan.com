@@ -231,7 +231,7 @@ export interface ChatSelection {
 /** The most selected things a message carries, and that `["selected"]` stands for in a tool's ids. */
 export const SELECTION_MAX = 100;
 /** How many of them the model is told about one by one. */
-export const SELECTION_LISTED = 24;
+export const SELECTION_LISTED = 60;
 
 /** A selection as sent by a browser, cleaned up; null when nothing (usable) is selected. */
 export function chatSelection(value: unknown): ChatSelection | null {
