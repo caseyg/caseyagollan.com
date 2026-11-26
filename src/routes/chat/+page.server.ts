@@ -10,7 +10,8 @@ export const load: PageServerLoad = async ({ request, platform, url, setHeaders 
 	const env = (platform?.env ?? {}) as NonNullable<App.Platform['env']>;
 	setHeaders({ 'cache-control': 'private, no-store' });
 	const viewer = await chatViewer(request, env).catch(() => null);
-	return { viewer, signinError: url.searchParams.get('signin')?.slice(0, 200) ?? null, available: !!env.ChatThread };
+	// `?ask=` starts the composer off, such as with a skill's slash command from /account.
+	return { viewer, signinError: url.searchParams.get('signin')?.slice(0, 200) ?? null, available: !!env.ChatThread, ask: url.searchParams.get('ask')?.slice(0, 200) ?? '' };
 };
 
 export const actions: Actions = {

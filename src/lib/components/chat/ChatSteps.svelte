@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { stepsSummary, type ChatToolUse } from '$lib/chat';
 	import { Disclosure, LinkPreviewCard } from '$lib/components/ui';
+	import SkillReview from '$lib/components/skills/SkillReview.svelte';
 	import ChatTool from './ChatTool.svelte';
 
 	interface Props {
@@ -16,12 +17,14 @@
 	const running = $derived(steps.findLast((step) => step.status === 'running'));
 	const line = $derived(stepsSummary(steps));
 	const peeks = $derived(steps.filter((step) => step.peek));
+	const reviews = $derived(steps.filter((step) => step.skill));
 </script>
 
 <!--
 	The agent's steps where they happened in its reply. A line sums them up (“Searched the site, read 2
 	pages”); it opens to each step, and a step opens to what it was asked and what came back. One step
-	alone skips the list. A page the agent chose to show stays in view as a card.
+	alone skips the list. A page the agent chose to show stays in view as a card, as does a skill it
+	put up for review.
 -->
 <div class="chat-steps">
 	{#if steps.length === 1}
@@ -40,6 +43,10 @@
 	{/if}
 	{#each peeks as step (step.peek?.url)}
 		{#if step.peek}<LinkPreviewCard class="peek" href={step.peek.url} title={step.peek.title} excerpt={step.peek.excerpt} />{/if}
+	{/each}
+	<!-- A skill the agent drafted or fetched, for Casey to read and add. -->
+	{#each reviews as step (step.skill?.id)}
+		{#if step.skill}<SkillReview skill={step.skill} />{/if}
 	{/each}
 </div>
 

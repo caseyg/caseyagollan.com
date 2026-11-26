@@ -45,6 +45,8 @@ export interface ChatToolUse {
 	response?: string;
 	/** Why it didn't work. */
 	error?: string;
+	/** A skill the assistant put in front of Casey to review (`skill_add`); the card fetches the rest as Casey. */
+	skill?: import('./chat-skills').SkillReviewRef;
 }
 
 /** A reply in the order it happened: stretches of text, and the steps taken between them. */
@@ -126,6 +128,8 @@ export interface ChatMessage {
 	createdAt: number;
 	/** For `user`: what they had selected on the table when they wrote it. */
 	selection?: ChatSelection;
+	/** For `user`: the skill the message invoked with `/name`, which its text starts with. */
+	skill?: string;
 }
 
 export interface ChatThreadSummary {

@@ -553,11 +553,14 @@ describe('the chat’s tools', () => {
 	test('there are few of them, each described briefly', async () => {
 		const { extension } = await setup({ micropub: async () => Response.json({}) });
 		const names = extension.tools!.map((tool) => tool.name);
-		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look']);
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'use_skill', 'skill_find', 'skill_add', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look']);
 		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
-		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(25_000);
+		// 25,000 before skills; their three tools (Casey's runs only) are some 1,500 characters of schema.
+		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(26_500);
+		const skills = extension.tools!.filter((tool) => ['use_skill', 'skill_find', 'skill_add'].includes(tool.name));
+		expect(JSON.stringify(skills.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(1_600);
 	});
 
 	test('the prompt lists what is on the open table, as it stands at each step', async () => {

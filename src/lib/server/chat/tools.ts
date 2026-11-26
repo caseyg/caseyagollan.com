@@ -1,7 +1,7 @@
 /**
  * What the /chat assistant can do, as a Pi extension: its system prompt, the public tools
  * (`search_site`, `fetch_page`, `view_image`, `show_page`, `go_to`, `table_read`), and Casey's
- * tools (Micropub, `table_new`, changing a table) behind a server-side gate.
+ * tools (Micropub, `table_new`, changing a table, skills) behind a server-side gate.
  *
  * How the set is shaped, for a small model with eight rounds and a 32k context:
  * - One tool per intent, not per operation. `search_site` both finds and browses by date;
@@ -30,6 +30,7 @@ import { TABLE_ALIGNS, TABLE_ARRANGEMENTS, TABLE_COLORS, TABLE_DIRECTIONS, TABLE
 import { imageFromDataUrl, viewImage } from './view-image';
 import { SAVE_SOURCES, SOURCE_NAME, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavedItem, type SavedPage, type SaveSource, type SavesDeps, type SavesEnv } from '../saves';
 import { ownerMicropub } from '../publishing/post-editor';
+import { isSkillTool, skillsSection, skillTools } from './skill-tools';
 
 export interface ToolDeps {
 	env: PublishingEnvironment & SavesEnv & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
@@ -54,6 +55,8 @@ export interface ToolDeps {
 	now?: () => Date;
 	/** Are.na, Raindrop and Readwise, in place of the real services: for tests and replays. */
 	savesFetch?: typeof fetch;
+	/** skills.sh and GitHub, in place of the real ones: for tests and replays. */
+	skillsFetch?: typeof fetch;
 	/** Keeps the Worker alive for work that outlasts a tool call, such as refreshing a cached copy. */
 	waitUntil?: (promise: Promise<unknown>) => void;
 }
@@ -93,7 +96,7 @@ const WRITES = new Set<string>(TABLE_OWNER_TOOLS);
 /** Reads Casey's Are.na, Raindrop and Readwise with Casey's own tokens, private items included: Casey's runs only. */
 export const SAVES_TOOL = 'my_saves';
 /** Tools only Casey's own runs get. */
-export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL;
+export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL || isSkillTool(name);
 /** Tools that need a table open beside the chat: all of them but the one that makes a table. */
 export const isTableTool = (name: string) => name.startsWith('table_') && name !== 'table_new';
 const isTableRead = (name: string) => name === 'table_read' || name === 'table_look';
@@ -1029,13 +1032,15 @@ export function chatExtension(deps: ToolDeps): Extension {
 			{ key: 'site', render: () => siteSection(now(), timeZone), tag: false },
 			// Only said when the tool is there: a thread only Casey has written in.
 			{ key: 'saves', render: () => deps.onlyOwner?.() ? SAVES_SECTION : undefined, tag: false },
+			// Casey's skills by name and a line each; a skill's own words are read only when it is used (`skill-tools.ts`).
+			{ key: 'skills', render: () => deps.onlyOwner?.() ? skillsSection(deps.env.PUBLISHING_STATE) : undefined, tag: false },
 			...(thread ? [
 				{ key: 'table', render: () => thread.table() ? TABLE_SECTION : undefined, tag: false },
 				// Last, since it changes with every step and everything above it stays the same.
 				{ key: 'table-now', render: () => thread.table() ? tableNow(thread) : undefined, tag: false }
 			] : [])
 		],
-		tools: [searchSite, fetchTool, viewImageTool, showPage, ...(thread ? [goTo] : []), mySaves, ...micropub, ...tableTools],
+		tools: [searchSite, fetchTool, viewImageTool, showPage, ...(thread ? [goTo] : []), mySaves, ...skillTools({ bucket: () => deps.env.PUBLISHING_STATE, fetcher: deps.skillsFetch }), ...micropub, ...tableTools],
 		hooks: [
 			hook(GenerationTask, {
 				async beforeProviderRequest(request, api, context) {

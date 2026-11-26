@@ -27,3 +27,6 @@
 
 <!-- Only when Casey asked: a Micropub step, with no contents shown. -->
 <Story name="Saved a draft (owner)" args={{ message: draft }} />
+
+<!-- A message that invoked a skill: the slash command reads as a chip, then what was asked. -->
+<Story name="Invoked a skill" args={{ own: true, message: { ...question, content: '/link-roundup for this week, leaving out the likes', skill: 'link-roundup' } }} />

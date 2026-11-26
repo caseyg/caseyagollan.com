@@ -27,6 +27,7 @@ import { viewerFrom } from './identity';
 import { DEFAULT_CHAT_MODEL, ModelError, streamCompletion } from './model';
 import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Queued, type SayData } from './projection';
 import { chatModels, COMPACTION } from './provider';
+import { invokedSkill } from './skills';
 import { saveSearchDoc, saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
 import { itemsFromDocument, tableThreadId, type TableCancelEvent, type TableOp, type TableOpReply } from '../../table-agent';
@@ -395,14 +396,16 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const page = chatPage(where);
 		// What Casey had selected on that table, so “these” means something. Only Casey's table page can act on it.
 		const selection = owner && page?.table ? chatSelection(selected) : null;
-		const data: SayData = { id, author, owner, at, text, ...(selection ? { selection: { count: selection.count, items: selection.items.slice(0, SELECTION_LISTED) } } : {}) };
+		// `/name` at the start of Casey's message brings that skill's instructions along with it, so using one costs no extra step.
+		const skill = owner ? await invokedSkill(this.env.PUBLISHING_STATE, text).catch(() => null) : null;
+		const data: SayData = { id, author, owner, at, text, ...(selection ? { selection: { count: selection.count, items: selection.items.slice(0, SELECTION_LISTED) } } : {}), ...(skill ? { skill: skill.name } : {}) };
 		// The model reads who wrote each message, where, and what was selected; the page shows only what they wrote.
 		const who = `${author.name}${owner ? ' (Casey, the site’s owner)' : author.url ? ` (${author.url})` : ''}`;
 		// Recorded before the run starts: who has written here decides whether Casey's tools are offered.
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
 		await this.follow();
 		this.setMeta('selection', JSON.stringify(selection?.items.map((item) => item.id) ?? []));
-		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}`, { operationId: id, whenBusy: options.queue === true ? 'followUp' : 'steer', entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
+		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}${skill ? `\n\n${skill.text}` : ''}`, { operationId: id, whenBusy: options.queue === true ? 'followUp' : 'steer', entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
 			this.sql`DELETE FROM chat_said WHERE id = ${id}`;
 			throw error;
 		});
@@ -588,6 +591,6 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 
 	private toolNames(owner: boolean): string[] {
 		const table = this.table();
-		return ['search_site', 'fetch_page', 'show_page', 'view_image', ...(table ? ['table_read'] : []), ...(owner && table ? ['table'] : []), ...(owner && publishingConfig(this.env) ? ['micropub'] : [])];
+		return ['search_site', 'fetch_page', 'show_page', 'view_image', ...(table ? ['table_read'] : []), ...(owner && table ? ['table'] : []), ...(owner && publishingConfig(this.env) ? ['micropub'] : []), ...(owner ? ['skills'] : [])];
 	}
 }

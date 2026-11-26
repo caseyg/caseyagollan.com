@@ -14,6 +14,7 @@
 	import ConsentRequest from '$lib/components/account/ConsentRequest.svelte';
 	import Passkeys from '$lib/components/account/Passkeys.svelte';
 	import AccessTokens from '$lib/components/account/AccessTokens.svelte';
+	import SkillsManager from '$lib/components/skills/SkillsManager.svelte';
 	import { accountDate } from '$lib/components/account/scopes';
 
 	/** `signInWith` is set on branch previews, which sign in through that site instead of a passkey. */
@@ -22,9 +23,10 @@
 	type Token = AuthOperations['listTokens']['output'][number];
 	type Credential = { id: string; createdAt: number; deviceType?: string; backedUp?: boolean };
 
-	/** The settings groups. Add a connection to `connections`, not a new group. */
+	/** The settings groups. Add a connection to `connections`, not a new group. Skills are the chat's saved instructions. */
 	const SECTIONS: TabItem[] = [
 		{ value: 'tools', label: 'Tools' },
+		{ value: 'skills', label: 'Skills' },
 		{ value: 'connections', label: 'Connections' },
 		{ value: 'newsletter', label: 'Newsletter' },
 		{ value: 'security', label: 'Security' }
@@ -210,6 +212,8 @@
 							<Row href="/tables/" title="Tables" detail="Canvases of posts, links and saves." />
 						</RowList>
 					</Section>
+				{:else if value === 'skills'}
+					<SkillsManager />
 				{:else if value === 'connections'}
 					<BlueskySettings csrf={owner.csrf} result={page.url.searchParams.get('bluesky')} message={page.url.searchParams.get('message')} />
 				{:else if value === 'newsletter'}
