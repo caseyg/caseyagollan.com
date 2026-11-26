@@ -45,6 +45,8 @@ export const conversation: ChatMessage[] = [question, answer, followUp, streamin
 
 export const threads: ChatThreadSummary[] = [
 	{ id: 'a1b2c3d4e5', title: 'What has Casey written about Micropub?', createdAt: at, updatedAt: at + 65_000, messageCount: 4, startedBy: ana, participants: [jo, ana] },
+	{ id: 'p6q7r8s9t0', title: 'Calm technology are.na canvas', createdAt: at - 3600_000 * 3, updatedAt: at - 3600_000 * 2, messageCount: 8, startedBy: casey, participants: [casey] },
+	{ id: 'u1v2w3x4y5', title: 'Weekly posts clustered into a table', createdAt: at - 86400_000, updatedAt: at - 86400_000, messageCount: 6, startedBy: casey, participants: [casey] },
 	{ id: 'f6g7h8i9j0', title: 'Books in the library about cooperatives', createdAt: at - 86400_000 * 3, updatedAt: at - 86400_000 * 2, messageCount: 12, startedBy: jo, participants: [casey, jo] },
 	{ id: 'k1l2m3n4o5', title: 'A very long question that someone asked about the library graph, how it loads, and why the selected book holds still while the rest settle', createdAt: at - 86400_000 * 40, updatedAt: at - 86400_000 * 40, messageCount: 2, startedBy: ana, participants: [ana] }
 ];

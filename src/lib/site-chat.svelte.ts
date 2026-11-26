@@ -17,8 +17,17 @@ export interface ChatTableContext {
 	deselect?: () => void;
 }
 
+/** Beside the page, or in a window over its corner. (Full screen is the chat's own page, /chat.) */
+export type ChatPlacement = 'sidebar' | 'floating';
+
 class SiteChatState {
 	table = $state<ChatTableContext | null>(null);
+	/** The last page Casey was on that wasn't /chat: where leaving full screen goes back to. */
+	lastPage: string | null = null;
+	/** Asked from a /chat page that is leaving full screen: open this chat beside (or over) the page. */
+	dock = $state<{ placement: ChatPlacement; thread?: string; draft?: string } | null>(null);
+	/** What was written in the composer when the chat changed place, for the next composer to take up. */
+	draft = '';
 }
 
 export const siteChat = new SiteChatState();
@@ -29,4 +38,20 @@ export function offerTable(context: ChatTableContext): () => void {
 	return () => {
 		if (siteChat.table === context) siteChat.table = null;
 	};
+}
+
+/** The words carried over from the composer the chat just left, once. */
+export function takeDraft(): string {
+	const draft = siteChat.draft;
+	siteChat.draft = '';
+	return draft;
+}
+
+/**
+ * A /chat page leaving full screen: asks the site-wide chat to open `thread` in `placement`, and
+ * returns the page to go to (the one Casey came from, or home).
+ */
+export function leaveFullScreen(placement: ChatPlacement, thread?: string, draft?: string): string {
+	siteChat.dock = { placement, thread, draft };
+	return siteChat.lastPage ?? '/';
 }

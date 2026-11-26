@@ -7,7 +7,15 @@ export interface PageCommands {
 	items: CommandOption[];
 	/** Runs one of `items`. Values starting `go:` are links the palette follows itself. */
 	run?: (value: string) => unknown;
+	/**
+	 * Finds more of this section's commands for what was typed, such as a search the page can make
+	 * that the palette's own matching of labels can't. A result with the value of one of `items` replaces it.
+	 */
+	search?: (query: string, signal: AbortSignal) => Promise<CommandOption[]>;
 }
+
+/** The site's command palette, for a page's own button to open (a "Search" row showing ⌘K). */
+export const sitePalette = $state({ open: false });
 
 const registered = $state<{ entries: { key: symbol; commands: () => PageCommands[] }[] }>({ entries: [] });
 

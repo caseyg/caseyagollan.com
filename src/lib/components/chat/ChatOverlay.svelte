@@ -7,6 +7,7 @@
 	import { latestAssistantLine, type ChatMessage, type ChatSendOptions, type ChatSelectionItem, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { BottomSheet, Button, FloatingButton, Notice, SidePanel, type FloatingCorner } from '$lib/components/ui';
 	import ChatConversation from './ChatConversation.svelte';
+	import ChatModeMenu, { type ChatPlace } from './ChatModeMenu.svelte';
 	import ChatPromptInput from './ChatPromptInput.svelte';
 	import ChatSelection from './ChatSelection.svelte';
 	import ChatSignIn from './ChatSignIn.svelte';
@@ -56,9 +57,13 @@
 		selection?: ChatSelectionItem[];
 		/** Clears that selection. */
 		ondeselect?: () => void;
+		/** On a wide screen, open is a panel down the side of the page (which makes room for it) or a window floating over its corner. */
+		placement?: 'sidebar' | 'floating';
+		/** With it, the title bar offers Sidebar, Floating and Full screen; full screen is for the caller to carry out (the chat's own page). */
+		onplace?: (place: ChatPlace) => void;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, text = $bindable(''), action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect }: Props = $props();
+	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, text = $bindable(''), action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect, placement = 'sidebar', onplace }: Props = $props();
 
 	/** Showing the list of chats instead of the conversation. */
 	let listing = $state(false);
@@ -85,6 +90,7 @@
 {/snippet}
 
 {#snippet controls()}
+	{#if onplace && !sheet}<ChatModeMenu value={placement} onchange={onplace} />{/if}
 	{#if onpick}<Button variant="icon" size="sm" icon="properties" label="All chats" pressed={listing} onclick={toggleList} />{/if}
 	{#if onnew}<Button variant="icon" size="sm" icon="plus" label="New chat" onclick={() => { listing = false; onnew(); }} />{/if}
 {/snippet}
@@ -120,7 +126,8 @@
 
 <!--
 	A chat beside something else on the page, such as a table's canvas: a round floating button when
-	folded, or the site's side panel, which the page makes room for.
+	folded, or the site's side panel, which the page makes room for (`placement` floating: a window over
+	the page's corner instead). With `onplace` the title bar switches between those and full screen.
 	With `sheet`, docked is a bottom sheet instead, which folds to the newest reply's last line and the
 	composer so the page above stays usable, and keeps its place in the conversation while folded.
 -->
@@ -139,7 +146,7 @@
 		<div class="scroll">{@render conversation()}</div>
 	</BottomSheet>
 {:else}
-	<SidePanel class="chat-overlay" label="Chat: {title}" compact onclose={() => (mode = 'minimized')} closeLabel="Minimize the chat" style="--side-panel-width: var(--chat-dock-width); --side-panel-offset: 0px">
+	<SidePanel class="chat-overlay" label="Chat: {title}" compact floating={placement === 'floating'} onclose={() => (mode = 'minimized')} closeLabel="Minimize the chat" style="--side-panel-width: var(--chat-dock-width); --side-panel-offset: 0px">
 		{#snippet header()}<div class="heading">{@render heading()}</div>{/snippet}
 		{#snippet actions()}{@render controls()}{/snippet}
 		{#snippet footer()}<div class="composer composer--panel">{@render composer()}</div>{/snippet}
