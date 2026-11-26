@@ -3,6 +3,7 @@ import { forbiddenForm } from '$lib/server/form-origin';
 import { CHAT_OWNER_ONLY } from '$lib/chat';
 import { isOwnerRequest } from '$lib/server/chat/identity';
 import { withOwnerHint } from '$lib/server/owner-hint';
+import { withSecurityHeaders } from '$lib/server/security-headers';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	if (forbiddenForm(event.request, event.route.id)) {
@@ -18,5 +19,5 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const env = (event.platform?.env ?? {}) as NonNullable<App.Platform['env']>;
 		if (!(await isOwnerRequest(event.request, env).catch(() => false))) return new Response('Not found', { status: 404, headers: { 'cache-control': 'private, no-store' } });
 	}
-	return withOwnerHint(event.request, await resolve(event));
+	return withSecurityHeaders(event.request, event.route.id, withOwnerHint(event.request, await resolve(event)));
 };

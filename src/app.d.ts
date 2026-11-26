@@ -2,6 +2,7 @@
 // for information about these interfaces
 /// <reference types="@cloudflare/workers-types" />
 import type { PublishingEnvironment } from './lib/server/publishing/config';
+import type { RateLimitEnvironment } from './lib/server/rate-limit';
 
 declare global {
 	const __MICROPUB_ENDPOINT__: string;
@@ -21,7 +22,7 @@ declare global {
 			wikiStack?: string[];
 		}
 		interface Platform {
-			env?: PublishingEnvironment & {
+			env?: PublishingEnvironment & RateLimitEnvironment & {
 				INSIGHT_CACHE: KVNamespace;
 				SCREENSHOTS?: R2Bucket;
 				CLOUDFLARE_ACCOUNT_ID?: string;

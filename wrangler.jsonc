@@ -62,6 +62,15 @@
 	 */
 	"images": { "binding": "IMAGES" },
 	/**
+	 * Per-visitor limits on the endpoints anyone can call that cost money or fetch other sites
+	 * (src/lib/server/rate-limit.ts): model calls for the homepage's insights and bio, and fresh
+	 * screenshots. Counted per address at each Cloudflare location; not a spending cap.
+	 */
+	"ratelimits": [
+		{ "name": "AI_RATE_LIMITER", "namespace_id": "2001", "simple": { "limit": 12, "period": 60 } },
+		{ "name": "FETCH_RATE_LIMITER", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } }
+	],
+	/**
 	 * Enable preview URLs for branch deployments
 	 */
 	"preview_urls": true,
@@ -101,6 +110,10 @@
 			"CHAT_MONTHLY_BUDGET": "3"
 		},
 		"kv_namespaces": [{ "binding": "INSIGHT_CACHE", "id": "9eca3bf2742740d78191c5be95a5be97" }],
+		"ratelimits": [
+			{ "name": "AI_RATE_LIMITER", "namespace_id": "2001", "simple": { "limit": 12, "period": 60 } },
+			{ "name": "FETCH_RATE_LIMITER", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } }
+		],
 		"r2_buckets": [
 			{ "binding": "PUBLISHING_STATE", "bucket_name": "caseyagollan-publishing-state-preview" },
 			{ "binding": "PUBLISHING_MEDIA", "bucket_name": "caseyagollan-content" },
