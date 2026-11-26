@@ -19,6 +19,9 @@
 		viewer: ChatViewer | null;
 		/** Tools the assistant has for this viewer, named under the composer. */
 		tools?: string[];
+		/** Casey's Tools menu; see `ChatPromptInput`. */
+		choices?: import('$lib/chat-tool-groups').ChatToolChoices | null;
+		onchoices?: (off: string[]) => void;
 		mode?: ChatOverlayMode;
 		/** Sends over the live connection; without it the composer's form posts to `action`. */
 		onsend?: (text: string, options: ChatSendOptions) => boolean | Promise<boolean>;
@@ -63,7 +66,7 @@
 		onplace?: (place: ChatPlace) => void;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, text = $bindable(''), action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect, placement = 'sidebar', onplace }: Props = $props();
+	let { title, messages, viewer, tools = [], choices = null, onchoices, mode = $bindable('minimized'), onsend, text = $bindable(''), action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect, placement = 'sidebar', onplace }: Props = $props();
 
 	/** Showing the list of chats instead of the conversation. */
 	let listing = $state(false);
@@ -118,7 +121,7 @@
 	{#if offline}<Notice>Reconnecting…</Notice>{/if}
 	{#if viewer}
 		{#if selection.length}<ChatSelection items={selection} onclear={ondeselect ?? (() => {})} />{/if}
-		<ChatPromptInput {viewer} bind:value={text} {onsend} {action} {returnTo} {tools} {placeholder} label="Message the assistant" compact />
+		<ChatPromptInput {viewer} bind:value={text} {onsend} {action} {returnTo} {tools} {choices} {onchoices} {placeholder} label="Message the assistant" compact />
 	{:else}
 		<ChatSignIn {returnTo} error={signinError} open={!!signinError} />
 	{/if}

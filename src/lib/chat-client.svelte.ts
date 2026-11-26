@@ -28,6 +28,8 @@ export class LiveThread {
 	snapshot = $state<ChatSnapshot>() as ChatSnapshot;
 	viewer = $state<ChatViewer | null>(null);
 	tools = $state<string[]>([]);
+	/** Casey's Tools menu: the groups of tools in this chat and what is off. Null for anyone else. */
+	choices = $state<import('./chat-tool-groups').ChatToolChoices | null>(null);
 	status = $state<LiveStatus>('connecting');
 	error = $state('');
 
@@ -129,6 +131,12 @@ export class LiveThread {
 		this.#send({ type: 'page:here', page });
 	}
 
+	/** Turn groups or tools off for this chat; shown at once, and the thread answers with what it kept. */
+	setOff(off: string[]) {
+		if (this.choices) this.choices = { ...this.choices, off };
+		this.#send({ type: 'chat:tools-off', off });
+	}
+
 	#send(event: ChatClientEvent) {
 		if (this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(JSON.stringify(event));
 	}
@@ -217,6 +225,7 @@ export class LiveThread {
 				break;
 			}
 			case 'chat:abilities': this.tools = event.tools; break;
+			case 'chat:choices': this.choices = { groups: event.groups, off: event.off }; break;
 		}
 	}
 }

@@ -212,6 +212,8 @@
 			messages={live?.messages ?? (starting ? [starting] : [])}
 			viewer={live?.viewer ?? viewer}
 			tools={live?.tools ?? []}
+			choices={live?.choices ?? null}
+			onchoices={(off) => live?.setOff(off)}
 			onsend={send}
 			bind:text={draft}
 			returnTo={page.url.pathname}
