@@ -2,7 +2,7 @@
  * A /chat thread in the browser: the server-rendered snapshot, kept live over the
  * thread agent's WebSocket (`/agents/chat-thread/<id>`), reconnecting with backoff.
  */
-import { CHAT_AGENT, chatAuthor, SELECTION_LISTED, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatSelectionItem, type ChatServerEvent, type ChatSnapshot, type ChatViewer } from '$lib/chat';
+import { CHAT_AGENT, CHAT_ID, chatAuthor, chatTitle, SELECTION_LISTED, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatSelectionItem, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 import type { TableCancelEvent, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 export interface LiveThreadOptions {
@@ -22,7 +22,29 @@ const sayId = () => {
 	return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_');
 };
 
+/**
+ * The list of chats, read again by a page that can't reload it: /chat showing a chat it has just
+ * started is held there by its history entry's state, which reloading the page's data would clear.
+ * `over` is the list it replaces (the layout's own); a newer one from the server wins again.
+ */
+class ChatList {
+	// Raw, so `over` stays the very list it was given and can be told from a newer one.
+	fresh = $state.raw<{ over: unknown; threads: ChatThreadSummary[] } | null>(null);
+}
+export const chatList = new ChatList();
+
+export async function refreshChatList(over: unknown): Promise<void> {
+	const response = await fetch('/api/chat?threads', { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+	const body = (response?.ok ? await response.json().catch(() => null) : null) as { threads?: ChatThreadSummary[] } | null;
+	if (Array.isArray(body?.threads)) chatList.fresh = { over, threads: body.threads };
+}
+
 export type LiveStatus = 'connecting' | 'live' | 'offline';
+
+/** The id the thread gives its answer to a message (see `projectMessages`). */
+const replyId = (said: string) => `r-${said}`;
+/** An answer that is on its way and has no words yet: the three dots. */
+const thinkingMessage = (id: string, createdAt = Date.now()): ChatMessage => ({ id, role: 'assistant', content: '', status: 'streaming', createdAt });
 
 export class LiveThread {
 	snapshot = $state<ChatSnapshot>() as ChatSnapshot;
@@ -51,6 +73,11 @@ export class LiveThread {
 	#onchange?: () => void;
 	#options: LiveThreadOptions;
 
+	/** A chat begun here (`begin`) whose thread isn't made yet: its first message, by the id it is shown under. */
+	#first?: { id: string; text: string };
+	/** The answer shown as on its way before the thread has said anything of it, by id. */
+	#thinking?: string;
+
 	/** `onchange` runs when the thread's place in a list would move: a new message, a new title, or a finished answer. */
 	constructor(snapshot: ChatSnapshot, viewer: ChatViewer | null, onchange?: () => void, options: LiveThreadOptions = {}) {
 		this.snapshot = snapshot;
@@ -61,8 +88,45 @@ export class LiveThread {
 
 	get messages(): ChatMessage[] { return this.snapshot.messages; }
 
+	/**
+	 * A chat that doesn't exist yet, shown as if it did: its first message and the answer on its way.
+	 * Nothing is asked of the server until `start`, so the page can show it the moment Send is pressed.
+	 */
+	static begin(viewer: ChatViewer, text: string, onchange?: () => void, options: LiveThreadOptions = {}): LiveThread {
+		const id = sayId(), now = Date.now(), author = chatAuthor(viewer);
+		const thread = new LiveThread({
+			thread: { id: '', title: chatTitle(text), createdAt: now, updatedAt: now, messageCount: 1, startedBy: author, participants: [author] },
+			messages: [{ id, role: 'user', content: text, author, status: 'done', createdAt: now }, thinkingMessage(replyId(id), now)]
+		}, viewer, onchange, options);
+		thread.#first = { id, text };
+		thread.#thinking = replyId(id);
+		return thread;
+	}
+
+	/** True from `begin` until `start` has made the thread. */
+	get starting(): boolean { return !this.snapshot.thread.id; }
+
+	/**
+	 * Make the thread for a chat from `begin`, and connect to it. Gives its id, or why it couldn't be
+	 * made: the page then has the words to put back in the box (`text`) and nothing else to undo.
+	 */
+	async start(): Promise<{ id: string } | { error: string; text: string }> {
+		const first = this.#first;
+		if (!first) return { error: 'This chat has already started.', text: '' };
+		if (!this.starting) return { id: this.snapshot.thread.id };
+		const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: first.text, say: first.id }) }).catch(() => null);
+		const body = (await response?.json().catch(() => null)) as { id?: unknown; error?: unknown } | null;
+		if (!response?.ok || typeof body?.id !== 'string' || !CHAT_ID.test(body.id)) {
+			return { error: typeof body?.error === 'string' && body.error ? body.error : response ? 'That didn’t send.' : 'That didn’t send: the site couldn’t be reached.', text: first.text };
+		}
+		this.snapshot.thread.id = body.id;
+		this.connect();
+		this.#onchange?.();
+		return { id: body.id };
+	}
+
 	connect() {
-		if (typeof WebSocket === 'undefined' || this.#closed) return;
+		if (typeof WebSocket === 'undefined' || this.#closed || this.starting) return;
 		const url = new URL(`/agents/${CHAT_AGENT}/${this.snapshot.thread.id}`, location.href);
 		url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 		this.status = 'connecting';
@@ -154,6 +218,15 @@ export class LiveThread {
 		this.#send({ type: 'table:result', id: event.id, ...result });
 	}
 
+	/** No answer is coming after all. */
+	#dropThinking() {
+		const id = this.#thinking;
+		if (!id) return;
+		this.#thinking = undefined;
+		const message = this.#find(id);
+		if (message && !message.content && !message.tools?.length) this.snapshot.messages = this.snapshot.messages.filter((one) => one !== message);
+	}
+
 	#find(id: string) { return this.snapshot.messages.find((message) => message.id === id); }
 
 	/** Add the streamed text that's waiting to its messages. */
@@ -185,7 +258,11 @@ export class LiveThread {
 				const mine = this.snapshot.messages.filter((message) => this.#unsent.has(message.id));
 				for (const message of event.snapshot.messages) this.#unsent.delete(message.id);
 				const waiting = mine.filter((message) => this.#unsent.has(message.id));
-				this.snapshot = waiting.length ? { ...event.snapshot, messages: [...event.snapshot.messages, ...waiting] } : event.snapshot;
+				// A chat just begun: the thread may not have started its answer yet. Keep showing that one is coming.
+				const answered = event.snapshot.messages.some((message) => message.id === this.#thinking) || event.snapshot.messages.at(-1)?.role !== 'user';
+				if (answered) this.#thinking = undefined;
+				const coming = this.#thinking ? [thinkingMessage(this.#thinking)] : [];
+				this.snapshot = waiting.length || coming.length ? { ...event.snapshot, messages: [...event.snapshot.messages, ...coming, ...waiting] } : event.snapshot;
 				this.viewer = event.viewer ?? this.viewer;
 				this.tools = event.tools;
 				for (const message of waiting) this.#post(message.id);
@@ -196,6 +273,7 @@ export class LiveThread {
 				const messages = this.snapshot.messages;
 				const index = messages.findIndex((message) => message.id === event.message.id);
 				this.#unsent.delete(event.message.id);
+				if (event.message.id === this.#thinking) this.#thinking = undefined;
 				if (index >= 0) messages[index] = event.message;
 				else {
 					// Above the ones still on their way, which the thread will place after it.
@@ -216,6 +294,7 @@ export class LiveThread {
 			case 'chat:title': this.snapshot.thread.title = event.title; this.#onchange?.(); break;
 			case 'chat:error': {
 				this.error = event.error;
+				this.#dropThinking();
 				const unsent = event.id ? this.#unsent.get(event.id) : undefined;
 				if (unsent) {
 					this.#unsent.delete(event.id!);

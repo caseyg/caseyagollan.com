@@ -7,7 +7,7 @@
 	import ChatPromptInput from './ChatPromptInput.svelte';
 	import ChatSidebarToggle from './ChatSidebarToggle.svelte';
 	import { CHAT_CRUMB } from './index';
-	import { PageHeader } from '$lib/components/ui';
+	import { Button, Notice, PageHeader } from '$lib/components/ui';
 	import { conversation, owner, threads } from './fixtures';
 
 	const { Story } = defineMeta({
@@ -57,6 +57,19 @@
 		<ChatLayout threads={args.threads ?? threads} now={args.now} searchable={args.searchable} initial="open">
 			{@render header('Chat', true)}
 			<ChatPane centered><ChatPromptInput viewer={owner} onsend={() => true} placeholder="Start a new chat" compact /></ChatPane>
+		</ChatLayout>
+	{/snippet}
+</Story>
+
+<!-- A new chat couldn't be made: back at the box with the words still in it, to send again. -->
+<Story name="New chat didn’t start" args={{ currentId: undefined }}>
+	{#snippet template(args)}
+		<ChatLayout threads={args.threads ?? threads} now={args.now} searchable={args.searchable} initial="open">
+			{@render header('Chat', true)}
+			<ChatPane centered>
+				<Notice tone="error">That didn’t send: the site couldn’t be reached. <Button variant="quiet" size="sm">Try again</Button></Notice>
+				<ChatPromptInput viewer={owner} value="What have I written about cooperatives this year?" onsend={() => true} placeholder="Start a new chat" compact />
+			</ChatPane>
 		</ChatLayout>
 	{/snippet}
 </Story>

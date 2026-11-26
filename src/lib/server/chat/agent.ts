@@ -503,14 +503,14 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	}
 
 	/** Start the thread with its first message. */
-	async start(id: string, origin: string, viewer: ChatViewer, text: string, page?: ChatPage, selection?: unknown): Promise<{ ok: true } | { error: string }> {
+	async start(id: string, origin: string, viewer: ChatViewer, text: string, page?: ChatPage, selection?: unknown, sayId?: unknown): Promise<{ ok: true } | { error: string }> {
 		this.setup();
 		if (this.meta('id')) return { error: 'This thread already exists.' };
 		this.setMeta('id', id);
 		this.setMeta('origin', origin);
 		this.setMeta('created', String(Date.now()));
 		this.setMeta('title', chatTitle(text));
-		return this.say(viewer, text, page, selection);
+		return this.say(viewer, text, page, selection, { id: sayId });
 	}
 
 	/** Add a message from a signed-in viewer (the form fallback and the WebSocket both end here). */
