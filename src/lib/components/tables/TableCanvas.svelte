@@ -201,6 +201,19 @@
 		font-family: var(--font-sans);
 	}
 
+	/* An area (a tldraw frame) is a lighter patch of the ground, not tldraw's near-black panel. */
+	.table-canvas :global(.tl-frame__body:not(.tl-frame__creating)) {
+		fill: var(--surface-3);
+		stroke: var(--border-strong);
+	}
+
+	/* Its name tag matches. tldraw colours the tag inline, so these have to outrank that. */
+	.table-canvas :global(.tl-frame-heading-hit-area) {
+		background-color: var(--surface-3) !important;
+		box-shadow: none !important;
+		color: var(--text-primary) !important;
+	}
+
 	.table-canvas :global(.site-block) {
 		width: 100%;
 		height: 100%;
