@@ -29,7 +29,7 @@ import { viewerFrom } from './identity';
 import { DEFAULT_CHAT_MODEL, ModelError, streamCompletion } from './model';
 import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Queued, type SayData } from './projection';
 import { chatModels, COMPACTION } from './provider';
-import { invokedSkill } from './skills';
+import { invokedSkills } from './skills';
 import { saveSearchDoc, saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
 import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, mcpToolName, sectionsWhen, serverNames } from './mcp-tools';
@@ -547,9 +547,9 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const page = chatPage(where);
 		// What Casey had selected on that table, so “these” means something. Only Casey's table page can act on it.
 		const selection = owner && page?.table ? chatSelection(selected) : null;
-		// `/name` at the start of Casey's message brings that skill's instructions along with it, so using one costs no extra step.
-		const skill = owner ? await invokedSkill(this.env.PUBLISHING_STATE, text).catch(() => null) : null;
-		const data: SayData = { id, author, owner, at, text, ...(selection ? { selection: { count: selection.count, items: selection.items.slice(0, SELECTION_LISTED) } } : {}), ...(skill ? { skill: skill.name } : {}) };
+		// `/name` anywhere in Casey's message brings that skill's instructions along with it, so using one costs no extra step.
+		const skill = owner ? await invokedSkills(this.env.PUBLISHING_STATE, text).catch(() => null) : null;
+		const data: SayData = { id, author, owner, at, text, ...(selection ? { selection: { count: selection.count, items: selection.items.slice(0, SELECTION_LISTED) } } : {}), ...(skill ? { skills: skill.names } : {}) };
 		// The model reads who wrote each message, where, and what was selected; the page shows only what they wrote.
 		const who = `${author.name}${owner ? ' (Casey, the site’s owner)' : author.url ? ` (${author.url})` : ''}`;
 		// Recorded before the run starts: who has written here decides whether Casey's tools are offered.

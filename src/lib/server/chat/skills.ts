@@ -16,7 +16,7 @@
  *
  * Imported by the chat's Durable Object, so imports stay relative.
  */
-import { checkSkill, parseSkillFile, skillName, slashSkill, SKILL_FILE_MAX, SKILL_FILES_MAX, SKILLS_MAX, type RegistrySkill, type Skill, type SkillInput, type SkillProposal, type SkillSummary } from '../../chat-skills';
+import { checkSkill, parseSkillFile, skillName, slashSkills, SKILL_FILE_MAX, SKILL_FILES_MAX, SKILLS_MAX, type RegistrySkill, type Skill, type SkillInput, type SkillProposal, type SkillSummary } from '../../chat-skills';
 import { BUILTIN_SKILLS } from './skills-builtin';
 
 const ROOT = 'private/chat/skills/';
@@ -181,16 +181,16 @@ export function skillText(skill: Skill, from = 0): string {
 }
 
 /**
- * The skill a message from Casey invokes with `/name`, with its instructions ready to go along
- * with the message. Null when the message starts with no slash command, or one that names no
- * skill that is on.
+ * The skills Casey's message invokes with `/name`, anywhere in it, and their instructions to send
+ * along with the message. Null when it names no skill that is on.
  */
-export async function invokedSkill(bucket: Bucket | undefined, text: string): Promise<{ name: string; text: string } | null> {
-	if (!text.startsWith('/')) return null;
+export async function invokedSkills(bucket: Bucket | undefined, text: string): Promise<{ names: string[]; text: string } | null> {
+	if (!text.includes('/')) return null;
 	const on = (await listSkills(bucket)).filter((skill) => skill.enabled).map((skill) => skill.name);
-	const asked = slashSkill(text, on);
-	const skill = asked && await getSkill(bucket, asked.name);
-	return skill ? { name: skill.name, text: skillText(skill) } : null;
+	const asked = slashSkills(text, on);
+	if (!asked.length) return null;
+	const skills = (await Promise.all(asked.map((name) => getSkill(bucket, name)))).filter((skill): skill is Skill => !!skill);
+	return skills.length ? { names: skills.map((skill) => skill.name), text: skills.map((skill) => skillText(skill)).join('\n\n') } : null;
 }
 
 // ---------------------------------------------------------------------------- from elsewhere

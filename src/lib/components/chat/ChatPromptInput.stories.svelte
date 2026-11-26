@@ -33,4 +33,7 @@
 <!-- A slash starts a skill: the ones that match are listed above the box; Enter or a press fills the name in. -->
 <Story name="Slash command" args={{ viewer: owner, compact: true, value: '/', skills }} />
 
+<!-- A skill can be called for anywhere in a message, not only at its start. -->
+<Story name="Slash command, mid-message" args={{ viewer: owner, compact: true, value: 'For this week, do a /li', skills }} />
+
 <Story name="Slash command, narrowed" args={{ viewer: owner, compact: true, value: '/li', skills }} />

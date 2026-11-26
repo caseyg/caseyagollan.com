@@ -24,8 +24,8 @@ export interface SayData {
 	text: string;
 	/** What Casey had selected on the table (the first few described), shown beside the message. */
 	selection?: ChatSelection;
-	/** The skill the message invoked with `/name`; its instructions went to the model with it. */
-	skill?: string;
+	/** The skills the message invoked with `/name`; their instructions went to the model with it. */
+	skills?: string[];
 }
 
 /** The parts of pi's records this reads, loosely typed so tests can build them by hand. */
@@ -85,7 +85,7 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 			lastSay = entry.data.id;
 			const said = typeof entry.data.text === 'string' ? entry.data.text : message && 'content' in message ? textOf(message.content as Text[] | string) : '';
 			const selection = entry.data.selection;
-			messages.push({ id: entry.data.id, role: 'user', content: said, author: entry.data.author, status: 'done', createdAt: entry.data.at, ...(selection?.count ? { selection } : {}), ...(typeof entry.data.skill === 'string' ? { skill: entry.data.skill } : {}) });
+			messages.push({ id: entry.data.id, role: 'user', content: said, author: entry.data.author, status: 'done', createdAt: entry.data.at, ...(selection?.count ? { selection } : {}), ...saidSkills(entry.data) });
 		} else if (message?.role === 'assistant') {
 			const assistant = message as Assistant;
 			const target = open(assistant.timestamp ?? now, assistant.model);
@@ -159,7 +159,7 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 	for (const item of [...waiting.filter((item) => item.mode === 'steer'), ...waiting.filter((item) => item.mode !== 'steer')]) {
 		const data = item.entry.data;
 		if (messages.some((message) => message.id === data.id)) continue;
-		messages.push({ id: data.id, role: 'user', content: typeof data.text === 'string' ? data.text : '', author: data.author, status: 'done', createdAt: data.at, ...(data.selection?.count ? { selection: data.selection } : {}), ...(typeof data.skill === 'string' ? { skill: data.skill } : {}) });
+		messages.push({ id: data.id, role: 'user', content: typeof data.text === 'string' ? data.text : '', author: data.author, status: 'done', createdAt: data.at, ...(data.selection?.count ? { selection: data.selection } : {}), ...saidSkills(data) });
 	}
 	return messages;
 }
@@ -307,6 +307,12 @@ export function peekFrom(output: string): ChatToolUse['peek'] | undefined {
 		if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return undefined;
 		return { url, title: typeof title === 'string' && title ? title.slice(0, 200) : url, ...(typeof excerpt === 'string' && excerpt ? { excerpt: excerpt.slice(0, 240) } : {}) };
 	} catch { return undefined; }
+}
+
+/** The skills a said message invoked, as the chat message carries them. */
+function saidSkills(data: { skills?: unknown }): { skills?: string[] } {
+	const names = Array.isArray(data.skills) ? data.skills.filter((name): name is string => typeof name === 'string').slice(0, 5) : [];
+	return names.length ? { skills: names } : {};
 }
 
 /** The skill `skill_add` put up for review: what its card shows before Casey's browser fetches the rest. */

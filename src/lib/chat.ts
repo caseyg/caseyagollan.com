@@ -129,8 +129,8 @@ export interface ChatMessage {
 	createdAt: number;
 	/** For `user`: what they had selected on the table when they wrote it. */
 	selection?: ChatSelection;
-	/** For `user`: the skill the message invoked with `/name`, which its text starts with. */
-	skill?: string;
+	/** For `user`: the skills the message invoked with `/name`, somewhere in its text. */
+	skills?: string[];
 }
 
 export interface ChatThreadSummary {

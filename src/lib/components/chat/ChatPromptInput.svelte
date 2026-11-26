@@ -2,8 +2,8 @@
 	import { CHAT_MAX_MESSAGE, PROVIDER_LABELS, type ChatSendOptions, type ChatViewer } from '$lib/chat';
 	import { Avatar, Button } from '$lib/components/ui';
 	import { Textarea } from '@ui-sdk/svelte/textarea';
-	import { Autocomplete, AutocompleteContent, AutocompleteInput, AutocompleteItem, AutocompleteList } from '@ui-sdk/svelte/autocomplete';
-	import { matchSkills, slashQuery, type SkillSummary } from '$lib/chat-skills';
+	import { TriggerMenu, TriggerMenuContent, TriggerMenuInput, TriggerMenuItem, TriggerMenuList, type TriggerDefinition, type TriggerMenuDataItem } from '@ui-sdk/svelte/trigger-menu';
+	import { matchSkills, type SkillSummary } from '$lib/chat-skills';
 	import { enabledSkills } from '$lib/chat-skills-client';
 	import type { ChatToolChoices } from '$lib/chat-tool-groups';
 	import ChatToolsMenu from './ChatToolsMenu.svelte';
@@ -64,51 +64,27 @@
 		try { if (await onsend(value.trim(), { queue })) value = ''; } finally { sending = false; }
 	}
 
-	// Slash commands: while a message is only `/` and part of a name, the skills that match are offered above the box.
-	let loaded = $state<SkillSummary[]>([]);
-	let asked = false;
-	// Plain functions, not `$derived`: the list's own handlers read these in the middle of an input
-	// event, and a derived read there was left stale once the box had been emptied.
-	const query = () => slashQuery(value);
-	const offered = () => { const asked = query(); return asked === null ? [] : matchSkills(skills ?? loaded, asked); };
-	/** Escape puts the list away until the text changes. */
-	let dismissed = $state('');
-	const suggesting = () => offered().length > 0 && dismissed !== value;
-	/** Only Casey putting the list away keeps it away (until the text changes); the list closing because the text stopped being a command doesn't. */
-	const DISMISSALS = new Set<string>(['escape-key', 'outside-press', 'focus-out', 'window-blur']);
-	$effect(() => { if (query() === null) dismissed = ''; });
-	/**
-	 * The list asks to open or close. It may ask before `value` has caught up with the key just
-	 * typed, so what the box holds is read from the event.
-	 */
-	function openChange(next: boolean, details: { reason: string; event?: Event; cancel(): void }) {
-		const target = details.event?.target;
-		const text = target instanceof HTMLTextAreaElement ? target.value : value;
-		const asked = slashQuery(text);
-		const some = asked !== null && matchSkills(skills ?? loaded, asked).length > 0;
-		if (next && !(some && dismissed !== text)) details.cancel();
-		else if (!next && DISMISSALS.has(details.reason)) dismissed = text;
+	// Slash commands: a `/` typed as a word of its own, anywhere in the message, opens the skills that
+	// match at the caret (ui-sdk's Trigger Menu); choosing one writes its name in there.
+	let menu = $state(false);
+	/** The skills by name, for the list's descriptions. */
+	let known = $state<Record<string, SkillSummary>>({});
+	async function offer(query: string) {
+		// Only Casey has skills; a list passed in (stories) stands in for them.
+		const all = skills ?? (viewer.owner ? await enabledSkills() : []);
+		known = Object.fromEntries(all.map((skill) => [skill.name, skill]));
+		return matchSkills(all, query.toLowerCase()).map((skill) => ({ value: skill.name, label: skill.name }));
 	}
-	$effect(() => {
-		if (query() === null || skills || asked || !viewer.owner) return;
-		asked = true;
-		void enabledSkills().then((found) => { loaded = found; });
-	});
+	const triggers: TriggerDefinition[] = [{ char: '/', type: 'command', pattern: /[a-z0-9-]/i, maxLength: 64, items: offer }];
 
-	/**
-	 * Keys reach the box through here first. With skills offered they go on to the list (arrows move
-	 * through it, Enter fills in the skill's name, Escape puts it away). Otherwise the box is a plain
-	 * textarea and the list never hears of them, so the arrows move the caret between lines.
-	 */
+	/** Keys in the box. With the skills open they are the list's (arrows, Enter, Escape); otherwise Enter sends. */
 	function keydown(event: KeyboardEvent) {
 		if (!(event.target instanceof HTMLTextAreaElement)) return;
-		if (suggesting()) return;
-		event.stopPropagation();
+		if (menu) return;
 		held = modifier(event);
 		// Enter sends; Shift+Enter starts a new line.
 		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
 			event.preventDefault();
-			held = modifier(event);
 			event.target.form?.requestSubmit();
 		}
 		if (event.key === 'Escape' && !value) open = false;
@@ -128,25 +104,26 @@
 	<div class="box" onkeydowncapture={keydown}>
 		{#if !compact}<Avatar src={viewer.photo} name={viewer.name} size="sm" />{/if}
 		{#if choices && onchoices && viewer.owner}<ChatToolsMenu {choices} onchange={onchoices} />{/if}
-		<!-- The box is an autocomplete only for slash commands: its list stays shut for any other text. -->
-		<Autocomplete bind:value open={suggesting()} onOpenChange={openChange} filter={false} autoHighlight>
-			<AutocompleteInput onfocus={() => (open = true)} aria-label={placeholder || label}>
+		<TriggerMenu {triggers} bind:open={menu} autoHighlight>
+			<TriggerMenuInput onfocus={() => (open = true)} aria-label={placeholder || label}>
 				{#snippet render({ props })}
 					<Textarea {...props} class="input" name="text" bind:value {placeholder} rows={open && !compact ? 3 : 1} autoResize maxlength={CHAT_MAX_MESSAGE + 200} />
 				{/snippet}
-			</AutocompleteInput>
-			<AutocompleteContent class="skill-menu" side="top" align="start" sideOffset={8} collisionPadding={8}>
-				<AutocompleteList class="skill-menu-list" aria-label="Skills">
-					{#each offered() as skill (skill.name)}
-						<AutocompleteItem class="skill-menu-item" value={skill.name} label={`/${skill.name} `}>
-							<span class="skill-menu-name">/{skill.name}</span>
-							<span class="skill-menu-detail">{skill.description}</span>
-						</AutocompleteItem>
-					{/each}
-				</AutocompleteList>
+			</TriggerMenuInput>
+			<TriggerMenuContent class="skill-menu" side="top" align="start" sideOffset={8} collisionPadding={8}>
+				<TriggerMenuList class="skill-menu-list" aria-label="Skills">
+					{#snippet children(state)}
+						{#each state.items as TriggerMenuDataItem[] as item (item.value)}
+							<TriggerMenuItem class="skill-menu-item" value={item.value} label={item.label}>
+								<span class="skill-menu-name">/{item.label}</span>
+								<span class="skill-menu-detail">{known[item.value]?.description ?? ''}</span>
+							</TriggerMenuItem>
+						{/each}
+					{/snippet}
+				</TriggerMenuList>
 				<a class="skill-menu-manage" href="/account#skills">Manage skills</a>
-			</AutocompleteContent>
-		</Autocomplete>
+			</TriggerMenuContent>
+		</TriggerMenu>
 		{#if compact && tooLong}<span class="limit">{value.length} / {CHAT_MAX_MESSAGE}</span>{/if}
 		{#if !open || compact}<Button class="send" variant={compact ? 'primary' : 'icon'} size="sm" icon={sendIcon} label={sendLabel} aria-label={sendLabel} type="submit" disabled={!ready} />{/if}
 	</div>

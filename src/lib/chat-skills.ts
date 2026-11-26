@@ -4,7 +4,7 @@
  * a description in its frontmatter, the instructions as its Markdown body, and optional
  * reference files beside it.
  *
- * Casey invokes one with `/name` at the start of a message, or the assistant picks one by its
+ * Casey invokes one with `/name` anywhere in a message, or the assistant picks one by its
  * description (`use_skill`). Shared by the browser (the composer's slash menu, the manager on
  * /account) and the server (`src/lib/server/chat/skills.ts`).
  *
@@ -154,23 +154,22 @@ export function checkSkill(input: SkillInput): { skill: Pick<Skill, 'name' | 'de
 	return { skill: { name, description, instructions, ...(Object.keys(files).length ? { files } : {}) }, notes };
 }
 
-/**
- * The skill a message invokes: `/name` at its very start, alone or followed by the ask.
- * `names` are the skills that can be invoked; anything else starting with a slash is just text.
- */
-export function slashSkill(text: string, names: readonly string[]): { name: string; rest: string } | null {
-	const match = /^\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\s+([\s\S]*))?$/.exec(text.trim());
-	if (!match || !names.includes(match[1])) return null;
-	return { name: match[1], rest: (match[2] ?? '').trim() };
-}
+/** How many skills one message can bring along: each adds its instructions to what the model reads. */
+export const SLASH_MAX = 3;
 
 /**
- * What the composer is in the middle of: a slash command still being typed (`/sk`), before any
- * space. Null once the name is finished or the text is anything else.
+ * The skills a message invokes: each `/name` in it that stands as a word of its own (at the start
+ * or after a space, and not run on into more of a path) and names a skill that can be invoked, in
+ * the order written, once each. Anything else with a slash in it (`/2026/11/a-post`, `and/or`,
+ * a URL) is just text.
  */
-export function slashQuery(text: string): string | null {
-	const match = /^\/([a-z0-9-]*)$/i.exec(text);
-	return match ? match[1].toLowerCase() : null;
+export function slashSkills(text: string, names: readonly string[]): string[] {
+	const found: string[] = [];
+	for (const match of text.matchAll(/(?<![^\s(])\/([a-z0-9]+(?:-[a-z0-9]+)*)(?![\w/-])/g)) {
+		if (names.includes(match[1]) && !found.includes(match[1])) found.push(match[1]);
+		if (found.length >= SLASH_MAX) break;
+	}
+	return found;
 }
 
 /** The skills a slash query offers: names starting with it first, then names or descriptions holding it. */

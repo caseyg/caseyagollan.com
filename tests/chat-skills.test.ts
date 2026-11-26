@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { checkSkill, matchSkills, parseSkillFile, skillFile, skillName, slashQuery, slashSkill, SKILL_INSTRUCTIONS_MAX } from '../src/lib/chat-skills';
-import { acceptProposal, deleteSkill, fetchSkill, getProposal, getSkill, invokedSkill, listSkills, PENDING_TTL, proposeFromSource, proposeSkill, saveSkill, searchRegistry, setSkillEnabled, SkillError, skillSource, skillText, SKILL_PAGE } from '../src/lib/server/chat/skills';
+import { checkSkill, matchSkills, parseSkillFile, skillFile, skillName, slashSkills, SKILL_INSTRUCTIONS_MAX } from '../src/lib/chat-skills';
+import { acceptProposal, deleteSkill, fetchSkill, getProposal, getSkill, invokedSkills, listSkills, PENDING_TTL, proposeFromSource, proposeSkill, saveSkill, searchRegistry, setSkillEnabled, SkillError, skillSource, skillText, SKILL_PAGE } from '../src/lib/server/chat/skills';
 import { isSkillTool, skillsSection, skillTools } from '../src/lib/server/chat/skill-tools';
 import { isPrivateTool, projectMessages, requestOf, skillFrom, toolLabel } from '../src/lib/server/chat/projection';
 import { isOwnerTool } from '../src/lib/server/chat/tools';
@@ -92,22 +92,21 @@ describe('skill files', () => {
 describe('slash commands', () => {
 	const names = ['link-roundup', 'skill-creator'];
 
-	test('a message starting with /name invokes that skill', () => {
-		expect(slashSkill('/link-roundup for this week', names)).toEqual({ name: 'link-roundup', rest: 'for this week' });
-		expect(slashSkill('/skill-creator', names)).toEqual({ name: 'skill-creator', rest: '' });
+	test('/name anywhere in a message invokes that skill', () => {
+		expect(slashSkills('/link-roundup for this week', names)).toEqual(['link-roundup']);
+		expect(slashSkills('/skill-creator', names)).toEqual(['skill-creator']);
+		expect(slashSkills('for this week, do a /link-roundup please', names)).toEqual(['link-roundup']);
+		expect(slashSkills('first /link-roundup, then (/skill-creator) and /link-roundup again', names)).toEqual(['link-roundup', 'skill-creator']);
 	});
 
 	test('anything else is just text', () => {
-		expect(slashSkill('/unknown thing', names)).toBeNull();
-		expect(slashSkill('see /link-roundup', names)).toBeNull();
-		expect(slashSkill('/2026/11/25/a-post is good', names)).toBeNull();
+		expect(slashSkills('/unknown thing', names)).toEqual([]);
+		expect(slashSkills('/2026/11/25/a-post is good', names)).toEqual([]);
+		expect(slashSkills('see https://example.com/link-roundup and/or notes/link-roundup', names)).toEqual([]);
+		expect(slashSkills('the page /link-roundup/2 and /link-roundup-2', names)).toEqual([]);
 	});
 
-	test('the composer offers skills while a command is being typed', () => {
-		expect(slashQuery('/')).toBe('');
-		expect(slashQuery('/Sk')).toBe('sk');
-		expect(slashQuery('/skill-creator ')).toBeNull();
-		expect(slashQuery('hello /sk')).toBeNull();
+	test('the composer offers the skills that match what was typed after the slash', () => {
 		const skills = [{ name: 'find-skills', description: 'Find published skills.' }, { name: 'skill-creator', description: 'Write a skill.' }, { name: 'roundup', description: 'Links.' }];
 		expect(matchSkills(skills, 'sk').map((skill) => skill.name)).toEqual(['skill-creator', 'find-skills']);
 		expect(matchSkills(skills, '').length).toBe(3);
@@ -146,7 +145,7 @@ describe('the skills store', () => {
 		const store = bucket();
 		const proposal = await proposeSkill(store, { name: 'roundup', description: 'Links.', instructions: 'Do it.' }, { origin: 'custom', now: 1000 });
 		expect((await listSkills(store)).length).toBe(2);
-		expect(await invokedSkill(store, '/roundup now')).toBeNull();
+		expect(await invokedSkills(store, '/roundup now')).toBeNull();
 		expect((await getProposal(store, proposal.id, 2000))?.skill.name).toBe('roundup');
 		expect(await getProposal(store, proposal.id, 1000 + PENDING_TTL + 1)).toBeNull();
 		await expect(acceptProposal(store, proposal.id, 1000 + PENDING_TTL + 1)).rejects.toBeInstanceOf(SkillError);
@@ -160,13 +159,14 @@ describe('the skills store', () => {
 	test('/name brings an enabled skill’s instructions, framed as instructions only', async () => {
 		const store = bucket();
 		await saveSkill(store, { name: 'roundup', description: 'Links.', instructions: 'Step one.' });
-		const invoked = await invokedSkill(store, '/roundup this week');
-		expect(invoked?.name).toBe('roundup');
+		const invoked = await invokedSkills(store, '/roundup this week');
+		expect(invoked?.names).toEqual(['roundup']);
+		expect((await invokedSkills(store, 'this week, a /roundup please'))?.names).toEqual(['roundup']);
 		expect(invoked?.text).toContain('Step one.');
 		expect(invoked?.text).toContain('no tools or permissions beyond the ones you have');
 		await setSkillEnabled(store, 'roundup', false);
-		expect(await invokedSkill(store, '/roundup this week')).toBeNull();
-		expect(await invokedSkill(store, 'roundup this week')).toBeNull();
+		expect(await invokedSkills(store, '/roundup this week')).toBeNull();
+		expect(await invokedSkills(store, 'roundup this week')).toBeNull();
 	});
 
 	test('long instructions come a page at a time, and an installed skill says where it is from', () => {
@@ -290,11 +290,11 @@ describe('skills in the chat', () => {
 		expect(skillFrom(JSON.stringify({ review: { ...review, id: '../x' } }))).toBeUndefined();
 		const author = { id: 'owner', name: 'Casey', via: 'owner' as const };
 		const messages = projectMessages([
-			{ id: '1', kind: 'chat.say', data: { id: 'm1', author, owner: true, at: 1, text: '/weekly now', skill: 'weekly' } },
+			{ id: '1', kind: 'chat.say', data: { id: 'm1', author, owner: true, at: 1, text: '/weekly now', skills: ['weekly'] } },
 			{ id: '2', kind: 'message', model: [{ role: 'assistant', content: [{ type: 'toolCall', id: 'c1', name: 'skill_add', arguments: { name: 'weekly', instructions: 'PRIVATE' } }] }] },
 			{ id: '3', kind: 'message', model: [{ role: 'toolResult', toolCallId: 'c1', toolName: 'skill_add', isError: false, content: [{ type: 'text', text: JSON.stringify({ review, status: 'Shown' }) }] }] }
 		]);
-		expect(messages[0]).toMatchObject({ skill: 'weekly', content: '/weekly now' });
+		expect(messages[0]).toMatchObject({ skills: ['weekly'], content: '/weekly now' });
 		expect(messages[1].tools?.[0]).toMatchObject({ skill: review, label: 'Offered the skill “weekly”' });
 		expect(messages[1].tools?.[0].response).toBeUndefined();
 		expect(JSON.stringify(messages)).not.toContain('PRIVATE');

@@ -23,8 +23,8 @@
 	const working = $derived(streaming && !!message.tools?.some((step) => step.status === 'running'));
 	const time = $derived(new Date(message.createdAt));
 	const author = $derived(message.author);
-	// A message that invoked a skill starts with `/name`: shown as a chip, then what was asked.
-	const skilled = $derived(message.role === 'user' && !!message.skill && message.content.startsWith(`/${message.skill}`));
+	// The skills a message invoked with `/name`: named on chips above what was said.
+	const skilled = $derived(message.role === 'user' ? message.skills ?? [] : []);
 </script>
 
 <!-- One message: a person's, with their name and how they signed in, or the agent's, with its steps where it took them. -->
@@ -47,10 +47,10 @@
 			{/if}
 			<time class="meta" datetime={time.toISOString()}>{time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time>
 		</header>{/if}
-		{#if skilled}<p class="skill"><Chip variant="soft" title="Used the skill {message.skill}"><Icon name="sparkle" size={12} />/{message.skill}</Chip></p>{/if}
+		{#if skilled.length}<p class="skill">{#each skilled as name (name)}<Chip variant="soft" title="Used the skill {name}"><Icon name="sparkle" size={12} />/{name}</Chip>{/each}</p>{/if}
 		{#each parts as part, index (index)}
 			{#if part.type === 'text'}
-				<ChatText text={skilled && index === 0 ? part.text.slice(`/${message.skill}`.length).trimStart() : part.text} streaming={streaming && index === parts.length - 1} />
+				<ChatText text={part.text} streaming={streaming && index === parts.length - 1} />
 			{:else}
 				<ChatSteps steps={part.steps} />
 			{/if}

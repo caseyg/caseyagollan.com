@@ -11,7 +11,7 @@ import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { chatSelection, sayPrefix } from '../../src/lib/chat';
 import { chatExtension } from '../../src/lib/server/chat/tools';
 import { callMicropubTool, MICROPUB_TOOLS, type MicropubCall } from '../../src/lib/server/chat/micropub-mcp';
-import { invokedSkill, saveSkill } from '../../src/lib/server/chat/skills';
+import { invokedSkills, saveSkill } from '../../src/lib/server/chat/skills';
 import { fakeTable } from './fake-table';
 import { SCENARIOS, type Scenario } from './scenarios';
 
@@ -123,8 +123,8 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	// The same line the thread writes before each message: who, where, and what is selected on the table.
 	const selection = scenario.table && scenario.selected?.length ? chatSelection(scenario.table.filter((item) => scenario.selected!.includes(item.id)).map((item) => ({ id: item.id, type: item.type, title: item.title ?? item.text }))) : null;
 	const prefix = sayPrefix('Casey Gollan (Casey, the site’s owner)', ORIGIN, scenario.page ? { path: scenario.page, title: scenario.pageTitle, ...(scenario.table ? { table: 'evaltable1' } : {}) } : null, selection);
-	// A message starting with /name carries that skill's instructions, as the thread sends it.
-	const invoked = await invokedSkill(skillStore, scenario.ask);
+	// A message with /name in it carries that skill's instructions, as the thread sends it.
+	const invoked = await invokedSkills(skillStore, scenario.ask);
 	const messages: Record<string, unknown>[] = [{ role: 'system', content: await system() }, { role: 'user', content: `${prefix}\n\n${scenario.ask}${invoked ? `\n\n${invoked.text}` : ''}` }];
 	const outcome: Outcome = { scenario: scenario.name, status: 'answered', rounds: 0, calls: [], tokensIn: 0, tokensOut: 0, peakTokens: 0, seconds: 0, answer: '', checks: [] };
 	const hooks = extension.hooks as unknown as { task: string; handlers: { beforeTool?: (call: { name: string; arguments: unknown }, api: unknown, context: unknown) => Promise<{ block?: string } | undefined>; beforeProviderRequest?: (request: { payload: unknown; model: unknown }, api: unknown, context: unknown) => Promise<{ payload: unknown } | undefined> } }[];
