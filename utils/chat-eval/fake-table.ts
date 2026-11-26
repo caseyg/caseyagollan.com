@@ -34,6 +34,8 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 	const items: FakeItem[] = start.map((item) => ({ ...item }));
 	let next = 1;
 	let name = 'Table';
+	/** Tags staged on post blocks by `tag`, by item id. */
+	const tags = new Map<string, string[]>();
 	const id = () => `s${next++}`;
 	const boxes = (list: FakeItem[]): Box[] => list.map(({ id, x, y, w, h }) => ({ id, x, y, w, h }));
 	const named = (ids?: string[]) => ids?.length ? items.filter((item) => ids.includes(item.id)) : items.filter((item) => item.type !== 'arrow' && !item.parent);
@@ -175,9 +177,22 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 			case 'edit': { let edited = 0; for (const change of op.edits as { id: string; text?: string }[]) { const item = items.find((one) => one.id === change.id); if (!item || item.url) continue; if (change.text !== undefined) { item.text = change.text; if (item.type === 'note') item.h = noteHeight(change.text); if (item.type === 'text') item.h = textHeight(change.text, item.w); } edited++; } return changed({ edited }); }
 			case 'remove': { const gone = items.filter((item) => op.ids.includes(item.id) || op.ids.includes(item.from) || op.ids.includes(item.to)); for (const item of gone) items.splice(items.indexOf(item), 1); return { removed: gone.length }; }
 			case 'select': return { selected: named(op.ids).length };
+			case 'tag': {
+				// Posts on the fake table have tags; changes are staged, as on the real one, never saved.
+				const frame = op.inside ? items.find((item) => item.type === 'frame' && (item.id === op.inside || item.text?.toLowerCase() === String(op.inside).toLowerCase())) : undefined;
+				if (op.inside && !frame) throw new Error(`No frame is called “${op.inside}”.`);
+				const blocks = items.filter((item) => item.type === 'post' && (frame ? item.parent === frame.id : !op.ids?.length || op.ids.includes(item.id) || op.ids.includes(item.parent)));
+				if (!blocks.length) throw new Error('None of those have tags: only posts from this site, Raindrop bookmarks and Readwise items do.');
+				const changing = !!(op.add?.length || op.remove?.length);
+				for (const block of blocks) {
+					const now = tags.get(block.id) ?? [];
+					if (changing) tags.set(block.id, [...now.filter((tag) => !(op.remove ?? []).includes(tag)), ...(op.add ?? []).filter((tag: string) => !now.includes(tag))]);
+				}
+				return { blocks: blocks.length, ...(changing ? { staged: blocks.length, note: 'Staged, not saved. Casey reviews the changes in the Tags panel on the table and saves them there.' } : {}), tags: blocks.map((block) => ({ id: block.id, title: block.title, [changing ? 'tags_after' : 'tags']: tags.get(block.id) ?? [] })) };
+			}
 			case 'rename': name = op.name; return { name };
 		}
 		throw new Error(`The table doesn’t know “${op.op}”.`);
 	}
-	return { perform, items: () => items.map((item) => ({ ...item })) };
+	return { perform, items: () => items.map((item) => ({ ...item })), tags: () => new Map(tags) };
 }

@@ -89,6 +89,12 @@ export type TableOp =
 	| { op: 'remove'; ids: string[] }
 	| { op: 'select'; ids: string[]; zoom?: boolean }
 	| { op: 'rename'; name: string }
+	/**
+	 * Reads the tags of blocks that have them (the site's posts, Raindrop bookmarks, Readwise items) and,
+	 * with `add` or `remove`, stages changes for Casey to review and save. `ids`: just those (a frame
+	 * means what it holds); `inside`: what one frame holds, by id or name; neither: every such block.
+	 */
+	| { op: 'tag'; ids?: string[]; inside?: string; add?: string[]; remove?: string[] }
 	| { op: 'read' };
 
 /** One thing on the table, as the assistant reads it. */
@@ -147,7 +153,7 @@ export function tableThreadId(tableId: string): string {
  * The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's
  * open page. Everything but `table_new` needs a table open beside the chat.
  */
-export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull'] as const;
+export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull', 'table_tag'] as const;
 
 /** The most items `tableListing` writes out; the rest are counted. */
 export const LISTING_MAX = 60;

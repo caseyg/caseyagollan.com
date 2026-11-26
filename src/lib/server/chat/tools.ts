@@ -21,6 +21,7 @@
 import type { Context } from '@earendil-works/chord/context';
 import { GenerationTask, hook, LiveDoc, ToolTask, type Extension, type HookApi, type ToolRegistration } from '@earendil-works/pi-durable';
 import { fetchPage, PAGE_LIMIT } from './fetch-page';
+import { cleanTags } from '$lib/tag-edits';
 import { MICROPUB_TOOLS, micropubMcpClient, type MicropubCall } from './micropub-mcp';
 import { SAY_KIND, type SayData } from './projection';
 import { daysBefore, findDocuments, loadAgentIndex, localDate, searchDocuments, SEARCH_TYPES, type AgentSearchDocument } from './site-search';
@@ -208,6 +209,7 @@ const TABLE_SECTION = [
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
 		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s page and adds its pictures and best passages beside it, framed and joined to it by an arrow. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
 		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
+		'- table_tag reads tags and stages tag changes for posts, Raindrop bookmarks and Readwise items on the table: “tag these as X”, “retag this frame”, “what are these tagged”. One call for all the blocks (no ids: every one; `inside`: a frame’s id or name). Changes are staged for Casey to review and save on the table: say “staged”, never “saved”. Never micropub_update_post for their tags.',
 		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
 		'- Don’t guess sizes. Blocks are about 240×240 (books 180×300); sticky notes are 200 wide and grow taller with their text; text cards wrap at the width you give (320 to 480 reads well). Use `below` or `right_of` an id, rather than coordinates, to put new things beside what they belong with, and leave 80 to 120 units between sections.',
 		'- Each change reports `issues` only when something overlaps, is crammed, or an arrow runs through a card it doesn’t join (`crossings`). Fix those with one table_arrange (layout `tidy`, or `auto` when it is a real mess) before you answer. No `issues` means the layout is clean.',
@@ -741,13 +743,13 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_add',
-			description: 'Put things on the table, as many as you like in one call, set out together so nothing overlaps: sticky notes, text cards, links, search results, and whole Are.na channels, Raindrop collections or Readwise shelves and books ({source, in}: every item in it, in its own frame named after it). Use one call per part of the table. Reports each new item’s id and box.',
+			description: 'Put things on the table, as many as you like in one call, set out together so nothing overlaps: sticky notes, text cards, links, search results, and whole Are.na channels, Raindrop collections or Readwise shelves and books ({source, in}: every item in it, in its own frame named after it).',
 			parameters: {
 				type: 'object',
 				properties: {
 					items: {
 						type: 'array', minItems: 1, maxItems: 40,
-						description: 'What to add, in reading order. Each item has exactly one of note, text, url, search, or source with in; leave the others out. “All the blocks from my Are.na channels A and B” is two items: {"source": "arena", "in": "A"}, {"source": "arena", "in": "B"}. An empty item, {}, leaves its cell of a grid of notes empty (the corner, when a comparison has headings along the top and down the side).',
+						description: 'What to add, in reading order. Each item has exactly one of note, text, url, search, or source with in. “All the blocks from my Are.na channels A and B” is two items: {"source": "arena", "in": "A"}, {"source": "arena", "in": "B"}. An empty item, {}, leaves its cell of a grid of notes empty (the corner, when a comparison has headings along the top and down the side).',
 						items: {
 							type: 'object',
 							properties: {
@@ -755,7 +757,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 								text: { type: 'string', description: 'A text card that wraps, for a paragraph or a heading, in plain text (no Markdown).' },
 								url: { type: 'string', description: 'A page to add as a block: this site’s or any link. When you already have the URL (from search_site), use this, not search.' },
 								search: { type: 'string', description: 'Words to search the site (and Casey’s private Are.na and Raindrop) for; the results are added as blocks.' },
-								source: { type: 'string', enum: [...SAVE_SOURCES], description: 'With `in`: put everything a place of Casey’s Are.na, Raindrop or Readwise holds on the table, in a frame named after it. Don’t list it with my_saves first. (For a channel itself as one block, not what is in it, give its `url` instead.)' },
+								source: { type: 'string', enum: [...SAVE_SOURCES], description: 'With `in`: put everything a place of Casey’s Are.na, Raindrop or Readwise holds on the table, in a frame named after it. (For a channel itself as one block, not what is in it, give its `url` instead.)' },
 								in: { type: 'string', description: 'With source: the place, by title, id or address, as for my_saves: an Are.na channel, a Raindrop collection, a Readwise shelf, tag:<name>, or a highlighted book’s title (its highlights become quote cards). Add `search` to take only what matches those words.' },
 								filter: { type: 'string', enum: ['all', 'post', 'book', 'wiki', 'arena', 'raindrop'], description: 'With search: only this kind.' },
 								limit: { type: 'integer', minimum: 1, maximum: 100, description: 'With search: how many results, 6 if left out (12 at most). With source: at most this many, 100 if left out.' },
@@ -764,7 +766,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 							}
 						}
 					},
-					layout: { type: 'string', enum: LAYOUTS, description: 'How to set the new items out: grid (rows and columns line up; the default), columns (masonry, for notes of different lengths), row, or column.' },
+					layout: { type: 'string', enum: LAYOUTS, description: 'grid (rows and columns line up; the default), columns (masonry, for notes of different lengths), row, or column.' },
 					columns: { type: 'integer', minimum: 1, maximum: 12, description: 'Columns for grid and columns: for a comparison, the number of things compared.' },
 					frame: { type: 'string', maxLength: 120, description: 'Put the new items in a frame with this name.' },
 					...PLACE
@@ -888,7 +890,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_arrange',
-			description: 'Fix the layout of the whole table, some items, or what one frame holds, in one call. It measures every item and reads the arrows between them, so nothing overlaps and you never work out coordinates. Leave out ids for the whole table. Can also line items up (`align`) or space them evenly (`distribute`).',
+			description: 'Fix the layout of the whole table, some items, or what one frame holds, in one call. It measures everything, so you never work out coordinates. Can also line items up (`align`) or space them evenly (`distribute`).',
 			parameters: {
 				type: 'object',
 				properties: {
@@ -1031,9 +1033,19 @@ export function chatExtension(deps: ToolDeps): Extension {
 			async execute(args) { return json(await run({ op: 'select', ids: pick((args as { ids?: unknown }).ids), zoom: (args as { zoom?: unknown }).zoom !== false })); }
 		},
 		{
+			name: 'table_tag',
+			description: 'Tags of the posts, Raindrop bookmarks and Readwise items on the table. `add`/`remove` stage a change for Casey to review and save: say “staged”, never “saved”.',
+			parameters: { type: 'object', properties: { ids: IDS, inside: { type: 'string' }, add: { type: 'array', items: { type: 'string' } }, remove: { type: 'array', items: { type: 'string' } } } },
+			async execute(args) {
+				const input = args as Record<string, unknown>;
+				const add = cleanTags(strings(input.add, 20)), remove = cleanTags(strings(input.remove, 20));
+				return json(await run({ op: 'tag', ...(input.ids ? { ids: pick(input.ids) } : {}), inside: one(input.inside), ...(add.length ? { add } : {}), ...(remove.length ? { remove } : {}) }));
+			}
+		},
+		{
 			name: 'table_look',
-			description: 'See the table as Casey does: a picture of it (or of some items) with each item numbered, red where items overlap, plus the key to the numbers and any layout issues. For checking a layout you built; not needed after small changes.',
-			parameters: { type: 'object', properties: { ids: { ...IDS, description: 'Only these items; leave out to see the whole table.' } } },
+			description: 'See the table as Casey does: a picture of it (or of some items) with each item numbered, red where items overlap, plus the key to the numbers and any layout issues.',
+			parameters: { type: 'object', properties: { ids: { ...IDS, description: 'Only these items.' } } },
 			replay: 'safe',
 			async execute(args) {
 				const look = await run({ op: 'look', ids: (args as { ids?: unknown }).ids ? pick((args as { ids?: unknown }).ids) : undefined }) as unknown as TableLook | { empty: true };

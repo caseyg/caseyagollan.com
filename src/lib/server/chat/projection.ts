@@ -252,6 +252,11 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		return args.layout === 'auto' ? `Tidied up ${what}` : `Arranged ${what} ${how[String(args.layout)] ?? 'in a grid'}`;
 	}
 	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
+	if (name === 'table_tag') {
+		const where = args.inside ? 'a frame' : Array.isArray(args.ids) && args.ids.length ? count(args.ids, 'item') : 'the table';
+		const tags = [...(Array.isArray(args.add) ? args.add.map((tag) => `+${tag}`) : []), ...(Array.isArray(args.remove) ? args.remove.map((tag) => `−${tag}`) : [])].join(' ').slice(0, 60);
+		return tags ? `Staged tags for ${where}: ${tags}` : `Read the tags of ${where}`;
+	}
 	if (name === 'table_select') return `Pointed out ${count(args.ids, 'item')}`;
 	if (name === 'table_rename') return `Renamed the table “${String(args.name ?? '').slice(0, 60)}”`;
 	return name.replace(/_/g, ' ');

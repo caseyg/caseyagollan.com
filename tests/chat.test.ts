@@ -553,7 +553,7 @@ describe('the chat’s tools', () => {
 	test('there are few of them, each described briefly', async () => {
 		const { extension } = await setup({ micropub: async () => Response.json({}) });
 		const names = extension.tools!.map((tool) => tool.name);
-		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look']);
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_tag', 'table_look']);
 		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
@@ -736,6 +736,11 @@ describe('the chat’s tools', () => {
 		expect(ops.find((op) => op.op === 'draw')).toMatchObject({ strokes: [{ around: 'b1', color: 'blue' }, { around: 'n1', color: 'blue' }] });
 		await out(tool('table_select'), { ids: ['these'] });
 		expect(ops.find((op) => op.op === 'select')).toMatchObject({ ids: ['b1', 'n1'] });
+		// Tags: the selection, or a frame's blocks, with the tags cleaned as Casey would type them.
+		await out(tool('table_tag'), { ids: ['selected'], add: ['#IndieWeb, tables'], remove: ['misc'] });
+		expect(ops.find((op) => op.op === 'tag')).toEqual({ op: 'tag', ids: ['b1', 'n1'], inside: undefined, add: ['IndieWeb', 'tables'], remove: ['misc'] });
+		await out(tool('table_tag'), { inside: 'Reading' });
+		expect(ops.filter((op) => op.op === 'tag')[1]).toEqual({ op: 'tag', inside: 'Reading' });
 		await out(tool('table_add'), { items: [{ note: 'Next' }], below: 'selected' });
 		expect(ops.find((op) => op.op === 'add_notes')).toMatchObject({ below: 'b1' });
 		const { toolLabel } = await import('../src/lib/server/chat/projection');
