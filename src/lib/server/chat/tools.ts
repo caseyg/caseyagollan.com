@@ -67,12 +67,16 @@ export interface ThreadHooks {
 	tableOpened(id: string): Promise<boolean>;
 	/** The page the person who last wrote was on, for “this page”. */
 	page?(): { path: string; title?: string } | undefined;
+	/** The ids Casey had selected on the table when writing the latest message: what “these” and `["selected"]` mean. */
+	selection?(): string[];
 }
 
 const text = (value: string) => ({ output: [{ type: 'text' as const, text: value }] });
 const json = (value: unknown) => text(JSON.stringify(value));
 const POINT = { x: { type: 'number', description: 'Left edge, in canvas units.' }, y: { type: 'number', description: 'Top edge, in canvas units.' } };
-const IDS = { type: 'array', items: { type: 'string' }, maxItems: 100 };
+const IDS = { type: 'array', items: { type: 'string' }, maxItems: 100, description: 'Item ids; ["selected"] for what Casey had selected.' };
+/** What a model writes for “what Casey has selected” in a list of ids. */
+const SELECTED = /^(selected|selection|the selection|these|those)$/i;
 const COLOR = { type: 'string', enum: [...TABLE_COLORS] };
 const color = (value: unknown): TableColor | undefined => TABLE_COLORS.find((name) => name === value);
 const list = (value: unknown, max: number) => (Array.isArray(value) ? value : []).filter((item): item is Record<string, unknown> => !!item && typeof item === 'object').slice(0, max);
@@ -178,9 +182,10 @@ const TABLE_SECTION = [
 	'A table is open beside this chat: one of Casey’s canvases of blocks (posts, books, wiki pages, Are.na blocks, links), sticky notes, text, arrows and drawings. It is the table Casey has open now, or this chat’s own table when Casey has none open. The table_* tools act on it; Casey sees each change happen and can undo it. Say briefly what you changed. A table is a canvas, not rows and columns: never paste a Markdown table for Casey to copy instead of putting things on it.',
 	[
 		'Working on a table:',
+		'- Casey’s selection: a message written with things selected on the table says so, with their ids and titles. “These”, “this”, “them”, “the selected ones”, or an ask about particular things that doesn’t name them, mean just those: act on them alone, by their ids or with ["selected"] wherever a tool takes ids (`ids`, `remove`, an edit’s `id`, `around`, `below`, `blocks`). Don’t table_read to find them. To summarize, compare or quote them, table_read with ids ["selected"] gives just their words and urls in one call; fetch_page a url only if that isn’t enough. When Casey names other things or says the whole table, the selection doesn’t matter.',
 		'- table_read lists what is on it, with ids and measured boxes (canvas units; x grows right, y grows down; the dot grid is 20). Read once, before changing something that is already there (table_pull doesn’t need it). You don’t need to read an empty table, or to read again after a change: every change reports the ids and boxes of what it touched.',
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
-		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection, or the whole table (blocks ["all"]). One call reads each block’s page and adds its pictures and best passages beside it, framed and joined to it by an arrow. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
+		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s page and adds its pictures and best passages beside it, framed and joined to it by an arrow. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
 		'- table_arrange sets out things that are already there (grid, columns, row, column, pack), pushes overlapping things apart (`tidy`), or lines them up (`align`). It measures every item, so nothing overlaps; prefer it to table_move, which is for an exact spot or size.',
 		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
 		'- Don’t guess sizes. Blocks are about 240×240 (books 180×300); sticky notes are 200 wide and grow taller with their text; text cards wrap at the width you give (320 to 480 reads well). Use `below` or `right_of` an id, rather than coordinates, to put new things beside what they belong with, and leave 80 to 120 units between sections.',
@@ -456,7 +461,20 @@ export function chatExtension(deps: ToolDeps): Extension {
 		if (!thread?.table()) throw new Error(NO_TABLE);
 		return await thread.tableOp(op) as Record<string, unknown>;
 	};
-	const place = (args: Record<string, unknown>): TablePlace => ({ at: at(args), below: typeof args.below === 'string' ? args.below : undefined, right_of: typeof args.right_of === 'string' ? args.right_of : undefined });
+	/**
+	 * Ids as the model gave them, with `"selected"` standing for everything Casey had selected
+	 * when writing (`[]` when nothing was). Every table tool that takes ids reads them through this.
+	 */
+	const pick = (value: unknown, max = 100): string[] => {
+		const ids = strings(value, max).map((id) => id.trim().replace(/^shape:/, '')).filter(Boolean);
+		if (!ids.some((id) => SELECTED.test(id))) return ids;
+		const chosen = thread?.selection?.() ?? [];
+		if (!chosen.length) throw new Error('Casey had nothing selected on the table. Use the items’ ids.');
+		return [...new Set(ids.flatMap((id) => SELECTED.test(id) ? chosen : [id]))].slice(0, max);
+	};
+	/** One id, where `"selected"` means the one Casey had selected. */
+	const one = (value: unknown): string | undefined => typeof value === 'string' && value.trim() ? (SELECTED.test(value.trim()) ? pick([value])[0] : value.trim()) : undefined;
+	const place = (args: Record<string, unknown>): TablePlace => ({ at: at(args), below: one(args.below), right_of: one(args.right_of) });
 	const placed = (spot: TablePlace) => !!(spot.at || spot.below || spot.right_of);
 	const idsOf = (value: unknown): string[] => (Array.isArray(value) ? value : []).map((one) => typeof one === 'string' ? one : (one as { id?: unknown } | null)?.id).filter((id): id is string => typeof id === 'string');
 	const troubled = (issues: unknown) => { const found = issues as { overlaps?: unknown[]; crowded?: unknown[] } | undefined; return !!(found?.overlaps?.length || found?.crowded?.length); };
@@ -495,12 +513,19 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_read',
-			description: 'List what is on the table: each item’s id, kind, title, URL, text and measured box, what Casey has selected, and any layout issues. Once is enough: changes report what they touched.',
-			parameters: { type: 'object', properties: {} },
+			description: 'List what is on the table: each item’s id, kind, title, URL, text and measured box, what Casey has selected, and any layout issues. With `ids` (["selected"] for Casey’s selection), just those items with all their words: for summarizing or comparing them. Once is enough: changes report what they touched.',
+			parameters: { type: 'object', properties: { ids: { ...IDS, description: 'Only these items, with their full text; ["selected"] for what Casey had selected. Leave out for the whole table.' } } },
 			replay: 'safe',
-			async execute() {
+			async execute(args) {
 				if (!thread.table()) throw new Error(NO_TABLE);
+				const only = (args as { ids?: unknown }).ids ? new Set(pick((args as { ids?: unknown }).ids)) : undefined;
 				const table = await thread.readTable() as { items?: TableItem[] } & Record<string, unknown>;
+				if (only) {
+					// Just the items asked about, and whatever sits in the frames among them, with all the words the table keeps.
+					const items = (table.items ?? []).filter((item) => only.has(item.id) || (item.parent && only.has(item.parent)));
+					if (!items.length) throw new Error('None of those ids are on the table.');
+					return text(clip(JSON.stringify({ items, ...(table.note ? { note: table.note } : {}) }), RESULT_LIMIT));
+				}
 				// A block's excerpt is for recognising it, not reading it: its page has the rest.
 				const items = (table.items ?? []).map((item) => item.url && item.text ? { ...item, text: clip(item.text, 100) } : item);
 				return text(clip(JSON.stringify({ ...table, items }), RESULT_LIMIT * 2));
@@ -604,11 +629,15 @@ export function chatExtension(deps: ToolDeps): Extension {
 				// The whole table: every block, but not the pieces already pulled out of one.
 				const whole = asked.some((one) => /^(all|everything|the whole table|table)$/i.test(one));
 				const everything = blocks.filter((item) => item.type !== 'image' && item.type !== 'quote');
-				const sources = whole ? everything.slice(0, PULL_MAX) : asked.length ? asked.map((one) => namedBlock(blocks, one)) : blocks.filter((item) => table.selected?.includes(item.id));
+				// Casey's selection as it was when they asked: this run's own additions get selected as they land.
+				const chosen_ = thread.selection?.().length ? thread.selection() : table.selected ?? [];
+				const selection = blocks.filter((item) => chosen_.includes(item.id));
+				const named = asked.filter((one) => !SELECTED.test(one));
+				const sources = whole ? everything.slice(0, PULL_MAX) : named.length ? [...named.map((one) => namedBlock(blocks, one)), ...(named.length < asked.length ? selection : [])] : selection;
 				const skipped = whole ? Math.max(0, everything.length - PULL_MAX) : 0;
-				const missing = asked.filter((_, index) => !sources[index]);
+				const missing = named.filter((_, index) => !sources[index]);
 				const chosen = [...new Map(sources.filter((item): item is TableItem => !!item).map((item) => [item.id, item])).values()];
-				if (!chosen.length) throw new Error(whole ? 'There are no blocks on the table to pull from.' : asked.length
+				if (!chosen.length) throw new Error(whole ? 'There are no blocks on the table to pull from.' : named.length
 					? `No block on the table matches ${missing.map((one) => `“${one}”`).join(', ')}. The blocks are: ${blocks.slice(0, 20).map((item) => `${item.id} “${clip(item.title ?? '', 40)}”`).join(', ') || 'none'}.`
 					: 'Casey has no blocks selected. Name the blocks: their ids or words from their titles.');
 				const choice = { images: input.images !== false, quotes: input.quotes !== false, limit: Number(input.limit) || undefined, match: strings(input.match, 8) };
@@ -657,7 +686,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 			},
 			async execute(args) {
 				const input = args as Record<string, unknown>;
-				const ids = input.ids ? strings(input.ids, 100) : undefined;
+				const ids = input.ids ? pick(input.ids) : undefined;
 				const align = TABLE_ALIGNS.find((one) => one === input.align), distribute = input.distribute === 'horizontal' || input.distribute === 'vertical' ? input.distribute : undefined;
 				const layout = input.layout === 'tidy' ? 'tidy' : TABLE_LAYOUTS.find((one) => one === input.layout);
 				if (!layout && !align && !distribute) throw new Error('Say how: a `layout` (grid, columns, row, column, pack, tidy), an `align`, or a `distribute`.');
@@ -679,7 +708,8 @@ export function chatExtension(deps: ToolDeps): Extension {
 			description: 'Move items to exact spots, and resize blocks and text cards, by id. x and y are each item’s top-left. For setting several things out, table_arrange is better.',
 			parameters: { type: 'object', properties: { moves: { type: 'array', minItems: 1, maxItems: 100, items: { type: 'object', properties: { id: { type: 'string' }, ...POINT, w: { type: 'number' }, h: { type: 'number' } }, required: ['id'] } } }, required: ['moves'] },
 			async execute(args) {
-				const moves = (Array.isArray((args as { moves?: unknown }).moves) ? (args as { moves: unknown[] }).moves : []).filter((move): move is { id: string } => typeof (move as { id?: unknown } | null)?.id === 'string').slice(0, 100);
+				const moves = (Array.isArray((args as { moves?: unknown }).moves) ? (args as { moves: unknown[] }).moves : []).filter((move): move is { id: string } => typeof (move as { id?: unknown } | null)?.id === 'string').slice(0, 100)
+					.map((move) => ({ ...move, id: one(move.id) ?? move.id }));
 				const result = await run({ op: 'move', moves });
 				return report({ moved: result.moved }, moves.map((move) => move.id), result.issues);
 			}
@@ -689,7 +719,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 			description: 'Draw arrows between items, all in one call. Each arrow is tied to both items and follows them when they move. Optional: a label of one to three words, a colour, a bend (curve, -300 to 300), a dash style, heads at both ends.',
 			parameters: { type: 'object', properties: { links: { type: 'array', minItems: 1, maxItems: 50, items: { type: 'object', properties: { from: { type: 'string', description: 'Id of the item the arrow starts at.' }, to: { type: 'string', description: 'Id of the item it points to.' }, label: { type: 'string', maxLength: 200 }, color: COLOR, bend: { type: 'number' }, kind: { type: 'string', enum: ['arc', 'elbow'] }, dash: { type: 'string', enum: ['draw', 'solid', 'dashed', 'dotted'] }, both_ends: { type: 'boolean' } }, required: ['from', 'to'] } } }, required: ['links'] },
 			async execute(args) {
-				const links = list((args as { links?: unknown }).links, 50).filter((link) => typeof link.from === 'string' && typeof link.to === 'string').map((link) => ({ from: String(link.from), to: String(link.to), label: typeof link.label === 'string' ? link.label.slice(0, 200) : undefined, color: color(link.color), bend: typeof link.bend === 'number' ? link.bend : undefined, kind: link.kind === 'elbow' ? 'elbow' : undefined, dash: (['draw', 'solid', 'dashed', 'dotted'] as const).find((dash) => dash === link.dash), both_ends: link.both_ends === true } satisfies TableLink));
+				const links = list((args as { links?: unknown }).links, 50).filter((link) => typeof link.from === 'string' && typeof link.to === 'string').map((link) => ({ from: one(link.from)!, to: one(link.to)!, label: typeof link.label === 'string' ? link.label.slice(0, 200) : undefined, color: color(link.color), bend: typeof link.bend === 'number' ? link.bend : undefined, kind: link.kind === 'elbow' ? 'elbow' : undefined, dash: (['draw', 'solid', 'dashed', 'dotted'] as const).find((dash) => dash === link.dash), both_ends: link.both_ends === true } satisfies TableLink));
 				const result = await run({ op: 'connect', links });
 				const arrows = idsOf(result.added);
 				return json({ arrows, ...(result.not_found ? { not_found: result.not_found, note: 'Those ids aren’t on the table: use the ids table_read or a change reported.' } : {}), ...(result.issues ? { issues: result.issues } : {}) });
@@ -701,7 +731,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 			parameters: { type: 'object', properties: { ids: IDS, name: { type: 'string', maxLength: 120, description: 'The frame’s name; leave out for a plain group.' }, color: COLOR, ungroup: { type: 'boolean' } }, required: ['ids'] },
 			async execute(args) {
 				const input = args as Record<string, unknown>;
-				const ids = strings(input.ids, 100);
+				const ids = pick(input.ids);
 				if (input.ungroup === true) return json(await run({ op: 'ungroup', ids }));
 				if (typeof input.name === 'string' && input.name.trim()) {
 					const result = await run({ op: 'frame', name: input.name.slice(0, 120), ids, color: color(input.color) });
@@ -723,8 +753,9 @@ export function chatExtension(deps: ToolDeps): Extension {
 			},
 			async execute(args) {
 				const input = args as Record<string, unknown>;
-				const edits = list(input.edits, 50).filter((edit) => typeof edit.id === 'string').map((edit) => ({ id: String(edit.id), text: typeof edit.text === 'string' ? edit.text : undefined, color: color(edit.color) }));
-				const remove = strings(input.remove, 100);
+				// An edit of `"selected"` is the same edit to each selected item: “make these red”.
+				const edits = list(input.edits, 50).filter((edit) => typeof edit.id === 'string').flatMap((edit) => pick([edit.id]).map((id) => ({ id, text: typeof edit.text === 'string' ? edit.text : undefined, color: color(edit.color) }))).slice(0, 100);
+				const remove = pick(input.remove);
 				const name = typeof input.rename === 'string' ? input.rename.trim().slice(0, 120) : '';
 				if (!edits.length && !remove.length && !name) throw new Error('Give `edits`, `remove` or `rename`.');
 				const done: Record<string, unknown> = {};
@@ -739,16 +770,18 @@ export function chatExtension(deps: ToolDeps): Extension {
 		{
 			name: 'table_draw',
 			description: 'Draw with the pen, for emphasis: a loop around an item (`around`), or a stroke through points in canvas units (two points make a line).',
-			parameters: { type: 'object', properties: { strokes: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: { around: { type: 'string', description: 'Id of an item to circle.' }, points: { type: 'array', maxItems: 200, items: { type: 'object', properties: POINT, required: ['x', 'y'] } }, closed: { type: 'boolean' }, color: COLOR, size: { type: 'string', enum: ['s', 'm', 'l', 'xl'] } } } } }, required: ['strokes'] },
+			parameters: { type: 'object', properties: { strokes: { type: 'array', minItems: 1, maxItems: 20, items: { type: 'object', properties: { around: { type: 'string', description: 'Id of an item to circle; "selected" circles each selected item.' }, points: { type: 'array', maxItems: 200, items: { type: 'object', properties: POINT, required: ['x', 'y'] } }, closed: { type: 'boolean' }, color: COLOR, size: { type: 'string', enum: ['s', 'm', 'l', 'xl'] } } } } }, required: ['strokes'] },
 			async execute(args) {
-				return json(await run({ op: 'draw', strokes: list((args as { strokes?: unknown }).strokes, 20).map((stroke) => ({ around: typeof stroke.around === 'string' ? stroke.around : undefined, points: list(stroke.points, 200).map((point) => ({ x: Number(point.x), y: Number(point.y) })), closed: stroke.closed === true, color: color(stroke.color), size: (['s', 'm', 'l', 'xl'] as const).find((size) => size === stroke.size) } satisfies TableStroke)) }));
+				// A loop `around` `"selected"` is a loop around each selected item: “circle these”.
+				const strokes = list((args as { strokes?: unknown }).strokes, 20).flatMap((stroke) => typeof stroke.around === 'string' && SELECTED.test(stroke.around.trim()) ? pick([stroke.around], 20).map((around) => ({ ...stroke, around })) : [stroke]).slice(0, 20);
+				return json(await run({ op: 'draw', strokes: strokes.map((stroke) => ({ around: typeof stroke.around === 'string' ? stroke.around : undefined, points: list(stroke.points, 200).map((point) => ({ x: Number(point.x), y: Number(point.y) })), closed: stroke.closed === true, color: color(stroke.color), size: (['s', 'm', 'l', 'xl'] as const).find((size) => size === stroke.size) } satisfies TableStroke)) }));
 			}
 		},
 		{
 			name: 'table_select',
 			description: 'Select items on Casey’s screen and zoom to them, to point them out.',
 			parameters: { type: 'object', properties: { ids: IDS, zoom: { type: 'boolean' } }, required: ['ids'] },
-			async execute(args) { return json(await run({ op: 'select', ids: strings((args as { ids?: unknown }).ids, 100), zoom: (args as { zoom?: unknown }).zoom !== false })); }
+			async execute(args) { return json(await run({ op: 'select', ids: pick((args as { ids?: unknown }).ids), zoom: (args as { zoom?: unknown }).zoom !== false })); }
 		},
 		{
 			name: 'table_look',
@@ -756,7 +789,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 			parameters: { type: 'object', properties: { ids: { ...IDS, description: 'Only these items; leave out to see the whole table.' } } },
 			replay: 'safe',
 			async execute(args) {
-				const look = await run({ op: 'look', ids: (args as { ids?: unknown }).ids ? strings((args as { ids?: unknown }).ids, 100) : undefined }) as unknown as TableLook | { empty: true };
+				const look = await run({ op: 'look', ids: (args as { ids?: unknown }).ids ? pick((args as { ids?: unknown }).ids) : undefined }) as unknown as TableLook | { empty: true };
 				if ('empty' in look) return text('The table is empty.');
 				const image = imageFromDataUrl(look.image);
 				const notes = JSON.stringify({ key: look.key, issues: look.issues });
@@ -818,11 +851,14 @@ export function chatExtension(deps: ToolDeps): Extension {
  * The block a model means: by its id, or by words from its title (each word starting a word of
  * the title, so “le guin” finds “Ursula K. Le Guin on …”).
  */
-export function namedBlock<T extends { id: string; title?: string }>(blocks: T[], asked: string): T | undefined {
+export function namedBlock<T extends { id: string; title?: string; url?: string }>(blocks: T[], asked: string): T | undefined {
 	const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
 	const id = asked.trim().replace(/^shape:/, '');
 	const want = words(asked);
+	// Models also name a block by its page's address.
+	const address = (value: string) => value.trim().replace(/^https?:\/\/(www\.)?caseyagollan\.com/, '').replace(/[?#].*$/, '').replace(/\/+$/, '');
 	return blocks.find((item) => item.id === id)
+		?? (/^(https?:\/\/|\/)/.test(asked.trim()) ? blocks.find((item) => item.url && address(item.url) === address(asked)) : undefined)
 		?? (want.length ? blocks.find((item) => { const title = words(item.title ?? ''); return want.every((word) => title.some((part) => part.startsWith(word))); }) : undefined);
 }
 

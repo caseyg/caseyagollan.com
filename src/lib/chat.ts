@@ -51,6 +51,8 @@ export interface ChatMessage {
 	/** `streaming` while the agent is still writing; `failed` when it stopped with an error. */
 	status: 'done' | 'streaming' | 'failed';
 	createdAt: number;
+	/** For `user`: what they had selected on the table when they wrote it. */
+	selection?: ChatSelection;
 }
 
 export interface ChatThreadSummary {
@@ -85,7 +87,8 @@ export type ChatServerEvent =
 
 /** Messages a browser sends: readers who are not signed in send nothing, and only Casey's table page answers table ops. */
 export type ChatClientEvent =
-	| { type: 'chat:say'; text: string }
+	/** `selection`: what Casey has selected on the open table, so “these” means something. */
+	| { type: 'chat:say'; text: string; selection?: ChatSelectionItem[] }
 	/** Casey's table page, ready to take the assistant's edits. */
 	| { type: 'table:ready' }
 	/** The page of the site this browser is on now, and the table on it, if any; sent on connect and after each navigation. */
@@ -109,6 +112,56 @@ export function chatPage(value: unknown): ChatPage | null {
 		...(typeof title === 'string' && title.trim() ? { title: title.replace(/\s+/g, ' ').trim().slice(0, 200) } : {}),
 		...(typeof table === 'string' && /^[a-z0-9-]{4,40}$/.test(table) ? { table } : {})
 	};
+}
+
+/** One thing selected on a table, as the chat is told of it: its id, kind and a few words of it. */
+export interface ChatSelectionItem {
+	id: string;
+	/** A block's kind (`post`, `book`, …), or `note`, `text`, `frame`, `arrow`, … */
+	type: string;
+	/** A block's title, or the first words of a note or text card. */
+	title?: string;
+}
+
+/** What was selected when a message was written: every id, and the first few described. */
+export interface ChatSelection {
+	count: number;
+	items: ChatSelectionItem[];
+}
+
+/** The most selected things a message carries, and that `["selected"]` stands for in a tool's ids. */
+export const SELECTION_MAX = 100;
+/** How many of them the model is told about one by one. */
+export const SELECTION_LISTED = 24;
+
+/** A selection as sent by a browser, cleaned up; null when nothing (usable) is selected. */
+export function chatSelection(value: unknown): ChatSelection | null {
+	if (!Array.isArray(value)) return null;
+	const seen = new Set<string>();
+	const items: ChatSelectionItem[] = [];
+	for (const one of value) {
+		const { id: raw, type, title } = (one ?? {}) as Record<string, unknown>;
+		const id = typeof raw === 'string' ? raw.replace(/^shape:/, '') : '';
+		if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || seen.has(id)) continue;
+		seen.add(id);
+		const words = typeof title === 'string' ? title.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+		items.push({ id, type: typeof type === 'string' ? type.replace(/[^\w-]/g, '').slice(0, 20) || 'item' : 'item', ...(words ? { title: words } : {}) });
+		if (items.length >= SELECTION_MAX) break;
+	}
+	return items.length ? { count: items.length, items } : null;
+}
+
+/**
+ * The line the model reads before each message: who wrote it, the page they were on, and what
+ * they had selected on the table, so “these”, “this one” and “the selected cards” mean something.
+ */
+export function sayPrefix(who: string, origin: string, page?: ChatPage | null, selection?: ChatSelection | null): string {
+	const on = page ? ` while on ${new URL(page.path, origin).href}${page.title ? ` (“${page.title}”)` : ''}${page.table ? ', a table' : ''}` : '';
+	if (!selection?.count) return `${who} wrote${on}:`;
+	const listed = selection.items.slice(0, SELECTION_LISTED).map((item) => `${item.id} (${item.type}${item.title ? ` “${item.title.slice(0, 50)}”` : ''})`);
+	const more = selection.count - listed.length;
+	const things = selection.count === 1 ? 'one thing' : `${selection.count} things`;
+	return `${who} wrote${on}, with ${things} selected on the table (${listed.join(', ')}${more > 0 ? `, and ${more} more` : ''}):`;
 }
 
 /** For now chat is Casey's alone: /chat, its sign-in, its sockets and the table overlay need the owner's session. */
