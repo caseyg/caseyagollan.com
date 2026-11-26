@@ -4,10 +4,11 @@
 </script>
 
 <script lang="ts">
-	import { latestAssistantLine, type ChatMessage, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
+	import { latestAssistantLine, type ChatMessage, type ChatSelectionItem, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { BottomSheet, Button, FloatingButton, Notice, SidePanel, type FloatingCorner } from '$lib/components/ui';
 	import ChatConversation from './ChatConversation.svelte';
 	import ChatPromptInput from './ChatPromptInput.svelte';
+	import ChatSelection from './ChatSelection.svelte';
 	import ChatSignIn from './ChatSignIn.svelte';
 	import ChatThreadList from './ChatThreadList.svelte';
 
@@ -49,9 +50,13 @@
 		onpick?: (id: string) => void;
 		/** The chat that's open, marked in the list. */
 		current?: string;
+		/** What is selected on the table beside the chat: shown above the composer, and what “these” will mean. */
+		selection?: ChatSelectionItem[];
+		/** Clears that selection. */
+		ondeselect?: () => void;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current }: Props = $props();
+	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect }: Props = $props();
 
 	/** Showing the list of chats instead of the conversation. */
 	let listing = $state(false);
@@ -105,6 +110,7 @@
 	{#if error}<Notice tone="error">{error}</Notice>{/if}
 	{#if offline}<Notice>Reconnecting…</Notice>{/if}
 	{#if viewer}
+		{#if selection.length}<ChatSelection items={selection} onclear={ondeselect ?? (() => {})} />{/if}
 		<ChatPromptInput {viewer} bind:value={text} {onsend} {action} {returnTo} {tools} {placeholder} label="Message the assistant" compact />
 	{:else}
 		<ChatSignIn {returnTo} error={signinError} open={!!signinError} />

@@ -30,11 +30,11 @@ export const GET: RequestHandler = async ({ request, platform, url }) => {
 export const POST: RequestHandler = async ({ request, platform, url }) => {
 	const found = await viewerFor(request, platform);
 	if (!found) return Response.json({ error: 'Not found' }, { status: 404, headers: PRIVATE });
-	const body = (await request.json().catch(() => null)) as { text?: unknown; page?: unknown } | null;
+	const body = (await request.json().catch(() => null)) as { text?: unknown; page?: unknown; selection?: unknown } | null;
 	const id = newThreadId();
 	const stub = threadStub(found.env, id);
 	if (!stub) return Response.json({ error: 'Chat isn’t available here.' }, { status: 503, headers: PRIVATE });
-	const result = await stub.start(id, url.origin + '/', found.viewer, String(body?.text ?? ''), chatPage(body?.page) ?? undefined);
+	const result = await stub.start(id, url.origin + '/', found.viewer, String(body?.text ?? ''), chatPage(body?.page) ?? undefined, body?.selection);
 	if ('error' in result) return Response.json({ error: result.error }, { status: 400, headers: PRIVATE });
 	return Response.json({ id }, { headers: PRIVATE });
 };

@@ -115,6 +115,24 @@ export function growShape(editor: Editor, id: TLShapeId, by: number) {
 }
 
 /**
+ * How tall a post's card needs to be to show all it holds: down to the bottom of its last row, plus
+ * its own padding. Its scroll height won't do: the card fills its block, so that is never less than
+ * the block, and a block sized by it only ever grows.
+ */
+export function cardHeight(card: HTMLElement): number {
+	const last = card.lastElementChild;
+	if (!last) return card.scrollHeight;
+	const box = card.getBoundingClientRect();
+	// The canvas zooms by transform, which the boxes read here include.
+	const scale = card.offsetHeight ? box.height / card.offsetHeight || 1 : 1;
+	const style = getComputedStyle(card);
+	return Math.ceil((last.getBoundingClientRect().bottom - box.top) / scale + (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0));
+}
+
+/** Room under a post's last line, so it stays clear of the fade at the block's bottom edge. */
+const FADE_ROOM = 16;
+
+/**
  * A social post block's starting size is a guess from its excerpt; once its post has drawn, a block
  * set down in this session (`meta.fit`) grows to show all of it, then keeps whatever size it is given.
  */
@@ -128,9 +146,7 @@ function useFitToPost(shape: SiteBlockShape, target: React.RefObject<HTMLDivElem
 			const card = root.querySelector<HTMLElement>('.social-card');
 			const current = editor.getShape<SiteBlockShape>(shape.id);
 			if (!card || !current) return;
-			// The card fills the block, so what it holds below the fold is its scroll height.
-			// A little more than that keeps its last line clear of the fade at the bottom.
-			const needed = Math.min(MAX_FIT, Math.ceil(card.scrollHeight) + 24);
+			const needed = Math.min(MAX_FIT, cardHeight(card) + FADE_ROOM);
 			if (needed > current.props.h + 1) growShape(editor, shape.id, needed - current.props.h);
 		};
 		const resize = new ResizeObserver(measure);
@@ -152,6 +168,39 @@ function useFitToPost(shape: SiteBlockShape, target: React.RefObject<HTMLDivElem
 			mutations.disconnect();
 		};
 	}, [editor, fit, shape.id, target]);
+}
+
+/**
+ * The height a block needs to show all of itself at its width, or null when nothing in it is cut
+ * off by its size: a post's whole card, or a cover or picture whole. Read from what the canvas drew.
+ */
+export function fullHeight(shape: SiteBlockShape, root: Element | null = document.querySelector(`.tl-shape[data-shape-id="${shape.id}"]`)): number | null {
+	if (!root) return null;
+	const card = root.querySelector<HTMLElement>('.social-card');
+	if (card) return cardHeight(card) + FADE_ROOM;
+	const picture = root.querySelector<HTMLImageElement>('.block-card .media img, .arena-block .square img');
+	if (picture?.naturalWidth && picture.naturalHeight) {
+		// The picture fills the block's width; whatever sits under it (a title, a caption) keeps its height.
+		const box = picture.parentElement?.getBoundingClientRect();
+		const block = root.querySelector<HTMLElement>('.block-card, .arena-block')?.getBoundingClientRect();
+		const scale = block && block.width ? block.width / shape.props.w : 1;
+		const rest = box && block ? (block.height - box.height) / scale : 0;
+		return Math.ceil((shape.props.w * picture.naturalHeight) / picture.naturalWidth + rest);
+	}
+	return null;
+}
+
+/**
+ * Double-clicking a block's corner sets it to its full size: a cropped post shows all of itself, a
+ * picture its whole frame. What sits below moves down as it grows (`growShape`).
+ */
+export function fitToContent(editor: Editor, shape: SiteBlockShape, root?: Element | null): boolean {
+	const needed = fullHeight(shape, root);
+	if (!needed || Math.abs(needed - shape.props.h) < 2) return false;
+	editor.markHistoryStoppingPoint('fit block');
+	if (needed > shape.props.h) growShape(editor, shape.id, needed - shape.props.h);
+	else editor.updateShape<SiteBlockShape>({ id: shape.id, type: BLOCK_SHAPE, props: { h: needed } });
+	return true;
 }
 
 /** Renders the design system's `BlockCard` (Svelte) inside the canvas, so a block looks the same everywhere. */
@@ -199,6 +248,17 @@ export class SiteBlockShapeUtil extends BaseBoxShapeUtil<SiteBlockShape> {
 	override onDoubleClick(shape: SiteBlockShape) {
 		openBlock(shape);
 		return { id: shape.id, type: shape.type };
+	}
+
+	/** A corner's double-click fits the block to all it shows (`fitToContent`), rather than leaving it cropped. */
+	override onDoubleClickCorner(shape: SiteBlockShape) {
+		fitToContent(this.editor, shape);
+		return { id: shape.id, type: shape.type };
+	}
+
+	/** An edge's double-click does the same. */
+	override onDoubleClickEdge(shape: SiteBlockShape) {
+		return this.onDoubleClickCorner(shape);
 	}
 
 	override getShapeName(shape: SiteBlockShape) {

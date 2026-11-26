@@ -27,7 +27,7 @@
 	let missing = $state(false);
 
 	let api = $state<TableApi>();
-	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [] });
+	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [] });
 	let adding = $state(false);
 	/** The block that was selected when Add opened; the picker offers its page's pieces. */
 	let source = $state<Block>();
@@ -45,7 +45,8 @@
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
 	$effect(() => {
 		if (!data.chat?.viewer?.owner) return;
-		return offerTable({ table: id, thread: data.chat.snapshot.thread.id, ontableop: tableOp });
+		// What's selected goes with each message, so “these” means the cards Casey is pointing at.
+		return offerTable({ table: id, thread: data.chat.snapshot.thread.id, ontableop: tableOp, get selection() { return view.selection; }, deselect: () => api?.deselect() });
 	});
 
 	/** What the assistant asked of the table, done here so it animates, saves and undoes like Casey's own edits. */

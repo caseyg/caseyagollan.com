@@ -20,7 +20,9 @@ import {
 	type TLShapeId
 } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
+import { BLOCK_SHAPE, blockKey, type Block } from '$lib/tables';
+import { linkedBlock, richerBlock } from '$lib/table-sources';
+import type { ChatSelectionItem } from '$lib/chat';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
@@ -39,6 +41,8 @@ export interface TableState {
 	selected?: Block;
 	/** Whether the selected blocks show their details (source line and kind tile); unset when none are selected. */
 	details?: 'shown' | 'hidden' | 'mixed';
+	/** Everything selected, briefly (id, kind, title or first words), for the chat to act on. */
+	selection: ChatSelectionItem[];
 }
 
 /** What the Svelte page drives the canvas with. */
@@ -53,6 +57,8 @@ export interface TableApi {
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
+	/** Clears the selection. */
+	deselect(): void;
 	undo(): void;
 	redo(): void;
 	zoomToFit(): void;
@@ -155,6 +161,7 @@ function apiFor(editor: Editor): TableApi {
 			editor.markHistoryStoppingPoint('toggle details');
 			editor.updateShapes(blocks.map((shape) => ({ id: shape.id, type: BLOCK_SHAPE, props: { hideMeta: !shown } })));
 		},
+		deselect: () => editor.selectNone(),
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
 		zoomToFit: () => editor.zoomToFit({ animation: { duration: 220 } }),
@@ -172,7 +179,8 @@ function apiFor(editor: Editor): TableApi {
 						.filter((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE))
 						.map((shape) => blockKey((shape as SiteBlockShape).props)),
 					selected: only && editor.isShapeOfType(only, BLOCK_SHAPE) ? blockOf((only as SiteBlockShape).props) : undefined,
-					details: detailsOf(selectedBlocks(editor))
+					details: detailsOf(selectedBlocks(editor)),
+					selection: editor.getSelectedShapes().map((shape) => selectionItem(editor, shape))
 				});
 			});
 		}
@@ -205,6 +213,18 @@ function itemOf(editor: Editor, shape: TLShape): TableItem {
 		...base, ...parent, type: shape.type, ...(text ? { text: text.slice(0, 400) } : {}),
 		...(ends?.start ? { from: ends.start.toId.replace(/^shape:/, '') } : {}), ...(ends?.end ? { to: ends.end.toId.replace(/^shape:/, '') } : {})
 	};
+}
+
+/** A selected shape as the chat is told of it: enough to name it, not its whole text. */
+function selectionItem(editor: Editor, shape: TLShape): ChatSelectionItem {
+	const id = shape.id.replace(/^shape:/, '');
+	if (editor.isShapeOfType(shape, BLOCK_SHAPE)) {
+		const props = (shape as SiteBlockShape).props;
+		return { id, type: props.kind, ...(props.title || props.excerpt ? { title: (props.title || props.excerpt).slice(0, 80) } : {}) };
+	}
+	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
+	const words = (shape.type === 'frame' ? (shape.props as { name: string }).name : rich ? renderPlaintextFromRichText(editor, rich) : '').replace(/\s+/g, ' ').trim();
+	return { id, type: shape.type, ...(words ? { title: words.slice(0, 80) } : {}) };
 }
 
 /** Shapes that take up room on the table; arrows and drawings run over things by design. */
@@ -681,6 +701,32 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 	}
 }
 
+/**
+ * Turns the plain link blocks an older table saved for the site's posts and Casey's Are.na channels
+ * into the rich blocks they stand for (`richerBlock`), where they stand, keeping their width. A post
+ * grows to fit itself, as one just added does. Kept out of undo: it is a repair, not an edit.
+ */
+export async function upgradeLinkBlocks(editor: Editor, richer: typeof richerBlock = richerBlock): Promise<number> {
+	const links = [...editor.getCurrentPageShapeIds()]
+		.map((id) => editor.getShape(id))
+		.filter((shape): shape is SiteBlockShape => !!shape && editor.isShapeOfType(shape, BLOCK_SHAPE) && (shape as SiteBlockShape).props.kind === 'link');
+	const upgrades = await Promise.all(links.map(async (shape) => ({ shape, block: await richer(blockOf(shape.props)).catch(() => null) })));
+	let count = 0;
+	editor.run(
+		() => {
+			for (const { shape, block } of upgrades) {
+				const current = editor.getShape<SiteBlockShape>(shape.id);
+				if (!block || !current || current.props.kind !== 'link' || current.props.url !== shape.props.url) continue;
+				const { w: _w, h: _h, hideMeta: _hideMeta, ...props } = blockProps(block);
+				editor.updateShape<SiteBlockShape>({ id: current.id, type: BLOCK_SHAPE, props, meta: fitsToPost(block) ? { ...current.meta, fit: true } : current.meta });
+				count++;
+			}
+		},
+		{ history: 'ignore' }
+	);
+	return count;
+}
+
 /** A table's canvas: tldraw without its own interface, drawn in the site's colours. */
 export function TableEditor({ document, editable, embedded = false, licenseKey, onChange, onReady }: TableEditorProps) {
 	const onMount = useCallback(
@@ -707,8 +753,9 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			editor.on('event', offEvent);
 
 			// A pasted or dropped URL becomes a link block, or a site link for this site's pages.
-			editor.registerExternalContentHandler('url', ({ url, point }) => {
-				const block = linkBlock(url, location.origin);
+			// One of the site's posts or Casey's Are.na channels comes in drawn as itself.
+			editor.registerExternalContentHandler('url', async ({ url, point }) => {
+				const block = await linkedBlock(url, [], location.origin);
 				if (block) apiFor(editor).addBlocks([block], point ? editor.pageToScreen(point) : undefined);
 			});
 
@@ -716,6 +763,7 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			onReady?.(apiFor(editor));
 			// Read-only once the page has set anything out, so a seeded table can still be shown to visitors.
 			editor.updateInstanceState({ isReadonly: !editable });
+			if (editable) void upgradeLinkBlocks(editor);
 			if (embedded) {
 				editor.setCameraOptions({ wheelBehavior: 'none' });
 				editor.setCurrentTool('hand');
