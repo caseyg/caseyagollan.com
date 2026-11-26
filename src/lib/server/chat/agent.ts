@@ -31,10 +31,12 @@ import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Qu
 import { chatModels, COMPACTION } from './provider';
 import { saveSearchDoc, saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
-import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, sectionsWhen, serverNames } from './mcp-tools';
+import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, mcpToolName, sectionsWhen, serverNames } from './mcp-tools';
 import { McpAuthError, McpError, type McpSession, type McpToolResult } from '../mcp/client';
 import { markBroken, mcpDeps, sessionFor, usableServers, type McpEnv, type UsableServer } from '../mcp/connections';
 import type { McpServer } from '../../mcp-servers';
+import { cleanOff, groupKey, mcpGroupId, toolKey, toolWords, type ChatToolChoices, type ChatToolGroup } from '../../chat-tool-groups';
+import { OWN_TOOL_GROUPS } from './tools';
 import { itemsFromDocument, tableThreadId, type TableCancelEvent, type TableOp, type TableOpReply } from '../../table-agent';
 import { emptyTable, validId } from '../../tables';
 import { readTable, writeTable } from '../tables';
@@ -95,7 +97,9 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	readonly harness = new PiHarness({
 		harness: ({ storage, context, onWake }) => {
 			const { models } = chatModels(this.env);
-			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT, waitUntil: (promise) => this.ctx.waitUntil(promise), mcp: () => serverNames(this.servers) }));
+			const chat = chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT, waitUntil: (promise) => this.ctx.waitUntil(promise), mcp: () => serverNames(this.servers), off: (name) => this.toolOff(name) });
+			this.ownTools = (chat.tools ?? []).map((tool) => tool.name);
+			this.registry.install(chat);
 			// After the chat's own extension, so its prompt comes first.
 			this.chatInstalled = true;
 			this.installMcp();
@@ -122,6 +126,9 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 
 	/** The MCP servers Casey has connected on /account, with the tools the chat may call. */
 	private servers: UsableServer[] = [];
+	/** Every connected server with its tools, whatever this chat has turned off: what the Tools menu lists. */
+	private available: UsableServer[] = [];
+	private ownTools: string[] = [];
 	private mcpAt = 0;
 	private mcpKey = '';
 	private chatInstalled = false;
@@ -136,14 +143,62 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	private async syncMcp(force = false) {
 		const deps = mcpDeps(this.env);
 		if (!deps) return;
-		if (!this.onlyOwner()) { if (this.servers.length) { this.servers = []; this.installMcp(); } return; }
-		if (!force && Date.now() - this.mcpAt < MCP_FRESH) return;
+		if (force || Date.now() - this.mcpAt >= MCP_FRESH) {
 		const servers = await usableServers(deps, (work) => this.ctx.waitUntil(work)).catch((error) => { console.warn(JSON.stringify({ event: 'chat_mcp_load_failed', detail: String(error).slice(0, 200) })); return undefined; });
-		// A failed look keeps what the thread had.
-		if (!servers) return;
-		this.mcpAt = Date.now();
-		this.servers = servers;
+			// A failed look keeps what the thread had.
+			if (servers) { this.mcpAt = Date.now(); this.available = servers; }
+		}
+		this.applyMcp();
+	}
+
+	/** The servers and tools this chat's scripts may call: the connected ones, less what Casey turned off here. */
+	private applyMcp() {
+		const off = this.off();
+		this.servers = !this.onlyOwner() ? [] : this.available
+			.filter(({ server }) => !off.has(groupKey(mcpGroupId(server.id))))
+			.map((usable) => ({ ...usable, tools: usable.tools.filter((tool) => !off.has(toolKey(mcpToolName(usable.server, tool.name)))) }))
+			.filter(({ tools }) => tools.length);
 		this.installMcp();
+	}
+
+	// ------------------------------------------------------------------ What Casey turned off in this chat
+
+	private offSet?: Set<string>;
+	private off(): Set<string> {
+		if (!this.offSet) { let kept: unknown; try { kept = JSON.parse(this.meta('tools_off') ?? '[]'); } catch { kept = []; } this.offSet = new Set(cleanOff(kept)); }
+		return this.offSet;
+	}
+
+	/** Whether one of the chat's own tools is off here; the servers' tools are simply not installed. */
+	private toolOff(name: string): boolean {
+		const off = this.off();
+		if (!off.size) return false;
+		if (off.has(toolKey(name))) return true;
+		const group = OWN_TOOL_GROUPS.find((one) => one.has(name));
+		return !!group && off.has(groupKey(group.id));
+	}
+
+	/** The groups for the composer's Tools menu, and what is off. Casey's alone. */
+	private choices(): ChatToolChoices {
+		const own: ChatToolGroup[] = OWN_TOOL_GROUPS.map((group) => ({ id: group.id, name: group.name, summary: group.summary, tools: this.ownTools.filter(group.has).map((name) => ({ name, label: toolWords(name.replace(/^(table|micropub)_/, '')) })) })).filter((group) => group.tools.length);
+		const services: ChatToolGroup[] = this.available.map(({ server, tools }) => ({ id: mcpGroupId(server.id), name: server.name, summary: server.summary, service: true, tools: tools.map((tool) => ({ name: mcpToolName(server, tool.name), label: toolWords(tool.name) })) }));
+		return { groups: [...own, ...services], off: [...this.off()] };
+	}
+
+	private sendChoices(only?: Connection<ConnectionState>) {
+		const event = JSON.stringify({ type: 'chat:choices', ...this.choices() } satisfies ChatServerEvent);
+		for (const connection of only ? [only] : this.getConnections<ConnectionState>()) {
+			const state = connection.state;
+			if (state?.viewer?.owner && Date.now() - state.at < OWNER_CONNECTION_TTL) connection.send(event);
+		}
+	}
+
+	private setOff(value: unknown) {
+		const off = cleanOff(value);
+		this.setMeta('tools_off', JSON.stringify(off));
+		this.offSet = new Set(off);
+		this.applyMcp();
+		this.sendChoices();
 	}
 
 	private installMcp() {
@@ -636,6 +691,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const messages = this.watch ? this.shown : await this.messages();
 		const snapshot = { thread: this.summary(messages), messages };
 		connection.send(JSON.stringify({ type: 'chat:snapshot', snapshot, viewer, tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
+		if (viewer?.owner) {
+			this.sendChoices(connection);
+			// The connected services, once they are known.
+			if (Date.now() - this.mcpAt >= MCP_FRESH) this.ctx.waitUntil(this.syncMcp().then(() => this.sendChoices(connection)).catch(() => undefined));
+		}
 		const waiting = this.pendingNavigation;
 		if (waiting && viewer?.id === waiting.to) waiting.done(this.sendNavigate(waiting.to, waiting.path));
 	}
@@ -662,6 +722,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			connection.setState({ ...state!, page, canvas: !!(viewer?.owner && page?.table) });
 			if (viewer?.owner && page?.table) for (const wait of [...this.tableWaits]) if (wait.id === page.table) wait.done(true);
 			connection.send(JSON.stringify({ type: 'chat:abilities', tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
+			return;
+		}
+		// Casey turned a group of tools, or one tool, on or off for this chat.
+		if (event?.type === 'chat:tools-off') {
+			if (viewer?.owner) this.setOff(event.off);
 			return;
 		}
 		if (event?.type === 'table:result') {

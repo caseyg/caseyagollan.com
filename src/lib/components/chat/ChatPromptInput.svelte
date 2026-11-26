@@ -2,6 +2,8 @@
 	import { CHAT_MAX_MESSAGE, PROVIDER_LABELS, type ChatSendOptions, type ChatViewer } from '$lib/chat';
 	import { Avatar, Button } from '$lib/components/ui';
 	import { Textarea } from '@ui-sdk/svelte/textarea';
+	import type { ChatToolChoices } from '$lib/chat-tool-groups';
+	import ChatToolsMenu from './ChatToolsMenu.svelte';
 
 	interface Props {
 		viewer: ChatViewer;
@@ -25,13 +27,16 @@
 		returnTo?: string;
 		/** Tools the agent has for this viewer, named under the box once it's open. */
 		tools?: string[];
+		/** Casey's Tools menu: the groups of tools in this chat and what is off. Left out, there is no menu. */
+		choices?: ChatToolChoices | null;
+		onchoices?: (off: string[]) => void;
 		/** One box and a send button, nothing else: no picture, no “Writing as”, no tools line. */
 		compact?: boolean;
 		/** The box's accessible name when it shows no placeholder. */
 		label?: string;
 	}
 
-	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false }: Props = $props();
+	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false, choices = null, onchoices }: Props = $props();
 
 	let sending = $state(false);
 	const tooLong = $derived(value.length > CHAT_MAX_MESSAGE);
@@ -74,6 +79,7 @@
 <form class="chat-prompt" class:open={open && !compact} class:compact method="POST" {action} onsubmit={submit}>
 	<div class="box">
 		{#if !compact}<Avatar src={viewer.photo} name={viewer.name} size="sm" />{/if}
+		{#if choices && onchoices && viewer.owner}<ChatToolsMenu {choices} onchange={onchoices} />{/if}
 		<Textarea
 			class="input"
 			name="text"
@@ -119,6 +125,11 @@
 	.chat-prompt.compact {
 		padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
 		border-radius: var(--radius-lg);
+	}
+
+	/* The Tools menu's button sits where the box's own padding was. */
+	.compact:has(:global(.chat-tools-trigger)) {
+		padding-left: var(--space-1);
 	}
 
 	.compact .box {

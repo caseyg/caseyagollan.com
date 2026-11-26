@@ -159,6 +159,8 @@ export type ChatServerEvent =
 	| { type: 'chat:order'; ids: string[] }
 	/** The tools changed, such as when Casey opened or left a table. */
 	| { type: 'chat:abilities'; tools: string[] }
+	/** To Casey only: the groups of tools this chat has and what is turned off in it. */
+	| ({ type: 'chat:choices' } & import('./chat-tool-groups').ChatToolChoices)
 	/** Sent only to the person who asked: go to this page of the site. */
 	| { type: 'chat:navigate'; path: string };
 
@@ -170,6 +172,8 @@ export type ChatClientEvent =
 	 * the answer being written; otherwise it joins that answer at its next step.
 	 */
 	| { type: 'chat:say'; text: string; selection?: ChatSelectionItem[]; id?: string; queue?: boolean }
+	/** Casey's choice of what is off in this chat; see `chat-tool-groups`. */
+	| { type: 'chat:tools-off'; off: string[] }
 	/** Casey's table page, ready to take the assistant's edits. */
 	| { type: 'table:ready' }
 	/** The page of the site this browser is on now, and the table on it, if any; sent on connect and after each navigation. */

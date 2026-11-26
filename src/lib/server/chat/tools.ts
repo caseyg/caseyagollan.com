@@ -57,6 +57,8 @@ export interface ToolDeps {
 	savesFetch?: typeof fetch;
 	/** Keeps the Worker alive for work that outlasts a tool call, such as refreshing a cached copy. */
 	waitUntil?: (promise: Promise<unknown>) => void;
+	/** Whether Casey turned this tool off for this chat (the composer's Tools menu). */
+	off?: (name: string) => boolean;
 	/** The MCP servers connected for scripts just now, by name (“Readwise and Are.na”); empty when none is. */
 	mcp?: () => string;
 }
@@ -96,6 +98,14 @@ const WRITES = new Set<string>(TABLE_OWNER_TOOLS);
 /** Reads Casey's Are.na, Raindrop and Readwise with Casey's own tokens, private items included: Casey's runs only. */
 export const SAVES_TOOL = 'my_saves';
 /** Tools only Casey's own runs get: posting, changing a table, and everything that reads with Casey's own sign-ins (my_saves, and scripts over the MCP servers). */
+/** The site's own tools in the groups the composer's Tools menu shows; a tool in none of them can't be turned off. */
+export const OWN_TOOL_GROUPS: { id: string; name: string; summary: string; has: (name: string) => boolean }[] = [
+	{ id: 'site', name: 'Site search and pages', summary: 'Search the site, read pages and look at pictures.', has: (name) => name === 'search_site' || name === 'fetch_page' || name === 'show_page' || name === 'view_image' },
+	{ id: 'navigation', name: 'Navigation', summary: 'Take you to a page of the site.', has: (name) => name === 'go_to' },
+	{ id: 'saves', name: 'Saves', summary: 'List what you saved on Are.na, Raindrop and Readwise.', has: (name) => name === 'my_saves' },
+	{ id: 'tables', name: 'Tables', summary: 'Read and change the open table, or start one.', has: (name) => name.startsWith('table_') },
+	{ id: 'publishing', name: 'Publishing', summary: 'Read, write and edit posts.', has: (name) => name.startsWith('micropub_') }
+];
 export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL || name === CODEMODE_TOOL || isMcpTool(name);
 /** Tools that need a table open beside the chat: all of them but the one that makes a table. */
 export const isTableTool = (name: string) => name.startsWith('table_') && name !== 'table_new';
@@ -1070,7 +1080,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 					// Take Casey's tools out of any request whose run isn't Casey's alone, and the table's when no table is open.
 					const table = !!thread?.table();
 					const owner = payload.tools.some((tool) => isOwnerTool(nameOf(tool))) && (deps.onlyOwner?.() || await ownerRun(api, context));
-					const tools = payload.tools.filter((tool) => (owner || !isOwnerTool(nameOf(tool))) && (table || !isTableTool(nameOf(tool))));
+					const tools = payload.tools.filter((tool) => (owner || !isOwnerTool(nameOf(tool))) && (table || !isTableTool(nameOf(tool))) && !deps.off?.(nameOf(tool)));
 					if (tools.length === payload.tools.length) return { payload };
 					console.log(JSON.stringify({ event: 'chat_tools_withheld', owner, table, offered: tools.length, withheld: payload.tools.length - tools.length }));
 					return { payload: { ...payload, tools: tools.length ? tools : undefined, ...(tools.length ? {} : { tool_choice: undefined }) } };
@@ -1080,6 +1090,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 			// And refuse a call the model makes anyway.
 			hook(ToolTask, {
 				async beforeTool(call, api, context) {
+					if (deps.off?.(call.name)) return { block: 'Casey turned this tool off for this chat. Do without it, or say that it is off.' };
 					if (isTableTool(call.name) && !thread?.table()) return { block: NO_TABLE };
 					const repeated = repeats.check(call.name, call.arguments);
 					if (repeated) return { block: repeated };
