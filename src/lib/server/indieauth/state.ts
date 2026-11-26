@@ -541,10 +541,13 @@ export class IndieAuthState {
       case "rateLimit": {
         const key = await hash(a.key);
         for (const [id, max] of [
-          ["global", 300],
+          // The shared ceiling only bounds storage and total load. It sits far
+          // above one visitor's 30, so a flood cannot use it up and lock the
+          // owner out of sign-in.
+          ["global", 3000],
           [key, 30],
         ] as const) {
-          if (!db.rates[id]) this.capacity(db.rates, 2000);
+          if (!db.rates[id]) this.capacity(db.rates, 4000);
           const rate = db.rates[id] ?? {
             count: 0,
             expiresAt: this.now() + 60000,
