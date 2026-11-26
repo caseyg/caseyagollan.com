@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { itemsFromDocument, tableThreadId } from '../src/lib/table-agent';
+import { itemsFromDocument, LISTING_MAX, tableListing, tableThreadId, type TableItem } from '../src/lib/table-agent';
 import { CHAT_ID } from '../src/lib/chat';
 import { peekFrom, projectMessages, toolLabel } from '../src/lib/server/chat/projection';
 import { isOwnerTool, isTableTool, sitePath } from '../src/lib/server/chat/tools';
@@ -158,5 +158,34 @@ describe('links the chat adds', () => {
 		const { linkedBlock } = await import('../src/lib/table-sources');
 		expect(await linkedBlock('https://caseyagollan.com/2026/11/24/missing/', ['Paperwork'], undefined, search)).toMatchObject({ kind: 'link', url: '/2026/11/24/missing/' });
 		expect(await linkedBlock('https://example.com/a', ['Paperwork'], undefined, search)).toMatchObject({ kind: 'link', url: 'https://example.com/a' });
+	});
+});
+
+describe('tableListing', () => {
+	const box = { x: 0, y: 0, w: 200, h: 200 };
+	const items: TableItem[] = [
+		{ id: 'f1', type: 'frame', text: 'Reading', x: -40, y: -40, w: 600, h: 400 },
+		{ id: 'b1', type: 'book', title: 'The Dispossessed', url: 'https://caseyagollan.com/library/9780061054884/', text: 'An ambiguous utopia', parent: 'f1', x: 0, y: 0, w: 180, h: 300 },
+		{ id: 'n1', type: 'note', text: `Attention ${'as a practice '.repeat(10)}`, ...box, x: 300 },
+		{ id: 'a1', type: 'arrow', from: 'n1', to: 'b1', text: 'about', ...box },
+		{ id: 'd1', type: 'draw', ...box }
+	];
+
+	test('a line per item with its id, kind, first words, box, frame and whether it is selected', () => {
+		const lines = tableListing(items, ['n1'], 'Scratch').split('\n');
+		expect(lines[0]).toContain('“Scratch” now, 3 items');
+		expect(lines[1]).toBe('f1 frame “Reading” at -40,-40 600×400');
+		expect(lines[2]).toBe('b1 book “The Dispossessed” at 0,0 180×300 in f1');
+		expect(lines[3]).toMatch(/^n1 note “Attention as a practice .{0,40}…” at 300,0 200×200 \(selected\)$/);
+		expect(lines[4]).toBe('Arrows: n1→b1 “about”');
+		expect(lines[5]).toBe('Pen strokes: 1.');
+	});
+
+	test('says so when the table is empty, and when the list is cut short', () => {
+		expect(tableListing([])).toBe('On the table now: nothing yet.');
+		const many = Array.from({ length: LISTING_MAX + 5 }, (_, index): TableItem => ({ id: `n${index}`, type: 'note', text: 'x', ...box }));
+		const listing = tableListing(many);
+		expect(listing.split('\n')).toHaveLength(LISTING_MAX + 2);
+		expect(listing).toContain('and 5 more: table_read lists them all');
 	});
 });

@@ -560,6 +560,19 @@ describe('the chat’s tools', () => {
 		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(25_000);
 	});
 
+	test('the prompt lists what is on the open table, as it stands at each step', async () => {
+		const items = [{ id: 'n1', type: 'note', text: 'Deep listening', x: 0, y: 0, w: 200, h: 200 }];
+		const { extension } = await setup({ table: 'abc123', items: () => items, asked: ['n1'] });
+		const now = extension.sections!.find((section) => section.key === 'table-now')!;
+		expect(await now.render({} as never, {} as never)).toContain('n1 note “Deep listening” at 0,0 200×200 (selected)');
+		items.push({ id: 'n2', type: 'note', text: 'Sonic meditations', x: 220, y: 0, w: 200, h: 200 });
+		expect(await now.render({} as never, {} as never)).toContain('n2 note “Sonic meditations”');
+		// The last section, so the unchanging instructions above it stay the same from step to step.
+		expect(extension.sections!.at(-1)).toBe(now);
+		const none = await setup({});
+		expect(await none.extension.sections!.find((section) => section.key === 'table-now')!.render({} as never, {} as never)).toBeUndefined();
+	});
+
 	test('the prompt says what day it is and where things are', async () => {
 		const { extension } = await setup();
 		const site = await extension.sections!.find((section) => section.key === 'site')!.render({} as never, {} as never);
