@@ -41,8 +41,10 @@ The preview Worker has these secrets configured:
 
 - `PUBLISHING_GITHUB_TOKEN`: Contents read/write and GraphQL access to the content repository.
 - `PUBLISHING_DRAFTS_GITHUB_TOKEN` (optional): Contents read/write on the private `caseyagollan-drafts` repository used by the composer. Without it, `PUBLISHING_GITHUB_TOKEN` is used, so that token then needs access to the drafts repository too.
-- `PUBLISHING_MASTODON_TOKEN`: migrated securely from IndieKit's `MASTODON_ACCESS_TOKEN`.
+- `PUBLISHING_MASTODON_TOKEN`: migrated securely from IndieKit's `MASTODON_ACCESS_TOKEN`. Optional once Mastodon is connected with OAuth on `/account`; while set, it is the fallback when the instance refuses the OAuth token.
 - `PUBLISHING_BLUESKY_PASSWORD`: migrated securely from IndieKit's `BLUESKY_PASSWORD`.
+
+Mastodon can instead be connected with OAuth from `/account` (Connections, Mastodon): the Worker registers itself as an app on `PUBLISHING_MASTODON_INSTANCE`, and the session is kept in `PUBLISHING_STATE` under `private/mastodon-oauth/`. Set `PUBLISHING_MASTODON_OAUTH=false` to use the static token only.
 
 Mastodon instance is `https://social.coop`; Bluesky service is `https://bsky.social`, identifier `caseyagollan.com`. Existing provider credentials were verified through read-only account/repository calls. No social post was sent. Secret values were passed through protected stdin, never written to source or included in command arguments/output.
 

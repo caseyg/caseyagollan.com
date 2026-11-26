@@ -19,6 +19,8 @@ The importer reuses these existing bindings:
 - `PUBLISHING_MASTODON_INSTANCE` and `PUBLISHING_MASTODON_TOKEN`: account lookup,
   public status history, and authenticated favourites. The token needs permission
   to read the authenticated account and its favourites.
+  When Mastodon is connected with OAuth on `/account`, the importer uses that
+  connection (its scope covers these reads) and the token is only the fallback.
 - `PUBLISHING_BLUESKY_SERVICE` and `PUBLISHING_BLUESKY_IDENTIFIER`: public account
   repository records. Bluesky import does not require a password or session;
   outbound syndication still uses the existing password configuration.
