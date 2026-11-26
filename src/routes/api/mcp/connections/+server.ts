@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { mcpServer, type McpConnectionsState } from '$lib/mcp-servers';
-import { connections, disconnect, McpConnectError, mcpDeps, refreshTools, setWrites, startConnect } from '$lib/server/mcp/connections';
+import { connections, disconnect, listingProblem, listMissingTools, McpConnectError, mcpDeps, refreshTools, setWrites, startConnect } from '$lib/server/mcp/connections';
 import { bindingCookie, PRIVATE } from '$lib/server/mcp/routes';
 import { ProtocolError } from '$lib/server/publishing/auth';
 import { randomToken } from '$lib/server/publishing/dpop';
@@ -15,6 +15,7 @@ export const GET: RequestHandler = async ({ request, platform }) => {
 	if (!session) return Response.json({ error: 'Sign in to see connections.' }, { status: 401, headers: PRIVATE });
 	const deps = mcpDeps(env);
 	if (!deps) return Response.json({ configured: false, connections: [] } satisfies McpConnectionsState, { headers: PRIVATE });
+	await listMissingTools(deps).catch(() => undefined);
 	return Response.json({ configured: true, connections: await connections(deps) } satisfies McpConnectionsState, { headers: PRIVATE });
 };
 
@@ -46,7 +47,7 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 		}
 		if (body.action === 'disconnect') await disconnect(deps, server);
 		else if (body.action === 'writes') await setWrites(deps, server, body.value === true);
-		else if (body.action === 'refresh') await refreshTools(deps, server).catch(() => { throw new McpConnectError(`${server.name} didn’t answer. Try again in a moment.`); });
+		else if (body.action === 'refresh') await refreshTools(deps, server).catch((cause) => { throw new McpConnectError(listingProblem(server, cause, deps)); });
 		else return Response.json({ error: 'Unknown action.' }, { status: 400, headers: PRIVATE });
 		return Response.json(await state(), { headers: PRIVATE });
 	} catch (cause) {

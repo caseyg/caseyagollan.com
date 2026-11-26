@@ -6,14 +6,15 @@
 	const day = 86_400_000;
 	const now = Date.UTC(2026, 10, 25, 15);
 	const later = <T,>(value: T) => () => new Promise<T>((resolve) => setTimeout(() => resolve(value), 400));
-	const base = (id: string): McpConnection => { const server = MCP_SERVERS.find((one) => one.id === id)!; return { id, name: server.name, summary: server.summary, connected: false, writes: false }; };
+	const base = (id: string): McpConnection => { const server = MCP_SERVERS.find((one) => one.id === id)!; return { id, name: server.name, summary: server.summary, connected: false, signIn: server.signIn !== false, writes: false }; };
 	const reads = (...names: string[]) => names.map((name) => ({ name, reads: true }));
 	const changes = (...names: string[]) => names.map((name) => ({ name, reads: false }));
 
 	const readwise: McpConnection = { ...base('readwise'), connected: true, via: 'oauth', connectedAt: now - 2 * day, toolsAt: now - 2 * day, tools: [...reads('reader_search_documents', 'reader_list_documents', 'reader_get_document_details', 'reader_get_document_highlights', 'reader_list_tags', 'readwise_search_highlights', 'readwise_list_highlights'), ...changes('reader_create_document', 'reader_add_tags_to_document', 'reader_move_documents', 'readwise_create_highlights')] };
 	const arena: McpConnection = { ...base('arena'), via: 'token', toolsAt: now - day, tools: [...reads('getChannel', 'getChannelContents', 'getBlock', 'getUserContents', 'search', 'channelDigest'), ...changes('createBlock', 'createChannel', 'createConnection', 'searchAndConnect', 'updateBlock', 'deleteConnection')] };
 	const none: McpConnectionsState = { configured: true, connections: MCP_SERVERS.map((server) => base(server.id)) };
-	const some: McpConnectionsState = { configured: true, connections: [readwise, arena, base('raindrop')] };
+	const raindrop: McpConnection = { ...base('raindrop'), via: 'token', toolsAt: now - day, tools: [...reads('find_bookmarks', 'find_collections', 'find_tags', 'find_highlights', 'fetch_bookmark_content'), ...changes('create_bookmarks', 'update_bookmarks', 'update_collections')] };
+	const some: McpConnectionsState = { configured: true, connections: [readwise, arena, raindrop] };
 
 	/** Answers each change the way the server would, so a story can be tried. */
 	const stand = (state: McpConnectionsState) => {
@@ -34,7 +35,7 @@
 <!-- On /account, for the signed-in owner: the services the chat can ask as Casey. -->
 <Story name="Nothing connected" args={stand(none)} />
 
-<!-- Readwise signed in with OAuth; Are.na working from the token saved with the site; Raindrop not yet. -->
+<!-- Readwise signed in with OAuth; Are.na working from the token saved with the site until Casey signs in; Raindrop, which has no sign-in for sites like this, from its token alone. -->
 <Story name="Some connected" args={stand(some)} />
 
 <!-- Back from a service's sign-in page. -->
