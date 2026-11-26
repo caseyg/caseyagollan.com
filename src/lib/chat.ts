@@ -85,6 +85,7 @@ const STEP_KINDS: [test: (tool: string) => boolean, one: string, many: (count: n
 	[(tool) => tool === 'go_to', 'took you to a page', () => 'took you to a page'],
 	[(tool) => tool === 'view_image', 'looked at a picture', (count) => `looked at ${count} pictures`],
 	[(tool) => tool === 'my_saves', 'looked through your saves', () => 'looked through your saves'],
+	[(tool) => tool === 'codemode', 'asked your connected services', () => 'asked your connected services'],
 	[(tool) => tool === 'table_new' || tool === 'create_table', 'made a table', (count) => `made ${count} tables`],
 	[(tool) => tool === 'table_look', 'looked at the table', () => 'looked at the table'],
 	[(tool) => tool === 'table_read', 'read the table', () => 'read the table'],
@@ -158,6 +159,8 @@ export type ChatServerEvent =
 	| { type: 'chat:order'; ids: string[] }
 	/** The tools changed, such as when Casey opened or left a table. */
 	| { type: 'chat:abilities'; tools: string[] }
+	/** To Casey only: the groups of tools this chat has and what is turned off in it. */
+	| ({ type: 'chat:choices' } & import('./chat-tool-groups').ChatToolChoices)
 	/** Sent only to the person who asked: go to this page of the site. */
 	| { type: 'chat:navigate'; path: string };
 
@@ -169,6 +172,8 @@ export type ChatClientEvent =
 	 * the answer being written; otherwise it joins that answer at its next step.
 	 */
 	| { type: 'chat:say'; text: string; selection?: ChatSelectionItem[]; id?: string; queue?: boolean }
+	/** Casey's choice of what is off in this chat; see `chat-tool-groups`. */
+	| { type: 'chat:tools-off'; off: string[] }
 	/** Casey's table page, ready to take the assistant's edits. */
 	| { type: 'table:ready' }
 	/** The page of the site this browser is on now, and the table on it, if any; sent on connect and after each navigation. */
