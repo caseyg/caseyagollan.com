@@ -108,6 +108,46 @@ export const SCENARIOS: Scenario[] = [
 		]
 	},
 	{
+		// Casey's ask on the “Are.na — calm technology” table: site search only matched the channels themselves, so the chat added loosely related search hits instead.
+		name: 'arena-channels-to-table',
+		ask: 'Pull all the blocks from my Are.na channels Calm Technology Research and Index of Calm Technologies onto this table.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Are.na — calm technology',
+		table: [
+			{ id: 'c1', type: 'arena', title: 'Calm Technology Research', url: 'https://www.are.na/casey-gollan/calm-technology-research', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'c2', type: 'arena', title: 'Index of Calm Technologies', url: 'https://www.are.na/casey-gollan/index-of-calm-technologies', x: 260, y: 0, w: 240, h: 240 }
+		],
+		checks: [
+			{ name: 'puts both channels’ blocks on the table (at least 80)', pass: (seen) => seen.items.filter((item) => item.url).length >= 80 },
+			{ name: 'a frame for each channel, named after it', pass: (seen) => ['Calm Technology Research', 'Index of Calm Technologies'].every((name) => seen.items.some((item) => item.type === 'frame' && item.text === name)) },
+			{ name: 'every new block sits in a frame', pass: (seen) => seen.items.filter((item) => item.url && !['c1', 'c2'].includes(item.id)).every((block) => seen.items.some((frame) => frame.type === 'frame' && block.x >= frame.x && block.y >= frame.y && block.x + block.w <= frame.x + frame.w && block.y + block.h <= frame.y + frame.h)) },
+			{ name: 'no search results standing in for the channels', pass: (seen) => !seen.calls.some((call) => call.name === 'table_add' && /"search"\s*:\s*"[^"]/.test(call.args)) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'arena-channel-contents',
+		ask: 'What’s in my Calm Technology Research channel on Are.na? Just the highlights.',
+		page: '/',
+		checks: [
+			{ name: 'lists the channel, not a search', pass: (seen) => seen.calls.some((call) => call.name === 'my_saves' && /calm/i.test(call.args) && !call.error) },
+			{ name: 'names things that are in it', pass: (seen) => /weiser|daylight|calm tech certified|amber case|principles and patterns/i.test(seen.answer) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		// Needs READWISE_ACCESS_TOKEN; without it the chat should say Readwise isn't connected.
+		name: 'readwise-highlights',
+		ask: 'What did I highlight in Living With Complexity?',
+		page: '/',
+		checks: [
+			{ name: 'asks Readwise for the book', pass: (seen) => seen.calls.some((call) => call.name === 'my_saves' && /readwise/i.test(call.args)) },
+			{ name: 'quotes a highlight, or says Readwise isn’t connected', pass: (seen) => /signs or labels|psychological task|forcing function|complexity|isn’t connected|not connected/i.test(seen.answer) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
 		name: 'new-table',
 		ask: 'Make a new table called Calm tech and put my calm technology Are.na channels on it.',
 		page: '/tables',
