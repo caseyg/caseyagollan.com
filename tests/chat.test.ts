@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { chatAgo, chatPage, chatSelection, chatTitle, sayPrefix, latestAssistantLine, threadTitle, type ChatMessage } from '../src/lib/chat';
+import { chatAgo, chatPage, chatSelection, chatTitle, sayPrefix, latestAssistantLine, messageParts, stepsSummary, threadTitle, type ChatMessage } from '../src/lib/chat';
 import { readableMarkdown } from '../src/lib/server/chat/fetch-page';
 import { chatViewer, startVisitorSession, viewerFrom, withViewer, VIEWER_HEADER } from '../src/lib/server/chat/identity';
 import { discoverIndieAuth, finishLogin, instanceOrigin, LOGIN_COOKIE, profileAddress, safeReturn, startLogin } from '../src/lib/server/chat/login';
@@ -208,7 +208,7 @@ describe('inference.coop streaming', () => {
 });
 
 describe('Pi transcript as chat messages', () => {
-	const { projectMessages, diffMessages, SAY_KIND } = require('../src/lib/server/chat/projection') as typeof import('../src/lib/server/chat/projection');
+	const { projectMessages, diffMessages, SAY_KIND, RESPONSE_SHOWN } = require('../src/lib/server/chat/projection') as typeof import('../src/lib/server/chat/projection');
 	const ana = { id: 'mastodon:ana@social.coop', name: 'Ana', via: 'mastodon' as const };
 	const say = (id: string, text: string, at = 1000) => ({ id: `e${id}`, kind: SAY_KIND, data: { id, author: ana, owner: false, at, text }, model: [{ role: 'user', content: `Ana wrote:\n\n${text}`, timestamp: at }] });
 	const answer = (id: string, content: unknown[], at = 2000) => ({ id, kind: 'pi.assistant', model: [{ role: 'assistant', content, model: 'glm-flash-green', timestamp: at, usage: { input: 1000, output: 200 } }] });
@@ -225,7 +225,32 @@ describe('Pi transcript as chat messages', () => {
 		expect(messages[0].content).toBe('What about Micropub?');
 		expect(messages[1].id).toBe('r-m1');
 		expect(messages[1].content).toBe('Let me look.\n\nCasey wrote [A](https://caseyagollan.com/a).');
-		expect(messages[1].tools).toEqual([{ tool: 'search_site', label: 'Searched the site for “micropub”', status: 'done', links: [{ url: 'https://caseyagollan.com/a', title: 'A' }] }]);
+		expect(messages[1].tools).toEqual([{ tool: 'search_site', label: 'Searched the site for “micropub”', status: 'done', at: 12, request: [{ name: 'Query', value: 'micropub' }], response: '[{"url":"https://caseyagollan.com/a","title":"A"}]', links: [{ url: 'https://caseyagollan.com/a', title: 'A' }] }]);
+		// The reply reads in the order it happened: text, the step, the rest.
+		expect(messageParts(messages[1]).map((part) => part.type === 'text' ? part.text.trim() : part.steps.map((step) => step.tool))).toEqual(['Let me look.', ['search_site'], 'Casey wrote [A](https://caseyagollan.com/a).']);
+	});
+
+	test('steps keep their place, and what they were asked and answered', () => {
+		const messages = projectMessages([
+			say('m1', 'Look around'),
+			answer('e2', [{ type: 'toolCall', id: 'c1', name: 'search_site', arguments: { query: 'a', page_size: 8, empty: '' } }]),
+			result('e3', 'c1', 'search_site', '{"results":[]}'),
+			answer('e4', [{ type: 'text', text: 'Nothing yet.  \n\n' }, { type: 'toolCall', id: 'c2', name: 'fetch_page', arguments: { url: 'https://example.com/x' } }, { type: 'toolCall', id: 'c3', name: 'fetch_page', arguments: { url: 'https://example.com/y' } }]),
+			result('e5', 'c2', 'fetch_page', 'x'.repeat(RESPONSE_SHOWN + 50)),
+			result('e6', 'c3', 'fetch_page', 'example.com answered 403.', true),
+			answer('e7', [{ type: 'text', text: 'Done.' }])
+		]);
+		const [first, second, third] = messages[1].tools!;
+		expect(first).toMatchObject({ at: 0, request: [{ name: 'Query', value: 'a' }, { name: 'Page size', value: '8' }], response: '{"results":[]}' });
+		expect(second.at).toBe('Nothing yet.'.length);
+		expect(second.response).toHaveLength(RESPONSE_SHOWN + 1);
+		expect(third).toMatchObject({ status: 'failed', error: 'example.com answered 403.' });
+		expect(third.response).toBeUndefined();
+		expect(messageParts(messages[1]).map((part) => part.type === 'text' ? part.text.trim() : part.steps.length)).toEqual([1, 'Nothing yet.', 2, 'Done.']);
+		expect(stepsSummary(messages[1].tools!)).toBe('Searched the site, read 2 pages, 1 didn’t work');
+		expect(stepsSummary([first])).toBe('Searched the site for “a”');
+		// Steps with no place (older threads) come before the text.
+		expect(messageParts({ content: 'Hello', tools: [{ tool: 'go_to', label: 'Took you to /library', status: 'done' }] }).map((part) => part.type)).toEqual(['steps', 'text']);
 	});
 
 	test('the live answer streams, then a failure says why', () => {
@@ -236,13 +261,52 @@ describe('Pi transcript as chat messages', () => {
 		expect(diffMessages([streaming[0], streaming[1]], [streaming[0], { ...streaming[1], content: 'Hello' }])).toEqual([{ type: 'chat:delta', id: 'r-m1', text: 'lo' }]);
 	});
 
+	test('messages sent while the assistant works show at once, and a steer splits the reply where it joined', () => {
+		const queued = (id: string, mode: string) => ({ id: `s${id}`, mode, entry: { kind: SAY_KIND, data: { id, author: ana, owner: false, at: 3000, text: `text ${id}` } } });
+		const working = [say('m1', 'Find posts'), answer('e2', [{ type: 'toolCall', id: 'c1', name: 'search_site', arguments: { query: 'x' } }])];
+		// The one that waits was sent first, but the one joining this answer is placed first.
+		const before = projectMessages(working, { run: {} }, 5000, [queued('later', 'followUp'), queued('steer', 'steer'), { id: 'w', mode: 'write', entry: { kind: 'app.note' } }]);
+		expect(before.map((message) => message.id)).toEqual(['m1', 'r-m1', 'steer', 'later']);
+		expect(before[2]).toMatchObject({ role: 'user', content: 'text steer', author: ana, status: 'done' });
+		expect(before[1].status).toBe('streaming');
+
+		// The steer is placed after the tool round: the reply so far ends, and a new one answers it.
+		const after = projectMessages([...working, result('e3', 'c1', 'search_site', '[]'), say('steer', 'text steer', 3000)], { run: {} }, 5000, [queued('later', 'followUp')]);
+		expect(after.map((message) => message.id)).toEqual(['m1', 'r-m1', 'steer', 'r-steer', 'later']);
+		expect(after[1].status).toBe('done');
+		expect(after[3].status).toBe('streaming');
+		const events = diffMessages(before, after);
+		expect(events.at(-1)).toEqual({ type: 'chat:order', ids: ['m1', 'r-m1', 'steer', 'r-steer', 'later'] });
+		expect(events.filter((event) => event.type === 'chat:message').map((event) => event.type === 'chat:message' && event.message.id)).toEqual(['r-steer']);
+		// New messages at the end need no order.
+		expect(diffMessages(before.slice(0, 2), before).map((event) => event.type)).toEqual(['chat:message', 'chat:message']);
+	});
+
+	test('a browser may name its message, within limits', () => {
+		const { chatSayId, chatAuthor } = require('../src/lib/chat') as typeof import('../src/lib/chat');
+		expect(chatSayId('abcDEF012_-xyz45')).toBe('abcDEF012_-xyz45');
+		for (const bad of ['short', 'has spaces in it!!', 'x'.repeat(40), 12, null, "a'; DROP TABLE x"]) expect(chatSayId(bad)).toBeNull();
+		expect(chatAuthor({ id: 'owner', name: 'Casey', via: 'indieauth', owner: true })).toEqual({ id: 'owner', name: 'Casey', via: 'owner' });
+	});
+
 	test('Micropub output never becomes a public link', () => {
 		const messages = projectMessages([
 			say('m1', 'Draft a note'),
 			answer('e2', [{ type: 'toolCall', id: 'c1', name: 'micropub_create_post', arguments: { content: 'x' } }]),
 			result('e3', 'c1', 'micropub_create_post', 'Location: https://caseyagollan.com/private-draft')
 		]);
-		expect(messages[1].tools).toEqual([{ tool: 'micropub_create_post', label: 'Saved a draft', status: 'done' }]);
+		expect(messages[1].tools).toEqual([{ tool: 'micropub_create_post', label: 'Saved a draft', status: 'done', at: 0 }]);
+		// Nor do a private tool's results, or what a post says, go in the step's details.
+		const saves = projectMessages([
+			say('m1', 'What did I save?'),
+			answer('e2', [{ type: 'toolCall', id: 'c1', name: 'my_saves', arguments: { source: 'arena', query: 'maps' } }, { type: 'toolCall', id: 'c2', name: 'micropub_update_post', arguments: { url: 'https://caseyagollan.com/a', replace: { content: ['secret'] } } }]),
+			result('e3', 'c1', 'my_saves', '{"items":[{"title":"Private map","private":true}]}'),
+			result('e4', 'c2', 'micropub_update_post', 'Updated')
+		]);
+		expect(saves[1].tools![0]).toMatchObject({ request: [{ name: 'Source', value: 'arena' }, { name: 'Query', value: 'maps' }] });
+		expect(saves[1].tools![0].response).toBeUndefined();
+		expect(saves[1].tools![1].request).toEqual([{ name: 'Url', value: 'https://caseyagollan.com/a' }]);
+		expect(JSON.stringify(saves[1].tools)).not.toContain('secret');
 	});
 
 	test('what an answer costs', () => {
@@ -276,6 +340,9 @@ describe('latestAssistantLine', () => {
 		const step = { tool: 'search_site', label: 'Searched for cooperatives', status: 'running' as const };
 		expect(latestAssistantLine([ask, reply('', { status: 'streaming', tools: [step] })])).toEqual({ text: 'Searched for cooperatives…', writing: true });
 		expect(latestAssistantLine([ask, reply('', { status: 'streaming' })])).toEqual({ text: 'Thinking…', writing: true });
+		// A step under way after some text is the newest thing happening.
+		expect(latestAssistantLine([ask, reply('Let me look.', { status: 'streaming', tools: [{ ...step, status: 'running' }] })])?.text).toMatch(/…$/);
+		expect(latestAssistantLine([ask, reply('Let me look.', { status: 'streaming', tools: [{ ...step, status: 'done' }] })])?.text).toBe('Let me look.');
 		expect(latestAssistantLine([ask, reply('', { status: 'failed' })])?.text).toBe('The assistant couldn’t answer.');
 	});
 });

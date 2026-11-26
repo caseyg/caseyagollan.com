@@ -57,7 +57,7 @@ describe('table chat', () => {
 			{ id: 'e3', kind: 'message', model: [{ role: 'toolResult', toolCallId: 'c1', toolName: 'show_page', isError: false, content: [{ type: 'text', text: JSON.stringify({ url: 'https://caseyagollan.com/library', title: 'Library', excerpt: 'Books Casey is reading.' }) }] }] }
 		];
 		const [, reply] = projectMessages(entries as never, {}, 3);
-		expect(reply.tools?.[0]).toEqual({ tool: 'show_page', label: 'Showed Library', status: 'done', peek: { url: 'https://caseyagollan.com/library', title: 'Library', excerpt: 'Books Casey is reading.' } });
+		expect(reply.tools?.[0]).toMatchObject({ tool: 'show_page', label: 'Showed Library', status: 'done', peek: { url: 'https://caseyagollan.com/library', title: 'Library', excerpt: 'Books Casey is reading.' } });
 		expect(peekFrom('{"url":"javascript:x","title":"x"}')).toBeUndefined();
 		expect(peekFrom('not json')).toBeUndefined();
 	});

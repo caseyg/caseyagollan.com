@@ -9,19 +9,31 @@ export const visitor: ChatViewer = { ...ana, owner: false };
 export const owner: ChatViewer = { ...casey, owner: true };
 
 export const question: ChatMessage = { id: 'm1', role: 'user', author: ana, content: 'What has Casey written about **Micropub**?', status: 'done', createdAt: at };
+const searchResponse = JSON.stringify({ total: 2, results: [{ url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub', type: 'article', date: '2026-11-14', text: 'A post can carry its social copy as a reply chain, and the endpoint advertises it in q=config.' }, { url: 'https://caseyagollan.com/wiki/indieweb', title: 'IndieWeb', type: 'wiki' }] });
+const opening = 'I’ll look through the site.';
+/** Steps part-way through: a line of text, two steps, then the answer. `at` is where in `content` each step happened. */
 export const answer: ChatMessage = {
 	id: 'm2', role: 'assistant', model: 'glm-flash-green', status: 'done', createdAt: at + 20_000,
 	tools: [
-		{ tool: 'search_site', label: 'Searched the site for “micropub”', status: 'done', links: [{ url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub' }, { url: 'https://caseyagollan.com/wiki/indieweb', title: 'IndieWeb' }] },
-		{ tool: 'fetch_page', label: 'Read caseyagollan.com/2026/11/14/micropub-threads/', status: 'done', links: [{ url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub' }] }
+		{ tool: 'search_site', label: 'Searched the site for “micropub”', status: 'done', at: opening.length, request: [{ name: 'Query', value: 'micropub' }, { name: 'Limit', value: '8' }], response: searchResponse, links: [{ url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub' }, { url: 'https://caseyagollan.com/wiki/indieweb', title: 'IndieWeb' }] },
+		{ tool: 'fetch_page', label: 'Read caseyagollan.com/2026/11/14/micropub-threads/', status: 'done', at: opening.length, request: [{ name: 'Url', value: 'https://caseyagollan.com/2026/11/14/micropub-threads/' }], response: '# Syndication threads over Micropub\nURL: https://caseyagollan.com/2026/11/14/micropub-threads/\n\nA post can carry its social copy as a reply chain, and the endpoint advertises it in `q=config`.', links: [{ url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub' }] }
 	],
-	content: 'Casey wrote up [syndication threads over Micropub](https://caseyagollan.com/2026/11/14/micropub-threads/): a post can carry its social copy as a reply chain, and the endpoint advertises it in `q=config`.\n\n- One value per post in `syndication-thread`\n- Photos per post in `syndication-photo-post`'
+	content: `${opening}\n\nCasey wrote up [syndication threads over Micropub](https://caseyagollan.com/2026/11/14/micropub-threads/): a post can carry its social copy as a reply chain, and the endpoint advertises it in \`q=config\`.\n\n- One value per post in \`syndication-thread\`\n- Photos per post in \`syndication-photo-post\``
 };
 export const followUp: ChatMessage = { id: 'm3', role: 'user', author: jo, content: 'Is there a spec diff somewhere?', status: 'done', createdAt: at + 60_000 };
 export const streaming: ChatMessage = {
 	id: 'm4', role: 'assistant', model: 'glm-flash-green', status: 'streaming', createdAt: at + 65_000,
-	tools: [{ tool: 'search_site', label: 'Searched the site for “syndication thread spec”', status: 'running' }],
+	tools: [{ tool: 'search_site', label: 'Searched the site for “syndication thread spec”', status: 'done', at: 0, request: [{ name: 'Query', value: 'syndication thread spec' }], response: searchResponse }],
 	content: 'There is: the proposal sits next to the code, with a **diff against'
+};
+/** A step under way after some text: the line says what it is doing. */
+export const working: ChatMessage = {
+	id: 'm7', role: 'assistant', model: 'glm-flash-green', status: 'streaming', createdAt: at + 65_000,
+	tools: [
+		{ tool: 'search_site', label: 'Searched the site for “syndication thread spec”', status: 'done', at: 26, request: [{ name: 'Query', value: 'syndication thread spec' }], response: searchResponse },
+		{ tool: 'fetch_page', label: 'Read caseyagollan.com/docs/proposals', status: 'running', at: 26, request: [{ name: 'Url', value: 'https://caseyagollan.com/docs/proposals' }] }
+	],
+	content: 'Let me find the proposal.'
 };
 export const failed: ChatMessage = { id: 'm5', role: 'assistant', model: 'glm-flash-green', status: 'failed', createdAt: at + 90_000, content: '*The answer stopped: inference.coop answered 503.*' };
 export const draft: ChatMessage = {
@@ -42,10 +54,10 @@ export const tableAsk: ChatMessage = { id: 't1', role: 'user', author: casey, co
 export const tableAnswer: ChatMessage = {
 	id: 't2', role: 'assistant', model: 'glm-flash-green', status: 'done', createdAt: at + 215_000,
 	tools: [
-		{ tool: 'table_read', label: 'Read the table', status: 'done' },
-		{ tool: 'table_add', label: 'Added 3 notes and results for “cooperatives”', status: 'done' },
-		{ tool: 'table_pull', label: 'Context pull: pictures and quotes from 2 blocks', status: 'done' },
-		{ tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' },
+		{ tool: 'table_read', label: 'Read the table', status: 'done', response: JSON.stringify({ name: 'Cooperatives', items: [] }) },
+		{ tool: 'table_add', label: 'Added 3 notes and results for “cooperatives”', status: 'done', request: [{ name: 'Items', value: '[{"note":"Worker co-ops"},{"note":"Platform co-ops"},{"note":"Housing co-ops"},{"search":"cooperatives"}]' }, { name: 'Layout', value: 'grid' }], response: JSON.stringify({ added: [{ id: 'n1', box: [0, 0, 200, 200] }, { id: 'n2', box: [220, 0, 200, 200] }], overlaps: 0 }) },
+		{ tool: 'table_pull', label: 'Context pull: pictures and quotes from 2 blocks', status: 'failed', request: [{ name: 'Blocks', value: '["b1","b2"]' }], error: 'Casey’s table page didn’t answer in time.' },
+		{ tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done', request: [{ name: 'Layout', value: 'grid' }, { name: 'Columns', value: '3' }] },
 		{ tool: 'table_look', label: 'Looked at the table', status: 'done', picture: { src: 'table-look.jpg', alt: 'What the assistant saw of the table, each item numbered' } },
 		{ tool: 'show_page', label: 'Showed Platform cooperativism', status: 'done', peek: { url: 'https://caseyagollan.com/wiki/platform-cooperativism', title: 'Platform cooperativism', excerpt: 'Notes on worker- and user-owned platforms, and the reading list that goes with them.' } }
 	],

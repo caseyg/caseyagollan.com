@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CHAT_MAX_MESSAGE, PROVIDER_LABELS, type ChatViewer } from '$lib/chat';
+	import { CHAT_MAX_MESSAGE, PROVIDER_LABELS, type ChatSendOptions, type ChatViewer } from '$lib/chat';
 	import { Avatar, Button } from '$lib/components/ui';
 	import { Textarea } from '@ui-sdk/svelte/textarea';
 
@@ -8,8 +8,14 @@
 		/** Where the form posts without JavaScript. */
 		action?: string;
 		placeholder?: string;
-		/** Sends the text; resolve true once it went, false to keep it in the box. Without it the form posts. */
-		onsend?: (text: string) => boolean | Promise<boolean>;
+		/**
+		 * Sends the text; resolve true once it went, false to keep it in the box. Without it the form posts.
+		 * Enter sends. With Cmd held (Ctrl off a Mac) it sends with `queue`: to be answered after the
+		 * answer being written, not to join it. While that key is down, Send shows a plus.
+		 */
+		onsend?: (text: string, options: ChatSendOptions) => boolean | Promise<boolean>;
+		/** Show Send as it is with Cmd held, for stories. */
+		queueing?: boolean;
 		/** Writing is paused, such as while the connection comes back. */
 		disabled?: boolean;
 		/** Opens expanded, for starting a new chat. */
@@ -25,32 +31,44 @@
 		label?: string;
 	}
 
-	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message' }: Props = $props();
+	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false }: Props = $props();
 
 	let sending = $state(false);
 	const tooLong = $derived(value.length > CHAT_MAX_MESSAGE);
 	const ready = $derived(!!value.trim() && !tooLong && !sending && !disabled);
+
+	/** Cmd on a Mac, Ctrl elsewhere: held, the next send waits its turn. */
+	const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+	const modifier = (event: KeyboardEvent | MouseEvent) => (mac ? event.metaKey : event.ctrlKey);
+	let held = $state(false);
+	const queue = $derived(held || queueing);
 
 	async function submit(event: SubmitEvent) {
 		if (!onsend) return;
 		event.preventDefault();
 		if (!ready) return;
 		sending = true;
-		try { if (await onsend(value.trim())) value = ''; } finally { sending = false; }
+		try { if (await onsend(value.trim(), { queue })) value = ''; } finally { sending = false; }
 	}
 
 	function keydown(event: KeyboardEvent) {
 		// Enter sends; Shift+Enter starts a new line.
 		if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
 			event.preventDefault();
+			held = modifier(event);
 			(event.currentTarget as HTMLTextAreaElement).form?.requestSubmit();
 		}
 		if (event.key === 'Escape' && !value) open = false;
 	}
 
+	const sendIcon = $derived(queue ? 'plus' : 'send');
+	const sendLabel = $derived(queue ? 'Send after this answer' : 'Send');
+
 	const TOOL_NAMES: Record<string, string> = { search_site: 'search the site', fetch_page: 'read pages', show_page: 'show page previews', view_image: 'look at pictures', table_read: 'look at this table', table: 'change this table', micropub: 'post to your site (drafts)' };
 	const toolText = $derived(tools.map((tool) => TOOL_NAMES[tool] ?? tool).join(', '));
 </script>
+
+<svelte:window onkeydown={(event) => (held = modifier(event))} onkeyup={(event) => (held = modifier(event))} onblur={() => (held = false)} />
 
 <!-- The composer: one quiet line until it's used, then the box, who you are, and Send. Compact, it's only the box and Send. -->
 <form class="chat-prompt" class:open={open && !compact} class:compact method="POST" {action} onsubmit={submit}>
@@ -69,7 +87,7 @@
 			onkeydown={keydown}
 		/>
 		{#if compact && tooLong}<span class="limit">{value.length} / {CHAT_MAX_MESSAGE}</span>{/if}
-		{#if !open || compact}<Button class="send" variant={compact ? 'primary' : 'icon'} size="sm" icon="send" label="Send" aria-label="Send" type="submit" disabled={!ready} />{/if}
+		{#if !open || compact}<Button class="send" variant={compact ? 'primary' : 'icon'} size="sm" icon={sendIcon} label={sendLabel} aria-label={sendLabel} type="submit" disabled={!ready} />{/if}
 	</div>
 	{#if open && !compact}
 		<div class="footer">
@@ -81,7 +99,7 @@
 			{#if !viewer.owner}
 				<Button variant="quiet" size="sm" type="submit" formaction="/chat/logout" formnovalidate name="return" value={returnTo}>Sign out</Button>
 			{/if}
-			<Button variant="primary" size="sm" icon="send" type="submit" disabled={!ready}>{sending ? 'Sending' : 'Send'}</Button>
+			<Button variant="primary" size="sm" icon={sendIcon} label={sendLabel} type="submit" disabled={!ready}>Send</Button>
 		</div>
 	{/if}
 </form>

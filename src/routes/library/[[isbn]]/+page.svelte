@@ -7,7 +7,7 @@
 	import { page } from '$app/state';
 	import { librarySortModes, libraryShelfYear, libraryShelfDate, readLibraryView, writeLibraryView } from '$lib/library-view';
 	import Nav from '$lib/components/Nav.svelte';
-	import { Chip, Corner, SegmentedPill } from '$lib/components/ui';
+	import { Chip, Corner, SegmentedPill, SidePanel } from '$lib/components/ui';
 	import { usePageCommands } from '$lib/page-commands.svelte';
 	import { cue } from '$lib/sound.svelte';
 	import SoundToggle from '$lib/components/SoundToggle.svelte';
@@ -3114,10 +3114,8 @@
 {/if}
 
 {#if selectedBook}
-	<aside class="book-sidebar" aria-label="Book details">
-		<button class="close-button" onclick={deselectBook} aria-label="Close">×</button>
-
-		<h2 class="book-title">{libraryText(selectedBook.id)}</h2>
+	<SidePanel label="Book details" onclose={deselectBook}>
+		{#snippet header()}<h2 class="book-title">{libraryText(selectedBook?.id ?? '')}</h2>{/snippet}
 
 		{#if bookDetails}
 			<div class="book-details">
@@ -3170,7 +3168,7 @@
 				</div>
 			</div>
 		{/if}
-	</aside>
+	</SidePanel>
 {/if}
 
 <style>
@@ -3227,7 +3225,6 @@
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.book-preview, .graph-container { transition: none !important; }
-		.book-sidebar { animation: none !important; }
 	}
 	.graph-container {
 		width: 100vw;
@@ -3323,64 +3320,11 @@
 		50% { opacity: 1; transform: translateY(-2px); }
 	}
 
-	/* Book Detail Sidebar - Liquid Glass Effect */
-	/* A panel beneath the site navigation, inset like it, so the nav stays whole while a book is open. */
-	.book-sidebar {
-		position: fixed;
-		top: calc(var(--nav-lane) + var(--nav-inset));
-		right: var(--nav-inset);
-		bottom: var(--nav-inset);
-		width: 320px;
-		background: rgba(128, 128, 128, 0.6);
-		backdrop-filter: blur(20px);
-		-webkit-backdrop-filter: blur(20px);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: var(--radius-sm);
-		z-index: 1500;
-		padding: 20px;
-		box-sizing: border-box;
-		overflow-y: auto;
-		font-family: system-ui, -apple-system, sans-serif;
-		font-size: 0.9rem;
-		font-weight: 400;
-		line-height: 1.5;
-		color: white;
-	}
-
-	@keyframes slideIn {
-		from {
-			transform: translateX(100%);
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
-	}
-
-	.close-button {
-		position: absolute;
-		top: 12px;
-		right: 12px;
-		background: blue;
-		border: none;
-		font-size: 1.5rem;
-		cursor: pointer;
-		color: white;
-		line-height: 1;
-		padding: 4px 10px;
-		border-radius: 5px;
-	}
-
-	.close-button:hover {
-		background: rgb(73, 73, 255);
-	}
-
+	/* Book details, in the site's side panel. */
 	.book-title {
 		font-size: 1.25rem;
 		font-weight: bold;
-		margin: 0 0 8px 0;
-		padding-right: 50px;
+		margin: 0;
 		color: white;
 		line-height: 1.3;
 	}
@@ -3457,20 +3401,7 @@
 		background: rgb(73, 73, 255);
 	}
 
-	/* Mobile adjustments for sidebar */
 	@media (max-width: 600px) {
-		.book-sidebar {
-			width: 100%;
-			height: auto;
-			max-height: 50vh;
-			top: auto;
-			right: 0;
-			bottom: 0;
-			border-radius: 12px 12px 0 0;
-			border: none;
-			border-top: 1px solid rgba(255, 255, 255, 0.2);
-		}
-
 		.book-title {
 			font-size: 1.1rem;
 		}

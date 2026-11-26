@@ -7,7 +7,7 @@
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { cleanBlock, type Block } from '$lib/tables';
-	import { TLDRAW_LICENSE_KEY, tldrawLicensed } from '$lib/tldraw-license';
+	import { tldrawLicenseKey, tldrawLicensed } from '$lib/tldraw-license';
 	import Notice from '../ui/Notice.svelte';
 	import TableWireframe from './TableWireframe.svelte';
 	import type { TableApi } from './canvas/TableEditor';
@@ -60,7 +60,7 @@
 						document: $state.snapshot(document),
 						editable,
 						embedded,
-						licenseKey: TLDRAW_LICENSE_KEY,
+						licenseKey: tldrawLicenseKey(location.hostname),
 						onChange: (next: unknown) => onchange?.(next),
 						onReady: (ready: TableApi) => {
 							api = ready;
