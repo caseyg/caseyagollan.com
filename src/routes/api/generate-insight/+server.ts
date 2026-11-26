@@ -1,5 +1,7 @@
 import type { RequestHandler } from './$types';
 import OpenAI from 'openai';
+import { cleanSources, cleanTopic, insightKey, MAX_INSIGHT } from '$lib/home-insights';
+import { rateLimited } from '$lib/server/rate-limit';
 
 interface KagiSearchResult {
 	url: string;
@@ -95,9 +97,10 @@ EXAMPLES OF BAD RESPONSES (DO NOT DO THIS):
 
 export const POST: RequestHandler = async ({ request, platform }) => {
 	try {
-		const { topic } = await request.json() as { topic?: string };
+		// Anyone can ask, and the answer is cached for the next visitor: only a short, plain topic is taken.
+		const topic = cleanTopic(((await request.json().catch(() => null)) as { topic?: unknown } | null)?.topic);
 
-		if (typeof topic !== 'string' || !topic) {
+		if (!topic) {
 			return new Response(JSON.stringify({ error: 'Topic is required' }), {
 				status: 400,
 				headers: { 'Content-Type': 'application/json' }
@@ -124,7 +127,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 		// Access KV cache if available
 		const kv = platform?.env?.INSIGHT_CACHE;
-		const cacheKey = `insight:${topic.toLowerCase().trim()}`;
+		const cacheKey = insightKey(topic);
 
 		// Check cache first
 		if (kv) {
@@ -145,10 +148,10 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 						console.log('');
 
 						return new Response(JSON.stringify({
-							topic: cached.topic,
-							insight: cached.insight,
-							recommendedTopics: cached.recommendedTopics,
-							sources: cached.sources,
+							topic,
+							insight: String(cached.insight ?? '').slice(0, MAX_INSIGHT),
+							recommendedTopics: (Array.isArray(cached.recommendedTopics) ? cached.recommendedTopics : []).map(cleanTopic).filter(Boolean).slice(0, 3),
+							sources: cleanSources(cached.sources),
 							cached: true,
 							ageMinutes
 						}), {
@@ -166,6 +169,10 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 				// Continue to API call on cache error
 			}
 		}
+
+		// A miss costs a search and a model call: a visitor gets a few a minute.
+		const limited = await rateLimited(platform?.env?.AI_RATE_LIMITER, request, 'insight');
+		if (limited) return limited;
 
 		const context = `Casey Gollan leads research operations, design management, and engineering management at IBM for AI productivity tools. They build AI assistants using watsonx.ai and Python ADK, including the User Insights Hub (1,000+ research reports) and Winning Products Dashboard. They serve on the board of the ResearchOps Community (18,000+ practitioners) and co-founded the School for Poetic Computation. Previously worked at NYU AI Now Institute, Figma, and ran an independent consultancy with work exhibited at Vienna Biennale, V&A Museum, and ArkDes. Interests include AI transparency, local-first tools, operations as design, knowledge systems, platform cooperatives, and educational activism.`;
 
@@ -207,14 +214,14 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 		// Split on "Related topics:" to separate insight from topics
 		const parts = fullText.split(/Related topics:/i);
-		let insightText = parts[0]?.trim() || '';
+		let insightText = (parts[0]?.trim() || '').slice(0, MAX_INSIGHT);
 		let recommendedTopics: string[] = [];
 
 		if (parts[1]) {
 			recommendedTopics = parts[1]
 				.split(',')
-				.map(t => t.trim())
-				.filter(t => t.length > 0)
+				.map(t => cleanTopic(t))
+				.filter((t): t is string => !!t)
 				.slice(0, 3); // Max 3 topics
 		}
 
@@ -232,14 +239,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		}
 
 		// Build sources from Kagi search results
-		const sources = searchResults
-			.slice(0, 5)
-			.map((r) => ({
-				url: r.url,
-				title: r.title,
-				page_age: null,
-				cited_text: r.snippet || null
-			}));
+		const sources = cleanSources(searchResults.map((r) => ({ url: r.url, title: r.title, page_age: null, cited_text: r.snippet || null })), 5);
 
 		console.log('');
 		console.log('✅ ============================================');

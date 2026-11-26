@@ -8,7 +8,7 @@
 	import { easeCubicOut, easeQuadOut } from 'd3-ease';
 	import 'd3-transition';
 	import { allNodes, allLinks, type Node, type Link } from '$lib/data/graph-data';
-	import { urlKey } from '$lib/graph-curation';
+	import { httpUrl, urlKey } from '$lib/graph-curation';
 	import { usePageCommands } from '$lib/page-commands.svelte';
 	import { goto } from '$app/navigation';
 	import { wikiHref } from '$lib/wiki/links';
@@ -75,7 +75,8 @@
 		cue('navigate');
 		const local = wikiHref(url);
 		if (local) goto(local);
-		else window.open(url, '_blank');
+		// Sources come from a cache and a search engine: only ever open a web address.
+		else if (httpUrl(url)) window.open(url, '_blank', 'noopener');
 	}
 
 	let svg: any;
@@ -348,6 +349,7 @@
 			if (insight.sources && insight.sources.length > 0) {
 				insight.sources.forEach((source) => {
 					// Keyed by URL so a pinned source added in front doesn't take another node's place
+					if (!httpUrl(source.url)) return;
 					const citationId = `citation:${topicId}:${urlKey(source.url)}`;
 					if (dynamicNodeIds.has(citationId)) return;
 
