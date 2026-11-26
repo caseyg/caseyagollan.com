@@ -3,7 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { chatHref, SELECTION_MAX, type ChatPage, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
+	import { chatAuthor, chatHref, SELECTION_LISTED, SELECTION_MAX, type ChatMessage, type ChatPage, type ChatSelectionItem, type ChatSendOptions, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { LiveThread } from '$lib/chat-client.svelte';
 	import { siteChat } from '$lib/site-chat.svelte';
 	import ChatOverlay, { type ChatOverlayMode } from './ChatOverlay.svelte';
@@ -26,6 +26,10 @@
 	let threadId = $state<string | null>(null);
 	let live = $state<LiveThread>();
 	let startError = $state<string | null>(null);
+	/** What's written in the composer. */
+	let draft = $state('');
+	/** The first message of a chat that's being started, shown while its thread is made. */
+	let starting = $state<ChatMessage | null>(null);
 	let loaded = $state(false);
 	let threads = $state<ChatThreadSummary[] | null>(null);
 
@@ -60,9 +64,12 @@
 		if (loaded && !threadId && siteChat.table?.thread) threadId = siteChat.table.thread;
 	});
 
-	function placeholderSnapshot(id: string): ChatSnapshot {
-		return { thread: { id, title: 'Chat', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0 }, messages: [] };
+	function placeholderSnapshot(id: string, first: ChatMessage | null): ChatSnapshot {
+		return { thread: { id, title: 'Chat', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0 }, messages: first ? [first] : [] };
 	}
+
+	/** A message that was shown and then refused goes back in the box, unless something newer is being written. */
+	const giveBack = (text: string) => { if (!draft.trim()) draft = text; };
 
 	// One live connection per thread, kept across navigation; the socket fills in the thread.
 	$effect(() => {
@@ -71,13 +78,16 @@
 			live = undefined;
 			return;
 		}
-		const thread = new LiveThread(placeholderSnapshot(id), untrack(() => viewer), undefined, {
+		// A chat just started keeps showing its first message until the thread sends it back.
+		const thread = new LiveThread(placeholderSnapshot(id, untrack(() => starting)), untrack(() => viewer), undefined, {
 			onnavigate: (path) => void goto(path),
+			onreturn: giveBack,
 			ontableop: (event) => siteChat.table?.ontableop(event) ?? Promise.resolve({ ok: false, error: 'Casey doesn’t have a table open right now.' })
 		});
 		thread.here(untrack(here));
 		thread.connect();
 		live = thread;
+		starting = null;
 		return () => thread.close();
 	});
 
@@ -108,19 +118,28 @@
 		document.documentElement.style.setProperty('--chat-sheet-rest', `${sheetRestHeight}px`);
 	});
 
-	async function send(text: string): Promise<boolean> {
+	function send(text: string, { queue }: ChatSendOptions): boolean {
 		startError = null;
 		// What's selected on the table goes with the message: the assistant acts on just that when asked about “these”.
 		const selection = siteChat.table?.selection?.slice(0, SELECTION_MAX);
-		if (live) return live.status === 'live' && live.say(text, selection);
+		if (live) return live.status === 'live' && live.say(text, selection, queue);
+		if (starting) return false;
+		starting = { id: 'starting', role: 'user', content: text, author: chatAuthor(viewer), status: 'done', createdAt: Date.now(), ...(selection?.length ? { selection: { count: selection.length, items: selection.slice(0, SELECTION_LISTED) } } : {}) };
+		void start(text, selection);
+		return true;
+	}
+
+	/** Make the thread for a first message that's already on screen. */
+	async function start(text: string, selection?: ChatSelectionItem[]) {
 		const response = await fetch('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, page: here(), ...(selection?.length ? { selection } : {}) }) }).catch(() => null);
 		const body = (await response?.json().catch(() => null)) as { id?: string; error?: string } | null;
 		if (!response?.ok || !body?.id) {
 			startError = body?.error ?? 'That didn’t send. Try again.';
-			return false;
+			starting = null;
+			giveBack(text);
+			return;
 		}
 		threadId = body.id;
-		return true;
 	}
 
 	async function listThreads() {
@@ -130,6 +149,7 @@
 	}
 
 	function pick(id: string) {
+		starting = null;
 		threadId = id;
 		startError = null;
 	}
@@ -145,10 +165,11 @@
 		<ChatOverlay
 			bind:mode
 			title={live?.snapshot.thread.title ?? 'New chat'}
-			messages={live?.messages ?? []}
+			messages={live?.messages ?? (starting ? [starting] : [])}
 			viewer={live?.viewer ?? viewer}
 			tools={live?.tools ?? []}
 			onsend={send}
+			bind:text={draft}
 			returnTo={page.url.pathname}
 			href={threadId ? chatHref(threadId) : undefined}
 			error={live?.error || startError}

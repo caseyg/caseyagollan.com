@@ -36,6 +36,8 @@ export interface Live {
 	tools?: { callId: string; name: string; status: 'pending' | 'running' | 'done' }[];
 	runFailure?: { reason: string; detail?: string };
 }
+/** A message waiting in pi's inbox for the answer being written: to join it (`steer`) or to follow it. */
+export interface Queued { id: string; mode: string; entry?: { kind?: string; data?: unknown } }
 
 const FAILURES: Record<string, string> = {
 	model_error: 'the model answered with an error',
@@ -56,7 +58,7 @@ const isSay = (entry: Entry): entry is Entry & { data: SayData } => entry.kind =
  * results between them. The reply's id follows the input it answers, so it stays stable
  * while it streams. The live document fills in the stretch still being written.
  */
-export function projectMessages(entries: readonly Entry[], live: Live = {}, now = Date.now()): ChatMessage[] {
+export function projectMessages(entries: readonly Entry[], live: Live = {}, now = Date.now(), queued: readonly Queued[] = []): ChatMessage[] {
 	const messages: ChatMessage[] = [];
 	let reply: ChatMessage | undefined;
 	const calls = new Map<string, { use: ChatToolUse; args: Record<string, unknown> }>();
@@ -136,6 +138,15 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 	for (const message of messages) {
 		if (message.role === 'assistant' && message.status !== 'streaming') for (const use of message.tools ?? []) if (use.status === 'running') use.status = 'failed';
 		if (message.role === 'assistant' && !message.tools?.length) delete message.tools;
+	}
+
+	// Messages sent while the assistant works show at once, under what it has written so far:
+	// the ones joining this answer first, then the ones waiting for it to end.
+	const waiting = queued.filter((item): item is Queued & { entry: { data: SayData } } => item.entry?.kind === SAY_KIND && typeof (item.entry.data as SayData | undefined)?.id === 'string');
+	for (const item of [...waiting.filter((item) => item.mode === 'steer'), ...waiting.filter((item) => item.mode !== 'steer')]) {
+		const data = item.entry.data;
+		if (messages.some((message) => message.id === data.id)) continue;
+		messages.push({ id: data.id, role: 'user', content: typeof data.text === 'string' ? data.text : '', author: data.author, status: 'done', createdAt: data.at, ...(data.selection?.count ? { selection: data.selection } : {}) });
 	}
 	return messages;
 }
@@ -267,5 +278,10 @@ export function diffMessages(previous: readonly ChatMessage[], next: readonly Ch
 			else events.push({ type: 'chat:message', message });
 		}
 	}
+	// A browser adds new messages at the end. When that isn't where they go (a waiting message was
+	// answered, so its reply sits above the ones still waiting), say the order.
+	const ids = next.map((message) => message.id), known = new Set(ids);
+	const appended = [...previous.map((message) => message.id).filter((id) => known.has(id)), ...ids.filter((id) => !before.has(id))];
+	if (appended.some((id, index) => id !== ids[index])) events.push({ type: 'chat:order', ids });
 	return events;
 }

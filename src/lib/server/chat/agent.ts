@@ -17,14 +17,14 @@
 import { Agent, type Connection, type ConnectionContext, type WSMessage } from 'agents';
 import { PiHarness } from 'agents/harness/pi';
 import { createRegistry, Harness, type ConversationWatch } from '@earendil-works/pi-durable';
-import { CHAT_MAX_MESSAGE, chatPage, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
+import { CHAT_MAX_MESSAGE, chatAuthor, chatPage, chatSayId, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
 import { publishingConfig } from '../publishing/config';
 import type { PublishingEnvironment } from '../publishing/config';
 import { randomToken } from '../publishing/dpop';
 import { charge, costOf, DEFAULT_MONTHLY_BUDGET, resetsOn, spent } from './budget';
 import { viewerFrom } from './identity';
 import { DEFAULT_CHAT_MODEL, ModelError, streamCompletion } from './model';
-import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type SayData } from './projection';
+import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Queued, type SayData } from './projection';
 import { chatModels, COMPACTION } from './provider';
 import { saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
@@ -83,7 +83,8 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			return Harness.open(storage, {
 				models, registry: this.registry, onWake, identity: { attribution: null },
 				// A failed answer doesn't hold up the next person's message.
-				settings: { afterFailedRun: 'continue', retry: { maxRetries: 2 }, compaction: COMPACTION }
+				// Everything sent while an answer is being written joins it together, at its next step.
+				settings: { afterFailedRun: 'continue', retry: { maxRetries: 2 }, compaction: COMPACTION, steeringMode: 'all' }
 			}, context);
 		},
 		defaults: { model: chatModels(this.env).model, maxTurns: MAX_TURNS }
@@ -286,17 +287,20 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		return all;
 	}
 
-	private async live(): Promise<Live> {
-		if (this.watch) return (this.watch.value.docs['pi.live'] ?? {}) as Live;
+	/** What pi is writing now, and the messages waiting for it. */
+	private async now(): Promise<{ live: Live; queued: Queued[] }> {
+		const read = (docs: Record<string, unknown>) => ({ live: (docs['pi.live'] ?? {}) as Live, queued: ((docs['pi.inbox'] as { items?: Queued[] } | undefined)?.items ?? []) });
+		if (this.watch) return read(this.watch.value.docs);
 		const watch = await this.harness.session().watch({ min: 1 });
-		const live = (watch.value.docs['pi.live'] ?? {}) as Live;
+		const docs = read(watch.value.docs);
 		await watch.stop();
-		return live;
+		return docs;
 	}
 
 	private async messages(): Promise<ChatMessage[]> {
 		if (!this.meta('id')) return [];
-		return projectMessages(await this.entries(), await this.live());
+		const { live, queued } = await this.now();
+		return projectMessages(await this.entries(), live, Date.now(), queued);
 	}
 
 	private summary(messages: ChatMessage[]): ChatThreadSummary {
@@ -339,12 +343,19 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	}
 
 	/** Add a message from a signed-in viewer (the form fallback and the WebSocket both end here). */
-	async say(viewer: ChatViewer | null, value: unknown, where?: unknown, selected?: unknown): Promise<{ ok: true } | { error: string }> {
+	/**
+	 * While an answer is being written, the message joins it at its next step (it steers); with
+	 * `queue` it waits and is answered after. `id` is the name the browser already shows it under.
+	 */
+	async say(viewer: ChatViewer | null, value: unknown, where?: unknown, selected?: unknown, options: { id?: unknown; queue?: unknown } = {}): Promise<{ ok: true } | { error: string }> {
 		this.setup();
 		if (!this.meta('id')) return { error: 'This thread doesn’t exist.' };
 		if (!viewer) return { error: 'Sign in to take part.' };
 		const text = typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim() : '';
 		if (!text) return { error: 'Write something first.' };
+		// A browser that didn't hear back sends the message again under the same id: it's already here.
+		const given = chatSayId(options.id);
+		if (given && this.sql<{ n: number }>`SELECT COUNT(*) AS n FROM chat_said WHERE id = ${given}`[0]?.n) return { ok: true };
 		if (text.length > CHAT_MAX_MESSAGE) return { error: `Keep it under ${CHAT_MAX_MESSAGE} characters.` };
 		const count = this.sql<{ n: number }>`SELECT COUNT(*) AS n FROM chat_said`[0]?.n ?? 0;
 		if (count >= MAX_MESSAGES) return { error: 'This thread is full. Start a new one.' };
@@ -357,9 +368,9 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			const budget = Number(this.env.CHAT_MONTHLY_BUDGET) || DEFAULT_MONTHLY_BUDGET;
 			if (await spent(this.env.PUBLISHING_STATE, viewer.id) >= budget) return { error: `You’ve used this month’s chat allowance ($${budget}). It starts again on ${resetsOn(Date.now())}.` };
 		}
-		const { owner, ...rest } = viewer;
-		const author: ChatAuthor = { ...rest, via: owner ? 'owner' : rest.via };
-		const id = randomToken(9), at = Date.now();
+		const owner = viewer.owner;
+		const author = chatAuthor(viewer);
+		const id = given ?? randomToken(9), at = Date.now();
 		// Where they were, so “this page” means something: the chat follows Casey around the site.
 		const page = chatPage(where);
 		// What Casey had selected on that table, so “these” means something. Only Casey's table page can act on it.
@@ -371,12 +382,14 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
 		await this.follow();
 		this.setMeta('selection', JSON.stringify(selection?.items.map((item) => item.id) ?? []));
-		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}`, { operationId: id, entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
+		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}`, { operationId: id, whenBusy: options.queue === true ? 'followUp' : 'steer', entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
 			this.sql`DELETE FROM chat_said WHERE id = ${id}`;
 			throw error;
 		});
 		this.setMeta('updated', String(at));
 		this.setMeta('last_speaker', author.id);
+		// A message that waits changes no entry, so show it now.
+		await this.publish(false).catch(() => undefined);
 		this.ctx.waitUntil(this.index());
 		return { ok: true };
 	}
@@ -397,18 +410,25 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 
 	private publishing?: Promise<void>;
 	private again = false;
+	private mayEnd = false;
 
-	/** Re-fold the transcript and send the difference. One at a time; a change during one runs again after. */
-	private publish(): Promise<void> {
+	/**
+	 * Re-fold the transcript and send the difference. One at a time; a change during one runs again after.
+	 * Only pi's own changes (`end`) may find the answer finished: a message just sent may not have started its run yet.
+	 */
+	private publish(end = true): Promise<void> {
+		if (end) this.mayEnd = true;
 		if (this.publishing) { this.again = true; return this.publishing; }
 		this.publishing = (async () => {
 			do {
 				this.again = false;
+				const mayEnd = this.mayEnd;
+				this.mayEnd = false;
 				const next = await this.messages();
 				for (const event of diffMessages(this.shown, next)) this.send(event);
 				this.shown = next;
 				const live = (this.watch?.value.docs['pi.live'] ?? {}) as Live;
-				if (this.watch && !live.run && !(await this.harness.pending().catch(() => [])).length) {
+				if (mayEnd && this.watch && !live.run && !(await this.harness.pending().catch(() => [])).length) {
 					// Done: stop watching so the object can sleep, and move the thread up the list.
 					const watch = this.watch;
 					this.watch = undefined;
@@ -529,11 +549,12 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			return;
 		}
 		if (event?.type !== 'chat:say') return;
-		const result = await this.say(viewer, event.text, state?.page, event.selection).catch((error) => {
+		const result = await this.say(viewer, event.text, state?.page, event.selection, { id: event.id, queue: event.queue }).catch((error) => {
 			console.warn(JSON.stringify({ event: 'chat_say_failed', detail: String(error).slice(0, 300) }));
 			return { error: 'That didn’t send. Try again.' };
 		});
-		if ('error' in result) connection.send(JSON.stringify({ type: 'chat:error', error: result.error } satisfies ChatServerEvent));
+		const id = chatSayId(event.id);
+		if ('error' in result) connection.send(JSON.stringify({ type: 'chat:error', error: result.error, ...(id ? { id } : {}) } satisfies ChatServerEvent));
 	}
 
 	/** Whether only Casey has written in this thread. */

@@ -79,7 +79,10 @@ export type ChatServerEvent =
 	| { type: 'chat:tools'; id: string; tools: ChatToolUse[] }
 	| { type: 'chat:done'; id: string; status: ChatMessage['status']; content: string }
 	| { type: 'chat:title'; title: string }
-	| { type: 'chat:error'; error: string }
+	/** `id`: the message that didn't go, as the browser named it. */
+	| { type: 'chat:error'; error: string; id?: string }
+	/** The messages' order, sent when it is more than new ones at the end: a message that waited its turn now sits where it was answered. */
+	| { type: 'chat:order'; ids: string[] }
 	/** The tools changed, such as when Casey opened or left a table. */
 	| { type: 'chat:abilities'; tools: string[] }
 	/** Sent only to the person who asked: go to this page of the site. */
@@ -88,7 +91,11 @@ export type ChatServerEvent =
 /** Messages a browser sends: readers who are not signed in send nothing, and only Casey's table page answers table ops. */
 export type ChatClientEvent =
 	/** `selection`: what Casey has selected on the open table, so “these” means something. */
-	| { type: 'chat:say'; text: string; selection?: ChatSelectionItem[] }
+	/**
+	 * `id`: the browser's name for the message, which it is already showing. `queue`: answer it after
+	 * the answer being written; otherwise it joins that answer at its next step.
+	 */
+	| { type: 'chat:say'; text: string; selection?: ChatSelectionItem[]; id?: string; queue?: boolean }
 	/** Casey's table page, ready to take the assistant's edits. */
 	| { type: 'table:ready' }
 	/** The page of the site this browser is on now, and the table on it, if any; sent on connect and after each navigation. */
@@ -100,6 +107,22 @@ export interface ChatPage {
 	path: string;
 	title?: string;
 	table?: string;
+}
+
+/** A viewer as the author of what they write: Casey's own session writes as the owner. */
+export function chatAuthor(viewer: ChatViewer): ChatAuthor {
+	const { owner, ...rest } = viewer;
+	return { ...rest, via: owner ? 'owner' : rest.via };
+}
+
+/** How the composer sends: `queue` waits for the answer being written to end instead of joining it. */
+export interface ChatSendOptions {
+	queue: boolean;
+}
+
+/** A message id a browser may choose, so the message it is already showing is the one the thread keeps. */
+export function chatSayId(value: unknown): string | null {
+	return typeof value === 'string' && /^[A-Za-z0-9_-]{12,24}$/.test(value) ? value : null;
 }
 
 /** A page as sent by a browser, cleaned up; null when it isn't a path on this site. */
