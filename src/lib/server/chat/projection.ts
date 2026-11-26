@@ -163,8 +163,16 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		const items = Array.isArray(args.items) ? args.items as Record<string, unknown>[] : [];
 		const notes = items.filter((item) => typeof item?.note === 'string' || typeof item?.text === 'string').length, links = items.filter((item) => typeof item?.url === 'string').length;
 		const searches = items.filter((item) => typeof item?.search === 'string').map((item) => `“${String(item.search).slice(0, 40)}”`);
-		const parts = [notes ? `${notes} note${notes === 1 ? '' : 's'}` : '', links ? `${links} link${links === 1 ? '' : 's'}` : '', searches.length ? `results for ${searches.join(', ')}` : ''].filter(Boolean);
+		const places = items.filter((item) => typeof item?.source === 'string' && typeof item?.in === 'string' && item.in).map((item) => `“${String(item.in).slice(0, 40)}”`);
+		const parts = [notes ? `${notes} note${notes === 1 ? '' : 's'}` : '', links ? `${links} link${links === 1 ? '' : 's'}` : '', searches.length && !places.length ? `results for ${searches.join(', ')}` : '', places.length ? `everything in ${places.join(', ')}` : ''].filter(Boolean);
 		return `Added ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'to the table'}`.slice(0, 120);
+	}
+	if (name === 'my_saves') {
+		const source = ({ arena: 'Are.na', raindrop: 'Raindrop', readwise: 'Readwise' } as Record<string, string>)[String(args.source ?? '').toLowerCase()] ?? 'saves';
+		const place = typeof args.in === 'string' && args.in ? ` “${args.in.slice(0, 50)}”` : '';
+		if (args.item) return `Read one ${source} item`;
+		if (typeof args.query === 'string' && args.query) return `Searched ${source}${place} for “${args.query.slice(0, 40)}”`;
+		return place ? `Read ${source}${place}` : `Listed ${source}`;
 	}
 	if (name === 'table_pull') {
 		const blocks = Array.isArray(args.blocks) ? args.blocks.filter((one) => typeof one === 'string' && one.trim()) : [];

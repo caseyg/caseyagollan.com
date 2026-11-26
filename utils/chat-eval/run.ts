@@ -4,7 +4,7 @@
  * to the tools (`bun utils/chat-eval/run.ts`, optionally with scenario names) and compare.
  *
  * The site is read live from caseyagollan.com; Micropub is answered from the local content
- * folder; a table is a small in-memory stand-in. Needs a gateway key in INFERENCE_COOP_API_KEY
+ * folder; a table is a small in-memory stand-in; Are.na, Readwise and Raindrop are read live. Needs a gateway key in INFERENCE_COOP_API_KEY
  * (or CHAT_INFERENCE_URL pointing at a relay).
  */
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -19,6 +19,12 @@ const MODEL = process.env.CHAT_MODEL || 'glm-flash-green';
 const BASE = process.env.CHAT_INFERENCE_URL || 'https://gateway.inference.coop/v1';
 const MAX_TURNS = 8;
 const NOW = process.env.CHAT_EVAL_NOW ? new Date(process.env.CHAT_EVAL_NOW) : new Date();
+
+/**
+ * Casey's saves are read live too: Are.na's public channels need no token; Readwise and Raindrop
+ * answer only with READWISE_ACCESS_TOKEN and RAINDROP_TOKEN set, and say they aren't connected otherwise.
+ */
+const SAVES = { ARENA_PAT: process.env.ARENA_PAT, RAINDROP_TOKEN: process.env.RAINDROP_TOKEN, READWISE_ACCESS_TOKEN: process.env.READWISE_ACCESS_TOKEN };
 
 /** The Worker's assets, stood in for by the live site. */
 const assets = { fetch: (request: Request | string | URL) => fetch(new Request(request as Request, { redirect: 'follow' })) } as unknown as Fetcher;
@@ -86,7 +92,7 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 		// What Casey had selected when asking, as the thread remembers it from the message.
 		selection: () => scenario.selected ?? []
 	};
-	const extension = chatExtension({ env: { ASSETS: assets } as never, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
+	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES } as never, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));

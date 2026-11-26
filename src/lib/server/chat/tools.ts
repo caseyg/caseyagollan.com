@@ -23,14 +23,16 @@ import { GenerationTask, hook, LiveDoc, ToolTask, type Extension, type HookApi, 
 import { fetchPage, PAGE_LIMIT } from './fetch-page';
 import { MICROPUB_TOOLS, micropubMcpClient, type MicropubCall } from './micropub-mcp';
 import { SAY_KIND, type SayData } from './projection';
-import { daysBefore, findDocuments, loadAgentIndex, localDate, SEARCH_TYPES, type AgentSearchDocument } from './site-search';
+import { daysBefore, findDocuments, loadAgentIndex, localDate, searchDocuments, SEARCH_TYPES, type AgentSearchDocument } from './site-search';
 import { publishingConfig, type PublishingEnvironment } from '../publishing/config';
+import { ARENA_ICON, type Block } from '../../tables';
 import { TABLE_ALIGNS, TABLE_COLORS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, type TableAlign, type TableColor, type TableItem, type TableLink, type TableNote, type TablePlace, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
 import { imageFromDataUrl, viewImage } from './view-image';
+import { SAVE_SOURCES, SOURCE_NAME, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavedItem, type SavedPage, type SaveSource, type SavesDeps, type SavesEnv } from '../saves';
 import { ownerMicropub } from '../publishing/post-editor';
 
 export interface ToolDeps {
-	env: PublishingEnvironment & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
+	env: PublishingEnvironment & SavesEnv & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
 	/** The site's origin, for its own pages and search index. */
 	origin: () => string;
 	/** After a run answered, for work outside Pi such as naming the thread. */
@@ -50,6 +52,10 @@ export interface ToolDeps {
 	/** Micropub as Casey, in place of the site's own handler: for tests and replays. */
 	micropub?: MicropubCall;
 	now?: () => Date;
+	/** Are.na, Raindrop and Readwise, in place of the real services: for tests and replays. */
+	savesFetch?: typeof fetch;
+	/** Keeps the Worker alive for work that outlasts a tool call, such as refreshing a cached copy. */
+	waitUntil?: (promise: Promise<unknown>) => void;
 }
 
 /** The chat thread's side of the table and navigation tools. */
@@ -84,8 +90,10 @@ const at = (args: { x?: unknown; y?: unknown }) => typeof args.x === 'number' &&
 const strings = (value: unknown, max: number) => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, max) : [];
 export const isMicropubTool = (name: string) => name.startsWith('micropub_');
 const WRITES = new Set<string>(TABLE_OWNER_TOOLS);
+/** Reads Casey's Are.na, Raindrop and Readwise with Casey's own tokens, private items included: Casey's runs only. */
+export const SAVES_TOOL = 'my_saves';
 /** Tools only Casey's own runs get. */
-export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name);
+export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL;
 /** Tools that need a table open beside the chat: all of them but the one that makes a table. */
 export const isTableTool = (name: string) => name.startsWith('table_') && name !== 'table_new';
 const isTableRead = (name: string) => name === 'table_read' || name === 'table_look';
@@ -193,6 +201,35 @@ const TABLE_SECTION = [
 		'- After building or rearranging more than a few things, call table_look once: it shows you a picture of the table with each item numbered (red means it overlaps). Fix what looks wrong, then answer. Don’t look more than twice.'
 	].join('\n')
 ].join('\n\n');
+
+/** For Casey's own runs: what my_saves is for, since search alone can't list a channel. */
+const SAVES_SECTION = [
+	'Casey’s saves elsewhere: my_saves reads Casey’s Are.na (channels and their blocks), Raindrop (collections and bookmarks) and Readwise (Reader’s shelves and tags; the books and articles Casey highlighted, with every highlight) in full, private items included. It appears only when Casey alone is asking.',
+	'- search_site finds Are.na items by their words; it cannot list what a channel holds. “Everything in”, “all the blocks from”, “the whole channel”, “my Raindrop collection”, “my highlights from” mean my_saves with `in`, never a search.',
+	'- A question about a topic (“what have I saved about X”) is still one search_site, which already covers Casey’s public Are.na. Add my_saves with `query` only for what it can’t see, when Casey names Raindrop, Readwise or private saves.',
+	'- Name the place as Casey did (`in: "Calm Technology Research"`): titles, ids and addresses all work, and a near miss answers with the closest names. Only list a source’s places when Casey asks what there is.',
+	'- To put a whole channel, collection or book’s highlights on a table, don’t list it first: one table_add with an item {source, in} per place does it, each in its own named frame.',
+	'- Items marked `private` are for Casey’s eyes: fine to tell Casey about, but say so when you put one on a table, since a published table is public.'
+].join('\n');
+
+/** How much of a my_saves list is the items' own words, shared out among them. */
+const LIST_BUDGET = 10_000;
+
+/** A page of saved things as the model reads it: a line per item, each with as much of its text as fits. */
+export function savesListing(source: SaveSource, page: SavedPage, query?: string) {
+	const shared = page.items.length > 1 && page.items.every((item) => item.title === page.items[0].title && item.url === page.items[0].url);
+	const lines = page.items.map((item) => ({ id: item.id, ...(shared ? {} : { title: clip(item.title, 100) }), kind: item.kind, ...(item.date ? { date: item.date } : {}), ...(shared ? {} : { url: item.url }), ...(item.private ? { private: true } : {}) }));
+	const room = Math.max(60, Math.min(600, Math.floor((LIST_BUDGET - JSON.stringify(lines).length) / Math.max(1, lines.length))));
+	const items = lines.map((line, index) => { const words = page.items[index].text; return words && words !== page.items[index].title ? { ...line, text: clip(words, room) } : line; });
+	const total = page.total ?? items.length;
+	return {
+		source: SOURCE_NAME[source],
+		...(page.place ? { in: page.place.in, title: page.place.title, ...(page.place.url ? { url: page.place.url } : {}), ...(page.place.private ? { private: true } : {}) } : {}),
+		...(query ? { query } : {}),
+		total, showing: items.length, items,
+		...(page.more ? { more: page.more, note: `There are more: the same call with after: "${page.more}" gives the next page. Only page on if Casey asked for all of it.` } : !items.length ? { note: query ? 'Nothing matched. Try fewer or different words.' : 'Nothing here.' } : query && total > items.length ? { note: `The best ${items.length} of ${total} matches.` } : { note: 'That is the last of it.' })
+	};
+}
 
 /** Whether every input of the conversation's current run came from Casey. */
 export async function ownerRun(api: Pick<HookApi, 'snapshot' | 'entries' | 'conversationId'>, context: Context): Promise<boolean> {
@@ -409,6 +446,66 @@ export function chatExtension(deps: ToolDeps): Extension {
 		bridge('micropub_update_post')
 	] : [];
 
+	const savesDeps = (): SavesDeps => ({
+		env: deps.env, fetcher: deps.savesFetch, waitUntil: deps.waitUntil,
+		// What anyone can see of Casey's Are.na is already in the site's index.
+		async publicArena(query, limit) {
+			const documents = await loadAgentIndex(deps.env.ASSETS, deps.origin()).catch(() => [] as AgentSearchDocument[]);
+			return searchDocuments(documents, query, { type: 'arena', limit }).map((result): SavedItem => ({
+				id: result.kind === 'channel' ? result.url.split('/').pop()! : result.url.replace(/^.*\/block\//, ''), title: result.title, url: result.url, kind: result.kind ?? 'block', date: result.date, text: result.excerpt,
+				block: { kind: 'arena', url: result.url, title: result.title, meta: 'Are.na', excerpt: result.excerpt.slice(0, 300), icon: ARENA_ICON[result.kind ?? ''] }
+			}));
+		}
+	});
+	const sourceOf = (value: unknown): SaveSource | undefined => {
+		const name = typeof value === 'string' ? value.trim().toLowerCase().replace(/[^a-z]/g, '') : '';
+		return SAVE_SOURCES.find((source) => source === name) ?? (name === 'arena' || name === 'arenas' ? 'arena' : name === 'raindropio' ? 'raindrop' : name === 'reader' || name === 'readwisereader' ? 'readwise' : undefined);
+	};
+	/** A mistake in the asking is the tool's answer, worded to act on; anything else is a failure. */
+	const saves = async <T>(work: () => Promise<T>): Promise<T> => {
+		try { return await work(); } catch (error) {
+			if (error instanceof SavesError) throw error;
+			console.warn(JSON.stringify({ event: 'chat_saves_failed', detail: String((error as Error)?.message ?? error).slice(0, 200) }));
+			throw new Error('That service couldn’t be reached just now. Tell Casey, and don’t try again this turn.');
+		}
+	};
+	const mySaves: ToolRegistration = {
+		name: SAVES_TOOL,
+		description: [
+			'Casey’s own saves outside the site, in full: Are.na (channels and their blocks), Raindrop (collections and bookmarks) and Readwise (Reader’s shelves and tags, and everything Casey highlighted).',
+			'With `in`: everything that place holds, 40 at a time, each with its id, title, url and text. With `query`: what matches, in that place or the whole source. With `item`: one thing in full. With only `source`: its channels, collections, or shelves and tags.',
+			'search_site only finds things by words; this lists a whole channel, collection or book. To put a whole place on the table, skip this: table_add with {source, in}.'
+		].join(' '),
+		parameters: {
+			type: 'object',
+			properties: {
+				source: { type: 'string', enum: [...SAVE_SOURCES], description: 'arena, raindrop or readwise.' },
+				in: { type: 'string', description: 'The place to list, by title, id or address. Are.na: a channel (“Calm Technology Research”, or its are.na URL). Raindrop: a collection, or `unsorted`, or `all`. Readwise: a shelf (inbox, later, shortlist, archive, feed), `tag:<name>`, `highlights` (everything highlighted; `highlights:books` or `:articles` for one kind), or a highlighted book or article’s title for its highlights.' },
+				query: { type: 'string', description: 'Words to look for, in `in` or in the whole source. Two or three key words.' },
+				item: { type: 'string', description: 'The id (or address) of one thing a list gave, to read it in full: an Are.na block’s whole text and the channels it is in, a bookmark’s note and highlights, a Reader document’s words.' },
+				after: { type: 'string', description: 'The `more` value from a previous call, for the next page.' },
+				from: { type: 'integer', minimum: 0, description: 'With `item`: where to continue a long Reader document, in characters.' }
+			},
+			required: ['source']
+		},
+		replay: 'safe',
+		async execute(args) {
+			const input = args as { source?: unknown; in?: unknown; query?: unknown; item?: unknown; after?: unknown; from?: unknown };
+			const source = sourceOf(input.source);
+			if (!source) throw new Error('Say which `source`: arena, raindrop or readwise.');
+			const word = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim().slice(0, 300) : typeof value === 'number' ? String(value) : undefined;
+			const place = word(input.in), query = word(input.query), item = word(input.item);
+			return saves(async () => {
+				if (item) return text(clip(JSON.stringify({ source: SOURCE_NAME[source], ...(await savedItem(savesDeps(), source, item, Number(input.from) || 0)) }), RESULT_LIMIT));
+				if (!place && !query) {
+					const places = await savedPlaces(savesDeps(), source);
+					return json({ source: SOURCE_NAME[source], places: places.slice(0, 150).map(({ title, in: key, count, private: hidden, updated }) => ({ title: clip(title, 80), in: key, ...(count !== undefined ? { count } : {}), ...(hidden ? { private: true } : {}), ...(updated ? { updated } : {}) })), ...(places.length > 150 ? { note: `The first 150 of ${places.length}.` } : {}), how: 'List one with `in` (its title or its `in`).' });
+				}
+				return text(clip(JSON.stringify(savesListing(source, await savedList(savesDeps(), source, { in: place, query, after: word(input.after) }), query)), RESULT_LIMIT * 1.5));
+			});
+		}
+	};
+
 	const repeats = new RepeatGuard();
 	const showPage: ToolRegistration = {
 		name: 'show_page',
@@ -500,6 +597,55 @@ export function chatExtension(deps: ToolDeps): Extension {
 	const PULL_MAX = 12;
 	const LAYOUTS = TABLE_LAYOUTS.filter((layout) => layout !== 'pack');
 
+	/** What tells one block from another on a table: its address, and for a passage taken from a page, its opening words. */
+	const blockId = (url: string | undefined, kind: string, words?: string) => `${(url ?? '').replace(/\/+$/, '')}${kind === 'quote' ? ` ${(words ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)}` : ''}`;
+	const SECTION_GAP = 120, FRAME_PAD = 40, BLOCK_STEP = 260;
+	/**
+	 * Whole places of Casey's saves onto the table: each one's items as a grid of blocks in a frame
+	 * named after it, the frames side by side, below what is already there. What the table already
+	 * holds is left out, so asking twice doesn't double a channel.
+	 */
+	const pull = async (pulls: { source: SaveSource; in: string; query?: string; limit: number }[], spot: TablePlace) => {
+		const before = (await run({ op: 'read' }) as { items?: TableItem[] }).items ?? [];
+		const have = new Set(before.filter((item) => item.url).map((item) => blockId(item.url, item.type, item.text)));
+		const top = before.filter((item) => !item.parent && item.type !== 'arrow' && item.type !== 'draw');
+		const anchor = before.find((item) => item.id === (spot.below ?? spot.right_of));
+		let x = spot.at?.x ?? (anchor ? (spot.below ? anchor.x : anchor.x + anchor.w + SECTION_GAP) : top.length ? Math.min(...top.map((item) => item.x)) : 0);
+		const y = spot.at?.y ?? (anchor ? (spot.below ? anchor.y + anchor.h + SECTION_GAP : anchor.y) : top.length ? Math.max(...top.map((item) => item.y + item.h)) + SECTION_GAP : 0);
+		const sections: Record<string, unknown>[] = [];
+		for (const wanted of pulls) {
+			const name = `${SOURCE_NAME[wanted.source]}${wanted.in ? ` “${wanted.in}”` : ''}`;
+			let page: SavedPage;
+			try { page = await saves(() => savedAll(savesDeps(), wanted.source, { in: wanted.in || undefined, query: wanted.query }, wanted.limit)); }
+			catch (error) { sections.push({ name, added: 0, error: String((error as Error).message ?? error) }); continue; }
+			const title = `${page.place?.title ?? name}${wanted.query && wanted.in ? `: “${wanted.query}”` : ''}`.slice(0, 120);
+			const fresh: Block[] = [];
+			let hidden = 0;
+			for (const item of page.items) {
+				const key = item.block && blockId(item.block.url, item.block.kind, item.block.excerpt);
+				if (!item.block || have.has(key!)) continue;
+				have.add(key!);
+				fresh.push(item.block);
+				if (item.private) hidden++;
+			}
+			// Only when it was cut short: a channel's own count can include blocks Are.na won't hand over.
+			const short = !!page.more || page.items.length >= wanted.limit;
+			const total = short ? Math.max(page.total ?? 0, page.items.length) : page.items.length, skipped = page.items.length - fresh.length;
+			const rest = short && total > page.items.length ? { not_added: `${total - page.items.length} more: this took the first ${page.items.length} of ${total}. Tell Casey; go on only if Casey asks.` } : {};
+			if (!fresh.length) { sections.push({ name: title, added: 0, of: total, note: page.items.length ? 'All of these were already on the table.' : 'It holds nothing (or nothing matched).', ...rest }); continue; }
+			const columns = Math.max(2, Math.min(8, Math.ceil(Math.sqrt(fresh.length * 1.4))));
+			const ids = idsOf((await run({ op: 'add_blocks', blocks: fresh, columns, at: { x: x + FRAME_PAD, y: y + FRAME_PAD } })).added);
+			const frame = idsOf((await run({ op: 'frame', name: title, ids })).added)[0];
+			const box = ((await run({ op: 'read' }) as { items?: TableItem[] }).items ?? []).find((item) => item.id === frame);
+			x = (box ? box.x + box.w : x + columns * BLOCK_STEP + FRAME_PAD * 2) + SECTION_GAP;
+			sections.push({
+				name: title, frame, added: ids.length, of: total, ...(page.place?.url ? { url: page.place.url } : {}),
+				...(skipped ? { already_on_table: skipped } : { all_of_it: !short }), ...(hidden ? { private: hidden, note: `${hidden} of these are private: visitors will see them if this table is published. Tell Casey.` } : {}), ...rest
+			});
+		}
+		return sections;
+	};
+
 	const tableTools: ToolRegistration[] = thread ? [
 		{
 			name: 'table_new',
@@ -533,13 +679,13 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_add',
-			description: 'Put things on the table, as many as you like in one call, set out together so nothing overlaps: sticky notes, text cards, links and search results. Use one call per part of the table. Reports each new item’s id and box.',
+			description: 'Put things on the table, as many as you like in one call, set out together so nothing overlaps: sticky notes, text cards, links, search results, and whole Are.na channels, Raindrop collections or Readwise shelves and books ({source, in}: every item in it, in its own frame named after it). Use one call per part of the table. Reports each new item’s id and box.',
 			parameters: {
 				type: 'object',
 				properties: {
 					items: {
 						type: 'array', minItems: 1, maxItems: 40,
-						description: 'What to add, in reading order. Each item has exactly one of note, text, url or search; leave the others out. An empty item, {}, leaves its cell of a grid of notes empty (the corner, when a comparison has headings along the top and down the side).',
+						description: 'What to add, in reading order. Each item has exactly one of note, text, url, search, or source with in; leave the others out. “All the blocks from my Are.na channels A and B” is two items: {"source": "arena", "in": "A"}, {"source": "arena", "in": "B"}. An empty item, {}, leaves its cell of a grid of notes empty (the corner, when a comparison has headings along the top and down the side).',
 						items: {
 							type: 'object',
 							properties: {
@@ -547,8 +693,10 @@ export function chatExtension(deps: ToolDeps): Extension {
 								text: { type: 'string', description: 'A text card that wraps, for a paragraph or a heading, in plain text (no Markdown).' },
 								url: { type: 'string', description: 'A page to add as a block: this site’s or any link. When you already have the URL (from search_site), use this, not search.' },
 								search: { type: 'string', description: 'Words to search the site (and Casey’s private Are.na and Raindrop) for; the results are added as blocks.' },
+								source: { type: 'string', enum: [...SAVE_SOURCES], description: 'With `in`: put everything a place of Casey’s Are.na, Raindrop or Readwise holds on the table, in a frame named after it. Don’t list it with my_saves first. (For a channel itself as one block, not what is in it, give its `url` instead.)' },
+								in: { type: 'string', description: 'With source: the place, by title, id or address, as for my_saves: an Are.na channel, a Raindrop collection, a Readwise shelf, tag:<name>, or a highlighted book’s title (its highlights become quote cards). Add `search` to take only what matches those words.' },
 								filter: { type: 'string', enum: ['all', 'post', 'book', 'wiki', 'arena', 'raindrop'], description: 'With search: only this kind.' },
-								limit: { type: 'integer', minimum: 1, maximum: 12, description: 'With search: how many results, 6 if left out.' },
+								limit: { type: 'integer', minimum: 1, maximum: 100, description: 'With search: how many results, 6 if left out (12 at most). With source: at most this many, 100 if left out.' },
 								w: { type: 'number', description: 'With text: the card’s width, 160 to 800; 360 if left out.' },
 								color: COLOR
 							}
@@ -569,11 +717,16 @@ export function chatExtension(deps: ToolDeps): Extension {
 				const layout = LAYOUTS.find((one) => one === input.layout);
 				const columns = Number(input.columns) || undefined;
 				const notes: TableNote[] = [], urls: string[] = [];
+				const pulls: { source: SaveSource; in: string; query?: string; limit: number }[] = [];
 				const added: string[] = [], said: string[] = [];
 				let kinds = 0;
 				// Models fill in every property of an item, often with empty strings: an item is its first one with words in it.
 				const said_ = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : undefined;
 				for (const item of items) {
+					const from = sourceOf(item.source), within = said_(item.in);
+					// A whole place, or what matches in it. All of Readwise by words goes the same way; Are.na and Raindrop by words alone are the table's own search.
+					if (from && (within || (from === 'readwise' && said_(item.search)))) { pulls.push({ source: from, in: within ?? '', query: said_(item.search)?.slice(0, 200), limit: Math.min(100, Math.max(1, Number(item.limit) || 100)) }); continue; }
+					if (from && from !== 'readwise' && said_(item.search) && !said_(item.url)) item.filter = from;
 					const url = said_(item.url), search = url ? undefined : said_(item.search), card = said_(item.text), sticky = said_(item.note);
 					// This site's pages go as full addresses: a bare path isn't a link to Casey's page.
 					if (url) { const path = sitePath(url, deps.origin()); urls.push(path ? new URL(path, deps.origin()).href : url); }
@@ -597,15 +750,17 @@ export function chatExtension(deps: ToolDeps): Extension {
 					issues = result.issues;
 					kinds++;
 				}
-				if (!added.length && !said.length) throw new Error('Nothing was added: each item needs words in exactly one of note, text, url or search, such as {"note": "Micropub"}.');
-				if (!added.length) return json({ added: 0, searches: said });
-				if (kinds > 1 || (!cells.length && (layout || placed(spot)))) {
+				if (!added.length && !said.length && !pulls.length) throw new Error('Nothing was added: each item needs words in exactly one of note, text, url or search, such as {"note": "Micropub"}, or a source with in, such as {"source": "arena", "in": "Calm Technology Research"}.');
+				if (!added.length && !pulls.length) return json({ added: 0, searches: said });
+				if (added.length && (kinds > 1 || (!cells.length && (layout || placed(spot))))) {
 					issues = (await run({ op: 'arrange', layout: layout ?? 'grid', ids: added, columns: columns ?? Math.min(added.length, 4), ...spot })).issues;
 				}
 				// Set down on something that was already there: push apart once, here, rather than ask the model to.
 				if (troubled(issues)) issues = (await run({ op: 'tidy' })).issues;
-				const frame = typeof input.frame === 'string' && input.frame.trim() ? await run({ op: 'frame', name: input.frame.slice(0, 120), ids: added }) : undefined;
-				return report({ added: added.length, ...(said.length ? { searches: said } : {}), ...(frame ? { frame: idsOf(frame.added)[0] } : {}) }, added, frame ? undefined : issues);
+				const frame = added.length && typeof input.frame === 'string' && input.frame.trim() ? await run({ op: 'frame', name: input.frame.slice(0, 120), ids: added }) : undefined;
+				const sections = pulls.length ? await pull(pulls, added.length ? {} : spot) : [];
+				const total = added.length + sections.reduce((sum, section) => sum + (Number(section.added) || 0), 0);
+				return report({ added: total, ...(said.length ? { searches: said } : {}), ...(frame ? { frame: idsOf(frame.added)[0] } : {}), ...(sections.length ? { sections } : {}) }, [...added, ...sections.map((section) => section.frame).filter((id): id is string => typeof id === 'string')], frame || sections.length ? undefined : issues);
 			}
 		},
 		{
@@ -804,9 +959,11 @@ export function chatExtension(deps: ToolDeps): Extension {
 		sections: [
 			{ key: 'preamble', render: () => PREAMBLE, tag: false },
 			{ key: 'site', render: () => siteSection(now(), timeZone), tag: false },
+			// Only said when the tool is there: a thread only Casey has written in.
+			{ key: 'saves', render: () => deps.onlyOwner?.() ? SAVES_SECTION : undefined, tag: false },
 			...(thread ? [{ key: 'table', render: () => thread.table() ? TABLE_SECTION : undefined, tag: false }] : [])
 		],
-		tools: [searchSite, fetchTool, viewImageTool, showPage, ...(thread ? [goTo] : []), ...micropub, ...tableTools],
+		tools: [searchSite, fetchTool, viewImageTool, showPage, ...(thread ? [goTo] : []), mySaves, ...micropub, ...tableTools],
 		hooks: [
 			hook(GenerationTask, {
 				async beforeProviderRequest(request, api, context) {
