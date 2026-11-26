@@ -1,7 +1,7 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import ChatMessage from './ChatMessage.svelte';
-	import { answer, draft, failed, question, streaming } from './fixtures';
+	import { answer, draft, failed, question, streaming, tableAnswer, working } from './fixtures';
 
 	const { Story } = defineMeta({ title: 'Chat/ChatMessage', component: ChatMessage, args: { message: question } });
 </script>
@@ -11,8 +11,14 @@
 
 <Story name="Own message" args={{ own: true }} />
 
-<!-- The agent's steps sit in gray above its answer; steps with links open to show them. -->
+<!-- The agent's steps sit in gray where it took them, between the text before and after, summed up in a line that opens. -->
 <Story name="Assistant with steps" args={{ message: answer }} />
+
+<!-- A step under way after some text: its line says what it is doing, and the writing dots wait. -->
+<Story name="Working on a step" args={{ message: working }} />
+
+<!-- Older replies don't say where their steps happened: they come first, as before. -->
+<Story name="Table work, compact" args={{ message: tableAnswer, compact: true }} />
 
 <!-- Still writing: unfinished Markdown is closed (remend) so it renders cleanly. -->
 <Story name="Streaming" args={{ message: streaming }} />
