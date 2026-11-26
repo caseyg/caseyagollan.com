@@ -5,6 +5,8 @@ export { default as Checkbox } from './Checkbox.svelte';
 export { default as CheckboxGroup } from './CheckboxGroup.svelte';
 export { default as Disclosure } from './Disclosure.svelte';
 export { default as Divider } from './Divider.svelte';
+export { default as ChoiceMenu } from './ChoiceMenu.svelte';
+export type { Choice } from './ChoiceMenu.svelte';
 export { default as Chip } from './Chip.svelte';
 export { default as Corner } from './Corner.svelte';
 export { default as CommandPalette } from './CommandPalette.svelte';

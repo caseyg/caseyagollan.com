@@ -84,12 +84,12 @@
 
 	.end {
 		height: 1px;
-		scroll-margin-bottom: 9rem;
+		scroll-margin-bottom: var(--chat-end-margin, 9rem);
 	}
 
 	.jump {
 		position: sticky;
-		bottom: 8.5rem;
+		bottom: var(--chat-jump-bottom, 8.5rem);
 		display: flex;
 		justify-content: center;
 		pointer-events: none;

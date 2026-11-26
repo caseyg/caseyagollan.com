@@ -3,7 +3,7 @@
 	import { COMPOSER_KINDS, type ComposerKind } from '$lib/composer-kinds';
 	import { ownerSignedIn } from '$lib/owner';
 	import { searchPrivateArena } from '$lib/arena-client';
-	import { pageCommands } from '$lib/page-commands.svelte';
+	import { pageCommands, sitePalette } from '$lib/page-commands.svelte';
 	import { TYPE_ICONS } from '$lib/posts-filter';
 	import { visibleSections } from '$lib/site-sections';
 	import { CommandPalette, PullDown, type CommandOption, type CommandSection, type MenuOption } from '$lib/components/ui';
@@ -16,6 +16,14 @@
 
 	let { onSearch, open = $bindable(false) }: Props = $props();
 	let query = $state('');
+
+	// A page's own button can open the palette (`sitePalette`), and closing it here is seen there.
+	$effect(() => {
+		if (sitePalette.open) open = true;
+	});
+	$effect(() => {
+		if (!open) sitePalette.open = false;
+	});
 
 	interface PagefindResult { url: string; meta: { title?: string; type?: string }; excerpt: string }
 	interface Pagefind {
@@ -148,9 +156,41 @@
 	const search: CommandOption = $derived({ value: 'search', label: 'Search posts, books, wiki, and Are.na', hint: term ? `For “${term}”` : undefined, icon: '🔍', keywords: ['find'], always: !!term });
 	// The page's own commands come first, then places, then what the search index found.
 	const forPage = $derived(pageCommands());
+
+	// A page's section can search for what was typed (chats by what was said in them); its results join the section.
+	let found = $state<Record<string, CommandOption[]>>({});
+	const searchers = $derived(forPage.filter((section) => section.search));
+	$effect(() => {
+		const typed = term;
+		const asking = searchers;
+		if (typed.length < 2 || !asking.length) {
+			found = {};
+			return;
+		}
+		const controller = new AbortController();
+		const timer = setTimeout(() => {
+			for (const section of asking) {
+				section.search!(typed, controller.signal)
+					.then((items) => {
+						if (!controller.signal.aborted) found = { ...found, [section.label]: items.map((item) => ({ ...item, always: true })) };
+					})
+					.catch(() => undefined);
+			}
+		}, 200);
+		return () => {
+			clearTimeout(timer);
+			controller.abort();
+		};
+	});
+	const withFound = (label: string, items: CommandOption[]) => {
+		const more = found[label] ?? [];
+		const values = new Set(more.map((item) => item.value));
+		return [...more, ...items.filter((item) => !values.has(item.value))];
+	};
+
 	const sections: CommandSection[] = $derived([
 		...(term ? [] : [{ items: [search] }]),
-		...forPage.map(({ label, items }) => ({ label, items })),
+		...forPage.map(({ label, items }) => ({ label, items: withFound(label, items) })),
 		{ label: 'Go to', items: places },
 		{ label: 'Post types', items: postTypes },
 		{ label: 'Write', items: owner ? [write] : [] },
@@ -164,7 +204,7 @@
 	const linkedSections = $derived(sections.map((section) => ({ ...section, items: section.items.map(linked) })));
 
 	function onAction(value: string) {
-		const page = forPage.find((section) => section.run && section.items.some((item) => item.value === value));
+		const page = forPage.find((section) => section.run && withFound(section.label, section.items).some((item) => item.value === value));
 		if (page && !value.startsWith('go:')) return page.run?.(value);
 		const [kind, ...rest] = value.split(':');
 		const target = rest.join(':');

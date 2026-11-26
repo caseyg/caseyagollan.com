@@ -17,3 +17,9 @@
 		<Button variant="icon" size="sm" icon="sidebar" label={sidebar.state === 'auto' ? 'Show or hide chats' : sidebar.state === 'open' ? 'Hide chats' : 'Show chats'} pressed={sidebar.state === 'auto' ? undefined : sidebar.state === 'open'} aria-controls={controls} onclick={() => sidebar.toggle()} />
 	</span>
 {/if}
+
+<style>
+	.chat-sidebar-toggle {
+		display: inline-flex;
+	}
+</style>
