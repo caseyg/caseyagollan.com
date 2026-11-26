@@ -25,6 +25,8 @@ export function remotePiecesUrl(block: Pick<Block, 'kind' | 'url'>): string | nu
 		const url = new URL(block.url);
 		if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
 		if (url.hostname === 'caseyagollan.com' || url.hostname === 'www.caseyagollan.com') return null;
+		// An are.na page is an app's shell, placeholder words until its script runs: nothing to take from it.
+		if (/^(www\.)?are\.na$/i.test(url.hostname)) return null;
 		url.hash = '';
 		return url.href;
 	} catch {

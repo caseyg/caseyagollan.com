@@ -162,3 +162,26 @@ export function bendAround(a: { x: number; y: number }, b: { x: number; y: numbe
 	for (const bend of [0, 80, -80, 140, -140, 200, -200, 260, -260, 300, -300]) if (Math.abs(bend) < length && clear(bend)) return bend;
 	return 0;
 }
+
+/**
+ * The nearest place to `start` where a box of `size` covers nothing in `taken` (nor sits closer
+ * than `gap`), looking outward in rings; `start` itself when nothing within reach is free. For
+ * setting new things down beside what they belong with, without moving anything that is there.
+ */
+export function freeSpot(taken: Box[], size: { w: number; h: number }, start: { x: number; y: number }, gap = GRID): { x: number; y: number } {
+	const free = (x: number, y: number) => !taken.some((box) => x < box.x + box.w + gap && x + size.w + gap > box.x && y < box.y + box.h + gap && y + size.h + gap > box.y);
+	const step = GRID * 2;
+	for (let ring = 0; ring <= 60; ring++) {
+		let best: { x: number; y: number; far: number } | undefined;
+		for (let dx = -ring; dx <= ring; dx++) {
+			for (let dy = -ring; dy <= ring; dy++) {
+				if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+				const x = start.x + dx * step, y = start.y + dy * step;
+				const far = Math.abs(dx) + Math.abs(dy);
+				if ((!best || far < best.far) && free(x, y)) best = { x, y, far };
+			}
+		}
+		if (best) return { x: best.x, y: best.y };
+	}
+	return start;
+}

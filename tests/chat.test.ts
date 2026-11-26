@@ -520,14 +520,14 @@ describe('the chat’s tools', () => {
 	} } as unknown as Fetcher;
 	const out = async (tool: { execute: (...args: never[]) => unknown }, args: unknown) => ((await (tool.execute as (args: unknown, api: unknown, context: unknown) => Promise<{ output: { text: string }[] }>)(args, {}, {})).output[0].text);
 
-	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown } = {}) {
+	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown; savesFetch?: typeof fetch } = {}) {
 		const { chatExtension } = await import('../src/lib/server/chat/tools');
 		const went: string[] = [];
 		const ops = options.ops ?? [];
 		let made = 0;
 		const thread = {
 			table: () => options.table,
-			tableOp: async (op: { op: string; notes?: unknown[]; urls?: string[]; ids?: string[] }) => {
+			tableOp: async (op: { op: string; notes?: unknown[]; urls?: string[]; ids?: string[]; blocks?: unknown[] }) => {
 				ops.push(op);
 				if (op.op === 'read') return { items: options.items?.() ?? [], selected: options.selected ?? [] };
 				if (op.op === 'add_notes') return { added: op.notes!.map(() => `n${++made}`), layout: 'no overlaps' };
@@ -535,6 +535,7 @@ describe('the chat’s tools', () => {
 				if (op.op === 'add_from_search') return { added: [{ id: `b${++made}`, title: 'Found', url: '/x' }] };
 				if (op.op === 'frame') return { added: ['f1'], holds: op.ids };
 				if (op.op === 'add_pieces') return options.pieces?.(op as never) ?? { added: [] };
+				if (op.op === 'add_blocks') return { added: op.blocks!.map(() => `k${++made}`) };
 				return { layout: 'no overlaps' };
 			},
 			readTable: async () => ({ items: options.items?.() ?? [] }),
@@ -545,7 +546,7 @@ describe('the chat’s tools', () => {
 			// What Casey had selected when writing the message being answered.
 			selection: () => options.asked ?? []
 		};
-		const extension = chatExtension({ env: { ASSETS: assets } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
+		const extension = chatExtension({ env: { ASSETS: assets } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, savesFetch: options.savesFetch, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
 		const tool = (name: string) => extension.tools!.find((one) => one.name === name)!;
 		return { extension, tool, went, ops };
 	}
@@ -656,32 +657,79 @@ describe('the chat’s tools', () => {
 		expect(ops[0].find).toEqual({ 'https://caseyagollan.com/2026/11/24/like-a': ['Post by Someone', 'A liked post'] });
 	});
 
-	test('table_pull takes pictures and quotes out of the selected blocks, framed beside each and joined to it', async () => {
-		const ops: { op: string; block?: string; ids?: string[]; at?: { x: number; y: number }; links?: unknown[]; name?: string; images?: boolean; quotes?: boolean }[] = [];
-		const blocks = [
+	test('table_pull sets each block’s pictures and quotes in open space beside it, a line from the block to each', async () => {
+		const ops: { op: string; block?: string; ids?: string[]; at?: { x: number; y: number }; links?: unknown[]; columns?: number; images?: boolean; quotes?: boolean }[] = [];
+		const table: Record<string, unknown>[] = [
 			{ id: 'b1', type: 'post', title: 'Writing again', url: '/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
-			{ id: 'b2', type: 'link', title: 'Calm technology', url: 'https://calmtech.com/', x: 0, y: 400, w: 240, h: 240 },
+			// In the way of where b1's pieces would go.
+			{ id: 'b2', type: 'link', title: 'Calm technology', url: 'https://calmtech.com/', x: 400, y: 100, w: 240, h: 240 },
 			{ id: 'b3', type: 'book', title: 'Deep Listening', url: '/library/1', x: 0, y: 800, w: 180, h: 300 }
 		];
-		const pieces = (op: { block: string }) => op.block === 'b1'
-			? { source: 'Writing again', added: [{ id: 'p1', kind: 'image', text: 'A photo' }, { id: 'p2', kind: 'quote', text: 'I re-built this site on IndieWeb protocols!' }], more: { images: 0, quotes: 2 } }
-			: op.block === 'b2' ? { source: 'Calm technology', added: [{ id: 'p3', kind: 'quote', text: 'Technology should require the smallest possible amount of attention.' }], more: { images: 0, quotes: 0 } }
-				: { source: 'Deep Listening', added: [], note: 'Books have no page to take pictures or quotes from.' };
-		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, selected: ['b1', 'b2', 'b3'], pieces });
+		const land = (pieces: { id: string; kind: string; text: string }[], near: { x: number; y: number }) => { for (const piece of pieces) table.push({ id: piece.id, type: piece.kind, title: 'x', url: `/x#${piece.id}`, x: near.x, y: near.y, w: 240, h: 240 }); };
+		const pieces = (op: { block: string }) => {
+			if (op.block === 'b3') return { source: 'Deep Listening', added: [], note: 'Books have no page to take pictures or quotes from.' };
+			const added = op.block === 'b1'
+				? [{ id: 'p1', kind: 'image', text: 'A photo' }, { id: 'p2', kind: 'quote', text: 'I re-built this site on IndieWeb protocols!' }]
+				: [{ id: 'p3', kind: 'quote', text: 'Technology should require the smallest possible amount of attention.' }];
+			land(added, { x: 260, y: 0 });
+			return { added, more: op.block === 'b1' ? { images: 0, quotes: 2 } : { images: 0, quotes: 0 } };
+		};
+		const { tool } = await setup({ table: 'abc123', ops, items: () => table, selected: ['b1', 'b2', 'b3'], pieces });
 		const done = JSON.parse(await out(tool('table_pull'), {}));
-		expect(ops.map((op) => op.op)).toEqual(['read', 'add_pieces', 'arrange', 'frame', 'add_pieces', 'arrange', 'add_pieces', 'tidy', 'connect', 'read']);
+		// No frame, and no tidy: nothing that was there is moved.
+		expect(ops.map((op) => op.op)).toEqual(['read', 'add_pieces', 'read', 'arrange', 'add_pieces', 'read', 'arrange', 'add_pieces', 'connect', 'read']);
 		expect(ops[1]).toMatchObject({ block: 'b1', images: true, quotes: true });
-		// Two pieces go in a frame a little way right of their block; one piece stands alone.
-		expect(ops[2]).toMatchObject({ ids: ['p1', 'p2'], at: { x: 380, y: 40 } });
-		expect(ops[3]).toMatchObject({ name: 'From Writing again', ids: ['p1', 'p2'] });
-		expect(ops[5]).toMatchObject({ ids: ['p3'], at: { x: 340, y: 400 } });
-		expect(ops[8].links).toEqual([{ from: 'b1', to: 'f1' }, { from: 'b2', to: 'p3' }]);
+		// 500 wide and 240 tall, the nearest place right of b1 (340, 0) that clears b2.
+		const spot = ops[3].at!;
+		expect(ops[3]).toMatchObject({ layout: 'grid', ids: ['p1', 'p2'], columns: 2 });
+		expect(spot.x < 400 + 240 + 20 && spot.x + 500 + 20 > 400 && spot.y < 100 + 240 + 20 && spot.y + 240 + 20 > 100).toBe(false);
+		expect(Math.abs(spot.x - 340) + Math.abs(spot.y)).toBeLessThanOrEqual(400);
+		expect(ops[8].links).toEqual([{ from: 'b1', to: 'p1' }, { from: 'b1', to: 'p2' }, { from: 'b2', to: 'p3' }]);
 		expect(done.added).toBe(3);
+		expect(done.issues).toBeUndefined();
 		expect(done.pulled).toEqual([
 			{ from: 'b1', title: 'Writing again', pictures: 1, quotes: ['I re-built this site on IndieWeb protocols!'], left_out: { images: 0, quotes: 2 } },
 			{ from: 'b2', title: 'Calm technology', pictures: 0, quotes: ['Technology should require the smallest possible amount of…'] },
 			{ from: 'b3', title: 'Deep Listening', pictures: 0, quotes: [], note: 'Books have no page to take pictures or quotes from.' }
 		]);
+	});
+
+	test('an Are.na channel or block is pulled through Are.na, never from its web page', async () => {
+		const asked: string[] = [];
+		const savesFetch = (async (input: RequestInfo | URL) => {
+			const url = String(input instanceof Request ? input.url : input);
+			asked.push(url);
+			if (url.includes('/channels/index-of-calm-technologies/contents')) return Response.json({ data: [
+				{ id: 1, type: 'Image', title: 'Tea kettle', image: { src: 'https://d2w9rnfcy7mm78.cloudfront.net/1/kettle.jpg' }, visibility: 'public' },
+				{ id: 2, type: 'Text', title: '', content: { plain: 'If a technology works well, we can ignore it most of the time.' }, visibility: 'public' },
+				{ id: 3, type: 'Channel', title: 'Nested', slug: 'nested', visibility: 'public' }
+			], meta: { total_count: 3, has_more_pages: false } });
+			if (url.includes('/channels/index-of-calm-technologies')) return Response.json({ id: 9, type: 'Channel', slug: 'index-of-calm-technologies', title: 'Index of Calm Technologies', owner: { slug: 'casey-gollan' }, visibility: 'public' });
+			if (url.includes('/blocks/77/connections')) return Response.json({ data: [], meta: {} });
+			if (url.includes('/blocks/77')) return Response.json({ id: 77, type: 'Link', title: 'Glow', source: { url: 'https://macwright.org/glow' }, description: { plain: 'A road in technology not taken.' }, visibility: 'public' });
+			if (url.startsWith('https://macwright.org/glow')) return new Response('<html><head><title>Glow</title></head><body><article><h1>Glow</h1><p>The glow was a way for a device to say something without asking for anything back.</p><img src="/glow.jpg" width="800" alt="An orb"></article></body></html>', { headers: { 'content-type': 'text/html' } });
+			return new Response('{}', { status: 404 });
+		}) as typeof fetch;
+		const ops: { op: string; blocks?: { kind: string; url: string; title: string; excerpt?: string; image?: string }[] }[] = [];
+		const table = [
+			{ id: 'c1', type: 'arena', title: 'Index of Calm Technologies', url: 'https://www.are.na/casey-gollan/index-of-calm-technologies', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'a1', type: 'arena', title: 'Glow', url: 'https://www.are.na/block/77', x: 0, y: 600, w: 240, h: 240 }
+		];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => table, selected: ['c1', 'a1'], savesFetch });
+		const done = JSON.parse(await out(tool('table_pull'), {}));
+		expect(ops.some((op) => op.op === 'add_pieces')).toBe(false);
+		expect(asked.some((url) => url.startsWith('https://www.are.na/'))).toBe(false);
+		const [channel, block] = ops.filter((op) => op.op === 'add_blocks');
+		// The channel's blocks: its picture, and its text as a quote; the channel inside it is left.
+		expect(channel.blocks).toMatchObject([
+			{ kind: 'image', url: 'https://www.are.na/block/1', title: 'Tea kettle', image: 'https://d2w9rnfcy7mm78.cloudfront.net/1/kettle.jpg' },
+			{ kind: 'quote', url: expect.stringMatching(/^https:\/\/www\.are\.na\/block\/2#:~:text=If/), title: 'Index of Calm Technologies', excerpt: 'If a technology works well, we can ignore it most of the time.' }
+		]);
+		// A saved link: its own description, then the page it links to.
+		expect(block.blocks!.map((one) => one.kind)).toEqual(['quote', 'quote', 'image']);
+		expect(block.blocks![1]).toMatchObject({ title: 'Glow', excerpt: expect.stringContaining('without asking for anything back') });
+		expect(block.blocks![2]).toMatchObject({ image: 'https://macwright.org/glow.jpg' });
+		expect(done.added).toBe(5);
 	});
 
 	test('a context pull of the whole table reads every block but the pieces already pulled', async () => {
@@ -704,7 +752,7 @@ describe('the chat’s tools', () => {
 
 	test('table_pull finds blocks by title words, and says which it couldn’t', async () => {
 		const ops: { op: string; block?: string; quotes?: boolean; match?: string[] }[] = [];
-		const blocks = [{ id: 'b1', type: 'arena', title: 'Ursula K. Le Guin: The Carrier Bag Theory', url: 'https://www.are.na/block/1', x: 0, y: 0, w: 240, h: 240 }];
+		const blocks = [{ id: 'b1', type: 'link', title: 'Ursula K. Le Guin: The Carrier Bag Theory', url: 'https://example.com/carrier-bag', x: 0, y: 0, w: 240, h: 240 }];
 		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, pieces: () => ({ added: [{ id: 'p1', kind: 'quote', text: 'A leaf a gourd a shell a net' }] }) });
 		await out(tool('table_pull'), { blocks: ['le guin'], images: false, match: ['gourd'] });
 		expect(ops[1]).toMatchObject({ op: 'add_pieces', block: 'b1', images: false, quotes: true, match: ['gourd'] });
