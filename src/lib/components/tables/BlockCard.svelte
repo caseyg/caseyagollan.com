@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { blockIcon, KIND_LABEL, type Block } from '$lib/tables';
-	import { fetchSourcePost, isSocialPiece, isSourcePost, sourceView, type SourceView } from '$lib/table-post-source';
+	import { fetchSourcePost, isSitePostLink, isSocialPiece, isSourcePost, sourceView, type SourceView } from '$lib/table-post-source';
 	import ArenaBlock from './ArenaBlock.svelte';
 	import SocialBlock from './SocialBlock.svelte';
 
@@ -31,7 +31,8 @@
 	let fetched = $state<SourceView>(null);
 	$effect(() => {
 		fetched = null;
-		if (!native || source !== undefined || !isSourcePost(block)) return;
+		// A plain link to one of the site's posts (an older table's) draws as that post too.
+		if (!native || source !== undefined || !(isSourcePost(block) || isSitePostLink(block))) return;
 		let current = true;
 		void fetchSourcePost(block.url).then((post) => {
 			if (current) fetched = sourceView(post);
