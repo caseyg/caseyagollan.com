@@ -21,6 +21,7 @@ import {
 } from 'tldraw';
 import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
+import type { ChatSelectionItem } from '$lib/chat';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
@@ -39,6 +40,8 @@ export interface TableState {
 	selected?: Block;
 	/** Whether the selected blocks show their details (source line and kind tile); unset when none are selected. */
 	details?: 'shown' | 'hidden' | 'mixed';
+	/** Everything selected, briefly (id, kind, title or first words), for the chat to act on. */
+	selection: ChatSelectionItem[];
 }
 
 /** What the Svelte page drives the canvas with. */
@@ -53,6 +56,8 @@ export interface TableApi {
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
+	/** Clears the selection. */
+	deselect(): void;
 	undo(): void;
 	redo(): void;
 	zoomToFit(): void;
@@ -155,6 +160,7 @@ function apiFor(editor: Editor): TableApi {
 			editor.markHistoryStoppingPoint('toggle details');
 			editor.updateShapes(blocks.map((shape) => ({ id: shape.id, type: BLOCK_SHAPE, props: { hideMeta: !shown } })));
 		},
+		deselect: () => editor.selectNone(),
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
 		zoomToFit: () => editor.zoomToFit({ animation: { duration: 220 } }),
@@ -172,7 +178,8 @@ function apiFor(editor: Editor): TableApi {
 						.filter((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE))
 						.map((shape) => blockKey((shape as SiteBlockShape).props)),
 					selected: only && editor.isShapeOfType(only, BLOCK_SHAPE) ? blockOf((only as SiteBlockShape).props) : undefined,
-					details: detailsOf(selectedBlocks(editor))
+					details: detailsOf(selectedBlocks(editor)),
+					selection: editor.getSelectedShapes().map((shape) => selectionItem(editor, shape))
 				});
 			});
 		}
@@ -205,6 +212,18 @@ function itemOf(editor: Editor, shape: TLShape): TableItem {
 		...base, ...parent, type: shape.type, ...(text ? { text: text.slice(0, 400) } : {}),
 		...(ends?.start ? { from: ends.start.toId.replace(/^shape:/, '') } : {}), ...(ends?.end ? { to: ends.end.toId.replace(/^shape:/, '') } : {})
 	};
+}
+
+/** A selected shape as the chat is told of it: enough to name it, not its whole text. */
+function selectionItem(editor: Editor, shape: TLShape): ChatSelectionItem {
+	const id = shape.id.replace(/^shape:/, '');
+	if (editor.isShapeOfType(shape, BLOCK_SHAPE)) {
+		const props = (shape as SiteBlockShape).props;
+		return { id, type: props.kind, ...(props.title || props.excerpt ? { title: (props.title || props.excerpt).slice(0, 80) } : {}) };
+	}
+	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
+	const words = (shape.type === 'frame' ? (shape.props as { name: string }).name : rich ? renderPlaintextFromRichText(editor, rich) : '').replace(/\s+/g, ' ').trim();
+	return { id, type: shape.type, ...(words ? { title: words.slice(0, 80) } : {}) };
 }
 
 /** Shapes that take up room on the table; arrows and drawings run over things by design. */

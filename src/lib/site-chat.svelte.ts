@@ -3,6 +3,7 @@
  * page says which table it shows, its own thread (taken up when no chat is going yet), and
  * how to make the changes the assistant asks for.
  */
+import type { ChatSelectionItem } from './chat';
 import type { TableOpEvent, TableOpResult } from './table-agent';
 
 export interface ChatTableContext {
@@ -10,6 +11,10 @@ export interface ChatTableContext {
 	/** The table's own thread, used when there's no chat going yet. */
 	thread?: string;
 	ontableop: (event: TableOpEvent) => Promise<TableOpResult>;
+	/** What is selected on the canvas now, sent with each message so the assistant can act on just that. */
+	readonly selection?: ChatSelectionItem[];
+	/** Clears the canvas's selection, from the chip above the composer. */
+	deselect?: () => void;
 }
 
 class SiteChatState {

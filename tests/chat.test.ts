@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { chatAgo, chatPage, chatTitle, latestAssistantLine, threadTitle, type ChatMessage } from '../src/lib/chat';
+import { chatAgo, chatPage, chatSelection, chatTitle, sayPrefix, latestAssistantLine, threadTitle, type ChatMessage } from '../src/lib/chat';
 import { readableMarkdown } from '../src/lib/server/chat/fetch-page';
 import { chatViewer, startVisitorSession, viewerFrom, withViewer, VIEWER_HEADER } from '../src/lib/server/chat/identity';
 import { discoverIndieAuth, finishLogin, instanceOrigin, LOGIN_COOKIE, profileAddress, safeReturn, startLogin } from '../src/lib/server/chat/login';
@@ -293,6 +293,39 @@ describe('chatPage', () => {
 	});
 });
 
+describe('what Casey has selected on a table', () => {
+	test('a selection is cleaned up: ids, kinds and a few words, no repeats', () => {
+		expect(chatSelection([{ id: 'shape:b1', type: 'post', title: '  Writing\n again ' }, { id: 'b1', type: 'post' }, { id: 'n 1' }, { id: 'n2', type: 'note', title: 3 }, null])).toEqual({ count: 2, items: [{ id: 'b1', type: 'post', title: 'Writing again' }, { id: 'n2', type: 'note' }] });
+		expect(chatSelection([])).toBeNull();
+		expect(chatSelection('b1')).toBeNull();
+		expect(chatSelection(Array.from({ length: 150 }, (_, index) => ({ id: `s${index}`, type: 'note' })))?.count).toBe(100);
+	});
+
+	test('the model reads it before the message, with ids to act on', () => {
+		const who = 'Casey Gollan (Casey, the site’s owner)';
+		const page = { path: '/tables/abc123', title: 'Scratch', table: 'abc123' };
+		expect(sayPrefix(who, 'https://caseyagollan.com/', page)).toBe('Casey Gollan (Casey, the site’s owner) wrote while on https://caseyagollan.com/tables/abc123 (“Scratch”), a table:');
+		expect(sayPrefix(who, 'https://caseyagollan.com/', page, chatSelection([{ id: 'b1', type: 'post', title: 'Writing again' }, { id: 'n1', type: 'note' }])))
+			.toBe('Casey Gollan (Casey, the site’s owner) wrote while on https://caseyagollan.com/tables/abc123 (“Scratch”), a table, with 2 things selected on the table (b1 (post “Writing again”), n1 (note)):');
+		const many = sayPrefix(who, 'https://caseyagollan.com/', page, chatSelection(Array.from({ length: 40 }, (_, index) => ({ id: `s${index}`, type: 'note' }))));
+		expect(many).toContain('with 40 things selected');
+		expect(many).toContain('s23 (note), and 16 more');
+		expect(sayPrefix('Ana', 'https://caseyagollan.com/')).toBe('Ana wrote:');
+	});
+
+	test('a message keeps what was selected when it was written', () => {
+		const { projectMessages, SAY_KIND } = require('../src/lib/server/chat/projection') as typeof import('../src/lib/server/chat/projection');
+		const casey = { id: 'owner', name: 'Casey', via: 'owner' as const };
+		const selection = { count: 2, items: [{ id: 'b1', type: 'post', title: 'Writing again' }, { id: 'n1', type: 'note' }] };
+		const messages = projectMessages([
+			{ id: 'e1', kind: SAY_KIND, data: { id: 'm1', author: casey, owner: true, at: 1000, text: 'Frame these', selection } },
+			{ id: 'e2', kind: SAY_KIND, data: { id: 'm2', author: casey, owner: true, at: 2000, text: 'Thanks' } }
+		], {}, 3000);
+		expect(messages[0].selection).toEqual(selection);
+		expect(messages[1].selection).toBeUndefined();
+	});
+});
+
 describe('go_to a table', () => {
 	test('waits for the table to open, so the same answer can fill it', async () => {
 		const { chatExtension } = await import('../src/lib/server/chat/tools');
@@ -420,7 +453,7 @@ describe('the chat’s tools', () => {
 	} } as unknown as Fetcher;
 	const out = async (tool: { execute: (...args: never[]) => unknown }, args: unknown) => ((await (tool.execute as (args: unknown, api: unknown, context: unknown) => Promise<{ output: { text: string }[] }>)(args, {}, {})).output[0].text);
 
-	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; pieces?: (op: { block: string }) => unknown } = {}) {
+	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown } = {}) {
 		const { chatExtension } = await import('../src/lib/server/chat/tools');
 		const went: string[] = [];
 		const ops = options.ops ?? [];
@@ -441,7 +474,9 @@ describe('the chat’s tools', () => {
 			createTable: async () => ({ id: 'new123', url: '/tables/new123' }),
 			navigate: async (path: string) => { went.push(path); return true; },
 			tableOpened: async () => true,
-			page: () => ({ path: '/2026/11/17/writing-again/' })
+			page: () => ({ path: '/2026/11/17/writing-again/' }),
+			// What Casey had selected when writing the message being answered.
+			selection: () => options.asked ?? []
 		};
 		const extension = chatExtension({ env: { ASSETS: assets } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
 		const tool = (name: string) => extension.tools!.find((one) => one.name === name)!;
@@ -595,6 +630,51 @@ describe('the chat’s tools', () => {
 		expect(ops[1]).toMatchObject({ op: 'add_pieces', block: 'b1', images: false, quotes: true, match: ['gourd'] });
 		expect(out(tool('table_pull'), { blocks: ['oliveros'] })).rejects.toThrow('No block on the table matches “oliveros”. The blocks are: b1 “Ursula K. Le Guin: The Carrier Bag');
 		expect(out(tool('table_pull'), {})).rejects.toThrow('Casey has no blocks selected');
+	});
+
+	test('“selected” in any tool’s ids means what Casey had selected when asking', async () => {
+		const ops: Record<string, unknown>[] = [];
+		const items = [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: '/a', text: 'I want to write here more often, in public, in small pieces, and this excerpt runs on well past a hundred characters so it gets cut.', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'book', title: 'Deep Listening', url: '/library/1', x: 300, y: 0, w: 180, h: 300 },
+			{ id: 'n1', type: 'note', text: 'Attention', x: 600, y: 0, w: 200, h: 200 }
+		];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => items, asked: ['b1', 'n1'] });
+		await out(tool('table_arrange'), { layout: 'row', ids: ['selected'] });
+		expect(ops[0]).toMatchObject({ op: 'arrange', layout: 'row', ids: ['b1', 'n1'] });
+		await out(tool('table_group'), { ids: ['selected', 'b2'], name: 'Reading' });
+		expect(ops.find((op) => op.op === 'frame')).toMatchObject({ name: 'Reading', ids: ['b1', 'n1', 'b2'] });
+		await out(tool('table_edit'), { edits: [{ id: 'selected', color: 'red' }], remove: ['selection'] });
+		expect(ops.find((op) => op.op === 'edit')).toMatchObject({ edits: [{ id: 'b1', color: 'red' }, { id: 'n1', color: 'red' }] });
+		expect(ops.find((op) => op.op === 'remove')).toMatchObject({ ids: ['b1', 'n1'] });
+		await out(tool('table_draw'), { strokes: [{ around: 'selected', color: 'blue' }] });
+		expect(ops.find((op) => op.op === 'draw')).toMatchObject({ strokes: [{ around: 'b1', color: 'blue' }, { around: 'n1', color: 'blue' }] });
+		await out(tool('table_select'), { ids: ['these'] });
+		expect(ops.find((op) => op.op === 'select')).toMatchObject({ ids: ['b1', 'n1'] });
+		await out(tool('table_add'), { items: [{ note: 'Next' }], below: 'selected' });
+		expect(ops.find((op) => op.op === 'add_notes')).toMatchObject({ below: 'b1' });
+		const { toolLabel } = await import('../src/lib/server/chat/projection');
+		// Reading the selection: just those items, with all their words.
+		const read = JSON.parse(await out(tool('table_read'), { ids: ['selected'] })) as { items: { id: string; text?: string }[] };
+		expect(read.items.map((item) => item.id)).toEqual(['b1', 'n1']);
+		expect(read.items[0].text).toEndWith('so it gets cut.');
+		expect(toolLabel('table_read', { ids: ['selected'] })).toBe('Read the selected items');
+		expect(toolLabel('table_arrange', { layout: 'row', ids: ['selected'] })).toBe('Arranged the selected items in a row');
+		expect(toolLabel('table_edit', { edits: [{ id: 'selected', color: 'red' }] })).toBe('Edited the selected items');
+	});
+
+	test('with nothing selected, “selected” says so rather than acting on everything', async () => {
+		const { tool } = await setup({ table: 'abc123' });
+		expect(out(tool('table_edit'), { remove: ['selected'] })).rejects.toThrow('Casey had nothing selected on the table');
+		expect(out(tool('table_arrange'), { layout: 'grid', ids: ['selected'] })).rejects.toThrow('Casey had nothing selected');
+	});
+
+	test('table_pull uses the selection Casey asked with, not what the run selected since', async () => {
+		const ops: { op: string; block?: string }[] = [];
+		const blocks = [{ id: 'b1', type: 'post', title: 'Writing again', url: '/a', x: 0, y: 0, w: 240, h: 240 }, { id: 'b2', type: 'link', title: 'Calm technology', url: 'https://calmtech.com/', x: 0, y: 400, w: 240, h: 240 }];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, selected: ['b2'], asked: ['b1'], pieces: () => ({ added: [{ id: 'p1', kind: 'quote', text: 'Small pieces' }] }) });
+		await out(tool('table_pull'), {});
+		expect(ops.filter((op) => op.op === 'add_pieces').map((op) => op.block)).toEqual(['b1']);
 	});
 
 	test('an empty item leaves a cell of a grid of notes open', async () => {
