@@ -1,11 +1,11 @@
 <script lang="ts" module>
-	/** Folded to a 💬 button, or open: a sidebar beside the page, or a bottom sheet on narrow screens. */
+	/** Folded to a round floating button, or open: the side panel beside the page, or a bottom sheet on narrow screens. */
 	export type ChatOverlayMode = 'minimized' | 'docked';
 </script>
 
 <script lang="ts">
 	import { latestAssistantLine, type ChatMessage, type ChatSelectionItem, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
-	import { BottomSheet, Button, Notice } from '$lib/components/ui';
+	import { BottomSheet, Button, FloatingButton, Notice, SidePanel, type FloatingCorner } from '$lib/components/ui';
 	import ChatConversation from './ChatConversation.svelte';
 	import ChatPromptInput from './ChatPromptInput.svelte';
 	import ChatSelection from './ChatSelection.svelte';
@@ -30,6 +30,8 @@
 		signinError?: string | null;
 		offline?: boolean;
 		placeholder?: string;
+		/** The corner of the page the folded chat's button floats in. Leave out to show it in place. */
+		launcher?: FloatingCorner;
 		/** Docked means a bottom sheet instead of a sidebar, for screens too narrow to share. */
 		sheet?: boolean;
 		/** The bottom sheet is pulled up; folded, it shows the newest reply's last line and the composer. */
@@ -54,7 +56,7 @@
 		ondeselect?: () => void;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect }: Props = $props();
+	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect }: Props = $props();
 
 	/** Showing the list of chats instead of the conversation. */
 	let listing = $state(false);
@@ -77,11 +79,19 @@
 	}
 </script>
 
-{#snippet titleBar()}
+{#snippet heading()}
 	{#if listing}<span class="title">Chats</span>{:else if href}<a class="title" {href}>{title}</a>{:else}<span class="title">{title}</span>{/if}
+{/snippet}
+
+{#snippet controls()}
+	{#if onpick}<Button variant="icon" size="sm" icon="properties" label="All chats" pressed={listing} onclick={toggleList} />{/if}
+	{#if onnew}<Button variant="icon" size="sm" icon="plus" label="New chat" onclick={() => { listing = false; onnew(); }} />{/if}
+{/snippet}
+
+{#snippet titleBar()}
+	{@render heading()}
 	<div class="controls">
-		{#if onpick}<Button variant="icon" size="sm" icon="properties" label="All chats" pressed={listing} onclick={toggleList} />{/if}
-		{#if onnew}<Button variant="icon" size="sm" icon="plus" label="New chat" onclick={() => { listing = false; onnew(); }} />{/if}
+		{@render controls()}
 		<Button variant="icon" size="sm" icon="close" label="Minimize the chat" onclick={() => (mode = 'minimized')} />
 	</div>
 {/snippet}
@@ -108,16 +118,13 @@
 {/snippet}
 
 <!--
-	A chat beside something else on the page, such as a table's canvas: a round 💬 button when folded,
-	or a sidebar the page makes room for (`data-mode="docked"`).
+	A chat beside something else on the page, such as a table's canvas: a round floating button when
+	folded, or the site's side panel, which the page makes room for.
 	With `sheet`, docked is a bottom sheet instead, which folds to the newest reply's last line and the
 	composer so the page above stays usable, and keeps its place in the conversation while folded.
 -->
 {#if mode === 'minimized'}
-	<button type="button" class="chat-overlay-pill" onclick={() => (mode = 'docked')} aria-label="Open the chat, {title}" title="Chat">
-		<span aria-hidden="true">💬</span>
-		{#if working}<span class="pill-dot" aria-label="writing"></span>{/if}
-	</button>
+	<FloatingButton corner={launcher} icon="chat" label="Open the chat, {title}" busy={working} busyLabel="writing" onclick={() => (mode = 'docked')} />
 {:else if mode === 'docked' && sheet}
 	<BottomSheet class="chat-overlay chat-overlay--sheet" label="Chat: {title}" bind:expanded={sheetExpanded} bind:restHeight={sheetRestHeight} expandLabel="Show the whole chat" collapseLabel="Fold the chat down to see the table">
 		{#snippet header()}<div class="bar">{@render titleBar()}</div>{/snippet}
@@ -131,49 +138,18 @@
 		<div class="scroll">{@render conversation()}</div>
 	</BottomSheet>
 {:else}
-	<section class="chat-overlay" data-mode={mode} aria-label="Chat: {title}">
-		<header class="bar">{@render titleBar()}</header>
-		<div class="scroll">{@render conversation()}</div>
-		<footer class="composer">{@render composer()}</footer>
-	</section>
+	<SidePanel class="chat-overlay" label="Chat: {title}" compact onclose={() => (mode = 'minimized')} closeLabel="Minimize the chat" style="--side-panel-width: var(--chat-dock-width); --side-panel-offset: 0px">
+		{#snippet header()}<div class="heading">{@render heading()}</div>{/snippet}
+		{#snippet actions()}{@render controls()}{/snippet}
+		{#snippet footer()}<div class="composer composer--panel">{@render composer()}</div>{/snippet}
+		{@render conversation()}
+	</SidePanel>
 {/if}
 
 <style>
 	/* Its own type size, whatever the page around it uses (a table's page is scaled for its canvas). */
-	.chat-overlay-pill,
-	.chat-overlay {
+	:global(.chat-overlay) {
 		font-size: var(--fs-base);
-	}
-
-	/* A round button with only the speech balloon; a dot on its corner while the assistant writes. */
-	.chat-overlay-pill {
-		position: relative;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 3rem;
-		height: 3rem;
-		padding: 0;
-		font-size: 1.4rem;
-		line-height: 1;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-full);
-		background: var(--bg-primary);
-		box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
-		color: var(--text-primary);
-		font-family: inherit;
-		cursor: pointer;
-		transition: border-color var(--duration) var(--ease);
-	}
-
-	.chat-overlay-pill:hover {
-		border-color: var(--border-strong);
-	}
-
-	.chat-overlay-pill .pill-dot {
-		position: absolute;
-		top: 0.35rem;
-		right: 0.35rem;
 	}
 
 	.pill-dot {
@@ -190,17 +166,9 @@
 		}
 	}
 
-	.chat-overlay {
+	.heading {
 		display: flex;
-		flex-direction: column;
-		min-height: 0;
-		background: var(--bg-primary);
-		color: var(--text-primary);
-	}
-
-	.chat-overlay[data-mode='docked'] {
-		height: 100%;
-		border-left: 1px solid var(--border);
+		min-width: 0;
 	}
 
 	.bar {
@@ -232,17 +200,10 @@
 		gap: var(--space-1);
 	}
 
+	/* The sheet's body scrolls; this only pads it. */
 	.scroll {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
 		padding: var(--space-1) var(--space-3);
 		font-size: var(--fs-sm);
-	}
-
-	/* In the sheet, the sheet's body scrolls; this only pads it. */
-	:global(.chat-overlay--sheet) .scroll {
-		overflow: visible;
 	}
 
 	:global(.chat-overlay--sheet) {
@@ -291,5 +252,11 @@
 		gap: var(--space-2);
 		padding: var(--space-2);
 		border-top: 1px solid var(--border);
+	}
+
+	/* The side panel pads and rules its own footer. */
+	.composer--panel {
+		padding: 0;
+		border-top: 0;
 	}
 </style>

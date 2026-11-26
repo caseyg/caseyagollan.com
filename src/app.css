@@ -104,6 +104,9 @@
 	--nav-height: calc(var(--fs-sm) * var(--lh-normal) + 2 * var(--space-1));
 	--nav-lane: calc(var(--nav-inset) + var(--nav-height));
 
+	/* The docked chat's sidebar (SiteChat); pages make this much room for it. */
+	--chat-dock-width: 24rem;
+
 	--focus-ring: 2px solid var(--text-primary);
 	--z-sticky: 10;
 	--z-menu: 100;
@@ -186,8 +189,13 @@ body {
 
 /* Room for Casey's docked chat (SiteChat): a sidebar on wide screens, its folded sheet on narrow ones. */
 @media (min-width: 900px) {
+	html[data-chat-dock='side'] {
+		/* Another side panel (a library book's details) stands beside the chat, not under it. */
+		--side-panel-offset: calc(var(--chat-dock-width) + var(--nav-inset));
+	}
+
 	html[data-chat-dock='side'] body {
-		padding-right: 24rem;
+		padding-right: calc(var(--chat-dock-width) + 2 * var(--nav-inset));
 	}
 }
 

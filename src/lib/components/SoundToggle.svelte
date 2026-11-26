@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/ui';
+	import { FloatingButton } from '$lib/components/ui';
 	import { usePageCommands } from '$lib/page-commands.svelte';
 	import { sound } from '$lib/sound.svelte';
 
@@ -31,26 +31,4 @@
 	The sounds of the page this sits on, on or off: one choice for the whole site, remembered.
 	A speaker while sound is on, a slashed speaker while it's off. Only pages that make sound show it.
 -->
-<div class="sound-toggle" class:floating>
-	<Button variant="icon" icon={on ? 'volume' : 'volume-off'} label={on ? 'Turn sound off' : 'Turn sound on'} onclick={toggle} />
-</div>
-
-<style>
-	.sound-toggle :global(.button--icon) {
-		border-color: var(--border);
-		background: var(--bg-primary);
-	}
-
-	.floating {
-		position: fixed;
-		left: calc(var(--nav-inset) + env(safe-area-inset-left));
-		bottom: calc(var(--nav-inset) + env(safe-area-inset-bottom));
-		z-index: var(--z-nav);
-	}
-
-	/* Just above the chat's folded bottom sheet on phones, and under it when it's pulled up. */
-	:global(html[data-chat-dock='sheet']) .floating {
-		bottom: calc(var(--chat-sheet-rest, 0px) + var(--nav-inset));
-		z-index: calc(var(--z-menu) - 1);
-	}
-</style>
+<FloatingButton corner={floating ? 'bottom-left' : undefined} icon={on ? 'volume' : 'volume-off'} label={on ? 'Turn sound off' : 'Turn sound on'} onclick={toggle} />
