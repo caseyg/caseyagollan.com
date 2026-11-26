@@ -25,7 +25,11 @@ import { MICROPUB_TOOLS, micropubMcpClient, type MicropubCall } from './micropub
 import { SAY_KIND, type SayData } from './projection';
 import { daysBefore, findDocuments, loadAgentIndex, localDate, searchDocuments, SEARCH_TYPES, type AgentSearchDocument } from './site-search';
 import { publishingConfig, type PublishingEnvironment } from '../publishing/config';
-import { ARENA_ICON, type Block } from '../../tables';
+import { ARENA_ICON, blockKey, type Block } from '../../tables';
+import { passageUrl, pickPieces, remotePiecesUrl, type PieceChoice } from '../../table-pieces';
+import { freeSpot, gridLayout } from '../../table-layout';
+import { remotePagePieces } from '../table-pieces';
+import { safePublicFetch } from '../publishing/public-fetch';
 import { TABLE_ALIGNS, TABLE_ARRANGEMENTS, TABLE_COLORS, TABLE_DIRECTIONS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, tableListing, type TableCluster, type TableAlign, type TableColor, type TableItem, type TableLink, type TableNote, type TablePlace, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
 import { imageFromDataUrl, viewImage } from './view-image';
 import { SAVE_SOURCES, SOURCE_NAME, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavedItem, type SavedPage, type SaveSource, type SavesDeps, type SavesEnv } from '../saves';
@@ -206,7 +210,7 @@ const TABLE_SECTION = [
 		'- Casey’s selection: a message written with things selected on the table says so, with their ids and titles. “These”, “this”, “them”, “the selected ones”, or an ask about particular things that doesn’t name them, mean just those: act on them alone, by their ids or with ["selected"] wherever a tool takes ids (`ids`, `remove`, an edit’s `id`, `around`, `below`, `blocks`). Don’t table_read to find them. To summarize, compare or quote them, table_read with ids ["selected"] gives just their words and urls in one call; fetch_page a url only if that isn’t enough. When Casey names other things or says the whole table, the selection doesn’t matter.',
 		'- What is on the table is listed at the end of these instructions, current at every step, your own changes included: each item’s id, kind, first words and measured box (canvas units; x grows right, y grows down; the dot grid is 20). Work from that list; don’t table_read to find things or to check your work. The list clips words: table_read with `ids` gives those items’ whole text, for summarizing, comparing or quoting them. table_read with no ids is only for a list that says it was cut short.',
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
-		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s page and adds its pictures and best passages beside it, framed and joined to it by an arrow. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
+		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s source and adds its pictures and best passages beside it, each joined to it by a line. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
 		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
 		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
 		'- Don’t guess sizes. Blocks are about 240×240 (books 180×300); sticky notes are 200 wide and grow taller with their text; text cards wrap at the width you give (320 to 480 reads well). Use `below` or `right_of` an id, rather than coordinates, to put new things beside what they belong with, and leave 80 to 120 units between sections.',
@@ -531,6 +535,36 @@ export function chatExtension(deps: ToolDeps): Extension {
 			throw new Error('That service couldn’t be reached just now. Tell Casey, and don’t try again this turn.');
 		}
 	};
+	/**
+	 * The pieces of an Are.na channel or block, asked of Are.na itself (its pages are an app's empty
+	 * shell): a channel's blocks (their pictures, and text blocks as quotes), or one block's own
+	 * picture and words and, for a saved link, the pictures and passages of the page it links to.
+	 */
+	const arenaPieces = async (address: string, arena: { block?: string }): Promise<Block[]> => {
+		const piece = (item: { title: string; url: string; image?: unknown; text?: unknown }, from?: string): Block | null => {
+			const words = typeof item.text === 'string' ? item.text.replace(/\s+/g, ' ').trim() : '';
+			if (typeof item.image === 'string' && item.image) return { kind: 'image', url: item.url, title: item.title || from || 'Are.na', meta: from ? `From ${from}` : 'Are.na', image: item.image };
+			return words ? { kind: 'quote', url: passageUrl(item.url, words), title: from ?? item.title, excerpt: words.slice(0, 600) } : null;
+		};
+		if (arena.block) {
+			const block = await savedItem(savesDeps(), 'arena', arena.block) as { title?: string; url?: string; image?: string; content?: string; description?: string; source?: string };
+			const base = { title: block.title ?? 'Are.na block', url: block.url ?? address };
+			const own = [piece({ ...base, image: block.image }), piece({ ...base, text: block.content ?? block.description })].filter((one): one is Block => !!one);
+			const source = block.source && remotePiecesUrl({ kind: 'link', url: block.source });
+			const page = source ? await remotePagePieces(source, deps.savesFetch ?? (((url: string, init?: RequestInit) => safePublicFetch(url, init)) as typeof fetch)).catch(() => [] as Block[]) : [];
+			return [...own, ...page];
+		}
+		const page = await savedAll(savesDeps(), 'arena', { in: address }, 100);
+		return page.items.filter((item) => item.kind !== 'channel').map((item) => piece(item, page.place?.title)).filter((one): one is Block => !!one);
+	};
+	/** A context pull from an Are.na block on the table: its pieces chosen here, and set down by Casey's page. */
+	const pullArena = async (source: TableItem, arena: { block?: string }, choice: PieceChoice, onTable: TableItem[]) => {
+		const there = new Set(onTable.map((item) => blockKey({ url: item.url ?? '', image: item.image })));
+		const { picked, more } = pickPieces((await saves(() => arenaPieces(source.url!, arena))).filter((one) => !there.has(blockKey(one))), choice);
+		if (!picked.length) return { added: [], note: arena.block ? 'This Are.na block has no picture or text to pull, and its link (if it has one) couldn’t be read.' : 'This channel has no pictures or text blocks that aren’t on the table already.' };
+		const ids = idsOf((await run({ op: 'add_blocks', blocks: picked, columns: Math.min(picked.length, 3), at: { x: source.x + source.w + 100, y: source.y } })).added);
+		return { added: ids.map((id, index) => ({ id, kind: picked[index].kind, text: (picked[index].excerpt ?? picked[index].title).slice(0, 80) })), more };
+	};
 	const mySaves: ToolRegistration = {
 		name: SAVES_TOOL,
 		description: [
@@ -827,7 +861,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_pull',
-			description: 'Context pull: take the pictures and quotes out of one block, several, or the whole table, in one call. Each block’s page (post, link, wiki page, Are.na or Raindrop save) is read, and its pictures and most quotable passages are added as their own cards beside it, in a frame joined to the block by an arrow. Leave out `blocks` for the ones Casey has selected; ["all"] for every block on the table. Reports what it added, with each quote’s opening words.',
+			description: 'Context pull: take the pictures and quotes out of one block, several, or the whole table, in one call. Each block’s source is read (a post, wiki page or link’s page; an Are.na channel’s blocks; an Are.na block’s own picture and text and the page it links to), and its pictures and most quotable passages are added as their own cards beside it, each joined to the block by a line. Leave out `blocks` for the ones Casey has selected; ["all"] for every block on the table. Reports what it added, with each quote’s opening words.',
 			parameters: {
 				type: 'object',
 				properties: {
@@ -861,7 +895,9 @@ export function chatExtension(deps: ToolDeps): Extension {
 				if (!choice.images && !choice.quotes) throw new Error('Ask for pictures, quotes or both.');
 				const added: string[] = [], pulled: Record<string, unknown>[] = [], links: TableLink[] = [];
 				for (const source of chosen) {
-					const result = await run({ op: 'add_pieces', block: source.id, ...choice }).catch((error: Error) => ({ error: error.message })) as { added?: { id: string; kind: string; text?: string }[]; more?: { images: number; quotes: number }; note?: string; error?: string };
+					// An are.na page is an app's empty shell (placeholder words until its script runs): Are.na itself is asked instead.
+					const arena = arenaAddress(source.url ?? '');
+					const result = await (arena ? pullArena(source, arena, choice, blocks) : run({ op: 'add_pieces', block: source.id, ...choice })).catch((error: Error) => ({ error: error.message })) as { added?: { id: string; kind: string; text?: string }[]; more?: { images: number; quotes: number }; note?: string; error?: string };
 					const got = result.added ?? [];
 					const more = result.more && (result.more.images || result.more.quotes) ? { left_out: result.more } : {};
 					pulled.push({
@@ -873,17 +909,21 @@ export function chatExtension(deps: ToolDeps): Extension {
 					if (!got.length) continue;
 					const ids = got.map((one) => one.id);
 					added.push(...ids);
-					// Beside the block it came from, gathered in a frame the block points to: one arrow, however many pieces.
-					// Room for the arrow, and for the frame's edge and name, between the block and its pieces.
-					const framed = ids.length > 1;
-					await run({ op: 'arrange', layout: ids.length > 3 ? 'grid' : 'row', ids, columns: Math.min(ids.length, 3), at: { x: source.x + source.w + (framed ? 140 : 100), y: source.y + (framed ? 40 : 0) } });
-					const holder = framed ? idsOf((await run({ op: 'frame', name: `From ${clip(source.title ?? 'this block', 60)}`, ids })).added)[0] : ids[0];
-					if (holder) links.push({ from: source.id, to: holder });
+					// Beside the block they came from, in the nearest open space, so nothing already there has to move; a line from the block to each.
+					const now = ((await run({ op: 'read' })) as { items?: TableItem[] }).items ?? [];
+					const mine = new Set(ids);
+					const boxes = now.filter((item) => mine.has(item.id)).map(({ id, x, y, w, h }) => ({ id, x, y, w, h }));
+					const columns = Math.min(ids.length, ids.length === 4 ? 2 : 3);
+					const set = gridLayout(boxes, columns, { x: 0, y: 0 });
+					const size = { w: Math.max(...set.map((spot) => spot.x + (boxes.find((box) => box.id === spot.id)?.w ?? 0)), 0), h: Math.max(...set.map((spot) => spot.y + (boxes.find((box) => box.id === spot.id)?.h ?? 0)), 0) };
+					const taken = now.filter((item) => !mine.has(item.id) && !item.parent && !['arrow', 'draw', 'line', 'highlight'].includes(item.type));
+					await run({ op: 'arrange', layout: 'grid', ids, columns, at: freeSpot(taken, size, { x: source.x + source.w + 100, y: source.y }) });
+					links.push(...ids.map((id) => ({ from: source.id, to: id })));
 				}
 				if (!added.length) return json({ added: 0, pulled, note: 'Nothing was added: tell Casey what each block’s page had, from `pulled`.' });
-				let issues = (await run({ op: 'tidy' })).issues;
-				if (links.length) issues = (await run({ op: 'connect', links })).issues ?? issues;
-				return report({ added: added.length, pulled, ...(skipped ? { blocks_left: skipped } : {}), note: `Done: tell Casey what you pulled.${skipped ? ` ${skipped} more blocks weren’t pulled from (${PULL_MAX} at a time): say so.` : ''} If \`left_out\` counts more, say so; pull them only if Casey asks.` }, added, issues);
+				if (links.length) await run({ op: 'connect', links });
+				// Each set went into open space, so the layout's other troubles aren't this change's to report.
+				return report({ added: added.length, pulled, ...(skipped ? { blocks_left: skipped } : {}), note: `Done: tell Casey what you pulled.${skipped ? ` ${skipped} more blocks weren’t pulled from (${PULL_MAX} at a time): say so.` : ''} If \`left_out\` counts more, say so; pull them only if Casey asks.` }, added, {});
 			}
 		},
 		{
