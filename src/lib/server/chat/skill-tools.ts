@@ -16,7 +16,7 @@
  */
 import type { ToolRegistration } from '@earendil-works/pi-durable';
 import type { SkillReviewRef } from '../../chat-skills';
-import { getSkill, listSkills, proposeFromSource, proposeSkill, searchRegistry, SkillError, SKILL_PAGE, skillText } from './skills';
+import { getSkill, listSkills, proposeAllFromSource, proposeSkill, searchRegistry, SkillError, SKILL_PAGE, skillText } from './skills';
 
 export const USE_SKILL = 'use_skill';
 export const isSkillTool = (name: string) => name === USE_SKILL || name.startsWith('skill_');
@@ -49,14 +49,20 @@ export function skillTools(deps: SkillToolDeps): ToolRegistration[] {
 			throw new Error('That didn’t work just now. Tell Casey, and don’t try again this turn.');
 		}
 	};
-	const review = (proposal: Awaited<ReturnType<typeof proposeSkill>>) => {
-		const ref: SkillReviewRef = { id: proposal.id, name: proposal.skill.name, description: clip(proposal.skill.description, 300), origin: proposal.skill.origin, ...(proposal.skill.source ? { source: proposal.skill.source } : {}), ...(proposal.replaces ? { replaces: true } : {}) };
-		return text(JSON.stringify({
-			review: ref,
-			...(proposal.notes.length ? { notes: proposal.notes } : {}),
-			status: `Shown to Casey on a card in the chat, to read and add. It is NOT added yet and you can’t add it: only Casey pressing Add does. Say briefly what it is for and that Casey can add it from the card${proposal.replaces ? ' (it would replace the skill of that name)' : ''}; once added, /${proposal.skill.name} uses it.`
-		}));
-	};
+	const refOf = (proposal: Awaited<ReturnType<typeof proposeSkill>>): SkillReviewRef => ({ id: proposal.id, name: proposal.skill.name, description: clip(proposal.skill.description, 300), origin: proposal.skill.origin, ...(proposal.skill.source ? { source: proposal.skill.source } : {}), ...(proposal.replaces ? { replaces: true } : {}) });
+	const review = (proposal: Awaited<ReturnType<typeof proposeSkill>>) => text(JSON.stringify({
+		review: refOf(proposal),
+		...(proposal.notes.length ? { notes: proposal.notes } : {}),
+		status: `Shown to Casey on a card in the chat, to read and add. It is NOT added yet and you can’t add it: only Casey pressing Add does. Say briefly what it is for and that Casey can add it from the card${proposal.replaces ? ' (it would replace the skill of that name)' : ''}; once added, /${proposal.skill.name} uses it.`
+	}));
+	/** Several at once, from a repository or a plugin marketplace: one card, a tick per skill. */
+	const reviewAll = (set: Awaited<ReturnType<typeof proposeAllFromSource>>) => text(JSON.stringify({
+		reviews: set.proposals.map((proposal) => ({ ...refOf(proposal), description: clip(proposal.skill.description, 160) })),
+		from: set.repository,
+		total: set.total,
+		...(set.notes.length ? { notes: set.notes } : {}),
+		status: `${set.proposals.length} skills are shown to Casey on one card in the chat, each to read, tick and add. NONE is added yet and you can’t add them: only Casey pressing Add does. Say in a line or two what the set covers and which few look most useful for this chat (it has no terminal), and that Casey chooses on the card.`
+	}));
 
 	return [
 		{
@@ -114,11 +120,11 @@ export function skillTools(deps: SkillToolDeps): ToolRegistration[] {
 		},
 		{
 			name: 'skill_add',
-			description: 'Put a skill on a card for Casey to review and add: a published one (`source`), or one you wrote (`name`, `description`, `instructions`; an existing name replaces that skill). Nothing is added until Casey presses Add.',
+			description: 'Put skills on a card for Casey to review and add: one published skill (`source`: its id), all of a repository or plugin marketplace when Casey asks for all of it (ONE call, `source`: `owner/repo`), or one you wrote (`name`, `description`, `instructions`; an existing name replaces that skill). Nothing is added until Casey presses Add.',
 			parameters: {
 				type: 'object',
 				properties: {
-					source: { type: 'string', description: 'An `id` from skill_find, or a skills.sh or GitHub URL.' },
+					source: { type: 'string', description: '`owner/repo/skill` (an `id` from skill_find), a skills.sh or GitHub URL, or `owner/repo` for all it holds.' },
 					name: { type: 'string', description: 'Lowercase words joined by hyphens; also its slash command.' },
 					description: { type: 'string', description: 'What it does and when to use it.' },
 					instructions: { type: 'string', description: 'The skill, in Markdown.' }
@@ -126,7 +132,10 @@ export function skillTools(deps: SkillToolDeps): ToolRegistration[] {
 			},
 			async execute(args) {
 				const input = args as { source?: unknown; name?: unknown; description?: unknown; instructions?: unknown };
-				if (typeof input.source === 'string' && input.source.trim()) return review(await fail(() => proposeFromSource(deps.bucket(), input.source as string, deps.fetcher)));
+				if (typeof input.source === 'string' && input.source.trim()) {
+						const set = await fail(() => proposeAllFromSource(deps.bucket(), input.source as string, deps.fetcher));
+						return set.proposals.length === 1 && !set.repository ? review(set.proposals[0]) : reviewAll(set);
+					}
 				if (!input.name && !input.instructions) throw new Error('Give `source` for a published skill, or `name`, `description` and `instructions` for one you wrote.');
 				return review(await fail(() => proposeSkill(deps.bucket(), input, { origin: 'custom' })));
 			}

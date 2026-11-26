@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { parseSkillFile, type Skill } from '$lib/chat-skills';
 import { chatViewer } from '$lib/server/chat/identity';
-import { acceptProposal, deleteSkill, dismissProposal, getProposal, getSkill, listSkills, proposeFromSource, saveSkill, searchRegistry, setSkillEnabled, SkillError } from '$lib/server/chat/skills';
+import { acceptProposal, deleteSkill, dismissProposal, getProposal, getSkill, listSkills, proposeAllFromSource, saveSkill, searchRegistry, setSkillEnabled, SkillError } from '$lib/server/chat/skills';
 
 export const prerender = false;
 
@@ -68,8 +68,8 @@ export const POST: RequestHandler = async ({ request, platform, url }) => {
 			case 'read': return answer({ skill: parseSkillFile(String(body.file ?? '').slice(0, 300_000)) });
 			case 'enable': await setSkillEnabled(bucket, name, body.enabled === true); return answer({ ok: true });
 			case 'delete': await deleteSkill(bucket, name); return answer({ ok: true });
-			// From skills.sh or GitHub: fetched and set aside for Casey to read, then added by its id.
-			case 'fetch': return answer({ proposal: await proposeFromSource(bucket, String(body.source ?? '').slice(0, 500)) });
+			// From skills.sh or GitHub: one skill, or all of a repository's or marketplace's, fetched and set aside for Casey to read, then added by id.
+			case 'fetch': return answer(await proposeAllFromSource(bucket, String(body.source ?? '').slice(0, 500)));
 			case 'add': return answer({ skill: await acceptProposal(bucket, String(body.pending ?? '')) });
 			case 'dismiss': await dismissProposal(bucket, String(body.pending ?? '')); return answer({ ok: true });
 			default: return answer({ error: 'Unknown action.' }, 400);

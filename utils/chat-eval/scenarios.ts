@@ -510,6 +510,25 @@ export const SCENARIOS: Scenario[] = [
 		]
 	},
 	{
+		name: 'skill-slash-mid',
+		ask: 'For this week, leaving out the likes, do a /link-roundup please',
+		skills: [{ name: 'link-roundup', description: 'Write a link roundup from recent bookmarks and likes. Use whenever Casey asks for a roundup, a links post, or “what I’ve been reading”.', instructions: '# Link roundup\n\n1. One search_site call with `days: 7` and no query finds the week’s posts.\n2. Pick the bookmarks and likes, and group them under two or three themes.\n3. Answer with the roundup itself in Markdown: a `##` heading per theme and a line per link saying why it was worth saving. End with the exact line `Roundup by the link-roundup skill.`\n4. Don’t save anything unless Casey asks.' }],
+		checks: [
+			{ name: 'doesn’t load the skill again', pass: (seen) => !used(seen, /^use_skill$/) },
+			{ name: 'follows it', pass: (seen) => /Roundup by the link-roundup skill/i.test(seen.answer) && used(seen, /^search_site$/) >= 1 },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'skill-install-repo',
+		ask: 'Install the skills from the anthropics/skills repo.',
+		checks: [
+			{ name: 'asks for the whole repository in one call', pass: (seen) => seen.calls.filter((call) => call.name === 'skill_add').length === 1 && seen.calls.some((call) => call.name === 'skill_add' && /anthropics\/skills"/.test(call.args)) },
+			{ name: 'says Casey chooses on the card, not that they are installed', pass: (seen) => /card|tick|choose|pick|review/i.test(seen.answer) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
 		name: 'skill-not-needed',
 		ask: 'What did I post about Micropub?',
 		skills: [{ name: 'link-roundup', description: 'Write a link roundup from recent bookmarks and likes. Use whenever Casey asks for a roundup, a links post, or “what I’ve been reading”.', instructions: '# Link roundup\n\n1. One search_site call with `days: 7` and no query finds the week’s posts.\n2. Pick the bookmarks and likes, and group them under two or three themes.\n3. Answer with the roundup itself in Markdown: a `##` heading per theme and a line per link saying why it was worth saving. End with the exact line `Roundup by the link-roundup skill.`\n4. Don’t save anything unless Casey asks.' }],

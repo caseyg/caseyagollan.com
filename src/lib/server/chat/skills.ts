@@ -270,11 +270,18 @@ const SKILL_FILE_BYTES = 200_000;
 
 export interface FetchedSkill { input: SkillInput; source: string; notes: string[] }
 
+/** Every file in a repository, by path, from GitHub's tree API; null when it can't be read. */
+async function repoFiles({ owner, repo, ref }: SkillSource, fetcher: typeof fetch): Promise<string[] | null> {
+	const response = await get(fetcher, `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref ?? 'HEAD'}?recursive=1`).catch(() => null);
+	const body = response?.ok ? await response.json().catch(() => null) as { tree?: { path?: string; type?: string }[] } | null : null;
+	return body?.tree ? body.tree.filter((entry) => entry.type === 'blob' && typeof entry.path === 'string').map((entry) => entry.path!) : null;
+}
+
 /**
  * Read a skill from GitHub: its SKILL.md, and the Markdown or text files beside it that it may
  * point to. Scripts and other assets are counted and left behind, since the chat can't run them.
  */
-export async function fetchSkill(from: SkillSource, fetcher: typeof fetch = fetch): Promise<FetchedSkill> {
+export async function fetchSkill(from: SkillSource, fetcher: typeof fetch = fetch, known?: string[]): Promise<FetchedSkill> {
 	const { owner, repo } = from;
 	const ref = from.ref ?? 'HEAD';
 	const raw = (path: string) => `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${path}`;
@@ -284,14 +291,8 @@ export async function fetchSkill(from: SkillSource, fetcher: typeof fetch = fetc
 		const text = await response.text();
 		return text.length > SKILL_FILE_BYTES ? text.slice(0, SKILL_FILE_BYTES) : text;
 	};
-	let tree: string[] | null | undefined;
-	const listing = async () => {
-		if (tree !== undefined) return tree;
-		const response = await get(fetcher, `https://api.github.com/repos/${owner}/${repo}/git/trees/${ref}?recursive=1`).catch(() => null);
-		const body = response?.ok ? await response.json().catch(() => null) as { tree?: { path?: string; type?: string }[] } | null : null;
-		tree = body?.tree ? body.tree.filter((entry) => entry.type === 'blob' && typeof entry.path === 'string').map((entry) => entry.path!) : null;
-		return tree;
-	};
+	let tree: string[] | null | undefined = known;
+	const listing = async () => tree !== undefined ? tree : (tree = await repoFiles(from, fetcher));
 
 	let folder: string | undefined, file: string | null = null;
 	for (const candidate of from.path !== undefined ? [from.path] : from.skill ? FOLDERS(from.skill) : ['']) {
@@ -319,7 +320,7 @@ export async function fetchSkill(from: SkillSource, fetcher: typeof fetch = fetc
 	}
 	const left = beside.length - Object.keys(files).length - beside.filter((path) => /^(license|licence|readme|changelog)\b/i.test(path.split('/').at(-1)!)).length;
 	if (left > 0) notes.push(`${left} other file${left === 1 ? '' : 's'} in the skill’s folder (scripts, assets) ${left === 1 ? 'was' : 'were'} left behind: this chat can’t run scripts, so steps that depend on them won’t work.`);
-	const name = skillName(parsed.name ?? from.skill ?? repo);
+	const name = skillName(parsed.name ?? from.skill ?? (folder.split('/').at(-1) || repo));
 	if (parsed.name && parsed.name !== name) notes.push(`Its name, “${parsed.name}”, was changed to “${name}” to work as a slash command.`);
 	return {
 		input: { name, description: parsed.description ?? '', instructions: parsed.instructions, files },
@@ -328,10 +329,90 @@ export async function fetchSkill(from: SkillSource, fetcher: typeof fetch = fetc
 	};
 }
 
-/** Fetch a skill from an address or id and put it in front of Casey. */
-export async function proposeFromSource(bucket: Bucket | undefined, input: string, fetcher: typeof fetch = fetch): Promise<SkillProposal> {
-	const from = skillSource(input);
-	if (!from) throw new SkillError('Give a skill’s skills.sh id (owner/repo/skill), its skills.sh page, or its GitHub address.');
-	const fetched = await fetchSkill(from, fetcher);
-	return proposeSkill(bucket, fetched.input, { origin: 'installed', source: fetched.source, notes: ['This was written by someone else. Read it before adding it: the assistant will follow it whenever it is used.', ...fetched.notes] });
+const SOMEONE_ELSES = 'This was written by someone else. Read it before adding it: the assistant will follow it whenever it is used.';
+
+/** How many skills of a repository or marketplace are put up for review at once. */
+export const SET_MAX = 12;
+
+export interface ProposedSet {
+	/** One proposal per skill, each added or dismissed by itself. */
+	proposals: SkillProposal[];
+	/** What Casey should know about the whole set: where it is from, what couldn't come along. */
+	notes: string[];
+	/** How many skills the source holds; more than `proposals` when it holds more than are shown at once. */
+	total: number;
+	/** The repository, when this was a repository or a plugin marketplace and not one skill. */
+	repository?: string;
+}
+
+interface Marketplace { plugins?: { name?: unknown; source?: unknown }[] }
+
+/**
+ * Put up for review whatever an address holds: one skill, or every skill of a repository, a
+ * folder of one, a Claude Code plugin, or a plugin marketplace (`.claude-plugin/marketplace.json`).
+ * Only skills come along. A plugin's commands, agents, hooks and MCP servers are not instructions
+ * and are left where they are; so are plugins a marketplace keeps in other repositories. Each
+ * skill is its own proposal, so Casey reads and adds them one by one.
+ */
+export async function proposeAllFromSource(bucket: Bucket | undefined, input: string, fetcher: typeof fetch = fetch): Promise<ProposedSet> {
+	let from = skillSource(input);
+	if (!from) throw new SkillError('Give a skills.sh id (owner/repo/skill), a skills.sh page, or the GitHub address of a skill, a repository of skills or a plugin marketplace.');
+	// A marketplace or plugin manifest's own address stands for its repository.
+	if (from.path !== undefined && /(^|\/)\.claude-plugin(\/|$)/.test(from.path)) { const { path: _path, skill: _skill, ...rest } = from; from = rest; }
+	const single = async (source: SkillSource, known?: string[]): Promise<ProposedSet> => {
+		const fetched = await fetchSkill(source, fetcher, known);
+		return { proposals: [await proposeSkill(bucket, fetched.input, { origin: 'installed', source: fetched.source, notes: [SOMEONE_ELSES, ...fetched.notes] })], notes: [], total: 1 };
+	};
+	// A skill named outright (owner/repo/skill): just that one.
+	if (from.skill && from.path === undefined) return single(from);
+	const files = await repoFiles(from, fetcher);
+	if (!files) return single(from).catch((error) => { throw error instanceof SkillError ? new SkillError(`GitHub wouldn’t list what ${from!.owner}/${from!.repo} holds just now. Name one skill (owner/repo/skill), or try again in a while.`) : error; });
+	const under = from.path ? `${from.path}/` : '';
+	const folders = files.filter((path) => /(^|\/)SKILL\.md$/.test(path) && path.startsWith(under)).map((path) => path.replace(/\/?SKILL\.md$/, ''));
+	const repository = `${from.owner}/${from.repo}`;
+	if (!folders.length) throw new SkillError(`No skills (SKILL.md files) were found in ${repository}${from.path ? ` under ${from.path}` : ''} on GitHub.`);
+	if (folders.length === 1 || (from.path !== undefined && folders.includes(from.path))) return single({ ...from, path: from.path !== undefined && folders.includes(from.path) ? from.path : folders[0], skill: undefined }, files);
+
+	const notes: string[] = [];
+	// A marketplace names its plugins and where each lives; a skill's plugin is said on its card.
+	const plugins = new Map<string, string>();
+	if (files.includes('.claude-plugin/marketplace.json')) {
+		const response = await get(fetcher, `https://raw.githubusercontent.com/${repository}/${from.ref ?? 'HEAD'}/.claude-plugin/marketplace.json`).catch(() => null);
+		const listed = response?.ok ? await response.json().catch(() => null) as Marketplace | null : null;
+		const elsewhere: string[] = [];
+		for (const plugin of Array.isArray(listed?.plugins) ? listed.plugins.slice(0, 200) : []) {
+			const name = typeof plugin.name === 'string' ? plugin.name.slice(0, 80) : '';
+			if (!name) continue;
+			if (typeof plugin.source === 'string' && /^\.?\/?[\w./-]*$/.test(plugin.source) && !plugin.source.includes('..')) plugins.set(plugin.source.replace(/^\.?\//, '').replace(/\/$/, ''), name);
+			else elsewhere.push(name);
+		}
+		notes.push('This is a plugin marketplace. Only the skills in its plugins can be added: this chat can’t run a plugin’s commands, agents, hooks or MCP servers.');
+		if (elsewhere.length) notes.push(`${elsewhere.length} of its plugins ${elsewhere.length === 1 ? 'is' : 'are'} kept in other repositories and ${elsewhere.length === 1 ? 'was' : 'were'} not read: ${elsewhere.slice(0, 8).join(', ')}${elsewhere.length > 8 ? '…' : ''}.`);
+	} else if (files.some((path) => /(^|\/)\.claude-plugin\/plugin\.json$/.test(path))) {
+		notes.push('This is a plugin. Only its skills can be added: this chat can’t run a plugin’s commands, agents, hooks or MCP servers.');
+	}
+	const pluginOf = (folder: string) => [...plugins].filter(([dir]) => dir && (folder === dir || folder.startsWith(`${dir}/`))).sort((a, b) => b[0].length - a[0].length)[0]?.[1];
+
+	const shown = folders.slice(0, SET_MAX);
+	if (folders.length > shown.length) notes.push(`${repository} holds ${folders.length} skills; these are the first ${shown.length}. Ask for another by name (${folders.slice(shown.length, shown.length + 8).map((folder) => folder.split('/').at(-1)).join(', ')}${folders.length > shown.length + 8 ? '…' : ''}).`);
+	const proposals: SkillProposal[] = [];
+	const skipped: string[] = [];
+	// A few at a time: each is a SKILL.md and the reference files beside it.
+	for (let index = 0; index < shown.length; index += 4) {
+		const batch = await Promise.all(shown.slice(index, index + 4).map(async (folder) => {
+			try {
+				const fetched = await fetchSkill({ ...from!, path: folder, skill: undefined }, fetcher, files);
+				const plugin = pluginOf(folder);
+				return await proposeSkill(bucket, fetched.input, { origin: 'installed', source: fetched.source, notes: [SOMEONE_ELSES, ...(plugin ? [`From the plugin “${plugin}”.`] : []), ...fetched.notes] });
+			} catch (error) {
+				if (!(error instanceof SkillError)) throw error;
+				skipped.push(folder.split('/').at(-1) || repository);
+				return null;
+			}
+		}));
+		proposals.push(...batch.filter((proposal): proposal is SkillProposal => !!proposal));
+	}
+	if (skipped.length) notes.push(`${skipped.length} could not be read as ${skipped.length === 1 ? 'a skill' : 'skills'} and ${skipped.length === 1 ? 'was' : 'were'} left out: ${skipped.join(', ')}.`);
+	if (!proposals.length) throw new SkillError(`None of the skills in ${repository} could be read.`);
+	return { proposals, notes, total: folders.length, repository };
 }

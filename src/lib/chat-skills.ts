@@ -56,6 +56,15 @@ export interface SkillProposal {
 	createdAt: number;
 }
 
+/** What fetching an address set aside: one proposal, or one per skill of a repository or plugin marketplace. */
+export interface SkillProposalSet {
+	proposals: SkillProposal[];
+	notes: string[];
+	total: number;
+	/** `owner/repo`, when the address was a repository or a marketplace and not one skill. */
+	repository?: string;
+}
+
 /** What a review card needs before the whole proposal is fetched; safe to keep in a thread. */
 export interface SkillReviewRef {
 	id: string;

@@ -3,7 +3,7 @@
  * the chat's review card ask of `/api/chat/skills`. Components take a `SkillsClient`, so stories
  * and tests hand them one that keeps skills in memory instead.
  */
-import { checkSkill, type RegistrySkill, type Skill, type SkillProposal, type SkillSummary } from './chat-skills';
+import { checkSkill, type RegistrySkill, type Skill, type SkillProposal, type SkillProposalSet, type SkillSummary } from './chat-skills';
 
 export interface SkillsClient {
 	list(): Promise<SkillSummary[]>;
@@ -14,8 +14,8 @@ export interface SkillsClient {
 	remove(name: string): Promise<void>;
 	/** Search skills.sh. */
 	find(query: string): Promise<RegistrySkill[]>;
-	/** Fetch a published skill and set it aside for review. */
-	fetch(source: string): Promise<SkillProposal>;
+	/** Fetch a published skill, or every skill of a repository or plugin marketplace, and set each aside for review. */
+	fetch(source: string): Promise<SkillProposalSet>;
 	/** A skill waiting for review; `added` says a missing one was already added (a skill named `named` exists). */
 	pending(id: string, named?: string): Promise<SkillProposal | { added: boolean }>;
 	add(id: string): Promise<Skill>;
@@ -46,7 +46,7 @@ export const skillsApi: SkillsClient = {
 	enable: async (name, enabled) => { await ask('', { action: 'enable', name, enabled }); changed(); },
 	remove: async (name) => { await ask('', { action: 'delete', name }); changed(); },
 	find: async (query) => (await ask<{ results: RegistrySkill[] }>(`?find=${encodeURIComponent(query)}`)).results,
-	fetch: async (source) => (await ask<{ proposal: SkillProposal }>('', { action: 'fetch', source })).proposal,
+	fetch: async (source) => ask<SkillProposalSet>('', { action: 'fetch', source }),
 	pending: async (id, named) => {
 		try { return (await ask<{ proposal: SkillProposal }>(`?pending=${encodeURIComponent(id)}${named ? `&named=${encodeURIComponent(named)}` : ''}`)).proposal; }
 		catch (error) { return { added: !!(error as { answer?: { added?: boolean } }).answer?.added }; }
@@ -67,9 +67,9 @@ export function enabledSkills(client: SkillsClient = skillsApi): Promise<SkillSu
 }
 
 /** Skills kept in memory: for stories, and for trying the manager without an account. */
-export function memorySkills(initial: Skill[] = [], registry: (RegistrySkill & { skill?: Pick<Skill, 'description' | 'instructions'> })[] = []): SkillsClient {
+export function memorySkills(initial: Skill[] = [], registry: (RegistrySkill & { skill?: Pick<Skill, 'description' | 'instructions'> })[] = [], waiting: SkillProposal[] = []): SkillsClient {
 	const skills = new Map(initial.map((skill) => [skill.name, { ...skill }]));
-	const proposals = new Map<string, SkillProposal>();
+	const proposals = new Map<string, SkillProposal>(waiting.map((proposal) => [proposal.id, proposal]));
 	const summary = ({ instructions: _instructions, files, ...rest }: Skill): SkillSummary => ({ ...rest, ...(files ? { fileNames: Object.keys(files) } : {}) });
 	const need = (name: string) => { const skill = skills.get(name); if (!skill) throw new Error('That skill isn’t there any more.'); return skill; };
 	return {
@@ -88,17 +88,22 @@ export function memorySkills(initial: Skill[] = [], registry: (RegistrySkill & {
 		remove: async (name) => { skills.delete(name); },
 		find: async (query) => registry.filter((skill) => skill.name.includes(query.toLowerCase().trim().split(/\s+/)[0] ?? '')).map(({ skill: _skill, ...rest }) => rest),
 		fetch: async (source) => {
-			const found = registry.find((skill) => source.includes(skill.id) || source.includes(skill.name));
-			if (!found) throw new Error('No SKILL.md was found there.');
-			const proposal: SkillProposal = {
-				id: `demo${proposals.size}`.padEnd(12, '0'),
-				skill: { name: found.name, description: found.skill?.description ?? `The ${found.name} skill.`, instructions: found.skill?.instructions ?? `# ${found.name}\n\nFollow these steps.`, enabled: true, origin: 'installed', source: found.url, updatedAt: Date.now() },
-				notes: ['This was written by someone else. Read it before adding it: the assistant will follow it whenever it is used.'],
-				...(skills.has(found.name) ? { replaces: found.name } : {}),
-				createdAt: Date.now()
-			};
-			proposals.set(proposal.id, proposal);
-			return proposal;
+			// `owner/repo` alone stands for everything that repository holds.
+			const repository = /^[\w.-]+\/[\w.-]+$/.test(source.trim()) ? source.trim() : undefined;
+			const found = repository ? registry.filter((skill) => skill.source === repository) : registry.filter((skill) => source.includes(skill.id) || source.includes(skill.name)).slice(0, 1);
+			if (!found.length) throw new Error('No SKILL.md was found there.');
+			const made = found.map((one): SkillProposal => {
+				const proposal: SkillProposal = {
+					id: `demo${proposals.size}`.padEnd(12, '0'),
+					skill: { name: one.name, description: one.skill?.description ?? `The ${one.name} skill.`, instructions: one.skill?.instructions ?? `# ${one.name}\n\nFollow these steps.`, enabled: true, origin: 'installed', source: one.url, updatedAt: Date.now() },
+					notes: ['This was written by someone else. Read it before adding it: the assistant will follow it whenever it is used.'],
+					...(skills.has(one.name) ? { replaces: one.name } : {}),
+					createdAt: Date.now()
+				};
+				proposals.set(proposal.id, proposal);
+				return proposal;
+			});
+			return { proposals: made, notes: [], total: made.length, ...(repository && made.length > 1 ? { repository } : {}) };
 		},
 		pending: async (id, named) => proposals.get(id) ?? { added: !!(named && skills.has(named)) },
 		add: async (id) => {

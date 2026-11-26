@@ -2,6 +2,7 @@
 	import { stepsSummary, type ChatToolUse } from '$lib/chat';
 	import { Disclosure, LinkPreviewCard } from '$lib/components/ui';
 	import SkillReview from '$lib/components/skills/SkillReview.svelte';
+	import SkillSetReview from '$lib/components/skills/SkillSetReview.svelte';
 	import ChatTool from './ChatTool.svelte';
 
 	interface Props {
@@ -18,6 +19,7 @@
 	const line = $derived(stepsSummary(steps));
 	const peeks = $derived(steps.filter((step) => step.peek));
 	const reviews = $derived(steps.filter((step) => step.skill));
+	const sets = $derived(steps.filter((step) => step.skillSet));
 </script>
 
 <!--
@@ -47,6 +49,10 @@
 	<!-- A skill the agent drafted or fetched, for Casey to read and add. -->
 	{#each reviews as step (step.skill?.id)}
 		{#if step.skill}<SkillReview skill={step.skill} />{/if}
+	{/each}
+	<!-- Several at once, from a repository or a plugin marketplace: ticked and added one by one. -->
+	{#each sets as step (step.skillSet?.skills[0]?.id)}
+		{#if step.skillSet}<SkillSetReview skills={step.skillSet.skills} from={step.skillSet.from} total={step.skillSet.total} notes={step.skillSet.notes} />{/if}
 	{/each}
 </div>
 

@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ORIGIN_LABELS, parseSkillFile, skillName, type RegistrySkill, type Skill, type SkillProposal, type SkillSummary } from '$lib/chat-skills';
+	import { ORIGIN_LABELS, parseSkillFile, skillName, type RegistrySkill, type Skill, type SkillProposal, type SkillProposalSet, type SkillSummary } from '$lib/chat-skills';
 	import { skillsApi, type SkillsClient } from '$lib/chat-skills-client';
 	import { Button, InlineForm, Notice, Row, RowList, Section, Switch } from '$lib/components/ui';
 	import SkillForm from './SkillForm.svelte';
 	import SkillReview from './SkillReview.svelte';
+	import SkillSetReview from './SkillSetReview.svelte';
 
 	interface Props {
 		client?: SkillsClient;
@@ -37,6 +38,8 @@
 	let source = $state('');
 	let found = $state<RegistrySkill[] | null>(null);
 	let proposal = $state<SkillProposal | undefined>(undefined);
+	/** Several fetched at once, from a repository or a plugin marketplace. */
+	let set = $state<SkillProposalSet | undefined>(undefined);
 
 	async function refresh() {
 		try { skills = await client.list(); error = ''; }
@@ -53,7 +56,7 @@
 		finally { busy = false; }
 	}
 
-	function show(next: View) { view = next; error = ''; if (next === 'list') { editing = undefined; editingSaved = ''; proposal = undefined; found = null; source = ''; } }
+	function show(next: View) { view = next; error = ''; if (next === 'list') { editing = undefined; editingSaved = ''; proposal = undefined; set = undefined; found = null; source = ''; } }
 
 	const toggle = (skill: SkillSummary, enabled: boolean) => run(async () => {
 		skills = skills.map((one) => one.name === skill.name ? { ...one, enabled } : one);
@@ -92,13 +95,22 @@
 
 	const search = (query: string) => run(async () => {
 		const words = query.trim();
-		proposal = undefined;
-		// An address or an id is fetched; anything else is searched for.
-		if (/^https:\/\//.test(words) || /^[\w.-]+\/[\w.-]+[/@][\w.-]+$/.test(words)) { found = null; proposal = await client.fetch(words); }
+		proposal = undefined; set = undefined;
+		// An address, an id or a repository (owner/repo) is fetched; anything else is searched for.
+		if (/^https:\/\//.test(words) || /^[\w.-]+\/[\w.-]+(?:[/@][\w.-]+)?$/.test(words)) { found = null; take(await client.fetch(words)); }
 		else found = await client.find(words);
 	});
 
-	const review = (id: string) => run(async () => { proposal = await client.fetch(id); });
+	/** One skill gets its own card; several get one card with a tick each. */
+	function take(fetched: SkillProposalSet) { if (fetched.proposals.length === 1 && !fetched.repository) proposal = fetched.proposals[0]; else set = fetched; }
+
+	const review = (id: string) => run(async () => { set = undefined; take(await client.fetch(id)); });
+
+	/** Some of a set were added; the card stays for the rest, and the list behind it is read again. */
+	async function addedAll(names: string[]) {
+		await refresh();
+		notice = `Added ${names.length === 1 ? `/${names[0]}` : `${names.length} skills`}.`;
+	}
 
 	async function added(name: string) {
 		await refresh();
@@ -145,7 +157,7 @@
 					<Row title="Upload a file" detail="A SKILL.md, or any Markdown file with a skill’s instructions.">
 						{#snippet action()}<Button size="sm" onclick={() => upload?.click()}>Choose file</Button>{/snippet}
 					</Row>
-					<Row title="From skills.sh or GitHub" detail="Search the public registry, or paste a skill’s address. You read it before it is added.">
+					<Row title="From skills.sh or GitHub" detail="Search the public registry, or paste the address of a skill, a repository of skills or a plugin marketplace. You read each before it is added.">
 						{#snippet action()}<Button size="sm" onclick={() => show('install')}>Find</Button>{/snippet}
 					</Row>
 				</RowList>
@@ -154,12 +166,16 @@
 			{/if}
 		{/if}
 	{:else if view === 'install'}
-		<p class="lede">Search <a href="https://skills.sh" target="_blank" rel="noopener">skills.sh</a>, or paste a skill’s skills.sh or GitHub address. Most published skills are written for coding agents with a terminal; ones that are guidance rather than commands work best here.</p>
+		<p class="lede">Search <a href="https://skills.sh" target="_blank" rel="noopener">skills.sh</a>, or paste the skills.sh or GitHub address of a skill, a repository of skills (<code>owner/repo</code>) or a plugin marketplace. Most published skills are written for coding agents with a terminal; ones that are guidance rather than commands work best here.</p>
 		<InlineForm bind:value={source} name="source" label="Search or address" placeholder="writing style, or anthropics/skills/frontend-design" buttonLabel="Find" busyLabel="Looking…" {busy} onsubmit={(value) => search(value)} />
 		{#if error}<Notice tone="error">{error}</Notice>{/if}
 		{#if proposal}
 			{#key proposal.id}
 				<SkillReview skill={{ id: proposal.id, name: proposal.skill.name, description: proposal.skill.description, origin: proposal.skill.origin, source: proposal.skill.source, replaces: !!proposal.replaces }} {proposal} {client} open onadded={added} ondismissed={() => (proposal = undefined)} />
+			{/key}
+		{:else if set}
+			{#key set.proposals[0]?.id}
+				<SkillSetReview skills={set.proposals.map((one) => ({ id: one.id, name: one.skill.name, description: one.skill.description, origin: one.skill.origin, source: one.skill.source, replaces: !!one.replaces }))} from={set.repository} total={set.total} notes={set.notes} proposals={set.proposals} {client} onadded={(names) => addedAll(names)} ondismissed={() => (set = undefined)} />
 			{/key}
 		{:else if found}
 			{#if found.length}

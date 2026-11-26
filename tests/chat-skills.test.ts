@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { checkSkill, matchSkills, parseSkillFile, skillFile, skillName, slashSkills, SKILL_INSTRUCTIONS_MAX } from '../src/lib/chat-skills';
-import { acceptProposal, deleteSkill, fetchSkill, getProposal, getSkill, invokedSkills, listSkills, PENDING_TTL, proposeFromSource, proposeSkill, saveSkill, searchRegistry, setSkillEnabled, SkillError, skillSource, skillText, SKILL_PAGE } from '../src/lib/server/chat/skills';
+import { acceptProposal, deleteSkill, fetchSkill, getProposal, getSkill, invokedSkills, listSkills, PENDING_TTL, proposeAllFromSource, proposeSkill, saveSkill, searchRegistry, setSkillEnabled, SkillError, skillSource, skillText, SKILL_PAGE } from '../src/lib/server/chat/skills';
 import { isSkillTool, skillsSection, skillTools } from '../src/lib/server/chat/skill-tools';
-import { isPrivateTool, projectMessages, requestOf, skillFrom, toolLabel } from '../src/lib/server/chat/projection';
+import { isPrivateTool, projectMessages, requestOf, skillFrom, skillSetFrom, toolLabel } from '../src/lib/server/chat/projection';
 import { isOwnerTool } from '../src/lib/server/chat/tools';
 
 function bucket() {
@@ -219,12 +219,47 @@ describe('skills from elsewhere', () => {
 	test('a fetched skill waits for review, marked as someone else’s; its frontmatter grants nothing', async () => {
 		const store = bucket();
 		const { fetcher } = web({ 'https://raw.githubusercontent.com/acme/skills/HEAD/skills/link-roundup/SKILL.md': SKILL_MD });
-		const proposal = await proposeFromSource(store, 'acme/skills/link-roundup', fetcher);
+		const [proposal] = (await proposeAllFromSource(store, 'acme/skills/link-roundup', fetcher)).proposals;
 		expect(proposal.skill.origin).toBe('installed');
 		expect(proposal.notes[0]).toContain('written by someone else');
 		expect(JSON.stringify(proposal)).not.toContain('allowed-tools');
 		expect((await listSkills(store)).length).toBe(2);
-		await expect(proposeFromSource(store, 'https://evil.example/x.md', fetcher)).rejects.toBeInstanceOf(SkillError);
+		await expect(proposeAllFromSource(store, 'https://evil.example/x.md', fetcher)).rejects.toBeInstanceOf(SkillError);
+	});
+
+	test('a repository or plugin marketplace puts each of its skills up for review, and only its skills', async () => {
+		const store = bucket();
+		const md = (name: string) => `---\nname: ${name}\ndescription: Does ${name}.\nallowed-tools: Bash\n---\n\n# ${name}\n\nSteps.`;
+		const raw = 'https://raw.githubusercontent.com/acme/market/HEAD/';
+		const { fetcher } = web({
+			'https://api.github.com/repos/acme/market/git/trees/HEAD?recursive=1': { tree: [
+				'.claude-plugin/marketplace.json', 'plugins/release/.claude-plugin/plugin.json', 'plugins/release/skills/changelog/SKILL.md', 'plugins/release/skills/changelog/scripts/run.sh',
+				'plugins/release/commands/ship.md', 'plugins/release/hooks/hooks.json', 'plugins/editing/skills/plain-language/SKILL.md', 'plugins/editing/skills/broken/SKILL.md'
+			].map((path) => ({ path, type: 'blob' })) },
+			[`${raw}.claude-plugin/marketplace.json`]: { name: 'acme', plugins: [{ name: 'release', source: './plugins/release' }, { name: 'editing', source: './plugins/editing' }, { name: 'deploy-tools', source: { source: 'github', repo: 'acme/deploy' } }] },
+			[`${raw}plugins/release/skills/changelog/SKILL.md`]: md('changelog'),
+			[`${raw}plugins/editing/skills/plain-language/SKILL.md`]: md('plain-language'),
+			[`${raw}plugins/editing/skills/broken/SKILL.md`]: '---\nname: broken\n---\n'
+		});
+		for (const address of ['acme/market', 'https://github.com/acme/market', 'https://github.com/acme/market/blob/main/.claude-plugin/marketplace.json'.replace('/blob/main', '/blob/HEAD')]) {
+			const set = await proposeAllFromSource(store, address, fetcher);
+			expect(set.proposals.map((proposal) => proposal.skill.name)).toEqual(['changelog', 'plain-language']);
+			expect(set).toMatchObject({ total: 3, repository: 'acme/market' });
+			expect(set.notes.join(' ')).toContain('plugin marketplace');
+			expect(set.notes.join(' ')).toContain('deploy-tools');
+			expect(set.notes.join(' ')).toContain('broken');
+			expect(set.proposals[0].notes).toContain('From the plugin “release”.');
+			// The command, the hooks and the script stay where they are, and nothing is granted.
+			expect(JSON.stringify(set)).not.toContain('allowed-tools');
+			expect(JSON.stringify(set)).not.toContain('ship');
+			expect(Object.keys(set.proposals[0].skill.files ?? {})).toEqual([]);
+		}
+		// Nothing is a skill of Casey's until each is added by itself.
+		expect((await listSkills(store)).length).toBe(2);
+		// A folder of the repository: only the skills under it.
+		const under = await proposeAllFromSource(store, 'https://github.com/acme/market/tree/HEAD/plugins/release', fetcher);
+		expect(under.proposals.map((proposal) => proposal.skill.name)).toEqual(['changelog']);
+		expect(under.repository).toBeUndefined();
 	});
 
 	test('the registry search reads skills.sh', async () => {
@@ -282,6 +317,14 @@ describe('skills in the chat', () => {
 		expect(requestOf('skill_add', { name: 'weekly', description: 'Weekly.', instructions: 'PRIVATE' }).map((row) => row.name)).toEqual(['Name', 'Description']);
 		expect(toolLabel('use_skill', { name: 'roundup' })).toBe('Used the skill “roundup”');
 		expect(toolLabel('skill_find', { query: 'notes' })).toBe('Searched skills.sh for “notes”');
+	});
+
+	test('several skills offered at once reach the chat as one set of references', () => {
+		const ref = (id: string, name: string) => ({ id, name, description: 'x', origin: 'installed', source: 'https://github.com/acme/market/tree/HEAD/x' });
+		const set = skillSetFrom(JSON.stringify({ reviews: [ref('abcdefabcdef', 'changelog'), ref('../../secret', 'bad'), ref('abcdefabcde0', 'plain-language')], from: 'acme/market', total: 9, notes: ['A marketplace.'] }));
+		expect(set).toEqual({ skills: [expect.objectContaining({ name: 'changelog' }), expect.objectContaining({ name: 'plain-language' })], from: 'acme/market', total: 9, notes: ['A marketplace.'] });
+		expect(skillSetFrom(JSON.stringify({ reviews: [], from: 'acme/market' }))).toBeUndefined();
+		expect(skillSetFrom(JSON.stringify({ reviews: [ref('abcdefabcdef', 'changelog')], from: 'javascript:alert(1)' }))?.from).toBeUndefined();
 	});
 
 	test('a skill_add step carries the card’s reference, and a message says which skill it invoked', () => {

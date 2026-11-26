@@ -113,7 +113,12 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	const kept = new Map<string, string>();
 	const skillStore = { get: async (key: string) => kept.has(key) ? { json: async () => JSON.parse(kept.get(key)!) } : null, put: async (key: string, value: string) => { kept.set(key, value); }, delete: async (key: string) => { kept.delete(key); } } as unknown as R2Bucket;
 	for (const skill of scenario.skills ?? []) await saveSkill(skillStore, skill);
-	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore } as never, renderFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
+	// GitHub's tree API refuses the sandbox this runs in, so a repository's listing is stood in for; the skills themselves are read live.
+	const skillsFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+		const listing = /^https:\/\/api\.github\.com\/repos\/anthropics\/skills\/git\/trees\//.test(String(input));
+		return listing ? Response.json({ tree: ['frontend-design', 'doc-coauthoring', 'internal-comms', 'brand-guidelines'].map((name) => ({ path: `skills/${name}/SKILL.md`, type: 'blob' })) }) : fetch(input, init);
+	}) as typeof fetch;
+	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore } as never, renderFetch, skillsFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));

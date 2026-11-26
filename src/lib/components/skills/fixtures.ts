@@ -19,6 +19,22 @@ export const registry: (RegistrySkill & { skill?: Pick<Skill, 'description' | 'i
 	{ id: 'blader/humanizer/humanizer', name: 'humanizer', source: 'blader/humanizer', installs: 96_000, url: 'https://skills.sh/blader/humanizer/humanizer' },
 	{ id: 'someone/kit/doc-voice', name: 'doc-voice', source: 'someone/kit', installs: 84, url: 'https://skills.sh/someone/kit/doc-voice' }
 ];
+/** A repository of skills, as fetching `acme/writing-kit` finds it: the set card's stories and the manager's. */
+export const kit: (RegistrySkill & { skill?: Pick<Skill, 'description' | 'instructions'> })[] = [
+	{ id: 'acme/writing-kit/changelog', name: 'changelog', source: 'acme/writing-kit', installs: 2100, url: 'https://github.com/acme/writing-kit/tree/HEAD/plugins/release/skills/changelog', skill: { description: 'Write a changelog entry from what changed. Use for release notes and “what’s new” posts.', instructions: '# Changelog\n\n1. List what changed, newest first.\n2. Say each change in a sentence a reader would care about.\n3. Group them under Added, Changed and Fixed.' } },
+	{ id: 'acme/writing-kit/plain-language', name: 'plain-language', source: 'acme/writing-kit', installs: 900, url: 'https://github.com/acme/writing-kit/tree/HEAD/plugins/editing/skills/plain-language', skill: { description: 'Rewrite a draft in plain language without losing its meaning.', instructions: '# Plain language\n\nShort sentences. Common words. One idea each.' } },
+	{ id: 'acme/writing-kit/link-roundup', name: 'link-roundup', source: 'acme/writing-kit', installs: 300, url: 'https://github.com/acme/writing-kit/tree/HEAD/plugins/editing/skills/link-roundup', skill: { description: 'Gather a week of links into a short post.', instructions: '# Link roundup\n\nGroup the links under themes.' } }
+];
+const SET_AT = at;
+/** The three of them, set aside for review. */
+export const kitProposals: SkillProposal[] = kit.map((one, index) => ({
+	id: `set${index}`.padEnd(12, '0'), createdAt: SET_AT,
+	skill: { name: one.name, description: one.skill!.description, instructions: one.skill!.instructions, enabled: true, origin: 'installed', source: one.url, updatedAt: SET_AT },
+	notes: ['This was written by someone else. Read it before adding it: the assistant will follow it whenever it is used.', `From the plugin “${index === 0 ? 'release' : 'editing'}”.`],
+	...(one.name === 'link-roundup' ? { replaces: 'link-roundup' } : {})
+}));
+export const kitNotes = ['This is a plugin marketplace. Only the skills in its plugins can be added: this chat can’t run a plugin’s commands, agents, hooks or MCP servers.', '1 of its plugins is kept in other repositories and was not read: deploy-tools.'];
+
 /** A published skill fetched for review, with the notes a long one with scripts gets. */
 export const proposal: SkillProposal = {
 	id: 'demo00000000', createdAt: at,
@@ -26,4 +42,4 @@ export const proposal: SkillProposal = {
 	notes: ['This was written by someone else. Read it before adding it: the assistant will follow it whenever it is used.', '2 other files in the skill’s folder (scripts, assets) were left behind: this chat can’t run scripts, so steps that depend on them won’t work.']
 };
 export const drafted: SkillProposal = { id: 'demo00000001', createdAt: at, skill: { ...roundup, updatedAt: at }, notes: [] };
-export const client = () => memorySkills(skills, registry);
+export const client = () => memorySkills(skills, [...registry, ...kit]);

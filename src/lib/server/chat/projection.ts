@@ -6,6 +6,7 @@
  *
  * Pure, so it is shared by the page's first render and the live socket, and tested alone.
  */
+import type { SkillReviewRef } from '../../chat-skills';
 import type { ChatAuthor, ChatMessage, ChatSelection, ChatToolUse } from '../../chat';
 import { MCP_SERVERS } from '../../mcp-servers';
 import { CODEMODE_TOOL, isMcpTool, scriptCalls } from './mcp-tools';
@@ -119,6 +120,8 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 			if (!result.isError && result.toolName === 'skill_add') {
 				const skill = skillFrom(textOf(result.content));
 				if (skill) { call.use.skill = skill; call.use.label = `Offered the skill “${skill.name}”`; }
+				const set = skill ? undefined : skillSetFrom(textOf(result.content));
+				if (set) { call.use.skillSet = set; call.use.label = `Offered ${set.skills.length} skills${set.from ? ` from ${set.from}` : ''}`; }
 			}
 			if (!result.isError && result.toolName === 'show_page') {
 				const peek = peekFrom(textOf(result.content));
@@ -316,12 +319,29 @@ function saidSkills(data: { skills?: unknown }): { skills?: string[] } {
 }
 
 /** The skill `skill_add` put up for review: what its card shows before Casey's browser fetches the rest. */
+const reviewRef = (review: Record<string, unknown> | undefined): SkillReviewRef | undefined => {
+	if (!review || typeof review.id !== 'string' || !/^[a-z0-9]{12}$/.test(review.id) || typeof review.name !== 'string') return undefined;
+	const origin = review.origin === 'installed' ? 'installed' : 'custom';
+	return { id: review.id, name: review.name.slice(0, 64), description: typeof review.description === 'string' ? review.description.slice(0, 320) : '', origin, ...(typeof review.source === 'string' && /^https:\/\//.test(review.source) ? { source: review.source.slice(0, 300) } : {}), ...(review.replaces === true ? { replaces: true } : {}) };
+};
+
 export function skillFrom(output: string): ChatToolUse['skill'] | undefined {
+	try { return reviewRef((JSON.parse(output) as { review?: Record<string, unknown> }).review); } catch { return undefined; }
+}
+
+/** The skills `skill_add` put up together, from a repository or a plugin marketplace. */
+export function skillSetFrom(output: string): ChatToolUse['skillSet'] | undefined {
 	try {
-		const { review } = JSON.parse(output) as { review?: Record<string, unknown> };
-		if (!review || typeof review.id !== 'string' || !/^[a-z0-9]{12}$/.test(review.id) || typeof review.name !== 'string') return undefined;
-		const origin = review.origin === 'installed' ? 'installed' : 'custom';
-		return { id: review.id, name: review.name.slice(0, 64), description: typeof review.description === 'string' ? review.description.slice(0, 320) : '', origin, ...(typeof review.source === 'string' && /^https:\/\//.test(review.source) ? { source: review.source.slice(0, 300) } : {}), ...(review.replaces === true ? { replaces: true } : {}) };
+		const { reviews, from, total, notes } = JSON.parse(output) as { reviews?: unknown; from?: unknown; total?: unknown; notes?: unknown };
+		if (!Array.isArray(reviews)) return undefined;
+		const skills = reviews.slice(0, 24).map((review) => reviewRef(review as Record<string, unknown>)).filter((ref): ref is SkillReviewRef => !!ref);
+		if (!skills.length) return undefined;
+		return {
+			skills,
+			...(typeof from === 'string' && /^[\w.-]+\/[\w.-]+$/.test(from) ? { from } : {}),
+			...(typeof total === 'number' && total > skills.length ? { total: Math.round(total) } : {}),
+			...(Array.isArray(notes) ? { notes: notes.filter((note): note is string => typeof note === 'string').slice(0, 6).map((note) => note.slice(0, 400)) } : {})
+		};
 	} catch { return undefined; }
 }
 

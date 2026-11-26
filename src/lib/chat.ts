@@ -47,6 +47,8 @@ export interface ChatToolUse {
 	error?: string;
 	/** A skill the assistant put in front of Casey to review (`skill_add`); the card fetches the rest as Casey. */
 	skill?: import('./chat-skills').SkillReviewRef;
+	/** Several skills put up at once, from a repository or a plugin marketplace: one card, each added by itself. */
+	skillSet?: { skills: import('./chat-skills').SkillReviewRef[]; from?: string; total?: number; notes?: string[] };
 }
 
 /** A reply in the order it happened: stretches of text, and the steps taken between them. */
