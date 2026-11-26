@@ -76,8 +76,13 @@ export class McpSession {
 		readonly url: string,
 		/** The bearer token for each request, fetched fresh so a refresh is picked up. */
 		private readonly token: () => Promise<string>,
-		private readonly fetcher: typeof fetch = fetch
-	) {}
+		fetcher?: typeof fetch
+	) {
+		// Workers' `fetch` must be called bare: kept as a property and called as `this.fetcher(…)` it throws “Illegal invocation”.
+		this.fetcher = fetcher ?? (((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)) as typeof fetch);
+	}
+
+	private readonly fetcher: typeof fetch;
 
 	private async post(message: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
 		const timeout = AbortSignal.timeout(TIMEOUT);

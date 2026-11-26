@@ -416,3 +416,20 @@ describe('listing a token-only server’s tools for /account', () => {
 		expect(listingProblem(raindrop, new Error('The server answered 500.'), deps)).toBe('Raindrop didn’t list its tools: The server answered 500.');
 	});
 });
+
+describe('the client on Workers', () => {
+	test('calls the global fetch bare, as Workers require', async () => {
+		const { McpSession } = await import('../src/lib/server/mcp/client');
+		const real = globalThis.fetch;
+		// Workers throw “Illegal invocation” when fetch is called as a method of anything else.
+		globalThis.fetch = (function (this: unknown, _url: string, init: RequestInit) {
+			if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+			const sent = JSON.parse(String(init.body)) as { id?: number; method: string };
+			if (sent.id === undefined) return Promise.resolve(new Response(null, { status: 202 }));
+			return Promise.resolve(Response.json({ jsonrpc: '2.0', id: sent.id, result: sent.method === 'tools/list' ? { tools: [{ name: 'find_bookmarks' }] } : {} }));
+		}) as unknown as typeof fetch;
+		try {
+			expect((await new McpSession('https://mcp.example/mcp', async () => 't').listTools()).map((tool) => tool.name)).toEqual(['find_bookmarks']);
+		} finally { globalThis.fetch = real; }
+	});
+});
