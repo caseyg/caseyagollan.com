@@ -1,5 +1,6 @@
 import { searchPrivateArena, searchRaindrop } from './arena-client';
 import { loadPagefind, plainExcerpt, type PagefindData } from './pagefind';
+import { blockFromPost, fetchSourcePost, isSitePostLink, SOURCE_POST_TYPES } from './table-post-source';
 import { ARENA_ICON, linkBlock, POST_ICON, type Block, type BlockKind } from './tables';
 
 const PAGE_SIZE = 24;
@@ -74,14 +75,51 @@ export function withOwnerSources(search: typeof searchBlocks = searchBlocks, sou
 
 const samePage = (a: string, b: string) => a.replace(/[?#].*$/, '').replace(/\/+$/, '') === b.replace(/[?#].*$/, '').replace(/\/+$/, '');
 
+/** An Are.na address without its scheme, `www.` or trailing slash, so links typed any way match the index's. */
+const arenaKey = (url: string) => url.replace(/^https?:\/\/(www\.)?/i, '').replace(/[?#].*$/, '').replace(/\/+$/, '').toLowerCase();
+
+/** One of Casey's Are.na channels, by address: the words its slug spells, which search finds it by. */
+export function arenaChannelWords(url: string): string | null {
+	const match = /^(?:https?:\/\/)?(?:www\.)?are\.na\/([^/?#]+)\/([^/?#]+)\/?(?:[?#].*)?$/i.exec(url.trim());
+	if (!match || match[1] === 'block' || match[1] === 'channel') return null;
+	return decodeURIComponent(match[2]).replace(/-[a-z0-9]{6,}$/i, (tail) => (/\d/.test(tail) ? '' : tail)).replace(/[-_]+/g, ' ').trim() || null;
+}
+
+interface Richer {
+	post?: typeof fetchSourcePost;
+	search?: typeof searchBlocks;
+	privateArena?: typeof searchPrivateArena;
+}
+
 /**
- * A link as a block. A page on this site that its search finds by one of `find` (its title, its
+ * The rich block a plain link block stands for, or null when it stands for nothing richer: a link to
+ * one of the site's notes, replies, likes or reposts becomes that post (its `source.json`), and a
+ * link to one of Casey's Are.na channels becomes the channel as search has it, private ones for the owner.
+ */
+export async function richerBlock(block: Block, { post = fetchSourcePost, search = searchBlocks, privateArena = searchPrivateArena }: Richer = {}): Promise<Block | null> {
+	if (block.kind !== 'link') return null;
+	if (isSitePostLink(block)) {
+		const found = await post(block.url).catch(() => null);
+		return found && SOURCE_POST_TYPES.has(found.type) ? blockFromPost(found, block.url) : null;
+	}
+	const words = arenaChannelWords(block.url);
+	if (!words) return null;
+	const key = arenaKey(block.url);
+	const matches = (found: Block[] | null | undefined) => found?.find((candidate) => candidate.kind === 'arena' && arenaKey(candidate.url) === key) ?? null;
+	return matches(await search(words, 'arena', 24).catch(() => null)) ?? matches(await privateArena(words, 24).catch(() => []));
+}
+
+/**
+ * A link as a block. One of the site's posts or Casey's Are.na channels comes back drawn as itself
+ * (`richerBlock`); another page on this site that its search finds by one of `find` (its title, its
  * first words) comes back as the same rich block the Add menu gives: picture, type and excerpt.
  * Anything else, or a page the search doesn't find, is a plain link block.
  */
-export async function linkedBlock(url: string, find: readonly string[] = [], origin?: string, search: typeof searchBlocks = searchBlocks): Promise<Block | null> {
+export async function linkedBlock(url: string, find: readonly string[] = [], origin?: string, search: typeof searchBlocks = searchBlocks, richer: Omit<Richer, 'search'> = {}): Promise<Block | null> {
 	const link = linkBlock(url, origin);
-	if (!link || !link.url.startsWith('/')) return link;
+	if (!link) return link;
+	const rich = await richerBlock(link, { ...richer, search });
+	if (rich || !link.url.startsWith('/')) return rich ?? link;
 	for (const words of find) {
 		const found = await search(words.slice(0, 200), 'all', 12).catch(() => null);
 		const match = found?.find((block) => samePage(block.url, link.url));

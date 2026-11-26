@@ -32,6 +32,14 @@
 	</div>
 </Story>
 
+
+<!-- An older table's plain link to one of the site's posts draws as that post, and upgrades to it when Casey opens the table. -->
+<Story asChild name="Link to a site post">
+	<div class="tiles">
+		<div class="tile" style="height: 240px"><BlockCard block={{ kind: 'link', url: '/2026/11/21/3n2tm63slgc2o', title: '/2026/11/21/3n2tm63slgc2o', meta: 'caseyagollan.com', icon: '🏠' }} source={sourceView(mastodonLike)} /></div>
+		<div class="tile" style="height: 240px"><BlockCard block={{ kind: 'link', url: '/2026/11/21/3n2tm63slgc2o', title: '/2026/11/21/3n2tm63slgc2o', meta: 'caseyagollan.com', icon: '🏠' }} source={null} /></div>
+	</div>
+</Story>
 <!-- Pieces taken out of a page: a picture shown whole, a quote that leads with its words, a social post. -->
 <Story asChild name="Pieces">
 	<div class="tiles">

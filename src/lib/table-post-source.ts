@@ -17,6 +17,12 @@ const PIECE_ICONS = new Set(['🦋', '🐘']);
 const POST_PATH = /^\/\d{4}\/\d{2}\/\d{2}\/[^/?#]+\/?$/;
 
 /**
+ * A plain link to one of the site's posts: what a pasted address, or the chat before it added posts
+ * as search found them, set down. It is drawn, and upgraded, like the post it links to where it has one.
+ */
+export const isSitePostLink = (block: Pick<Block, 'kind' | 'url'>) => block.kind === 'link' && POST_PATH.test(block.url);
+
+/**
  * A block for one of the site's notes, replies, likes or reposts. Blocks keep the type's emoji from
  * search (`POST_ICON`), so older tables are recognised too.
  */
@@ -38,6 +44,29 @@ export function sourceView(post: Post | null | undefined): SourceView {
 	const snapshot = postDetailSnapshots(post)[0];
 	if (!snapshot) return null;
 	return { type: 'saved', snapshot, mark: post.type === 'like' ? { icon: '⭐', label: 'liked' } : { icon: '🔁', label: 'reposted' } };
+}
+
+const plainText = (html: string) =>
+	html
+		.replace(/<(br|\/p|\/li|\/blockquote)\b[^>]*>/gi, ' ')
+		.replace(/<[^>]+>/g, '')
+		.replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (_, name: string) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'", nbsp: ' ' })[name]!)
+		.replace(/\s+/g, ' ')
+		.trim();
+
+/**
+ * The block for one of the site's posts, read from its `source.json`: titled, typed, dated and
+ * pictured as site search gives it (`blockFromSearch`), so it draws and sizes like one added from the Add menu.
+ */
+export function blockFromPost(post: Post, url: string): Block {
+	// A like or repost is the post it saved; a note or reply is Casey's own words.
+	const saved = post.type === 'like' || post.type === 'repost';
+	const snapshot = saved ? postDetailSnapshots(post)[0] : undefined;
+	const text = plainText(snapshot?.html || post.content || '');
+	const author = snapshot ? snapshot.author.name || snapshot.author.handle : '';
+	const title = post.title || post.summary || (snapshot ? snapshot.preview?.title || `Post by ${author}` : '') || `${post.type[0].toUpperCase()}${post.type.slice(1)} · ${post.date.slice(0, 10)}`;
+	const image = post.photo?.find((photo) => photo.url)?.url || snapshot?.images?.[0]?.src || snapshot?.video?.poster || undefined;
+	return { kind: 'post', url: url.replace(/\/?$/, '/'), title, meta: `${post.type} · ${post.date.slice(0, 10)}`, excerpt: text ? text.slice(0, 600) : undefined, image, icon: POST_ICON[post.type] };
 }
 
 const cache = new Map<string, Promise<Post | null>>();
