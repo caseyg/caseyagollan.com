@@ -6,6 +6,7 @@ import { DeliveryError, publicUrl, safePublicFetch, type PublicFetcher } from '.
 import { enrichSocialSnapshots } from '../social-snapshots';
 import { socialImageStore, socialVideoStore, archivePhotoProperties, archiveLinkPreviewProperties } from '../social-media';
 import { publishingConfig, type PublishingEnvironment } from '../config';
+import { mastodonCredentials } from '../mastodon-oauth';
 import { mastodonPage, blueskyPage, blueskyPublic, blueskySyndicationUrls, type Activity, type GetJson, type Page } from './providers';
 
 export type PesosEnvironment = PublishingEnvironment;
@@ -239,9 +240,11 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
   const stored = await bucket.get('private/pesos/state.json');
   const state: State = stored ? await stored.json<State>() : {feeds:{}};
   const feeds: {name:string;page:(cursor?:string)=>Promise<Page>}[] = [];
-  const mastodon = config.syndication?.mastodon;
-  if (mastodon && mastodonAliasesReady) {
+  const mastodonAccount = config.syndication?.mastodon;
+  if (mastodonAccount && mastodonAliasesReady) {
    try {
+   // The OAuth connection when there is one, otherwise the static token.
+   const mastodon = await mastodonCredentials(mastodonAccount);
    const base = publicUrl(mastodon.instance).origin;
    const account = (await request(`${base}/api/v1/accounts/verify_credentials`,{Authorization:`Bearer ${mastodon.token}`})).data;
    if (typeof account.id !== 'string') throw new Error('Invalid Mastodon identity');
@@ -302,7 +305,7 @@ export async function processPesos(env: PesosEnvironment, dependencies: Dependen
      // Link card thumbnails are only ever served from saved copies; dry runs keep the card text.
      if(activity.kind==='post')activity.properties=await archiveLinkPreviewProperties(activity.properties,dependencies.dryRun?undefined:socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),dependencies.fetcher);
      let file = await activityDocument(activity,config.timeZone,[...entries,...additions].map(file=>file.path));
-     if (activity.kind !== 'post' || activity.properties['in-reply-to']?.length || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),storeVideo:dependencies.dryRun ? undefined : socialVideoStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodon?.instance});
+     if (activity.kind !== 'post' || activity.properties['in-reply-to']?.length || activity.properties['quotation-of']?.length) file.content = await enrichSocialSnapshots(file.content,fetcher,{storeImage:dependencies.dryRun ? undefined : socialImageStore(config.mediaBucket,config.me,config.mediaBaseUrl),storeVideo:dependencies.dryRun ? undefined : socialVideoStore(config.mediaBucket,config.me,config.mediaBaseUrl),timeoutMs:10_000,mastodonInstance:mastodonAccount?.instance});
      additions.push(file);
      feedImports++;
      keys.add(`source:${activity.id}`);

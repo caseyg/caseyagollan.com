@@ -3,8 +3,10 @@ import { characterCount } from '../../social-text';
 import { checkDeliveryResponse } from './webmention';
 import { blueskyImagesEmbed, uploadMastodonMedia, type PreparedPhoto } from './syndication-photos';
 import { blueskyAgent, fallbackAgent, notePosted, OAuthUnavailable, type BlueskyAccount, type BlueskyAgent } from './bluesky-oauth';
+import { mastodonCredentials, mastodonFallback, MastodonOAuthRefused, notePosted as noteMastodonPosted, noteRefused, refusable, type MastodonAccount } from './mastodon-oauth';
 export interface SyndicationConfig {
- mastodon?: {instance:string;token:string};
+ /** OAuth when connected (`oauth`), with the static token as the fallback. */
+ mastodon?: MastodonAccount;
  /** OAuth when connected (`oauth`), with the app password as the fallback. */
  bluesky?: BlueskyAccount;
 }
@@ -140,25 +142,37 @@ export async function syndicate(service:'mastodon'|'bluesky',post:SyndicationPos
  const texts=syndicationThread(post,service);
  const parts=[...(progress?.parts ?? [])].slice(0,texts.length);
  if(service==='mastodon') {
-  const account=config.mastodon;if(!account)throw new DeliveryError('Mastodon is not configured',false);
-  const base=origin(account.instance);
+  const configured=config.mastodon;if(!configured)throw new DeliveryError('Mastodon is not configured',false);
+  let account=await mastodonCredentials(configured);
   for(let index=parts.length;index<texts.length;index++) {
-   const body=new URLSearchParams({status:texts[index],visibility:'public'});
-   if(index) body.set('in_reply_to_id',parts[index-1].id);
-   // Text is checked before photos upload, so a draft that is too long uploads nothing.
-   const media=mediaFor(post,index,texts.length);
-   for(const id of media.length ? await uploadMastodonMedia(base,account.token,media,fetcher) : []) body.append('media_ids[]',id);
-   const response=await fetcher(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':partKey(post.idempotencyKey,index)},body});
-   checkDeliveryResponse(response);
-   let result:{url?:unknown;id?:unknown};try{result=await response.json() as {url?:unknown;id?:unknown};}catch{throw new DeliveryError('Invalid Mastodon response',true);}
-   if(typeof result.url!=='string')throw new DeliveryError('Mastodon did not return a canonical URL',true);
-   const statusUrl=publicUrl(result.url);
-   // Configure the instance WEB_DOMAIN, which serves both API and canonical status URLs.
-   if(statusUrl.origin!==base) throw new DeliveryError('Mastodon returned an unexpected status origin',false);
-   if(index<texts.length-1 && typeof result.id!=='string') throw new DeliveryError('Mastodon did not return a status id',true);
-   parts.push({url:statusUrl.href,id:typeof result.id==='string'?result.id:''});
+   const base=origin(account.instance);
+   // With the OAuth token, a refusal is caught below and the static token takes over.
+   const send=account.auth==='oauth'?refusable(fetcher):fetcher;
+   try {
+    const body=new URLSearchParams({status:texts[index],visibility:'public'});
+    if(index) body.set('in_reply_to_id',parts[index-1].id);
+    // Text is checked before photos upload, so a draft that is too long uploads nothing.
+    const media=mediaFor(post,index,texts.length);
+    for(const id of media.length ? await uploadMastodonMedia(base,account.token,media,send) : []) body.append('media_ids[]',id);
+    const response=await send(base+'/api/v1/statuses',{method:'POST',redirect:'manual',headers:{authorization:`Bearer ${account.token}`,'content-type':'application/x-www-form-urlencoded','Idempotency-Key':partKey(post.idempotencyKey,index)},body});
+    checkDeliveryResponse(response);
+    let result:{url?:unknown;id?:unknown};try{result=await response.json() as {url?:unknown;id?:unknown};}catch{throw new DeliveryError('Invalid Mastodon response',true);}
+    if(typeof result.url!=='string')throw new DeliveryError('Mastodon did not return a canonical URL',true);
+    const statusUrl=publicUrl(result.url);
+    // Configure the instance WEB_DOMAIN, which serves both API and canonical status URLs.
+    if(statusUrl.origin!==base) throw new DeliveryError('Mastodon returned an unexpected status origin',false);
+    if(index<texts.length-1 && typeof result.id!=='string') throw new DeliveryError('Mastodon did not return a status id',true);
+    parts.push({url:statusUrl.href,id:typeof result.id==='string'?result.id:''});
+   } catch(error) {
+    // OAuth refused mid-send: idempotency keys belong to the account, so the static token cannot post it twice.
+    if(!(error instanceof MastodonOAuthRefused) || account.auth!=='oauth') throw error;
+    await noteRefused(configured,error);
+    account=await mastodonFallback(configured,error.message);
+    index--;continue;
+   }
    if(texts.length>1) await progress?.save(parts);
   }
+  await noteMastodonPosted(configured,account).catch(()=>undefined);
   return parts[0].url;
  }
  const account=config.bluesky;if(!account)throw new DeliveryError('Bluesky is not configured',false);

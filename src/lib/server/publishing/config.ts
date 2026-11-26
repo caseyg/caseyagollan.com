@@ -1,6 +1,7 @@
 import { authSettings, authStore, type IndieAuthEnvironment } from '../indieauth/contracts';
 import type { PublishingConfig } from './micropub';
 import { blueskyOAuthConfig } from './bluesky-oauth';
+import { instanceOrigin, mastodonOAuthConfig } from './mastodon-oauth';
 
 export interface PublishingEnvironment extends IndieAuthEnvironment {
 	READWISE_ACCESS_TOKEN?: string;
@@ -15,6 +16,8 @@ export interface PublishingEnvironment extends IndieAuthEnvironment {
 	PUBLISHING_DELIVERY_ENABLED?: string;
 	PUBLISHING_MASTODON_INSTANCE?: string;
 	PUBLISHING_MASTODON_TOKEN?: string;
+	/** "false" turns Mastodon OAuth off, leaving only the static token. */
+	PUBLISHING_MASTODON_OAUTH?: string;
 	PUBLISHING_BLUESKY_SERVICE?: string;
 	PUBLISHING_BLUESKY_IDENTIFIER?: string;
 	PUBLISHING_BLUESKY_PASSWORD?: string;
@@ -61,6 +64,18 @@ function bluesky(env: PublishingEnvironment, me: string) {
 	return { service, ...(identifier ? { identifier } : {}), ...(password ? { password } : {}), ...(oauth ? { oauth } : {}) };
 }
 
+/**
+ * Mastodon posting: OAuth once the owner connects the instance on /account (the session
+ * lives in `PUBLISHING_STATE`), and the static token, when set, as the fallback.
+ */
+function mastodon(env: PublishingEnvironment, me: string) {
+	const token = env.PUBLISHING_MASTODON_TOKEN?.trim() ? env.PUBLISHING_MASTODON_TOKEN : undefined;
+	const named = env.PUBLISHING_MASTODON_INSTANCE?.trim();
+	const oauth = env.PUBLISHING_MASTODON_OAUTH === 'false' || !named ? undefined : mastodonOAuthConfig(me, env.PUBLISHING_STATE, named);
+	if (!oauth && !token) return;
+	return { instance: oauth?.instance ?? instanceOrigin(named) ?? named ?? 'https://social.coop', ...(token ? { token } : {}), ...(oauth ? { oauth } : {}) };
+}
+
 export function publishingConfig(env: PublishingEnvironment = {}): PublishingConfig | undefined {
 	if (env.PUBLISHING_ENABLED !== 'true') return;
 	const internal = env.PUBLISHING_AUTH_MODE === 'internal';
@@ -75,8 +90,9 @@ export function publishingConfig(env: PublishingEnvironment = {}): PublishingCon
 	};
 	if (Object.values(config).some(value => !value?.trim())) return;
 	const blue = bluesky(env, config.me!);
+	const masto = mastodon(env, config.me!);
 	const syndication = {
-		...(env.PUBLISHING_MASTODON_TOKEN?.trim() ? { mastodon: { instance: env.PUBLISHING_MASTODON_INSTANCE ?? 'https://social.coop', token: env.PUBLISHING_MASTODON_TOKEN } } : {}),
+		...(masto ? { mastodon: masto } : {}),
 		...(blue ? { bluesky: blue } : {})
 	};
 	return { ...config, ...(store ? { introspect: (token: string) => store.invoke('introspectToken', { token }) } : {}), state: env.PUBLISHING_STATE, syndication, deliveryEnabled: env.PUBLISHING_DELIVERY_ENABLED === 'true', mediaBucket: env.PUBLISHING_MEDIA, mediaEnabled: Boolean(env.PUBLISHING_MEDIA), mediaBaseUrl: env.PUBLISHING_MEDIA_BASE_URL, images: env.IMAGES, introspectionToken: env.PUBLISHING_INTROSPECTION_TOKEN } as PublishingConfig;
