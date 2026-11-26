@@ -316,7 +316,7 @@
 	   Opening and folding the sheet only covers the canvas, so the camera stays put. */
 	@media (min-width: 900px) {
 		:global(html[data-chat-dock='side']) .stage {
-			right: 24rem;
+			right: calc(var(--chat-dock-width) + 2 * var(--nav-inset));
 		}
 	}
 

@@ -139,7 +139,7 @@
 </script>
 
 {#if !hidden}
-	<div class="site-chat" data-mode={mode} data-table={onTable || undefined}>
+	<div class="site-chat" data-mode={mode}>
 		<ChatOverlay
 			bind:mode
 			title={live?.snapshot.thread.title ?? 'New chat'}
@@ -151,6 +151,7 @@
 			href={threadId ? chatHref(threadId) : undefined}
 			error={live?.error || startError}
 			offline={live?.status === 'offline'}
+			launcher={onTable ? 'top-right' : 'bottom-right'}
 			sheet={narrow.current}
 			bind:sheetExpanded
 			bind:sheetRestHeight
@@ -164,43 +165,18 @@
 {/if}
 
 <style>
-	/* A round 💬 button at bottom right, a sidebar on wide screens, or a sheet along the bottom on narrow ones. */
-	.site-chat {
-		position: fixed;
-		z-index: var(--z-menu);
-		right: var(--space-4);
-		bottom: var(--space-4);
-	}
-
-	/* On a table the canvas toolbar and tldraw's watermark own the bottom, so the button waits under the navigation. */
-	.site-chat[data-mode='minimized'][data-table] {
-		bottom: auto;
-		top: calc(var(--nav-lane) + var(--space-2));
-	}
-
-	@media (min-width: 900px) {
-		.site-chat[data-mode='docked'] {
-			inset: var(--nav-lane) 0 0 auto;
-			width: 24rem;
-		}
-	}
-
+	/*
+	 * Folded, a round button floating at bottom right (on a table the canvas toolbar and tldraw's
+	 * watermark own the bottom, so it waits under the navigation). Open, the site's side panel on
+	 * wide screens. Both place themselves; only the narrow screens' sheet needs putting along the bottom.
+	 */
 	@media (max-width: 899px) {
 		.site-chat[data-mode='docked'] {
+			position: fixed;
+			z-index: var(--z-menu);
 			left: 0;
 			right: 0;
 			bottom: 0;
-		}
-	}
-
-	@media (max-width: 600px) {
-		.site-chat[data-mode='minimized'] {
-			right: var(--space-2);
-			bottom: var(--space-2);
-		}
-
-		.site-chat[data-mode='minimized'][data-table] {
-			bottom: auto;
 		}
 	}
 </style>

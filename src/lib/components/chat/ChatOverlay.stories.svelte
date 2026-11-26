@@ -12,13 +12,11 @@
 	});
 </script>
 
-<!-- Over a table's canvas: a round 💬 button, or a sidebar the canvas makes room for. On a phone, docked is a bottom sheet. -->
+<!-- Over a table's canvas: a round floating button, or the site's side panel, which the canvas makes room for beneath the navigation. On a phone, docked is a bottom sheet. -->
 {#snippet stage(args: ComponentProps<typeof ChatOverlay>, mode: 'minimized' | 'docked')}
 	<div class="stage" data-chat={mode}>
 		<div class="canvas">Canvas</div>
-		<div class="dock">
-			<ChatOverlay {...args} {mode} onsend={() => true} />
-		</div>
+		<ChatOverlay {...args} {mode} launcher="bottom-right" onsend={() => true} />
 	</div>
 {/snippet}
 
@@ -62,22 +60,11 @@
 	}
 
 	.stage[data-chat='docked'] .canvas {
-		margin-right: 24rem;
-	}
-
-	.dock {
-		position: absolute;
-		right: var(--space-4);
-		bottom: var(--space-4);
+		margin-right: calc(var(--chat-dock-width) + 2 * var(--nav-inset));
 	}
 
 	.sheet-dock {
 		position: absolute;
 		inset: auto 0 0;
-	}
-
-	.stage[data-chat='docked'] .dock {
-		inset: 0 0 0 auto;
-		width: 24rem;
 	}
 </style>
