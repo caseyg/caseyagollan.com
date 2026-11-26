@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-25T10:24:05.362Z",
+  "updatedAt": "2026-11-26T10:23:49.624Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -1373,11 +1373,6 @@
     },
     {
       "service": "bluesky",
-      "handle": "defensecharts.xpost.bot",
-      "name": "Defense Charts (mirror bot)"
-    },
-    {
-      "service": "bluesky",
       "handle": "delibdemjournal.bsky.social",
       "name": "Journal of Deliberative Democracy"
     },
@@ -2083,7 +2078,7 @@
     },
     {
       "service": "bluesky",
-      "handle": "grove-research.bsky.social",
+      "handle": "groveresearch.com",
       "name": "Grove Research"
     },
     {
@@ -2110,6 +2105,11 @@
       "service": "mastodon",
       "handle": "hakanto@social.coop",
       "name": "H. H. Hakanto"
+    },
+    {
+      "service": "bluesky",
+      "handle": "handle.invalid",
+      "name": "Defense Charts (mirror bot)"
     },
     {
       "service": "bluesky",
