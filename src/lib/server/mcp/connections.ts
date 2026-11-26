@@ -125,9 +125,12 @@ async function client(deps: McpDeps, server: McpServer, metadata: ServerMetadata
 			...(scopes.length ? { scope: scopes.join(' ') } : {})
 		})
 	}).catch(() => undefined);
-	const body = response?.ok ? await response.json().catch(() => undefined) as { client_id?: unknown; client_secret?: unknown } | undefined : undefined;
-	if (!response?.ok) await response?.body?.cancel().catch(() => undefined);
-	if (typeof body?.client_id !== 'string' || !body.client_id) throw new McpConnectError(`${server.name} didn’t accept this site as an app${response ? ` (${response.status})` : ''}.`);
+	const body = await response?.json().catch(() => undefined) as { client_id?: unknown; client_secret?: unknown; error?: unknown; error_description?: unknown } | undefined;
+	if (!response?.ok || typeof body?.client_id !== 'string' || !body.client_id) {
+		// The service's own reason, when it gives one: it is the only clue to what it wants.
+		const reason = [body?.error_description, body?.error].find((value): value is string => typeof value === 'string' && !!value.trim())?.trim().slice(0, 200);
+		throw new McpConnectError(`${server.name} didn’t accept this site as an app${response ? ` (${response.status})` : ''}${reason ? `: ${reason.replace(/\.$/, '')}` : ''}.`);
+	}
 	const record: ClientRecord = { clientId: body.client_id, ...(typeof body.client_secret === 'string' && body.client_secret ? { clientSecret: body.client_secret } : {}), redirectUri, issuer: metadata.issuer, registeredAt: (deps.now ?? Date.now)() };
 	await writeJson(deps.bucket, key, record);
 	return record;
@@ -135,6 +138,7 @@ async function client(deps: McpDeps, server: McpServer, metadata: ServerMetadata
 
 /** Start a sign-in: the address of the server's sign-in page. `binding` ties the answer to this browser. */
 export async function startConnect(deps: McpDeps, server: McpServer, origin: string, binding: string): Promise<string> {
+	if (server.signIn === false) throw new McpConnectError(`${server.name} only lets apps it has approved sign in, so it works from its saved access token here.`);
 	const redirectUri = `${new URL(origin).origin}/oauth/mcp/callback`;
 	const found = await discover(deps, server);
 	const registered = await client(deps, server, found.metadata, redirectUri, found.scopes);
@@ -290,6 +294,26 @@ export async function setWrites(deps: McpDeps, server: McpServer, writes: boolea
 	await writeJson(deps.bucket, settingsKey(server.id), { writes } satisfies Settings);
 }
 
+/**
+ * List the tools of any usable server that has no kept list yet, so /account shows what a
+ * token-only server offers without the chat having asked first. Each gets a few seconds; one
+ * that fails keeps its “List them” button, which says why.
+ */
+export async function listMissingTools(deps: McpDeps, wait = 8000): Promise<void> {
+	await Promise.all(MCP_SERVERS.map(async (server) => {
+		const [session, stored] = await Promise.all([readJson<StoredSession>(deps.bucket, sessionKey(server.id)), readJson<StoredTools>(deps.bucket, toolsKey(server.id))]);
+		if (stored?.tools || !((session?.accessToken && !session.broken) || personalToken(deps, server))) return;
+		await Promise.race([refreshTools(deps, server).catch(() => undefined), new Promise((resolve) => setTimeout(resolve, wait))]);
+	}));
+}
+
+/** Why a server's tools could not be listed, in words for /account. */
+export function listingProblem(server: McpServer, cause: unknown, deps: McpDeps): string {
+	if (cause instanceof McpAuthError) return personalToken(deps, server) && server.signIn === false ? `${server.name} refused the access token saved with the site. It may have expired or been replaced.` : `${server.name} refused the sign-in. Connect it again.`;
+	const detail = cause instanceof Error && cause.message ? `: ${cause.message.replace(/\.$/, '').slice(0, 200)}` : '';
+	return `${server.name} didn’t list its tools${detail}.`;
+}
+
 /** What /account shows for every server. */
 export async function connections(deps: McpDeps): Promise<McpConnection[]> {
 	return Promise.all(MCP_SERVERS.map(async (server): Promise<McpConnection> => {
@@ -297,7 +321,7 @@ export async function connections(deps: McpDeps): Promise<McpConnection[]> {
 		const oauth = !!session?.accessToken && !session.broken;
 		const via = oauth ? 'oauth' as const : personalToken(deps, server) ? 'token' as const : undefined;
 		return {
-			id: server.id, name: server.name, summary: server.summary, connected: oauth, ...(via ? { via } : {}),
+			id: server.id, name: server.name, summary: server.summary, connected: oauth, signIn: server.signIn !== false, ...(via ? { via } : {}),
 			...(oauth ? { connectedAt: session!.connectedAt } : {}),
 			...(via && stored?.tools ? { tools: stored.tools.map((tool) => ({ name: tool.name, reads: readsOnly(tool) })), toolsAt: stored.at } : {}),
 			writes: settings?.writes === true,

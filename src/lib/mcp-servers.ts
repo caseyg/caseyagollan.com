@@ -15,6 +15,8 @@ export interface McpServer {
 	guide: string;
 	/** A Worker secret holding a personal token the server also accepts, used until OAuth is connected. */
 	tokenSecret?: 'ARENA_PAT' | 'RAINDROP_TOKEN';
+	/** False when the server only lets apps it approved in advance sign in, so a site like this one can't: the token is the only way in. */
+	signIn?: false;
 }
 
 export const MCP_SERVERS: McpServer[] = [
@@ -30,6 +32,8 @@ export const MCP_SERVERS: McpServer[] = [
 	},
 	{
 		id: 'raindrop', name: 'Raindrop', url: 'https://api.raindrop.io/rest/v2/ai/mcp', tokenSecret: 'RAINDROP_TOKEN',
+		// Raindrop registers only clients it approved by email (its register endpoint answers 400 to anyone else).
+		signIn: false,
 		summary: 'Search and read bookmarks, collections, tags and highlights.',
 		guide: 'Casey’s Raindrop.io bookmarks, collections, tags and highlights.'
 	}
@@ -44,6 +48,8 @@ export interface McpConnection {
 	summary: string;
 	/** Signed in with OAuth. */
 	connected: boolean;
+	/** False when the service has no sign-in open to this site; it works from the saved token or not at all. */
+	signIn: boolean;
 	/** `oauth`, or `token` while a personal token in the Worker's secrets stands in. */
 	via?: 'oauth' | 'token';
 	connectedAt?: number;

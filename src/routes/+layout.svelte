@@ -6,6 +6,7 @@
 	import { SITE_IDENTITY } from '$lib/identity';
 	import { OPENSEARCH_PATH, OPENSEARCH_TITLE } from '$lib/opensearch';
 	import WikiPreviews from '$lib/components/wiki/WikiPreviews.svelte';
+	import CursorPresence from '$lib/components/cursors/CursorPresence.svelte';
 	import { onMount } from 'svelte';
 	import { ownerSignedIn } from '$lib/owner';
 	import { CHAT_OWNER_ONLY, type ChatViewer } from '$lib/chat';
@@ -65,6 +66,9 @@
 
 <!-- Hovering a link to a wiki page, anywhere on the site, previews it. -->
 <WikiPreviews />
+
+<!-- Other visitors' cursors on this page, and chat by your own (press C). -->
+<CursorPresence />
 
 {#if chatViewer}
 	{#await import('$lib/components/chat/SiteChat.svelte') then { default: SiteChat }}

@@ -76,13 +76,18 @@ export class McpSession {
 		readonly url: string,
 		/** The bearer token for each request, fetched fresh so a refresh is picked up. */
 		private readonly token: () => Promise<string>,
-		private readonly fetcher: typeof fetch = fetch
-	) {}
+		fetcher?: typeof fetch
+	) {
+		// Workers' `fetch` must be called bare: kept as a property and called as `this.fetcher(…)` it throws “Illegal invocation”.
+		this.fetcher = fetcher ?? (((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init)) as typeof fetch);
+	}
+
+	private readonly fetcher: typeof fetch;
 
 	private async post(message: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
 		const timeout = AbortSignal.timeout(TIMEOUT);
 		return this.fetcher(this.url, {
-			method: 'POST', redirect: 'error', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+			method: 'POST', redirect: 'manual', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
 			headers: {
 				'content-type': 'application/json', accept: 'application/json, text/event-stream',
 				authorization: `Bearer ${await this.token()}`, 'mcp-protocol-version': MCP_CLIENT_PROTOCOL,
@@ -96,6 +101,8 @@ export class McpSession {
 		const id = ++this.#id;
 		const response = await this.post({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }, signal);
 		if (response.status === 401 || response.status === 403) { await response.body?.cancel().catch(() => undefined); throw new McpAuthError(); }
+		// Redirects are not followed (the token must not travel to another address), so one is a failure.
+		if (response.status >= 300 && response.status < 400) { await response.body?.cancel().catch(() => undefined); throw new McpError(`The server sent the request elsewhere (${response.status}).`, response.status); }
 		const session = response.headers.get('mcp-session-id');
 		if (session) this.#session = session;
 		const body = await readBody(response);

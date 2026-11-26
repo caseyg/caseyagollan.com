@@ -372,3 +372,64 @@ describe('a script run by Pi', () => {
 		} finally { await close(); }
 	}, 30_000);
 });
+
+describe('a service with no sign-in for this site', () => {
+	test('Raindrop is token-only: no sign-in is started, and /account is told so', async () => {
+		const { MCP_SERVERS } = await import('../src/lib/mcp-servers');
+		const { startConnect, connections } = await import('../src/lib/server/mcp/connections');
+		const raindrop = MCP_SERVERS.find((server) => server.id === 'raindrop')!;
+		const store = new Map<string, string>();
+		const bucket = { get: async (key: string) => store.has(key) ? { text: async () => store.get(key)!, json: async () => JSON.parse(store.get(key)!) } : null, put: async (key: string, value: string) => { store.set(key, value); }, delete: async (key: string) => { store.delete(key); }, list: async () => ({ objects: [] }) };
+		let asked = 0;
+		const deps = { bucket, env: { RAINDROP_TOKEN: 'token' }, fetcher: (async () => { asked++; return new Response('{}', { status: 500 }); }) as unknown as typeof fetch } as never;
+		await expect(startConnect(deps, raindrop, 'https://caseyagollan.com', 'b')).rejects.toThrow('only lets apps it has approved');
+		expect(asked).toBe(0);
+		const listed = await connections(deps);
+		expect(listed.find((one) => one.id === 'raindrop')).toMatchObject({ signIn: false, connected: false, via: 'token' });
+		expect(listed.find((one) => one.id === 'readwise')).toMatchObject({ signIn: true });
+	});
+});
+
+describe('listing a token-only server’s tools for /account', () => {
+	test('a missing list is fetched once, and a refused token is said plainly', async () => {
+		const { MCP_SERVERS } = await import('../src/lib/mcp-servers');
+		const { connections, listMissingTools, listingProblem } = await import('../src/lib/server/mcp/connections');
+		const { McpAuthError } = await import('../src/lib/server/mcp/client');
+		const raindrop = MCP_SERVERS.find((server) => server.id === 'raindrop')!;
+		const store = new Map<string, string>();
+		const bucket = { get: async (key: string) => store.has(key) ? { text: async () => store.get(key)!, json: async () => JSON.parse(store.get(key)!) } : null, put: async (key: string, value: string) => { store.set(key, value); }, delete: async (key: string) => { store.delete(key); }, list: async () => ({ objects: [] }) };
+		let calls = 0;
+		const fetcher = (async (_url: string, init: RequestInit) => {
+			calls++;
+			const sent = JSON.parse(String(init.body)) as { id?: number; method: string };
+			if (sent.id === undefined) return new Response(null, { status: 202 });
+			const result = sent.method === 'tools/list' ? { tools: [{ name: 'find_bookmarks' }, { name: 'create_bookmarks' }] } : { protocolVersion: '2025-06-18', capabilities: {}, serverInfo: { name: 'r', version: '1' } };
+			return Response.json({ jsonrpc: '2.0', id: sent.id, result });
+		}) as unknown as typeof fetch;
+		const deps = { bucket, env: { RAINDROP_TOKEN: 'token' }, fetcher } as never;
+		await listMissingTools(deps);
+		expect((await connections(deps)).find((one) => one.id === 'raindrop')?.tools).toEqual([{ name: 'find_bookmarks', reads: true }, { name: 'create_bookmarks', reads: false }]);
+		const before = calls;
+		await listMissingTools(deps);
+		expect(calls).toBe(before);
+		expect(listingProblem(raindrop, new McpAuthError(), deps)).toContain('refused the access token saved with the site');
+		expect(listingProblem(raindrop, new Error('The server answered 500.'), deps)).toBe('Raindrop didn’t list its tools: The server answered 500.');
+	});
+});
+
+describe('the client on Workers', () => {
+	test('calls the global fetch bare, as Workers require', async () => {
+		const { McpSession } = await import('../src/lib/server/mcp/client');
+		const real = globalThis.fetch;
+		// Workers throw “Illegal invocation” when fetch is called as a method of anything else.
+		globalThis.fetch = (function (this: unknown, _url: string, init: RequestInit) {
+			if (this !== undefined && this !== globalThis) throw new TypeError('Illegal invocation');
+			const sent = JSON.parse(String(init.body)) as { id?: number; method: string };
+			if (sent.id === undefined) return Promise.resolve(new Response(null, { status: 202 }));
+			return Promise.resolve(Response.json({ jsonrpc: '2.0', id: sent.id, result: sent.method === 'tools/list' ? { tools: [{ name: 'find_bookmarks' }] } : {} }));
+		}) as unknown as typeof fetch;
+		try {
+			expect((await new McpSession('https://mcp.example/mcp', async () => 't').listTools()).map((tool) => tool.name)).toEqual(['find_bookmarks']);
+		} finally { globalThis.fetch = real; }
+	});
+});

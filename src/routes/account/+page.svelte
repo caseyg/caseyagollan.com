@@ -10,6 +10,7 @@
 	import { rememberOwner } from '$lib/owner';
 	import NewsletterSettings from '$lib/components/NewsletterSettings.svelte';
 	import BlueskySettings from '$lib/components/BlueskySettings.svelte';
+	import MastodonSettings from '$lib/components/MastodonSettings.svelte';
 	import McpConnections from '$lib/components/account/McpConnections.svelte';
 	import AccountSignIn from '$lib/components/account/AccountSignIn.svelte';
 	import ConsentRequest from '$lib/components/account/ConsentRequest.svelte';
@@ -33,12 +34,12 @@
 		{ value: 'security', label: 'Security' }
 	];
 	/** Addresses inside a group that open it: where sign-in callbacks and old links land. */
-	const ANCHORS: Record<string, string> = { bluesky: 'connections', 'connections-chat': 'connections', passkeys: 'security', tokens: 'security' };
+	const ANCHORS: Record<string, string> = { bluesky: 'connections', mastodon: 'connections', 'connections-chat': 'connections', passkeys: 'security', tokens: 'security' };
 	function sectionFor(url: URL): string | undefined {
 		const anchor = url.hash.slice(1);
 		if (SECTIONS.some((section) => section.value === anchor)) return anchor;
 		if (ANCHORS[anchor]) return ANCHORS[anchor];
-		if (url.searchParams.has('bluesky') || url.searchParams.has('mcp')) return 'connections';
+		if (url.searchParams.has('bluesky') || url.searchParams.has('mastodon') || url.searchParams.has('mcp')) return 'connections';
 	}
 	let section = $state('tools');
 	let session = $state<Session | null>(null);
@@ -217,6 +218,7 @@
 					<SkillsManager />
 				{:else if value === 'connections'}
 					<BlueskySettings csrf={owner.csrf} result={page.url.searchParams.get('bluesky')} message={page.url.searchParams.get('message')} />
+					<MastodonSettings csrf={owner.csrf} result={page.url.searchParams.get('mastodon')} message={page.url.searchParams.get('message')} />
 					<McpConnections csrf={owner.csrf} result={page.url.searchParams.get('mcp')} server={page.url.searchParams.get('server')} message={page.url.searchParams.get('message')} />
 				{:else if value === 'newsletter'}
 					<NewsletterSettings csrf={owner.csrf} />
