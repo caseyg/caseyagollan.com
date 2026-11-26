@@ -31,6 +31,22 @@ const SAVES = { ARENA_PAT: process.env.ARENA_PAT, RAINDROP_TOKEN: process.env.RA
 const assets = { fetch: (request: Request | string | URL) => fetch(new Request(request as Request, { redirect: 'follow' })) } as unknown as Fetcher;
 
 /** Micropub's post list and sources, read from the content folder the way `q=source` answers. */
+/**
+ * table_render without Browser Rendering: addresses are still asked what they are, live, but a
+ * screenshot is a made-up JPEG header (1280 wide, 5400 tall) kept in memory.
+ */
+const kept = new Map<string, { body: ArrayBuffer; customMetadata?: Record<string, string> }>();
+const RENDER = {
+	CLOUDFLARE_ACCOUNT_ID: 'eval', CLOUDFLARE_API_TOKEN: 'eval',
+	SCREENSHOTS: {
+		head: async (key: string) => { const found = kept.get(key); return found ? { size: found.body.byteLength, customMetadata: found.customMetadata } : null; },
+		put: async (key: string, body: ArrayBuffer, options?: { customMetadata?: Record<string, string> }) => { kept.set(key, { body, customMetadata: options?.customMetadata }); }
+	}
+};
+const renderFetch = ((input: RequestInfo | URL, init?: RequestInit) => String(input).includes('/browser-rendering/screenshot')
+	? Promise.resolve(new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 5400 >> 8, 5400 & 255, 1280 >> 8, 1280 & 255, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1, 0xff, 0xd9]), { headers: { 'content-type': 'image/jpeg' } }))
+	: fetch(input, init)) as typeof fetch;
+
 async function contentMicropub(): Promise<MicropubCall> {
 	const posts: { url: string; date: string; type: string; properties: Record<string, unknown[]> }[] = [];
 	for (const folder of ['notes', 'articles', 'bookmarks', 'likes', 'photos', 'replies', 'reposts']) {
@@ -97,7 +113,7 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	const kept = new Map<string, string>();
 	const skillStore = { get: async (key: string) => kept.has(key) ? { json: async () => JSON.parse(kept.get(key)!) } : null, put: async (key: string, value: string) => { kept.set(key, value); }, delete: async (key: string) => { kept.delete(key); } } as unknown as R2Bucket;
 	for (const skill of scenario.skills ?? []) await saveSkill(skillStore, skill);
-	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, PUBLISHING_STATE: skillStore } as never, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
+	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore } as never, renderFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));

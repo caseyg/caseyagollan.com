@@ -19,6 +19,11 @@ export interface Block {
 	image?: string;
 	/** An emoji for the corner tile; defaults to the kind's. */
 	icon?: string;
+	/**
+	 * What the block is where it was saved, so its tags can be read and changed there:
+	 * `raindrop:<id>` or `readwise:document|highlight|book:<id>` (see `src/lib/tag-edits.ts`).
+	 */
+	ref?: string;
 }
 
 /** A table as the browse page lists it. */
@@ -96,13 +101,17 @@ function imageUrl(value: unknown): string | undefined {
 	return url && (url.startsWith('/') || url.startsWith('https:')) ? url : undefined;
 }
 
+/** A block's `ref`: a saved thing's source and id, nothing else. */
+const BLOCK_REF = /^(?:raindrop|readwise)(?::[0-9a-z]{1,40}){1,2}$/;
+
 export function cleanBlock(value: unknown): Block | null {
 	if (!value || typeof value !== 'object') return null;
 	const raw = value as Record<string, unknown>;
 	const url = blockUrl(raw.url);
 	const title = text(raw.title, 300);
 	if (!isBlockKind(raw.kind) || !url || !title) return null;
-	return { kind: raw.kind, url, title, meta: text(raw.meta, 200), excerpt: text(raw.excerpt), image: imageUrl(raw.image), icon: text(raw.icon, 16) };
+	const ref = typeof raw.ref === 'string' && BLOCK_REF.test(raw.ref) ? raw.ref : undefined;
+	return { kind: raw.kind, url, title, meta: text(raw.meta, 200), excerpt: text(raw.excerpt), image: imageUrl(raw.image), icon: text(raw.icon, 16), ...(ref ? { ref } : {}) };
 }
 
 /** The block a kind of shape stands for, or null for drawings, notes and arrows. */

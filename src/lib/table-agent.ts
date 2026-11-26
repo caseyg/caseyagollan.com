@@ -62,7 +62,10 @@ export type TableOp =
 	| { op: 'add_from_search'; query: string; filter?: 'all' | 'post' | 'book' | 'wiki' | 'arena' | 'raindrop'; limit?: number; columns?: number; at?: TablePoint }
 	/** `find`: for a page on this site, words its search finds it by (its title, then its first words), so it's added as the rich block the Add menu gives, not a bare link. */
 	| { op: 'add_links'; urls: string[]; find?: Record<string, string[]>; columns?: number; at?: TablePoint }
-	| { op: 'add_blocks'; blocks: Block[]; columns?: number; at?: TablePoint }
+	/** `sizes`: each block's own size, where it isn't its kind's usual one; `plain`: set down showing only themselves, details hidden. */
+	| { op: 'add_blocks'; blocks: Block[]; sizes?: ({ w: number; h: number } | null)[]; plain?: boolean; columns?: number; at?: TablePoint }
+	/** A PDF's pages as pictures, drawn on Casey's page (`$lib/table-render`): `count` pages from page `from`, beside `block` when it is on the table. */
+	| { op: 'add_pdf_pages'; url: string; title?: string; from?: number; count?: number; block?: string }
 	/** A block's pictures and best passages, read from its page as the Add menu does, set down beside it. */
 	| ({ op: 'add_pieces'; block: string } & PieceChoice)
 	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number; color?: TableColor } & TablePlace)
@@ -89,6 +92,12 @@ export type TableOp =
 	| { op: 'remove'; ids: string[] }
 	| { op: 'select'; ids: string[]; zoom?: boolean }
 	| { op: 'rename'; name: string }
+	/**
+	 * Reads the tags of blocks that have them (the site's posts, Raindrop bookmarks, Readwise items) and,
+	 * with `add` or `remove`, stages changes for Casey to review and save. `ids`: just those (a frame
+	 * means what it holds); `inside`: what one frame holds, by id or name; neither: every such block.
+	 */
+	| { op: 'tag'; ids?: string[]; inside?: string; add?: string[]; remove?: string[] }
 	| { op: 'read' };
 
 /** One thing on the table, as the assistant reads it. */
@@ -147,7 +156,7 @@ export function tableThreadId(tableId: string): string {
  * The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's
  * open page. Everything but `table_new` needs a table open beside the chat.
  */
-export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull'] as const;
+export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull', 'table_render', 'table_tag'] as const;
 
 /** The most items `tableListing` writes out; the rest are counted. */
 export const LISTING_MAX = 60;

@@ -30,11 +30,23 @@
 	let newKeyValue = '';
 	let newKeyTTL = '';
 	let searchQuery = '';
+	// Only the signed-in owner may read or change the cache; changes carry the session's CSRF token.
+	let csrf = '';
 
 	// Load keys on mount
 	onMount(() => {
 		if (browser) {
-			loadKeys();
+			void fetch('/auth/session', { credentials: 'same-origin', cache: 'no-store' })
+				.then((response) => (response.ok ? (response.json() as Promise<{ authenticated?: boolean; csrf?: string }>) : null))
+				.then((session) => {
+					if (!session?.authenticated) {
+						error = 'Sign in on /account to use this page.';
+						return;
+					}
+					csrf = session.csrf ?? '';
+					loadKeys();
+				})
+				.catch(() => { error = 'Sign in on /account to use this page.'; });
 		}
 	});
 
@@ -98,7 +110,7 @@
 
 			const response = await fetch('/api/kv', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
 				body: JSON.stringify({ key: selectedKey, value })
 			});
 
@@ -127,7 +139,8 @@
 
 		try {
 			const response = await fetch(`/api/kv?key=${encodeURIComponent(key)}`, {
-				method: 'DELETE'
+				method: 'DELETE',
+				headers: { 'x-csrf-token': csrf }
 			});
 
 			if (!response.ok) {
@@ -161,7 +174,8 @@
 			// Delete all keys in parallel
 			const deletePromises = keys.map(key =>
 				fetch(`/api/kv?key=${encodeURIComponent(key.name)}`, {
-					method: 'DELETE'
+					method: 'DELETE',
+				headers: { 'x-csrf-token': csrf }
 				})
 			);
 
@@ -203,7 +217,7 @@
 
 			const response = await fetch('/api/kv', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
 				body: JSON.stringify(body)
 			});
 

@@ -11,12 +11,18 @@
 
 <script lang="ts">
 	let api: TableApi | undefined = $state();
-	let view: TableState = $state({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [] });
+	let view: TableState = $state({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 
 	function onready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
 		ready.addBlocks(sample, undefined, { columns: 4, select: false });
+		ready.zoomToFit();
+	}
+
+	async function onareas(ready: TableApi) {
+		const ids = ready.addBlocks(sample.slice(0, 8), undefined, { columns: 4, select: false });
+		await ready.perform({ op: 'frame', name: 'Reading', ids: ids.slice(0, 4) });
 		ready.zoomToFit();
 	}
 </script>
@@ -36,6 +42,13 @@
 	<div class="frame">
 		<TableCanvas document={null} {onready} />
 		<div class="dock"><TableToolbar onfit={() => api?.zoomToFit()} /></div>
+	</div>
+</Story>
+
+<!-- Areas (frames) group blocks on a lighter patch of the ground. -->
+<Story asChild name="Areas">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onareas} />
 	</div>
 </Story>
 
