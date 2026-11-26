@@ -67,7 +67,8 @@
 	function status(connection: McpConnection): string {
 		if (connection.broken) return `Needs connecting again: ${connection.broken.reason}.`;
 		if (connection.connected) return `Connected${connection.connectedAt ? ` ${date(connection.connectedAt)}` : ''}.`;
-		if (connection.via === 'token') return 'Using the access token saved with the site. Connect to sign in as yourself instead.';
+		if (connection.via === 'token') return connection.signIn ? 'Using the access token saved with the site. Connect to sign in as yourself instead.' : 'Connected with the access token saved with the site.';
+		if (!connection.signIn) return `${connection.name} has no sign-in for sites like this one. It needs its access token saved with the site.`;
 		return 'Not connected.';
 	}
 </script>
@@ -96,7 +97,7 @@
 					<div class="actions">
 						{#if connection.connected}
 							<Button size="sm" variant="quiet" disabled={!!busy} onclick={() => run('disconnect', connection)}>Disconnect</Button>
-						{:else}
+						{:else if connection.signIn}
 							<Button size="sm" variant={connection.via === 'token' ? 'secondary' : 'primary'} disabled={!!busy} onclick={() => run('connect', connection)}>{waiting ? `Opening ${connection.name}…` : connection.broken ? 'Reconnect' : 'Connect'}</Button>
 						{/if}
 					</div>

@@ -372,3 +372,20 @@ describe('a script run by Pi', () => {
 		} finally { await close(); }
 	}, 30_000);
 });
+
+describe('a service with no sign-in for this site', () => {
+	test('Raindrop is token-only: no sign-in is started, and /account is told so', async () => {
+		const { MCP_SERVERS } = await import('../src/lib/mcp-servers');
+		const { startConnect, connections } = await import('../src/lib/server/mcp/connections');
+		const raindrop = MCP_SERVERS.find((server) => server.id === 'raindrop')!;
+		const store = new Map<string, string>();
+		const bucket = { get: async (key: string) => store.has(key) ? { text: async () => store.get(key)!, json: async () => JSON.parse(store.get(key)!) } : null, put: async (key: string, value: string) => { store.set(key, value); }, delete: async (key: string) => { store.delete(key); }, list: async () => ({ objects: [] }) };
+		let asked = 0;
+		const deps = { bucket, env: { RAINDROP_TOKEN: 'token' }, fetcher: (async () => { asked++; return new Response('{}', { status: 500 }); }) as unknown as typeof fetch } as never;
+		await expect(startConnect(deps, raindrop, 'https://caseyagollan.com', 'b')).rejects.toThrow('only lets apps it has approved');
+		expect(asked).toBe(0);
+		const listed = await connections(deps);
+		expect(listed.find((one) => one.id === 'raindrop')).toMatchObject({ signIn: false, connected: false, via: 'token' });
+		expect(listed.find((one) => one.id === 'readwise')).toMatchObject({ signIn: true });
+	});
+});

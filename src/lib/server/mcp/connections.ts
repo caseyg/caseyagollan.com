@@ -125,9 +125,12 @@ async function client(deps: McpDeps, server: McpServer, metadata: ServerMetadata
 			...(scopes.length ? { scope: scopes.join(' ') } : {})
 		})
 	}).catch(() => undefined);
-	const body = response?.ok ? await response.json().catch(() => undefined) as { client_id?: unknown; client_secret?: unknown } | undefined : undefined;
-	if (!response?.ok) await response?.body?.cancel().catch(() => undefined);
-	if (typeof body?.client_id !== 'string' || !body.client_id) throw new McpConnectError(`${server.name} didn’t accept this site as an app${response ? ` (${response.status})` : ''}.`);
+	const body = await response?.json().catch(() => undefined) as { client_id?: unknown; client_secret?: unknown; error?: unknown; error_description?: unknown } | undefined;
+	if (!response?.ok || typeof body?.client_id !== 'string' || !body.client_id) {
+		// The service's own reason, when it gives one: it is the only clue to what it wants.
+		const reason = [body?.error_description, body?.error].find((value): value is string => typeof value === 'string' && !!value.trim())?.trim().slice(0, 200);
+		throw new McpConnectError(`${server.name} didn’t accept this site as an app${response ? ` (${response.status})` : ''}${reason ? `: ${reason.replace(/\.$/, '')}` : ''}.`);
+	}
 	const record: ClientRecord = { clientId: body.client_id, ...(typeof body.client_secret === 'string' && body.client_secret ? { clientSecret: body.client_secret } : {}), redirectUri, issuer: metadata.issuer, registeredAt: (deps.now ?? Date.now)() };
 	await writeJson(deps.bucket, key, record);
 	return record;
@@ -135,6 +138,7 @@ async function client(deps: McpDeps, server: McpServer, metadata: ServerMetadata
 
 /** Start a sign-in: the address of the server's sign-in page. `binding` ties the answer to this browser. */
 export async function startConnect(deps: McpDeps, server: McpServer, origin: string, binding: string): Promise<string> {
+	if (server.signIn === false) throw new McpConnectError(`${server.name} only lets apps it has approved sign in, so it works from its saved access token here.`);
 	const redirectUri = `${new URL(origin).origin}/oauth/mcp/callback`;
 	const found = await discover(deps, server);
 	const registered = await client(deps, server, found.metadata, redirectUri, found.scopes);
@@ -297,7 +301,7 @@ export async function connections(deps: McpDeps): Promise<McpConnection[]> {
 		const oauth = !!session?.accessToken && !session.broken;
 		const via = oauth ? 'oauth' as const : personalToken(deps, server) ? 'token' as const : undefined;
 		return {
-			id: server.id, name: server.name, summary: server.summary, connected: oauth, ...(via ? { via } : {}),
+			id: server.id, name: server.name, summary: server.summary, connected: oauth, signIn: server.signIn !== false, ...(via ? { via } : {}),
 			...(oauth ? { connectedAt: session!.connectedAt } : {}),
 			...(via && stored?.tools ? { tools: stored.tools.map((tool) => ({ name: tool.name, reads: readsOnly(tool) })), toolsAt: stored.at } : {}),
 			writes: settings?.writes === true,
