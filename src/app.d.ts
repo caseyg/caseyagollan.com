@@ -5,6 +5,8 @@ import type { PublishingEnvironment } from './lib/server/publishing/config';
 
 declare global {
 	const __MICROPUB_ENDPOINT__: string;
+	/** The tldraw key for branch previews; empty in production builds. See src/lib/tldraw-license.ts. */
+	const __TLDRAW_PREVIEW_LICENSE_KEY__: string;
 	const __INDIEAUTH_ISSUER__: string;
 	interface Window {
 		telescopicText?: { createTelescopicTextFromBulletedList: (content: string) => HTMLElement };
