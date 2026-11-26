@@ -26,6 +26,7 @@ import type { ChatSelectionItem } from '$lib/chat';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { arrange, clustersBy, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
 import { GRID, onGrid, arrowCrossings, bendAround, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
+import { tagRef } from '$lib/tag-edits';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
@@ -44,17 +45,31 @@ export interface TableState {
 	details?: 'shown' | 'hidden' | 'mixed';
 	/** Everything selected, briefly (id, kind, title or first words), for the chat to act on. */
 	selection: ChatSelectionItem[];
+	/** Every block whose tags can be read and changed (`tagRef`), in reading order, with whether it is selected. */
+	taggable: TaggableBlock[];
+}
+
+/** A block with tags somewhere: one of the site's posts, a Raindrop bookmark, something in Readwise. */
+export interface TaggableBlock {
+	/** Its id on the table, without `shape:`. */
+	id: string;
+	ref: string;
+	title: string;
+	selected: boolean;
+	/** Whether its details show; tags are details. */
+	details: boolean;
 }
 
 /** What the Svelte page drives the canvas with. */
 export interface TableApi {
 	/**
 	 * Adds blocks with their top-left at a screen point, or around the middle of the view (or beside
-	 * the block they were taken from, `near`), in a row or wrapped into `columns`.
+	 * the block they were taken from, `near`), in a row or wrapped into `columns`. `sizes` gives a block
+	 * its own size (a rendered page is as tall as its picture); `plain` sets them down with details hidden.
 	 */
-	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean }): string[];
+	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
-	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'rename' }>): Promise<unknown>;
+	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'rename' | 'tag' }>): Promise<unknown>;
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
@@ -113,6 +128,18 @@ function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block, 
 
 const selectedBlocks = (editor: Editor) => editor.getSelectedShapes().filter((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE)) as SiteBlockShape[];
 
+function taggableBlocks(editor: Editor): TaggableBlock[] {
+	const selected = new Set<string>(editor.getSelectedShapeIds());
+	const blocks: TaggableBlock[] = [];
+	for (const shape of editor.getCurrentPageShapesSorted()) {
+		if (!editor.isShapeOfType(shape, BLOCK_SHAPE)) continue;
+		const props = (shape as SiteBlockShape).props;
+		const ref = tagRef(blockOf(props));
+		if (ref) blocks.push({ id: shape.id.replace(/^shape:/, ''), ref, title: (props.kind === 'quote' && props.excerpt ? props.excerpt : props.title).slice(0, 120), selected: selected.has(shape.id), details: !props.hideMeta });
+	}
+	return blocks;
+}
+
 function detailsOf(blocks: SiteBlockShape[]): TableState['details'] {
 	if (!blocks.length) return undefined;
 	const hidden = blocks.filter((shape) => shape.props.hideMeta).length;
@@ -121,10 +148,11 @@ function detailsOf(blocks: SiteBlockShape[]): TableState['details'] {
 
 function apiFor(editor: Editor): TableApi {
 	return {
-		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false } = {}) {
+		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false, sizes, plain = false } = {}) {
 			if (!blocks.length) return [];
 			const dropped = at && (page ? at : editor.screenToPage(at));
-			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, blockProps(blocks[0]), near);
+			const sized = (block: Block, index: number) => ({ ...blockProps(block), ...(sizes?.[index] ? { w: Math.max(40, Math.round(sizes[index]!.w)), h: Math.max(40, Math.round(sizes[index]!.h)) } : {}), ...(plain ? { hideMeta: true } : {}) });
+			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, sized(blocks[0], 0), near);
 			const ids: TLShapeId[] = [];
 			let x = origin.x;
 			let y = origin.y;
@@ -138,7 +166,7 @@ function apiFor(editor: Editor): TableApi {
 						rowHeight = 0;
 					}
 					const id = createShapeId();
-					const props = blockProps(block);
+					const props = sized(block, index);
 					editor.createShape<SiteBlockShape>({ id, type: BLOCK_SHAPE, x, y, props, meta: fitsToPost(block) ? { fit: true } : {} });
 					ids.push(id);
 					x += props.w + GAP;
@@ -181,7 +209,8 @@ function apiFor(editor: Editor): TableApi {
 						.map((shape) => blockKey((shape as SiteBlockShape).props)),
 					selected: only && editor.isShapeOfType(only, BLOCK_SHAPE) ? blockOf((only as SiteBlockShape).props) : undefined,
 					details: detailsOf(selectedBlocks(editor)),
-					selection: editor.getSelectedShapes().map((shape) => selectionItem(editor, shape))
+					selection: editor.getSelectedShapes().map((shape) => selectionItem(editor, shape)),
+					taggable: taggableBlocks(editor)
 				});
 			});
 		}
@@ -717,7 +746,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 		case 'look':
 			return look(editor, op.ids);
 		case 'add_blocks':
-			return changed(editor, { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at }).map((id) => id.replace(/^shape:/, '')) });
+			return changed(editor, { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at, sizes: op.sizes, plain: op.plain }).map((id) => id.replace(/^shape:/, '')) });
 		case 'add_note': {
 			const id = createShapeId();
 			const text = toRichText(op.text.slice(0, 2000));

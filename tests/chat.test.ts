@@ -520,14 +520,14 @@ describe('the chat’s tools', () => {
 	} } as unknown as Fetcher;
 	const out = async (tool: { execute: (...args: never[]) => unknown }, args: unknown) => ((await (tool.execute as (args: unknown, api: unknown, context: unknown) => Promise<{ output: { text: string }[] }>)(args, {}, {})).output[0].text);
 
-	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown } = {}) {
+	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown; savesFetch?: typeof fetch; pdf?: (op: { url: string; from?: number; count?: number }) => unknown; env?: Record<string, unknown>; renderFetch?: typeof fetch } = {}) {
 		const { chatExtension } = await import('../src/lib/server/chat/tools');
 		const went: string[] = [];
 		const ops = options.ops ?? [];
 		let made = 0;
 		const thread = {
 			table: () => options.table,
-			tableOp: async (op: { op: string; notes?: unknown[]; urls?: string[]; ids?: string[] }) => {
+			tableOp: async (op: { op: string; notes?: unknown[]; urls?: string[]; ids?: string[]; blocks?: unknown[] }) => {
 				ops.push(op);
 				if (op.op === 'read') return { items: options.items?.() ?? [], selected: options.selected ?? [] };
 				if (op.op === 'add_notes') return { added: op.notes!.map(() => `n${++made}`), layout: 'no overlaps' };
@@ -535,6 +535,8 @@ describe('the chat’s tools', () => {
 				if (op.op === 'add_from_search') return { added: [{ id: `b${++made}`, title: 'Found', url: '/x' }] };
 				if (op.op === 'frame') return { added: ['f1'], holds: op.ids };
 				if (op.op === 'add_pieces') return options.pieces?.(op as never) ?? { added: [] };
+				if (op.op === 'add_pdf_pages') return options.pdf?.(op as never) ?? { added: [] };
+				if (op.op === 'add_blocks') return { added: op.blocks!.map(() => `k${++made}`) };
 				return { layout: 'no overlaps' };
 			},
 			readTable: async () => ({ items: options.items?.() ?? [] }),
@@ -545,7 +547,7 @@ describe('the chat’s tools', () => {
 			// What Casey had selected when writing the message being answered.
 			selection: () => options.asked ?? []
 		};
-		const extension = chatExtension({ env: { ASSETS: assets } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
+		const extension = chatExtension({ env: { ASSETS: assets, ...options.env } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, savesFetch: options.savesFetch, renderFetch: options.renderFetch, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
 		const tool = (name: string) => extension.tools!.find((one) => one.name === name)!;
 		return { extension, tool, went, ops };
 	}
@@ -553,11 +555,11 @@ describe('the chat’s tools', () => {
 	test('there are few of them, each described briefly', async () => {
 		const { extension } = await setup({ micropub: async () => Response.json({}) });
 		const names = extension.tools!.map((tool) => tool.name);
-		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look']);
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_render', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_tag', 'table_look']);
 		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
-		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(25_000);
+		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(26_000);
 	});
 
 	test('the prompt lists what is on the open table, as it stands at each step', async () => {
@@ -656,32 +658,149 @@ describe('the chat’s tools', () => {
 		expect(ops[0].find).toEqual({ 'https://caseyagollan.com/2026/11/24/like-a': ['Post by Someone', 'A liked post'] });
 	});
 
-	test('table_pull takes pictures and quotes out of the selected blocks, framed beside each and joined to it', async () => {
-		const ops: { op: string; block?: string; ids?: string[]; at?: { x: number; y: number }; links?: unknown[]; name?: string; images?: boolean; quotes?: boolean }[] = [];
-		const blocks = [
+	test('table_pull sets each block’s pictures and quotes in open space beside it, a line from the block to each', async () => {
+		const ops: { op: string; block?: string; ids?: string[]; at?: { x: number; y: number }; links?: unknown[]; columns?: number; images?: boolean; quotes?: boolean }[] = [];
+		const table: Record<string, unknown>[] = [
 			{ id: 'b1', type: 'post', title: 'Writing again', url: '/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
-			{ id: 'b2', type: 'link', title: 'Calm technology', url: 'https://calmtech.com/', x: 0, y: 400, w: 240, h: 240 },
+			// In the way of where b1's pieces would go.
+			{ id: 'b2', type: 'link', title: 'Calm technology', url: 'https://calmtech.com/', x: 400, y: 100, w: 240, h: 240 },
 			{ id: 'b3', type: 'book', title: 'Deep Listening', url: '/library/1', x: 0, y: 800, w: 180, h: 300 }
 		];
-		const pieces = (op: { block: string }) => op.block === 'b1'
-			? { source: 'Writing again', added: [{ id: 'p1', kind: 'image', text: 'A photo' }, { id: 'p2', kind: 'quote', text: 'I re-built this site on IndieWeb protocols!' }], more: { images: 0, quotes: 2 } }
-			: op.block === 'b2' ? { source: 'Calm technology', added: [{ id: 'p3', kind: 'quote', text: 'Technology should require the smallest possible amount of attention.' }], more: { images: 0, quotes: 0 } }
-				: { source: 'Deep Listening', added: [], note: 'Books have no page to take pictures or quotes from.' };
-		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, selected: ['b1', 'b2', 'b3'], pieces });
+		const land = (pieces: { id: string; kind: string; text: string }[], near: { x: number; y: number }) => { for (const piece of pieces) table.push({ id: piece.id, type: piece.kind, title: 'x', url: `/x#${piece.id}`, x: near.x, y: near.y, w: 240, h: 240 }); };
+		const pieces = (op: { block: string }) => {
+			if (op.block === 'b3') return { source: 'Deep Listening', added: [], note: 'Books have no page to take pictures or quotes from.' };
+			const added = op.block === 'b1'
+				? [{ id: 'p1', kind: 'image', text: 'A photo' }, { id: 'p2', kind: 'quote', text: 'I re-built this site on IndieWeb protocols!' }]
+				: [{ id: 'p3', kind: 'quote', text: 'Technology should require the smallest possible amount of attention.' }];
+			land(added, { x: 260, y: 0 });
+			return { added, more: op.block === 'b1' ? { images: 0, quotes: 2 } : { images: 0, quotes: 0 } };
+		};
+		const { tool } = await setup({ table: 'abc123', ops, items: () => table, selected: ['b1', 'b2', 'b3'], pieces });
 		const done = JSON.parse(await out(tool('table_pull'), {}));
-		expect(ops.map((op) => op.op)).toEqual(['read', 'add_pieces', 'arrange', 'frame', 'add_pieces', 'arrange', 'add_pieces', 'tidy', 'connect', 'read']);
+		// No frame, and no tidy: nothing that was there is moved.
+		expect(ops.map((op) => op.op)).toEqual(['read', 'add_pieces', 'read', 'arrange', 'add_pieces', 'read', 'arrange', 'add_pieces', 'connect', 'read']);
 		expect(ops[1]).toMatchObject({ block: 'b1', images: true, quotes: true });
-		// Two pieces go in a frame a little way right of their block; one piece stands alone.
-		expect(ops[2]).toMatchObject({ ids: ['p1', 'p2'], at: { x: 380, y: 40 } });
-		expect(ops[3]).toMatchObject({ name: 'From Writing again', ids: ['p1', 'p2'] });
-		expect(ops[5]).toMatchObject({ ids: ['p3'], at: { x: 340, y: 400 } });
-		expect(ops[8].links).toEqual([{ from: 'b1', to: 'f1' }, { from: 'b2', to: 'p3' }]);
+		// 500 wide and 240 tall, the nearest place right of b1 (340, 0) that clears b2.
+		const spot = ops[3].at!;
+		expect(ops[3]).toMatchObject({ layout: 'grid', ids: ['p1', 'p2'], columns: 2 });
+		expect(spot.x < 400 + 240 + 20 && spot.x + 500 + 20 > 400 && spot.y < 100 + 240 + 20 && spot.y + 240 + 20 > 100).toBe(false);
+		expect(Math.abs(spot.x - 340) + Math.abs(spot.y)).toBeLessThanOrEqual(400);
+		expect(ops[8].links).toEqual([{ from: 'b1', to: 'p1' }, { from: 'b1', to: 'p2' }, { from: 'b2', to: 'p3' }]);
 		expect(done.added).toBe(3);
+		expect(done.issues).toBeUndefined();
 		expect(done.pulled).toEqual([
 			{ from: 'b1', title: 'Writing again', pictures: 1, quotes: ['I re-built this site on IndieWeb protocols!'], left_out: { images: 0, quotes: 2 } },
 			{ from: 'b2', title: 'Calm technology', pictures: 0, quotes: ['Technology should require the smallest possible amount of…'] },
 			{ from: 'b3', title: 'Deep Listening', pictures: 0, quotes: [], note: 'Books have no page to take pictures or quotes from.' }
 		]);
+	});
+
+	test('an Are.na channel or block is pulled through Are.na, never from its web page', async () => {
+		const asked: string[] = [];
+		const savesFetch = (async (input: RequestInfo | URL) => {
+			const url = String(input instanceof Request ? input.url : input);
+			asked.push(url);
+			if (url.includes('/channels/index-of-calm-technologies/contents')) return Response.json({ data: [
+				{ id: 1, type: 'Image', title: 'Tea kettle', image: { src: 'https://d2w9rnfcy7mm78.cloudfront.net/1/kettle.jpg' }, visibility: 'public' },
+				{ id: 2, type: 'Text', title: '', content: { plain: 'If a technology works well, we can ignore it most of the time.' }, visibility: 'public' },
+				{ id: 3, type: 'Channel', title: 'Nested', slug: 'nested', visibility: 'public' }
+			], meta: { total_count: 3, has_more_pages: false } });
+			if (url.includes('/channels/index-of-calm-technologies')) return Response.json({ id: 9, type: 'Channel', slug: 'index-of-calm-technologies', title: 'Index of Calm Technologies', owner: { slug: 'casey-gollan' }, visibility: 'public' });
+			if (url.includes('/blocks/77/connections')) return Response.json({ data: [], meta: {} });
+			if (url.includes('/blocks/77')) return Response.json({ id: 77, type: 'Link', title: 'Glow', source: { url: 'https://macwright.org/glow' }, description: { plain: 'A road in technology not taken.' }, visibility: 'public' });
+			if (url.startsWith('https://macwright.org/glow')) return new Response('<html><head><title>Glow</title></head><body><article><h1>Glow</h1><p>The glow was a way for a device to say something without asking for anything back.</p><img src="/glow.jpg" width="800" alt="An orb"></article></body></html>', { headers: { 'content-type': 'text/html' } });
+			return new Response('{}', { status: 404 });
+		}) as typeof fetch;
+		const ops: { op: string; blocks?: { kind: string; url: string; title: string; excerpt?: string; image?: string }[] }[] = [];
+		const table = [
+			{ id: 'c1', type: 'arena', title: 'Index of Calm Technologies', url: 'https://www.are.na/casey-gollan/index-of-calm-technologies', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'a1', type: 'arena', title: 'Glow', url: 'https://www.are.na/block/77', x: 0, y: 600, w: 240, h: 240 }
+		];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => table, selected: ['c1', 'a1'], savesFetch });
+		const done = JSON.parse(await out(tool('table_pull'), {}));
+		expect(ops.some((op) => op.op === 'add_pieces')).toBe(false);
+		expect(asked.some((url) => url.startsWith('https://www.are.na/'))).toBe(false);
+		const [channel, block] = ops.filter((op) => op.op === 'add_blocks');
+		// The channel's blocks: its picture, and its text as a quote; the channel inside it is left.
+		expect(channel.blocks).toMatchObject([
+			{ kind: 'image', url: 'https://www.are.na/block/1', title: 'Tea kettle', image: 'https://d2w9rnfcy7mm78.cloudfront.net/1/kettle.jpg' },
+			{ kind: 'quote', url: expect.stringMatching(/^https:\/\/www\.are\.na\/block\/2#:~:text=If/), title: 'Index of Calm Technologies', excerpt: 'If a technology works well, we can ignore it most of the time.' }
+		]);
+		// A saved link: its own description, then the page it links to.
+		expect(block.blocks!.map((one) => one.kind)).toEqual(['quote', 'quote', 'image']);
+		expect(block.blocks![1]).toMatchObject({ title: 'Glow', excerpt: expect.stringContaining('without asking for anything back') });
+		expect(block.blocks![2]).toMatchObject({ image: 'https://macwright.org/glow.jpg' });
+		expect(done.added).toBe(5);
+	});
+
+	test('table_render puts a PDF’s pages in a frame beside its block, joined to it, and says what is left', async () => {
+		const ops: { op: string; url?: string; from?: number; count?: number; block?: string; ids?: string[]; at?: unknown; columns?: number; name?: string; links?: unknown[] }[] = [];
+		const blocks = [{ id: 'b1', type: 'link', title: 'Attention Is All You Need', url: 'https://example.com/papers/attention.pdf', x: 0, y: 0, w: 240, h: 240 }];
+		const pdf = (op: { from?: number; count?: number }) => ({ added: Array.from({ length: op.count ?? 12 }, (_, index) => ({ id: `p${index + 1}`, page: (op.from ?? 1) + index })), pages: 15, drawn: op.count });
+		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, asked: ['b1'], pdf });
+		const done = JSON.parse(await out(tool('table_render'), {}));
+		expect(ops.map((op) => op.op)).toEqual(['read', 'add_pdf_pages', 'arrange', 'frame', 'tidy', 'connect', 'read']);
+		expect(ops[1]).toMatchObject({ url: 'https://example.com/papers/attention.pdf', title: 'Attention Is All You Need', from: 1, count: 12, block: 'b1' });
+		expect(ops[2]).toMatchObject({ layout: 'grid', columns: 4, ordered: true, at: { x: 380, y: 40 } });
+		expect(ops[3]).toMatchObject({ name: 'Pages of Attention Is All You Need' });
+		expect(ops[5].links).toEqual([{ from: 'b1', to: 'f1' }]);
+		expect(done.added).toBe(12);
+		expect(done.rendered[0]).toMatchObject({ from: 'b1', kind: 'pdf', pages: '1-12', of: 15 });
+		expect(done.rendered[0].more).toContain('pages "13-15"');
+		// The rest, asked for by range.
+		ops.length = 0;
+		await out(tool('table_render'), { blocks: ['attention'], pages: '13-15' });
+		expect(ops[1]).toMatchObject({ from: 13, count: 3 });
+	});
+
+	test('table_render screenshots a whole web page once, keeps it, and refuses addresses that aren’t public', async () => {
+		const ops: { op: string; blocks?: { kind: string; url: string; image?: string; title: string }[]; sizes?: unknown[]; plain?: boolean; links?: unknown[] }[] = [];
+		const kept = new Map<string, { size: number; customMetadata?: Record<string, string> }>();
+		const SCREENSHOTS = { head: async (key: string) => kept.get(key) ?? null, put: async (key: string, body: ArrayBuffer, options: { customMetadata?: Record<string, string> }) => { kept.set(key, { size: body.byteLength, customMetadata: options.customMetadata }); } };
+		const asked: { url: string; body?: { url: string; screenshotOptions: { fullPage: boolean } } }[] = [];
+		const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 5400 >> 8, 5400 & 255, 1280 >> 8, 1280 & 255, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1, 0xff, 0xd9]);
+		const renderFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = String(input);
+			if (url.includes('/browser-rendering/screenshot')) { asked.push({ url, body: JSON.parse(String(init?.body)) }); return new Response(jpeg, { headers: { 'content-type': 'image/jpeg' } }); }
+			if (url.startsWith('https://cloudflare-dns.com/')) return Response.json({ Status: 0, Answer: [{ type: 1, data: '93.184.216.34' }] });
+			return new Response('<html></html>', { headers: { 'content-type': 'text/html', 'content-length': '13' } });
+		}) as typeof fetch;
+		const blocks = [{ id: 'b1', type: 'link', title: 'Micropub', url: 'https://indieweb.org/Micropub', x: 0, y: 0, w: 240, h: 240 }];
+		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, env: { SCREENSHOTS, CLOUDFLARE_ACCOUNT_ID: 'acct', CLOUDFLARE_API_TOKEN: 'token' }, renderFetch });
+		const done = JSON.parse(await out(tool('table_render'), { blocks: ['micropub'] }));
+		expect(asked).toHaveLength(1);
+		expect(asked[0].body).toMatchObject({ url: 'https://indieweb.org/Micropub', screenshotOptions: { fullPage: true } });
+		const add = ops.find((op) => op.op === 'add_blocks')!;
+		expect(add.blocks![0]).toMatchObject({ kind: 'image', url: 'https://indieweb.org/Micropub', title: 'Screenshot of Micropub', image: '/api/screenshot?url=https%3A%2F%2Findieweb.org%2FMicropub&full=1' });
+		expect(add).toMatchObject({ sizes: [{ w: 480, h: 2025 }], plain: true, at: { x: 340, y: 0 } });
+		expect(ops.find((op) => op.op === 'connect')!.links).toHaveLength(1);
+		expect(done.rendered[0]).toMatchObject({ from: 'b1', kind: 'screenshot', picture: '1280×5400px' });
+		// A second ask is served from what was kept; an address given under `urls` needs no block.
+		const again = JSON.parse(await out(tool('table_render'), { urls: ['https://indieweb.org/Micropub'] }));
+		expect(asked).toHaveLength(1);
+		expect(again.rendered[0].kept_from_before).toBe(true);
+		for (const address of ['http://indieweb.org/', 'https://localhost/admin', 'https://10.0.0.8/', 'https://router.internal/']) {
+			const refused = JSON.parse(await out(tool('table_render'), { urls: [address] }));
+			expect(refused.added).toBe(0);
+			expect(refused.rendered[0].note).toBe('Only public https addresses can be rendered.');
+		}
+		expect(asked).toHaveLength(1);
+		const { toolLabel } = await import('../src/lib/server/chat/projection');
+		expect(toolLabel('table_render', {})).toBe('Rendered the selected blocks');
+		expect(toolLabel('table_render', { urls: ['https://indieweb.org/Micropub'] })).toBe('Rendered indieweb.org/Micropub');
+		expect(toolLabel('table_render', { blocks: ['b1'], pages: '13-24' })).toBe('Rendered 1 source, pages 13-24');
+		const { isOwnerTool } = await import('../src/lib/server/chat/tools');
+		expect(isOwnerTool('table_render')).toBe(true);
+	});
+
+	test('table_render says so where screenshots aren’t set up, and when nothing is selected', async () => {
+		const blocks = [{ id: 'b1', type: 'link', title: 'Micropub', url: 'https://indieweb.org/Micropub', x: 0, y: 0, w: 240, h: 240 }];
+		const renderFetch = (async (input: RequestInfo | URL) => String(input).startsWith('https://cloudflare-dns.com/') ? Response.json({ Status: 0, Answer: [{ type: 1, data: '93.184.216.34' }] }) : new Response('x', { headers: { 'content-type': 'text/html', 'content-length': '1' } })) as typeof fetch;
+		const { tool } = await setup({ table: 'abc123', items: () => blocks, env: { SCREENSHOTS: { head: async () => null } }, renderFetch });
+		const done = JSON.parse(await out(tool('table_render'), { blocks: ['b1'] }));
+		expect(done.added).toBe(0);
+		expect(done.rendered[0].note).toContain('Screenshots aren’t set up here');
+		expect(out(tool('table_render'), {})).rejects.toThrow('Casey has no blocks selected');
 	});
 
 	test('a context pull of the whole table reads every block but the pieces already pulled', async () => {
@@ -704,7 +823,7 @@ describe('the chat’s tools', () => {
 
 	test('table_pull finds blocks by title words, and says which it couldn’t', async () => {
 		const ops: { op: string; block?: string; quotes?: boolean; match?: string[] }[] = [];
-		const blocks = [{ id: 'b1', type: 'arena', title: 'Ursula K. Le Guin: The Carrier Bag Theory', url: 'https://www.are.na/block/1', x: 0, y: 0, w: 240, h: 240 }];
+		const blocks = [{ id: 'b1', type: 'link', title: 'Ursula K. Le Guin: The Carrier Bag Theory', url: 'https://example.com/carrier-bag', x: 0, y: 0, w: 240, h: 240 }];
 		const { tool } = await setup({ table: 'abc123', ops, items: () => blocks, pieces: () => ({ added: [{ id: 'p1', kind: 'quote', text: 'A leaf a gourd a shell a net' }] }) });
 		await out(tool('table_pull'), { blocks: ['le guin'], images: false, match: ['gourd'] });
 		expect(ops[1]).toMatchObject({ op: 'add_pieces', block: 'b1', images: false, quotes: true, match: ['gourd'] });
@@ -736,6 +855,11 @@ describe('the chat’s tools', () => {
 		expect(ops.find((op) => op.op === 'draw')).toMatchObject({ strokes: [{ around: 'b1', color: 'blue' }, { around: 'n1', color: 'blue' }] });
 		await out(tool('table_select'), { ids: ['these'] });
 		expect(ops.find((op) => op.op === 'select')).toMatchObject({ ids: ['b1', 'n1'] });
+		// Tags: the selection, or a frame's blocks, with the tags cleaned as Casey would type them.
+		await out(tool('table_tag'), { ids: ['selected'], add: ['#IndieWeb, tables'], remove: ['misc'] });
+		expect(ops.find((op) => op.op === 'tag')).toEqual({ op: 'tag', ids: ['b1', 'n1'], inside: undefined, add: ['IndieWeb', 'tables'], remove: ['misc'] });
+		await out(tool('table_tag'), { inside: 'Reading' });
+		expect(ops.filter((op) => op.op === 'tag')[1]).toEqual({ op: 'tag', inside: 'Reading' });
 		await out(tool('table_add'), { items: [{ note: 'Next' }], below: 'selected' });
 		expect(ops.find((op) => op.op === 'add_notes')).toMatchObject({ below: 'b1' });
 		const { toolLabel } = await import('../src/lib/server/chat/projection');

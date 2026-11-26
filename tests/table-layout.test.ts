@@ -74,3 +74,14 @@ test('an arrow bends just enough to clear a card in its way, and stays straight 
 	expect(bendAround(a, b, [{ id: 'wall', x: 250, y: -2000, w: 100, h: 4000 }])).toBe(0);
 	expect(tidyLayout([{ id: 'k1', x: 0, y: 0, w: 200, h: 200 }, { id: 'k2', x: 0, y: 220, w: 200, h: 200 }, { id: 'o', x: 0, y: 150, w: 200, h: 200 }], 20, ['k1', 'k2']).map((move) => move.id)).toEqual(['o']);
 });
+
+describe('open space beside a block', () => {
+	test('the start when it is free, else the nearest place that clears everything', async () => {
+		const { freeSpot } = await import('../src/lib/table-layout');
+		const taken: Box[] = [{ id: 'a', x: 0, y: 0, w: 240, h: 240 }, { id: 'b', x: 400, y: 100, w: 240, h: 240 }];
+		expect(freeSpot(taken, { w: 240, h: 240 }, { x: 340, y: 600 })).toEqual({ x: 340, y: 600 });
+		const spot = freeSpot(taken, { w: 500, h: 240 }, { x: 340, y: 0 });
+		for (const box of taken) expect(spot.x < box.x + box.w + 20 && spot.x + 520 > box.x && spot.y < box.y + box.h + 20 && spot.y + 260 > box.y).toBe(false);
+		expect(Math.abs(spot.x - 340) + Math.abs(spot.y)).toBeLessThanOrEqual(400);
+	});
+});

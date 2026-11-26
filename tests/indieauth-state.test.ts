@@ -375,10 +375,23 @@ test("unauthenticated challenge allocation is bounded until expiry", async () =>
 });
 test("rate limit bounds allocations across many attacker keys", async () => {
   const { state, storage } = fixture();
-  for (let i = 0; i < 350; i++)
+  await state.invoke("rateLimit", { key: "attacker-first" });
+  const seeded = structuredClone(storage.data.get("state")) as {
+    rates: Record<string, { count: number }>;
+  };
+  seeded.rates.global.count = 2990;
+  storage.data.set("state", seeded);
+  for (let i = 0; i < 50; i++)
     await state.invoke("rateLimit", { key: `attacker-${i}` });
   const db = storage.data.get("state") as { rates: Record<string, unknown> };
-  expect(Object.keys(db.rates).length).toBeLessThanOrEqual(301);
+  // The shared ceiling of 3,000 stops new keys: first + global + ten more.
+  expect(Object.keys(db.rates).length).toBe(12);
+});
+test("a flood from other visitors does not block a new sign-in", async () => {
+  const { state } = fixture();
+  for (let i = 0; i < 1000; i++)
+    await state.invoke("rateLimit", { key: `attacker-${i % 20}` });
+  expect(await state.invoke("rateLimit", { key: "owner" })).toBe(true);
 });
 test("challenge kinds and expired challenges cannot authenticate", async () => {
   const { state, owner, advance } = await enrolled();

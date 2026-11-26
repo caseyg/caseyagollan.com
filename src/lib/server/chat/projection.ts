@@ -228,6 +228,12 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		const from = blocks.some((one) => /^(all|everything|the whole table)$/i.test(String(one).trim())) ? 'the whole table' : blocks.length ? count(blocks, 'block') : 'the selected blocks';
 		return `Context pull: ${what} from ${from}`;
 	}
+	if (name === 'table_render') {
+		const list = (value: unknown) => (Array.isArray(value) ? value : typeof value === 'string' ? [value] : []).filter((one) => typeof one === 'string' && one.trim());
+		const blocks = list(args.blocks), urls = list(args.urls);
+		const from = urls.length && !blocks.length ? (urls.length === 1 ? String(urls[0]).replace(/^https?:\/\/(www\.)?/, '').slice(0, 60) : count(urls, 'address')) : blocks.length ? count([...blocks, ...urls], 'source') : 'the selected blocks';
+		return `Rendered ${from}${typeof args.pages === 'string' && args.pages.trim() ? `, pages ${args.pages.trim().slice(0, 20)}` : ''}`;
+	}
 	if (name === 'table_read') return Array.isArray(args.ids) && args.ids.length ? `Read ${count(args.ids, 'item')}` : 'Read the table';
 	if (name === 'table_look') return 'Looked at the table';
 	if (name === 'table_connect') { const n = Array.isArray(args.links) ? args.links.length : 0; return `Drew ${n === 1 ? 'an arrow' : `${n} arrows`}`; }
@@ -252,6 +258,11 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		return args.layout === 'auto' ? `Tidied up ${what}` : `Arranged ${what} ${how[String(args.layout)] ?? 'in a grid'}`;
 	}
 	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
+	if (name === 'table_tag') {
+		const where = args.inside ? 'a frame' : Array.isArray(args.ids) && args.ids.length ? count(args.ids, 'item') : 'the table';
+		const tags = [...(Array.isArray(args.add) ? args.add.map((tag) => `+${tag}`) : []), ...(Array.isArray(args.remove) ? args.remove.map((tag) => `−${tag}`) : [])].join(' ').slice(0, 60);
+		return tags ? `Staged tags for ${where}: ${tags}` : `Read the tags of ${where}`;
+	}
 	if (name === 'table_select') return `Pointed out ${count(args.ids, 'item')}`;
 	if (name === 'table_rename') return `Renamed the table “${String(args.name ?? '').slice(0, 60)}”`;
 	return name.replace(/_/g, ' ');

@@ -136,6 +136,38 @@ export function createGitHubStore(config: Config, fetcher: Fetcher = fetch) {
 			}
 			return files;
 		},
+		/**
+		 * Several files changed in one commit, for a batch edit. All or nothing: the commit is refused
+		 * if the branch moved since `expectedHead`. `body` is the rest of the commit message.
+		 */
+		async writeMany(files: { path: string; content: string }[], options: { expectedHead: string; message: string; body?: string }): Promise<{ commit: string }> {
+			if (!files.length || files.length > 200) throw new Error('A batch commit holds 1 to 200 files');
+			if (new Set(files.map(file => file.path)).size !== files.length) throw new Error('A batch commit names each file once');
+			for (const file of files) validatePath(file.path);
+			if (!options.message.trim() || !options.expectedHead.trim()) throw new Error('Commit message and expected head must not be empty');
+			const response = await request('https://api.github.com/graphql', {
+				method: 'POST', body: JSON.stringify({
+					query: 'mutation Publish($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }',
+					variables: { input: {
+						branch: { repositoryNameWithOwner: `${config.owner}/${config.repo}`, branchName: config.branch },
+						expectedHeadOid: options.expectedHead, message: { headline: options.message, ...(options.body?.trim() ? { body: options.body } : {}) },
+						fileChanges: { additions: files.map(file => ({ path: file.path, contents: encode(file.content) })) }
+					} }
+				})
+			}, true);
+			if (!response.ok) throw new GitHubStoreError(response.status >= 500 ? 'unknown' : 'rejected', response.status);
+			let result: Record<string, unknown>;
+			try { result = object(await response.json()); } catch { throw new GitHubStoreError('unknown'); }
+			if (Array.isArray(result.errors) && result.errors.length) {
+				const stale = result.errors.some(error => error?.type === 'STALE_DATA' || /expected.*(branch|head)|branch.*(moved|point)/i.test(String(error?.message)));
+				throw new GitHubStoreError(stale ? 'conflict' : 'rejected');
+			}
+			try {
+				const commit = object(object(object(result.data).createCommitOnBranch).commit).oid;
+				if (typeof commit !== 'string' || !commit) throw new Error();
+				return { commit };
+			} catch { throw new GitHubStoreError('unknown'); }
+		},
 		/** With `from`, the file moves: the new path is added and the old one deleted in one commit. */
 		async write(path: string, content: string, options: { sha?: string; expectedHead?: string; message: string; from?: string }): Promise<{ sha: string; commit: string }> {
 			validatePath(path);

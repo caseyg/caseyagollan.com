@@ -14,7 +14,7 @@ const SOURCE_ICONS = new Set([...SOURCE_POST_TYPES].map((type) => POST_ICON[type
 /** The emoji `piecesIn` gives a social post taken out of a page, by network. */
 const PIECE_ICONS = new Set(['🦋', '🐘']);
 
-const POST_PATH = /^\/\d{4}\/\d{2}\/\d{2}\/[^/?#]+\/?$/;
+export const POST_PATH = /^\/\d{4}\/\d{2}\/\d{2}\/[^/?#]+\/?$/;
 
 /**
  * A plain link to one of the site's posts: what a pasted address, or the chat before it added posts

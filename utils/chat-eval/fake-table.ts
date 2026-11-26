@@ -10,6 +10,10 @@ import { parseHTML } from 'linkedom';
 import { pickPieces, piecesFrom, piecesPath, quoteSize } from '../../src/lib/table-pieces';
 import { remotePagePieces } from '../../src/lib/server/table-pieces';
 import type { Block } from '../../src/lib/tables';
+import { pdfName, pdfPageBlock, pdfPageSrc, renderSize } from '../../src/lib/table-render';
+
+/** How long every PDF is here: nothing is fetched or drawn in a replay. */
+export const FAKE_PDF_PAGES = 15;
 
 const SITE = 'https://caseyagollan.com';
 
@@ -34,6 +38,8 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 	const items: FakeItem[] = start.map((item) => ({ ...item }));
 	let next = 1;
 	let name = 'Table';
+	/** Tags staged on post blocks by `tag`, by item id. */
+	const tags = new Map<string, string[]>();
 	const id = () => `s${next++}`;
 	const boxes = (list: FakeItem[]): Box[] => list.map(({ id, x, y, w, h }) => ({ id, x, y, w, h }));
 	const named = (ids?: string[]) => ids?.length ? items.filter((item) => ids.includes(item.id)) : items.filter((item) => item.type !== 'arrow' && !item.parent);
@@ -52,10 +58,10 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 	const issues = () => layoutIssues(boxes(items.filter(SOLID).filter((item) => item.type !== 'frame')));
 	const changed = (result: Record<string, unknown>) => { const found = issues(); return { ...result, ...(!found.overlaps.length && !found.crowded.length ? { layout: 'no overlaps' } : { issues: found }) }; };
 	const openSpot = (w: number, h: number) => { const solid = items.filter(SOLID); return solid.length ? { x: Math.max(...solid.map((item) => item.x + item.w)) + 20, y: Math.min(...solid.map((item) => item.y)) } : { x: 0, y: 0 }; };
-	const addBlocks = (blocks: { title: string; url: string; kind: string; excerpt?: string }[], at?: { x: number; y: number }, columns = 3) => {
+	const addBlocks = (blocks: { title: string; url: string; kind: string; excerpt?: string }[], at?: { x: number; y: number }, columns = 3, sizes?: ({ w: number; h: number } | null)[]) => {
 		const origin = at ?? openSpot(240, 240);
 		return blocks.map((block, index) => {
-			const size = block.kind === 'quote' ? quoteSize(block.excerpt ?? '') : block.kind === 'book' ? { w: 180, h: 300 } : { w: 240, h: 240 };
+			const size = sizes?.[index] ?? (block.kind === 'quote' ? quoteSize(block.excerpt ?? '') : block.kind === 'book' ? { w: 180, h: 300 } : { w: 240, h: 240 });
 			const item: FakeItem = { id: id(), type: block.kind, title: block.title, url: block.url, ...(block.excerpt ? { text: block.excerpt } : {}), x: origin.x + (index % columns) * 340, y: origin.y + Math.floor(index / columns) * 480, ...size };
 			items.push(item);
 			return item;
@@ -96,7 +102,16 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 				const added = addBlocks((op.urls as string[]).map((url) => ({ title: url.replace(/^https?:\/\//, ''), url, kind: /caseyagollan\.com|^\//.test(url) ? 'post' : 'link' })), op.at, op.columns ?? Math.min(op.urls.length, 3));
 				return { added: added.map((item) => item.id) };
 			}
-			case 'add_blocks': return changed({ added: addBlocks(op.blocks, op.at, op.columns ?? 4).map((item) => item.id) });
+			case 'add_blocks': return changed({ added: addBlocks(op.blocks, op.at, op.columns ?? 4, op.sizes).map((item) => item.id) });
+			case 'add_pdf_pages': {
+				const source = items.find((item) => item.id === op.block);
+				const from = Math.max(1, op.from ?? 1), last = Math.min(FAKE_PDF_PAGES, from + Math.min(12, op.count ?? 12) - 1);
+				const pages = Array.from({ length: Math.max(0, last - from + 1) }, (_, index) => ({ page: from + index, src: pdfPageSrc(op.url, from + index), w: 1236, h: 1600, pages: FAKE_PDF_PAGES }));
+				const fresh = pages.map((page) => ({ page, block: pdfPageBlock(op.url, op.title ?? source?.title ?? pdfName(op.url), page) })).filter(({ block }) => !items.some((item) => item.url === block.url));
+				if (!fresh.length) return { added: [], pages: FAKE_PDF_PAGES, note: pages.length ? 'Those pages are on the table already.' : `It has only ${FAKE_PDF_PAGES} pages.` };
+				const added = addBlocks(fresh.map(({ block }) => block), source ? { x: source.x + source.w + 20, y: source.y } : undefined, Math.min(fresh.length, 4), fresh.map(({ page }) => renderSize(page)));
+				return { added: added.map((item, index) => ({ id: item.id, page: fresh[index].page.page })), pages: FAKE_PDF_PAGES, drawn: fresh.length };
+			}
 			case 'add_note': {
 				const item = newNote(op as never, anchor(op) ?? openSpot(200, 200));
 				place(tidyLayout(boxes(named()), 20, item.id));
@@ -175,9 +190,22 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 			case 'edit': { let edited = 0; for (const change of op.edits as { id: string; text?: string }[]) { const item = items.find((one) => one.id === change.id); if (!item || item.url) continue; if (change.text !== undefined) { item.text = change.text; if (item.type === 'note') item.h = noteHeight(change.text); if (item.type === 'text') item.h = textHeight(change.text, item.w); } edited++; } return changed({ edited }); }
 			case 'remove': { const gone = items.filter((item) => op.ids.includes(item.id) || op.ids.includes(item.from) || op.ids.includes(item.to)); for (const item of gone) items.splice(items.indexOf(item), 1); return { removed: gone.length }; }
 			case 'select': return { selected: named(op.ids).length };
+			case 'tag': {
+				// Posts on the fake table have tags; changes are staged, as on the real one, never saved.
+				const frame = op.inside ? items.find((item) => item.type === 'frame' && (item.id === op.inside || item.text?.toLowerCase() === String(op.inside).toLowerCase())) : undefined;
+				if (op.inside && !frame) throw new Error(`No frame is called “${op.inside}”.`);
+				const blocks = items.filter((item) => item.type === 'post' && (frame ? item.parent === frame.id : !op.ids?.length || op.ids.includes(item.id) || op.ids.includes(item.parent)));
+				if (!blocks.length) throw new Error('None of those have tags: only posts from this site, Raindrop bookmarks and Readwise items do.');
+				const changing = !!(op.add?.length || op.remove?.length);
+				for (const block of blocks) {
+					const now = tags.get(block.id) ?? [];
+					if (changing) tags.set(block.id, [...now.filter((tag) => !(op.remove ?? []).includes(tag)), ...(op.add ?? []).filter((tag: string) => !now.includes(tag))]);
+				}
+				return { blocks: blocks.length, ...(changing ? { staged: blocks.length, note: 'Staged, not saved. Casey reviews the changes in the Tags panel on the table and saves them there.' } : {}), tags: blocks.map((block) => ({ id: block.id, title: block.title, [changing ? 'tags_after' : 'tags']: tags.get(block.id) ?? [] })) };
+			}
 			case 'rename': name = op.name; return { name };
 		}
 		throw new Error(`The table doesn’t know “${op.op}”.`);
 	}
-	return { perform, items: () => items.map((item) => ({ ...item })) };
+	return { perform, items: () => items.map((item) => ({ ...item })), tags: () => new Map(tags) };
 }

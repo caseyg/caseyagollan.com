@@ -13,6 +13,10 @@ export interface CanvasPage {
 /** A background tab gets less time to answer before the next page is tried. */
 export const TABLE_OP_TIMEOUT = 30_000;
 export const HIDDEN_TABLE_OP_TIMEOUT = 12_000;
+/** Drawing a PDF's pages means fetching it and drawing each one: that page gets longer. */
+export const SLOW_TABLE_OP_TIMEOUT = 90_000;
+/** How long a page has to answer an operation. */
+export const tableOpTimeout = (op: string, hidden: boolean) => (hidden ? HIDDEN_TABLE_OP_TIMEOUT : op === 'add_pdf_pages' ? SLOW_TABLE_OP_TIMEOUT : TABLE_OP_TIMEOUT);
 
 /** Best first: pages in front before pages in the background, the latest used first within each. */
 export function canvasOrder<T>(pages: T[], of: (page: T) => CanvasPage): T[] {

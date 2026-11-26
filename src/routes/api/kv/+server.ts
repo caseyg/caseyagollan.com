@@ -1,8 +1,18 @@
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
+import { ownerRequest } from '$lib/server/owner-request';
+
+export const prerender = false;
+
+/*
+ * The insight cache's keys and values, for the /editor page. Only the signed-in owner may read
+ * or change them: what is stored here is shown to every visitor of the homepage.
+ */
 
 // GET /api/kv - List all keys or get a specific key's value
-export const GET: RequestHandler = async ({ url, platform }) => {
+export const GET: RequestHandler = async ({ url, platform, request }) => {
+	const owner = await ownerRequest(request, platform?.env);
+	if (owner instanceof Response) return owner;
 	const kv = platform?.env?.INSIGHT_CACHE;
 
 	if (!kv) {
@@ -46,7 +56,7 @@ export const GET: RequestHandler = async ({ url, platform }) => {
 	// Otherwise, list all keys
 	try {
 		const prefix = url.searchParams.get('prefix') || undefined;
-		const limit = parseInt(url.searchParams.get('limit') || '1000');
+		const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '1000') || 1000, 1), 1000);
 		const cursor = url.searchParams.get('cursor') || undefined;
 
 		const result = await kv.list({ prefix, limit, cursor });
@@ -67,6 +77,8 @@ export const GET: RequestHandler = async ({ url, platform }) => {
 
 // POST /api/kv - Set a key-value pair
 export const POST: RequestHandler = async ({ request, platform }) => {
+	const owner = await ownerRequest(request, platform?.env, { write: true });
+	if (owner instanceof Response) return owner;
 	const kv = platform?.env?.INSIGHT_CACHE;
 
 	if (!kv) {
@@ -106,7 +118,9 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 };
 
 // DELETE /api/kv - Delete a key
-export const DELETE: RequestHandler = async ({ url, platform }) => {
+export const DELETE: RequestHandler = async ({ url, platform, request }) => {
+	const owner = await ownerRequest(request, platform?.env, { write: true });
+	if (owner instanceof Response) return owner;
 	const kv = platform?.env?.INSIGHT_CACHE;
 
 	if (!kv) {
