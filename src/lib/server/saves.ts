@@ -237,6 +237,21 @@ async function arenaRead(deps: SavesDeps, wanted: string): Promise<Record<string
 	};
 }
 
+/**
+ * What an Are.na block stands for, for rendering it: an attachment's own file (a PDF block's page on
+ * are.na is only a viewer), or the page a link block saved.
+ */
+export async function arenaFile(deps: SavesDeps, wanted: string): Promise<{ title: string; file?: string; type?: string; source?: string }> {
+	const id = /(\d+)\s*$/.exec(wanted.trim().replace(/[?#].*$/, ''))?.[1];
+	if (!id) throw new SavesError('That isn’t an Are.na block.');
+	const block = await arenaGet<ArenaItem & { attachment?: { url?: string | null; content_type?: string | null } | null }>(deps, `/blocks/${id}`);
+	return {
+		title: arenaItem(block).title,
+		...(block.attachment?.url ? { file: block.attachment.url, type: block.attachment.content_type ?? undefined } : {}),
+		...(block.type === 'Link' && block.source?.url ? { source: block.source.url } : {})
+	};
+}
+
 // ---------------------------------------------------------------- Raindrop
 
 const RAINDROP = 'https://api.raindrop.io/rest/v1';

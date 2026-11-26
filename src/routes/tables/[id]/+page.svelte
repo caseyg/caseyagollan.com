@@ -7,6 +7,7 @@
 	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { linkedBlock, searchBlocks, withOwnerSources } from '$lib/table-sources';
 	import { pagePieces, pickPieces } from '$lib/table-pieces';
+	import { PDF_PAGES_AT_ONCE, pdfName, pdfPageBlock, pdfPageSrc, pdfPages, renderSize, type PdfStore, type RenderedPage } from '$lib/table-render';
 	import { wikiHref } from '$lib/wiki/links';
 	import { blockKey, isBlockKind, type Block } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
@@ -49,6 +50,32 @@
 		return offerTable({ table: id, thread: data.chat.snapshot.thread.id, ontableop: tableOp, get selection() { return view.selection; }, deselect: () => api?.deselect() });
 	});
 
+	/**
+	 * Where a PDF's page pictures are kept: Casey's go to the site's bucket, so each page is drawn once
+	 * and anyone who sees the table gets it; the demo keeps smaller ones in the table itself.
+	 */
+	function pdfStore(address: string): PdfStore {
+		if (session?.mode !== 'owner') {
+			return {
+				side: 800,
+				kept: async () => null,
+				keep: (_page, picture) => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(picture); })
+			};
+		}
+		const csrf = session.csrf ?? '';
+		return {
+			async kept(page) {
+				const response = await fetch(`${pdfPageSrc(address, page)}&info`, { credentials: 'same-origin' });
+				return response.ok ? ((await response.json()) as RenderedPage) : null;
+			},
+			async keep(page, picture, size) {
+				const response = await fetch(`${pdfPageSrc(address, page)}&w=${size.w}&h=${size.h}&pages=${size.pages}`, { method: 'PUT', credentials: 'same-origin', headers: { 'content-type': 'image/jpeg', 'x-csrf-token': csrf }, body: picture });
+				if (!response.ok) throw new Error(((await response.json().catch(() => ({}))) as { error?: string }).error || 'A page’s picture couldn’t be kept.');
+				return ((await response.json()) as RenderedPage).src;
+			}
+		};
+	}
+
 	/** What the assistant asked of the table, done here so it animates, saves and undoes like Casey's own edits. */
 	async function tableOp(event: TableOpEvent): Promise<TableOpResult> {
 		if (!api || !editable) return { ok: false, error: 'The table isn’t ready to edit yet.' };
@@ -77,6 +104,24 @@
 				if (!picked.length) return { ok: true, result: { source: item.title, added: [], note: block.kind === 'book' ? 'Books have no page to take pictures or quotes from.' : 'Its page has no pictures or passages that aren’t on the table already.' } };
 				const ids = api.addBlocks(picked, undefined, { near: block, columns: Math.min(picked.length, 3), select: false });
 				return { ok: true, result: { source: item.title, added: ids.map((shapeId, index) => ({ id: shapeId.replace(/^shape:/, ''), kind: picked[index].kind, text: (picked[index].excerpt ?? picked[index].title).slice(0, 80) })), more } };
+			}
+			case 'add_pdf_pages': {
+				const { items } = (await api.perform({ op: 'read' })) as { items: TableItem[] };
+				const from = op.block ? items.find((one) => one.id === op.block!.replace(/^shape:/, '')) : undefined;
+				const title = op.title || from?.title || pdfName(op.url);
+				let drawn: Awaited<ReturnType<typeof pdfPages>>;
+				try {
+					drawn = await pdfPages(op.url, { from: Math.max(1, op.from ?? 1), count: Math.max(1, Math.min(PDF_PAGES_AT_ONCE, op.count ?? PDF_PAGES_AT_ONCE)) }, pdfStore(op.url));
+				} catch (error) {
+					return { ok: false, error: String((error as Error)?.message ?? error).slice(0, 200) };
+				}
+				const placed = new Set(view.placed);
+				const fresh = drawn.pages.map((page) => ({ page, block: pdfPageBlock(op.url, title, page) })).filter(({ block }) => !placed.has(blockKey(block)));
+				const already = drawn.pages.length - fresh.length;
+				if (!fresh.length) return { ok: true, result: { added: [], pages: drawn.total, already_on_table: already, note: drawn.pages.length ? 'Those pages are on the table already.' : `It has only ${drawn.total} page${drawn.total === 1 ? '' : 's'}.` } };
+				const near = from?.url && isBlockKind(from.type) ? ({ kind: from.type, url: from.url, title: from.title ?? from.url, image: from.image } satisfies Block) : undefined;
+				const ids = api.addBlocks(fresh.map(({ block }) => block), undefined, { near, columns: Math.min(fresh.length, 4), select: false, sizes: fresh.map(({ page }) => renderSize(page)), plain: true });
+				return { ok: true, result: { added: ids.map((shapeId, index) => ({ id: shapeId.replace(/^shape:/, ''), page: fresh[index].page.page })), pages: drawn.total, drawn: drawn.drawn, ...(already ? { already_on_table: already } : {}) } };
 			}
 			case 'rename': {
 				const next = op.name.trim();

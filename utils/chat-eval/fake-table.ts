@@ -10,6 +10,10 @@ import { parseHTML } from 'linkedom';
 import { pickPieces, piecesFrom, piecesPath, quoteSize } from '../../src/lib/table-pieces';
 import { remotePagePieces } from '../../src/lib/server/table-pieces';
 import type { Block } from '../../src/lib/tables';
+import { pdfName, pdfPageBlock, pdfPageSrc, renderSize } from '../../src/lib/table-render';
+
+/** How long every PDF is here: nothing is fetched or drawn in a replay. */
+export const FAKE_PDF_PAGES = 15;
 
 const SITE = 'https://caseyagollan.com';
 
@@ -52,10 +56,10 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 	const issues = () => layoutIssues(boxes(items.filter(SOLID).filter((item) => item.type !== 'frame')));
 	const changed = (result: Record<string, unknown>) => { const found = issues(); return { ...result, ...(!found.overlaps.length && !found.crowded.length ? { layout: 'no overlaps' } : { issues: found }) }; };
 	const openSpot = (w: number, h: number) => { const solid = items.filter(SOLID); return solid.length ? { x: Math.max(...solid.map((item) => item.x + item.w)) + 20, y: Math.min(...solid.map((item) => item.y)) } : { x: 0, y: 0 }; };
-	const addBlocks = (blocks: { title: string; url: string; kind: string; excerpt?: string }[], at?: { x: number; y: number }, columns = 3) => {
+	const addBlocks = (blocks: { title: string; url: string; kind: string; excerpt?: string }[], at?: { x: number; y: number }, columns = 3, sizes?: ({ w: number; h: number } | null)[]) => {
 		const origin = at ?? openSpot(240, 240);
 		return blocks.map((block, index) => {
-			const size = block.kind === 'quote' ? quoteSize(block.excerpt ?? '') : block.kind === 'book' ? { w: 180, h: 300 } : { w: 240, h: 240 };
+			const size = sizes?.[index] ?? (block.kind === 'quote' ? quoteSize(block.excerpt ?? '') : block.kind === 'book' ? { w: 180, h: 300 } : { w: 240, h: 240 });
 			const item: FakeItem = { id: id(), type: block.kind, title: block.title, url: block.url, ...(block.excerpt ? { text: block.excerpt } : {}), x: origin.x + (index % columns) * 340, y: origin.y + Math.floor(index / columns) * 480, ...size };
 			items.push(item);
 			return item;
@@ -96,7 +100,16 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 				const added = addBlocks((op.urls as string[]).map((url) => ({ title: url.replace(/^https?:\/\//, ''), url, kind: /caseyagollan\.com|^\//.test(url) ? 'post' : 'link' })), op.at, op.columns ?? Math.min(op.urls.length, 3));
 				return { added: added.map((item) => item.id) };
 			}
-			case 'add_blocks': return changed({ added: addBlocks(op.blocks, op.at, op.columns ?? 4).map((item) => item.id) });
+			case 'add_blocks': return changed({ added: addBlocks(op.blocks, op.at, op.columns ?? 4, op.sizes).map((item) => item.id) });
+			case 'add_pdf_pages': {
+				const source = items.find((item) => item.id === op.block);
+				const from = Math.max(1, op.from ?? 1), last = Math.min(FAKE_PDF_PAGES, from + Math.min(12, op.count ?? 12) - 1);
+				const pages = Array.from({ length: Math.max(0, last - from + 1) }, (_, index) => ({ page: from + index, src: pdfPageSrc(op.url, from + index), w: 1236, h: 1600, pages: FAKE_PDF_PAGES }));
+				const fresh = pages.map((page) => ({ page, block: pdfPageBlock(op.url, op.title ?? source?.title ?? pdfName(op.url), page) })).filter(({ block }) => !items.some((item) => item.url === block.url));
+				if (!fresh.length) return { added: [], pages: FAKE_PDF_PAGES, note: pages.length ? 'Those pages are on the table already.' : `It has only ${FAKE_PDF_PAGES} pages.` };
+				const added = addBlocks(fresh.map(({ block }) => block), source ? { x: source.x + source.w + 20, y: source.y } : undefined, Math.min(fresh.length, 4), fresh.map(({ page }) => renderSize(page)));
+				return { added: added.map((item, index) => ({ id: item.id, page: fresh[index].page.page })), pages: FAKE_PDF_PAGES, drawn: fresh.length };
+			}
 			case 'add_note': {
 				const item = newNote(op as never, anchor(op) ?? openSpot(200, 200));
 				place(tidyLayout(boxes(named()), 20, item.id));

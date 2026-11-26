@@ -50,11 +50,12 @@ export interface TableState {
 export interface TableApi {
 	/**
 	 * Adds blocks with their top-left at a screen point, or around the middle of the view (or beside
-	 * the block they were taken from, `near`), in a row or wrapped into `columns`.
+	 * the block they were taken from, `near`), in a row or wrapped into `columns`. `sizes` gives a block
+	 * its own size (a rendered page is as tall as its picture); `plain` sets them down with details hidden.
 	 */
-	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean }): string[];
+	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
-	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'rename' }>): Promise<unknown>;
+	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'rename' }>): Promise<unknown>;
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
@@ -121,10 +122,11 @@ function detailsOf(blocks: SiteBlockShape[]): TableState['details'] {
 
 function apiFor(editor: Editor): TableApi {
 	return {
-		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false } = {}) {
+		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false, sizes, plain = false } = {}) {
 			if (!blocks.length) return [];
 			const dropped = at && (page ? at : editor.screenToPage(at));
-			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, blockProps(blocks[0]), near);
+			const sized = (block: Block, index: number) => ({ ...blockProps(block), ...(sizes?.[index] ? { w: Math.max(40, Math.round(sizes[index]!.w)), h: Math.max(40, Math.round(sizes[index]!.h)) } : {}), ...(plain ? { hideMeta: true } : {}) });
+			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, sized(blocks[0], 0), near);
 			const ids: TLShapeId[] = [];
 			let x = origin.x;
 			let y = origin.y;
@@ -138,7 +140,7 @@ function apiFor(editor: Editor): TableApi {
 						rowHeight = 0;
 					}
 					const id = createShapeId();
-					const props = blockProps(block);
+					const props = sized(block, index);
 					editor.createShape<SiteBlockShape>({ id, type: BLOCK_SHAPE, x, y, props, meta: fitsToPost(block) ? { fit: true } : {} });
 					ids.push(id);
 					x += props.w + GAP;
@@ -717,7 +719,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 		case 'look':
 			return look(editor, op.ids);
 		case 'add_blocks':
-			return changed(editor, { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at }).map((id) => id.replace(/^shape:/, '')) });
+			return changed(editor, { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at, sizes: op.sizes, plain: op.plain }).map((id) => id.replace(/^shape:/, '')) });
 		case 'add_note': {
 			const id = createShapeId();
 			const text = toRichText(op.text.slice(0, 2000));

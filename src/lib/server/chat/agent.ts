@@ -18,7 +18,7 @@ import { Agent, type Connection, type ConnectionContext, type WSMessage } from '
 import { PiHarness } from 'agents/harness/pi';
 import { createRegistry, Harness, type ConversationWatch } from '@earendil-works/pi-durable';
 import { CHAT_MAX_MESSAGE, chatAuthor, chatPage, chatSayId, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
-import { canvasOrder, HIDDEN_TABLE_OP_TIMEOUT, TABLE_OP_TIMEOUT, unansweredTable } from './canvas';
+import { canvasOrder, tableOpTimeout, unansweredTable } from './canvas';
 import { publishingConfig } from '../publishing/config';
 import type { PublishingEnvironment } from '../publishing/config';
 import { randomToken } from '../publishing/dpop';
@@ -226,7 +226,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 				try { connection.send(JSON.stringify({ type: 'table:cancel', id } satisfies TableCancelEvent)); } catch { /* already gone */ }
 				if (connection.state) connection.setState({ ...connection.state, canvas: false });
 				resolve({ answered: false });
-			}, hidden ? HIDDEN_TABLE_OP_TIMEOUT : TABLE_OP_TIMEOUT);
+			}, tableOpTimeout(op.op, hidden));
 			this.tableOps.set(id, { resolve: (result) => resolve({ answered: true, result }), reject, timer });
 			connection.send(JSON.stringify({ type: 'table:op', id, ...op }));
 		});
