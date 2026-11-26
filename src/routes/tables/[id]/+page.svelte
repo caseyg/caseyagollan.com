@@ -2,7 +2,8 @@
 	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TableWireframe, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
+	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
+	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
 	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { linkedBlock, searchBlocks, withOwnerSources } from '$lib/table-sources';
@@ -10,7 +11,7 @@
 	import { wikiHref } from '$lib/wiki/links';
 	import { blockKey, isBlockKind, type Block } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
-	import type { TableItem, TableOpEvent, TableOpResult } from '$lib/table-agent';
+	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
 	// The layout gives each table its own page; saves keep to the table this page opened,
@@ -27,10 +28,12 @@
 	let missing = $state(false);
 
 	let api = $state<TableApi>();
-	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [] });
+	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 	let adding = $state(false);
 	/** The block that was selected when Add opened; the picker offers its page's pieces. */
 	let source = $state<Block>();
+	/** The tag panel: off, editing the selection's tags, or reviewing what is staged before it is saved. */
+	let tagging = $state<'edit' | 'review' | null>(null);
 	let renaming = $state(false);
 	let renameAnchor = $state<HTMLElement | null>(null);
 	let status = $state<'saved' | 'unsaved' | 'saving' | 'failed'>('saved');
@@ -48,6 +51,60 @@
 		// What's selected goes with each message, so “these” means the cards Casey is pointing at.
 		return offerTable({ table: id, thread: data.chat.snapshot.thread.id, ontableop: tableOp, get selection() { return view.selection; }, deselect: () => api?.deselect() });
 	});
+
+	// Whoever can change the table reads its blocks' tags (posts, Raindrop, Readwise) and may edit them.
+	const taggedRefs = $derived([...new Set(view.taggable.map((block) => block.ref))].sort().join('\n'));
+	$effect(() => {
+		if (!editable || !session) return;
+		enableTags(session);
+		const refs = taggedRefs ? taggedRefs.split('\n') : [];
+		if (!refs.length) return;
+		// Blocks arrive in bursts (a table opening, a channel added): read their tags once they settle.
+		const timer = setTimeout(() => void loadTags(refs), 400);
+		return () => clearTimeout(timer);
+	});
+
+	/**
+	 * “Tag these as X” from the chat: the blocks it names (ids, what a frame holds, or every block with
+	 * tags), read, and any change staged for Casey to review. Nothing is saved from here.
+	 */
+	async function tagOp(op: Extract<TableOp, { op: 'tag' }>): Promise<TableOpResult> {
+		const { items } = (await api!.perform({ op: 'read' })) as { items: TableItem[] };
+		const strip = (value: string) => value.replace(/^shape:/, '');
+		let wanted: Set<string> | undefined;
+		if (op.inside) {
+			const name = op.inside.trim().toLowerCase();
+			const frame = items.find((item) => item.type === 'frame' && (item.id === strip(op.inside!) || item.text?.trim().toLowerCase() === name));
+			if (!frame) return { ok: false, error: `No frame is called “${op.inside}”. Give a frame’s id or name.` };
+			wanted = new Set([frame.id]);
+		} else if (op.ids?.length) wanted = new Set(op.ids.map(strip));
+		// A frame or group named stands for everything it holds.
+		for (let grew = !!wanted; grew && wanted; ) {
+			grew = false;
+			for (const item of items) if (item.parent && wanted.has(item.parent) && !wanted.has(item.id)) grew = !!wanted.add(item.id);
+		}
+		const blocks = view.taggable.filter((block) => !wanted || wanted.has(block.id));
+		if (!blocks.length) return { ok: false, error: wanted ? 'None of those have tags: only posts from this site, Raindrop bookmarks and Readwise items do.' : 'Nothing on this table has tags: only posts from this site, Raindrop bookmarks and Readwise items do.' };
+		const refs = [...new Set(blocks.map((block) => block.ref))];
+		await loadTags(refs);
+		const changing = !!(op.add?.length || op.remove?.length);
+		if (changing) {
+			stage(refs, { add: op.add, remove: op.remove }, Object.fromEntries(blocks.map((block) => [block.ref, block.title])));
+			tagging = 'review';
+			adding = false;
+		}
+		const unread = refs.filter((ref) => !tagStore.known[ref] || tagStore.known[ref].error).length;
+		return {
+			ok: true,
+			result: {
+				blocks: blocks.length,
+				...(changing ? { staged: refs.filter((ref) => tagStore.staged[ref]).length, note: 'Staged, not saved. Casey reviews the changes in the Tags panel on the table and saves them there.' } : {}),
+				tags: blocks.slice(0, 40).map((block) => ({ id: block.id, title: block.title.slice(0, 60), [changing ? 'tags_after' : 'tags']: tagsAfter(block.ref) })),
+				...(blocks.length > 40 ? { more: blocks.length - 40 } : {}),
+				...(unread ? { unread: `${unread} couldn’t be read just now; their changes are staged all the same.` } : {})
+			}
+		};
+	}
 
 	/** What the assistant asked of the table, done here so it animates, saves and undoes like Casey's own edits. */
 	async function tableOp(event: TableOpEvent): Promise<TableOpResult> {
@@ -78,6 +135,8 @@
 				const ids = api.addBlocks(picked, undefined, { near: block, columns: Math.min(picked.length, 3), select: false });
 				return { ok: true, result: { source: item.title, added: ids.map((shapeId, index) => ({ id: shapeId.replace(/^shape:/, ''), kind: picked[index].kind, text: (picked[index].excerpt ?? picked[index].title).slice(0, 80) })), more } };
 			}
+			case 'tag':
+				return tagOp(op);
 			case 'rename': {
 				const next = op.name.trim();
 				if (!next) return { ok: false, error: 'A table needs a name.' };
@@ -258,12 +317,23 @@
 				onadd={() => {
 					source = view.selected;
 					adding = !adding;
+					if (adding) tagging = null;
+				}}
+				tags={editable ? { open: !!tagging, count: stagedCount() } : undefined}
+				ontags={() => {
+					tagging = tagging ? null : 'edit';
+					if (tagging) adding = false;
 				}}
 			/>
 		</div>
 		{#if editable && adding}
 			<div class="dock dock--picker">
 				<BlockPicker search={session.mode === 'owner' ? ownerSearch : searchBlocks} owner={session.mode === 'owner'} placed={view.placed} {source} pieces={(block) => pagePieces(block, wikiHref)} onadd={(blocks) => api?.addBlocks(blocks, undefined, { near: source })} onclose={() => (adding = false)} />
+			</div>
+		{/if}
+		{#if editable && tagging}
+			<div class="dock dock--picker dock--tags">
+				<TagDock taggable={view.taggable} bind:mode={() => tagging ?? "edit", (next) => (tagging = next)} onclose={() => (tagging = null)} />
 			</div>
 		{/if}
 	{/if}

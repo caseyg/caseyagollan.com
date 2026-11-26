@@ -267,6 +267,19 @@ export const SCENARIOS: Scenario[] = [
 		]
 	},
 	{
+		name: 'selection-tag',
+		ask: 'Tag these as writing and take practice off them.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Scratch',
+		table: SELECTION_TABLE,
+		selected: ['b1', 'b3'],
+		checks: [
+			{ name: 'one table_tag for the selection', pass: (seen) => seen.calls.length === 1 && seen.calls[0].name === 'table_tag' && !seen.calls[0].error && /writing/.test(seen.calls[0].args) && /practice/.test(seen.calls[0].args) },
+			{ name: 'never the Micropub tools', pass: (seen) => !used(seen, /^micropub_/) },
+			{ name: 'says staged, not saved', pass: (seen) => /staged|review/i.test(seen.answer) && !/\b(saved|updated|committed)\b(?! yet)/i.test(seen.answer.replace(/not (yet )?saved|until (you|casey) save[sd]?|review and save|to save/gi, '')) }
+		]
+	},
+	{
 		// Casey's ask on the “Are.na — calm technology” table: site search only matched the channels themselves, so the chat added loosely related search hits instead.
 		name: 'arena-channels-to-table',
 		ask: 'Pull all the blocks from my Are.na channels Calm Technology Research and Index of Calm Technologies onto this table.',

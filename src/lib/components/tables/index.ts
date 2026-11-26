@@ -10,7 +10,9 @@ export { default as TableGrid } from './TableGrid.svelte';
 export { default as RenameTable } from './RenameTable.svelte';
 export { default as TableToolbar } from './TableToolbar.svelte';
 export { default as TableWireframe } from './TableWireframe.svelte';
-export type { TableApi, TableState } from './canvas/TableEditor';
+export { default as TableBlock } from './TableBlock.svelte';
+export { default as TagDock } from './TagDock.svelte';
+export type { TableApi, TableState, TaggableBlock } from './canvas/TableEditor';
 
 /** The first segment of every trail in the tables section. */
 export const TABLES_CRUMB: Segment = { label: 'Tables', href: '/tables/', icon: '🗂️' };
