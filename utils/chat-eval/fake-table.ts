@@ -4,6 +4,7 @@
  * layout maths and roughly real sizes. No drawing.
  */
 import { columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '../../src/lib/table-layout';
+import { arrange, clustersBy, type Edge } from '../../src/lib/table-arrange';
 import { loadAgentIndex, searchDocuments } from '../../src/lib/server/chat/site-search';
 import { parseHTML } from 'linkedom';
 import { pickPieces, piecesFrom, piecesPath, quoteSize } from '../../src/lib/table-pieces';
@@ -36,7 +37,18 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 	const id = () => `s${next++}`;
 	const boxes = (list: FakeItem[]): Box[] => list.map(({ id, x, y, w, h }) => ({ id, x, y, w, h }));
 	const named = (ids?: string[]) => ids?.length ? items.filter((item) => ids.includes(item.id)) : items.filter((item) => item.type !== 'arrow' && !item.parent);
-	const place = (placements: Placement[]) => { for (const { id, x, y } of placements) { const item = items.find((one) => one.id === id); if (item) { item.x = x; item.y = y; } } return placements.length; };
+	/** Moves an item, and with a frame or group everything it holds. */
+	const shift = (item: FakeItem, dx: number, dy: number) => { item.x += dx; item.y += dy; for (const held of items.filter((one) => one.parent === item.id)) shift(held, dx, dy); };
+	const place = (placements: Placement[]) => { for (const { id, x, y } of placements) { const item = items.find((one) => one.id === id); if (item) shift(item, x - item.x, y - item.y); } return placements.length; };
+	const wrap = (frame: FakeItem) => { const held = items.filter((item) => item.parent === frame.id); if (!held.length) return; frame.x = Math.min(...held.map((item) => item.x)) - 40; frame.y = Math.min(...held.map((item) => item.y)) - 40; frame.w = Math.max(...held.map((item) => item.x + item.w)) + 40 - frame.x; frame.h = Math.max(...held.map((item) => item.y + item.h)) + 40 - frame.y; };
+	/** One level set out by the real layouts: arrows whose ends sit in these items (or in what they hold) are the graph. */
+	const setOut = (list: FakeItem[], op: Op, at?: { x: number; y: number }) => {
+		const within = (id?: string): string | undefined => { let item = items.find((one) => one.id === id); while (item && !list.includes(item)) item = items.find((one) => one.id === item!.parent); return item?.id; };
+		const edges: Edge[] = items.filter((item) => item.type === 'arrow').flatMap((arrow) => { const from = within(arrow.from), to = within(arrow.to); return from && to && from !== to ? [{ from, to }] : []; });
+		const groups = op.layout !== 'cluster' ? undefined : op.groups?.length ? (op.groups as { name?: string; ids: string[] }[]).map((group) => ({ ...group, ids: group.ids.flatMap((id) => within(id) ?? []) })) : clustersBy(list.map((item) => ({ id: item.id, kind: item.type })), op.by ?? 'kind', edges);
+		const result = arrange({ mode: op.layout, boxes: boxes(list), edges, at, gap: op.gap, ordered: op.ordered, columns: op.columns, direction: op.direction, root: within(op.root), groups, clusterGap: op.frame === false ? 120 : 200 });
+		return result;
+	};
 	const issues = () => layoutIssues(boxes(items.filter(SOLID).filter((item) => item.type !== 'frame')));
 	const changed = (result: Record<string, unknown>) => { const found = issues(); return { ...result, ...(!found.overlaps.length && !found.crowded.length ? { layout: 'no overlaps' } : { issues: found }) }; };
 	const openSpot = (w: number, h: number) => { const solid = items.filter(SOLID); return solid.length ? { x: Math.max(...solid.map((item) => item.x + item.w)) + 20, y: Math.min(...solid.map((item) => item.y)) } : { x: 0, y: 0 }; };
@@ -106,11 +118,29 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 				return changed({ moved });
 			}
 			case 'arrange': {
-				const list = named(op.ids).filter(SOLID);
-				const columns = Math.max(1, op.columns ?? Math.ceil(Math.sqrt(list.length)));
-				const gap = op.gap ?? 20;
-				place(op.layout === 'row' ? rowLayout(boxes(list), op.at, gap) : op.layout === 'column' ? columnLayout(boxes(list), op.at, gap) : op.layout === 'columns' ? columnsLayout(boxes(list), columns, op.at, gap) : gridLayout(boxes(list), columns, op.at, gap));
-				return changed({ arranged: list.length });
+				const only = op.inside ? items.find((item) => item.id === op.inside) ?? items.find((item) => item.type === 'frame' && item.text?.toLowerCase() === String(op.inside).trim().toLowerCase()) : op.ids?.length === 1 ? items.find((item) => item.id === op.ids[0]) : undefined;
+				const holding = only?.type === 'frame' ? only : undefined;
+				if (op.inside && !holding) return { arranged: 0, note: '`inside` takes the id or the name of a frame on the table.' };
+				const done: Record<string, unknown> = {};
+				if (!holding && !op.ids?.length && op.layout === 'auto') {
+					const frames = items.filter((item) => item.type === 'frame' && !item.parent && items.filter((one) => one.parent === item.id).length > 1);
+					for (const frame of frames) { place(setOut(items.filter((item) => item.parent === frame.id).filter(SOLID), { op: 'arrange', layout: 'auto' }, { x: frame.x + 40, y: frame.y + 40 }).placements); wrap(frame); }
+					if (frames.length) done.frames_tidied = frames.length;
+				}
+				const chosen = named(op.ids).filter(SOLID).sort((a, b) => op.ordered ? op.ids.indexOf(a.id) - op.ids.indexOf(b.id) : 0);
+				const list = holding ? items.filter((item) => item.parent === holding.id).filter(SOLID) : chosen.filter((item) => !chosen.some((other) => other.id === item.parent));
+				const result = setOut(list, op, anchor(op) ?? (holding ? { x: holding.x + 40, y: holding.y + 40 } : undefined));
+				place(result.placements);
+				if (holding) { wrap(holding); done.inside = holding.id; }
+				// What the new layout lands on moves down, as on the real table.
+				const moving = new Set((holding ? [holding] : list).map((item) => item.id));
+				const level = (holding ?? list[0])?.parent;
+				if (holding || new Set(list.map((item) => item.parent)).size === 1) place(tidyLayout(boxes(items.filter(SOLID).filter((item) => item.parent === level)), op.gap ?? 20, moving).filter((move) => !moving.has(move.id)));
+				const framed = (result.groups ?? []).filter((group) => group.name && op.frame !== false);
+				if (framed.length && list.every((item) => !item.parent)) {
+					done.frames = framed.map((group) => { const frame: FakeItem = { id: id(), type: 'frame', text: group.name, x: 0, y: 0, w: 0, h: 0 }; items.push(frame); for (const item of items) if (group.ids.includes(item.id)) item.parent = frame.id; wrap(frame); return { name: group.name, id: frame.id, holds: group.ids.length }; });
+				} else if (result.groups) done.groups = result.groups.map((group) => ({ ...(group.name ? { name: group.name } : {}), holds: group.ids.length }));
+				return changed({ arranged: list.length, as: result.mode, ...done, ...(result.note ? { note: result.note } : {}) });
 			}
 			case 'align': {
 				const list = named(op.ids).filter(SOLID);

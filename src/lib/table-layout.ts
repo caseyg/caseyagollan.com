@@ -12,7 +12,7 @@ export type Placement = { id: string; x: number; y: number };
 export const GRID = 20;
 export const onGrid = (value: number) => Math.round(value / GRID) * GRID;
 /** Up to the next grid line, so a measured size is never rounded smaller than it is. */
-const upToGrid = (value: number) => Math.ceil(value / GRID - 1e-6) * GRID;
+export const upToGrid = (value: number) => Math.ceil(value / GRID - 1e-6) * GRID;
 
 const readingOrder = (a: Box, b: Box) => a.y - b.y || a.x - b.x;
 const topLeft = (boxes: Box[]) => ({ x: Math.min(...boxes.map((box) => box.x)), y: Math.min(...boxes.map((box) => box.y)) });
@@ -70,13 +70,14 @@ function overlapDepth(a: Box, b: Box, margin = 0): number {
 /**
  * Pushes overlapping items apart with the least movement: in reading order, each item that
  * covers (or sits closer than `gap` to) one already settled moves down below it. Columns stay
- * columns; nothing moves up or sideways. `keep` (an item just put somewhere on purpose)
+ * columns; nothing moves up or sideways. `keep` (an item, or several, just put somewhere on purpose)
  * settles first, so what it lands on moves instead of it. Returns only the items that moved.
  */
-export function tidyLayout(boxes: Box[], gap = GRID, keep?: string): Placement[] {
+export function tidyLayout(boxes: Box[], gap = GRID, keep?: string | Iterable<string>): Placement[] {
+	const kept = new Set(typeof keep === 'string' ? [keep] : keep ?? []);
 	const settled: Box[] = [];
 	const moved: Placement[] = [];
-	for (const box of [...boxes].sort((a, b) => Number(b.id === keep) - Number(a.id === keep) || readingOrder(a, b))) {
+	for (const box of [...boxes].sort((a, b) => Number(kept.has(b.id)) - Number(kept.has(a.id)) || readingOrder(a, b))) {
 		const next = { ...box };
 		for (let guard = 0; guard < boxes.length + 1; guard++) {
 			const hit = settled.filter((other) => overlapDepth(next, other, gap) > 0).sort((a, b) => b.y + b.h - (a.y + a.h))[0];
@@ -143,4 +144,21 @@ export function arrowCrossings(arrows: { id: string; a: { x: number; y: number }
 	const crossings: [string, string][] = [];
 	for (const arrow of arrows) for (const box of boxes) if (!arrow.skip.includes(box.id) && segmentHitsBox(arrow.a, arrow.b, box)) crossings.push([arrow.id, box.id]);
 	return crossings.slice(0, 30);
+}
+
+/**
+ * How far to bend an arrow from a to b so it clears the cards in its way: 0 when the straight
+ * line is clear, else the gentlest curve (either side) that is, taken as two straight runs
+ * through the top of the curve, as `arrowCrossings` is fed. 0 again when no curve clears it.
+ */
+export function bendAround(a: { x: number; y: number }, b: { x: number; y: number }, boxes: Box[]): number {
+	const length = Math.hypot(b.x - a.x, b.y - a.y);
+	if (length < 1) return 0;
+	const clear = (bend: number) => {
+		if (!bend) return !boxes.some((box) => segmentHitsBox(a, b, box));
+		const top = { x: (a.x + b.x) / 2 - ((b.y - a.y) / length) * bend, y: (a.y + b.y) / 2 + ((b.x - a.x) / length) * bend };
+		return !boxes.some((box) => segmentHitsBox(a, top, box) || segmentHitsBox(top, b, box));
+	};
+	for (const bend of [0, 80, -80, 140, -140, 200, -200, 260, -260, 300, -300]) if (Math.abs(bend) < length && clear(bend)) return bend;
+	return 0;
 }

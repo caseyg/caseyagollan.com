@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { arrowCrossings, columnLayout, columnsLayout, segmentHitsBox, gridLayout, layoutIssues, tidyLayout, type Box, type Placement } from '../src/lib/table-layout';
+import { arrowCrossings, bendAround, columnLayout, columnsLayout, segmentHitsBox, gridLayout, layoutIssues, tidyLayout, type Box, type Placement } from '../src/lib/table-layout';
 
 const apply = (boxes: Box[], placements: Placement[]) => boxes.map((box) => ({ ...box, ...placements.find((place) => place.id === box.id) }));
 
@@ -62,4 +62,15 @@ test('an arrow through a card it doesn’t join is a crossing', () => {
 	const boxes: Box[] = [{ id: 'a', x: 0, y: 0, w: 100, h: 100 }, { id: 'mid', x: 150, y: 0, w: 100, h: 100 }, { id: 'b', x: 300, y: 0, w: 100, h: 100 }, { id: 'below', x: 150, y: 200, w: 100, h: 100 }];
 	expect(arrowCrossings([{ id: 'arrow', a: { x: 50, y: 50 }, b: { x: 350, y: 50 }, skip: ['a', 'b'] }], boxes)).toEqual([['arrow', 'mid']]);
 	expect(segmentHitsBox({ x: 0, y: 150 }, { x: 400, y: 150 }, boxes[1])).toBe(false);
+
+});
+
+test('an arrow bends just enough to clear a card in its way, and stays straight when nothing is', () => {
+	const a = { x: 0, y: 0 }, b = { x: 600, y: 0 };
+	expect(bendAround(a, b, [{ id: 'far', x: 200, y: 200, w: 200, h: 200 }])).toBe(0);
+	const bend = bendAround(a, b, [{ id: 'between', x: 250, y: -40, w: 100, h: 80 }]);
+	expect(Math.abs(bend)).toBe(80);
+	// Walled in on both sides, it is left straight rather than bent for nothing.
+	expect(bendAround(a, b, [{ id: 'wall', x: 250, y: -2000, w: 100, h: 4000 }])).toBe(0);
+	expect(tidyLayout([{ id: 'k1', x: 0, y: 0, w: 200, h: 200 }, { id: 'k2', x: 0, y: 220, w: 200, h: 200 }, { id: 'o', x: 0, y: 150, w: 200, h: 200 }], 20, ['k1', 'k2']).map((move) => move.id)).toEqual(['o']);
 });

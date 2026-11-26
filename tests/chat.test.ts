@@ -557,7 +557,7 @@ describe('the chat’s tools', () => {
 		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
-		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(24_000);
+		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(25_000);
 	});
 
 	test('the prompt says what day it is and where things are', async () => {
@@ -709,6 +709,11 @@ describe('the chat’s tools', () => {
 		const { tool } = await setup({ table: 'abc123', ops, items: () => items, asked: ['b1', 'n1'] });
 		await out(tool('table_arrange'), { layout: 'row', ids: ['selected'] });
 		expect(ops[0]).toMatchObject({ op: 'arrange', layout: 'row', ids: ['b1', 'n1'] });
+		// The graph layouts and clusters go to the canvas in one op, with the words a model reaches for understood.
+		await out(tool('table_arrange'), { layout: 'flowchart', direction: 'right', root: 'selected', arrows: 'elbow' });
+		expect(ops.at(-2)).toMatchObject({ op: 'arrange', layout: 'layered', direction: 'right', root: 'b1', arrows: 'elbow' });
+		await out(tool('table_arrange'), { groups: [{ name: 'Reading', ids: ['selected'] }, { name: 'Empty', ids: [] }], inside: 'f1' });
+		expect(ops.at(-2)).toMatchObject({ op: 'arrange', layout: 'cluster', inside: 'f1', groups: [{ name: 'Reading', ids: ['b1', 'n1'] }] });
 		await out(tool('table_group'), { ids: ['selected', 'b2'], name: 'Reading' });
 		expect(ops.find((op) => op.op === 'frame')).toMatchObject({ name: 'Reading', ids: ['b1', 'n1', 'b2'] });
 		await out(tool('table_edit'), { edits: [{ id: 'selected', color: 'red' }], remove: ['selection'] });

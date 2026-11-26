@@ -18,6 +18,23 @@ export interface TablePoint { x: number; y: number }
 export type TableLayout = 'grid' | 'columns' | 'row' | 'column' | 'pack';
 export const TABLE_LAYOUTS: readonly TableLayout[] = ['grid', 'columns', 'row', 'column', 'pack'];
 
+/**
+ * Every way `arrange` sets out what is already there (`src/lib/table-arrange.ts`). `auto` picks
+ * from what is there: a tree or layers when arrows join things, else a grid (masonry columns
+ * when heights differ). `tree`: an org chart, parents over children. `mindmap`: one item in
+ * the middle, branches to both sides. `radial`: one in the middle, the rest in rings.
+ * `layered`: a flow in ranks, for arrows that merge or loop. `force`: joined things pulled
+ * together, staying near where they were. `cluster`: named groups, each a small grid.
+ */
+export type TableArrangement = TableLayout | 'auto' | 'tree' | 'mindmap' | 'radial' | 'layered' | 'force' | 'cluster';
+export const TABLE_ARRANGEMENTS: readonly TableArrangement[] = ['auto', 'grid', 'columns', 'row', 'column', 'pack', 'tree', 'mindmap', 'radial', 'layered', 'force', 'cluster'];
+/** Which way a tree or flow grows. */
+export type TableDirection = 'down' | 'right' | 'up' | 'left';
+export const TABLE_DIRECTIONS: readonly TableDirection[] = ['down', 'right', 'up', 'left'];
+/** A group for `cluster`: its items, and the name its frame gets. */
+export interface TableCluster { name?: string; ids: string[] }
+export type TableClusterBy = 'kind' | 'color' | 'connected';
+
 export type TableAlign = 'left' | 'center-horizontal' | 'right' | 'top' | 'center-vertical' | 'bottom';
 export const TABLE_ALIGNS: readonly TableAlign[] = ['left', 'center-horizontal', 'right', 'top', 'center-vertical', 'bottom'];
 
@@ -58,7 +75,14 @@ export type TableOp =
 	| { op: 'ungroup'; ids: string[] }
 	| { op: 'edit'; edits: { id: string; text?: string; color?: TableColor }[] }
 	| { op: 'move'; moves: ({ id: string } & Partial<TablePoint> & { w?: number; h?: number })[] }
-	| ({ op: 'arrange'; layout: TableLayout; ids?: string[]; columns?: number; gap?: number } & TablePlace)
+	/**
+	 * Sets out what is there. `ids`: just those (a frame alone means what it holds), in that order when
+	 * `ordered`; `inside`: what one frame holds, by its id or its name; neither: the whole table, frames moving as one with what they hold. Arrows tied to
+	 * items are the graph the tree, mind map, radial, layered and force layouts draw. `cluster` takes
+	 * `groups` (or `by`) and frames each named group unless `frame` is false. `arrows`: what becomes of
+	 * the arrows among the items in a graph layout (straightened unless told to keep them, or made elbows).
+	 */
+	| ({ op: 'arrange'; layout: TableArrangement; ids?: string[]; ordered?: boolean; inside?: string; columns?: number; gap?: number; direction?: TableDirection; root?: string; groups?: TableCluster[]; by?: TableClusterBy; frame?: boolean; arrows?: 'keep' | 'straight' | 'elbow' } & TablePlace)
 	| { op: 'align'; ids: string[]; align?: TableAlign; distribute?: 'horizontal' | 'vertical' }
 	| { op: 'tidy'; ids?: string[] }
 	| { op: 'look'; ids?: string[] }
@@ -105,6 +129,8 @@ export const LOOK_MAX_SIDE = 1280;
 /** Messages between the thread and the table page, beside the chat's own. */
 export type TableOpEvent = { type: 'table:op'; id: string } & TableOp;
 export type TableOpReply = { type: 'table:result'; id: string } & TableOpResult;
+/** The thread stopped waiting for a change it asked for; a page that hasn't made it yet must not. */
+export type TableCancelEvent = { type: 'table:cancel'; id: string };
 
 /** The chat thread that belongs to a table: ten lowercase letters and digits, the same everywhere. */
 export function tableThreadId(tableId: string): string {

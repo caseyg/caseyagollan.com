@@ -3,7 +3,7 @@
  * thread agent's WebSocket (`/agents/chat-thread/<id>`), reconnecting with backoff.
  */
 import { CHAT_AGENT, chatAuthor, SELECTION_LISTED, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatSelectionItem, type ChatServerEvent, type ChatSnapshot, type ChatViewer } from '$lib/chat';
-import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
+import type { TableCancelEvent, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 export interface LiveThreadOptions {
 	/** The assistant is taking this person to a page of the site. */
@@ -44,6 +44,8 @@ export class LiveThread {
 	#unsent = new Map<string, Unsent>();
 
 	#page?: ChatPage;
+	/** Changes the thread gave up waiting for before this page got to them. */
+	#cancelled = new Set<string>();
 	#onchange?: () => void;
 	#options: LiveThreadOptions;
 
@@ -74,15 +76,28 @@ export class LiveThread {
 		socket.onclose = () => {
 			if (this.#socket !== socket || this.#closed) return;
 			this.status = 'offline';
+			// A background tab that isn't showing a table has nothing to do here: it comes back when Casey does.
+			if (typeof document !== 'undefined' && document.hidden && !this.#page?.table) {
+				this.#whenShown = () => { if (!document.hidden) { this.#forgetShown(); this.connect(); } };
+				document.addEventListener('visibilitychange', this.#whenShown);
+				return;
+			}
 			const wait = Math.min(30_000, 1000 * 2 ** this.#retry++) * (0.75 + Math.random() / 2);
 			this.#timer = setTimeout(() => this.connect(), wait);
 		};
+	}
+
+	#whenShown?: () => void;
+	#forgetShown() {
+		if (this.#whenShown) document.removeEventListener('visibilitychange', this.#whenShown);
+		this.#whenShown = undefined;
 	}
 
 	close() {
 		this.#closed = true;
 		this.#flush();
 		clearTimeout(this.#timer);
+		this.#forgetShown();
 		this.#socket?.close();
 	}
 
@@ -121,6 +136,12 @@ export class LiveThread {
 	async #tableOp(event: TableOpEvent) {
 		const handle = this.#options.ontableop;
 		if (!handle) return;
+		// A tab the browser froze wakes to everything it missed at once: the change, then word that the
+		// thread stopped waiting, or the socket's close. Let those arrive first, so a change nobody is
+		// waiting for isn't made late (the assistant has moved on, and would make it twice).
+		const socket = this.#socket;
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		if (this.#cancelled.delete(event.id) || socket !== this.#socket || socket?.readyState !== WebSocket.OPEN) return;
 		const result = await handle(event).catch((error): TableOpResult => ({ ok: false, error: String(error?.message ?? error).slice(0, 300) }));
 		this.#send({ type: 'table:result', id: event.id, ...result });
 	}
@@ -136,7 +157,7 @@ export class LiveThread {
 	};
 
 	#receive(data: string) {
-		let event: ChatServerEvent | TableOpEvent;
+		let event: ChatServerEvent | TableOpEvent | TableCancelEvent;
 		try { event = JSON.parse(data); } catch { return; }
 		// A reply arrives a few characters a message, far more often than the screen draws. Gather them
 		// and update once a frame, so the page renders the reply once a frame rather than once a message.
@@ -149,6 +170,7 @@ export class LiveThread {
 		if (this.#pending.size) this.#flush();
 		switch (event.type) {
 			case 'table:op': void this.#tableOp(event); break;
+			case 'table:cancel': if (typeof event.id === 'string') { this.#cancelled.add(event.id); if (this.#cancelled.size > 50) this.#cancelled.clear(); } break;
 			case 'chat:navigate': if (typeof event.path === 'string' && event.path.startsWith('/') && !event.path.startsWith('//')) this.#options.onnavigate?.(event.path); break;
 			case 'chat:snapshot': {
 				// After a reconnect: what was shown here and never arrived stays on screen and is sent again.
