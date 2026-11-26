@@ -9,6 +9,7 @@
 	import { rememberOwner } from '$lib/owner';
 	import NewsletterSettings from '$lib/components/NewsletterSettings.svelte';
 	import BlueskySettings from '$lib/components/BlueskySettings.svelte';
+	import McpConnections from '$lib/components/account/McpConnections.svelte';
 
 	/** `signInWith` is set on branch previews, which sign in through that site instead of a passkey. */
 	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean; signInWith?: string };
@@ -186,6 +187,7 @@
 		<p><a href="/readwise">Review Readwise bookmarks →</a></p>
 		<NewsletterSettings csrf={session.csrf} />
 		<BlueskySettings csrf={session.csrf} result={page.url.searchParams.get('bluesky')} message={page.url.searchParams.get('message')} />
+		<McpConnections csrf={session.csrf} result={page.url.searchParams.get('mcp')} server={page.url.searchParams.get('server')} message={page.url.searchParams.get('message')} />
 		{#if session.signInWith}
 		<p class="hint">Signed in to this preview through {issuerName(session.signInWith)}. Passkeys and access tokens are managed there.</p>
 		{:else}

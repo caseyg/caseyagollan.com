@@ -30,6 +30,7 @@ import { TABLE_ALIGNS, TABLE_ARRANGEMENTS, TABLE_COLORS, TABLE_DIRECTIONS, TABLE
 import { imageFromDataUrl, viewImage } from './view-image';
 import { SAVE_SOURCES, SOURCE_NAME, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavedItem, type SavedPage, type SaveSource, type SavesDeps, type SavesEnv } from '../saves';
 import { ownerMicropub } from '../publishing/post-editor';
+import { CODEMODE_TOOL, isMcpTool } from './mcp-tools';
 
 export interface ToolDeps {
 	env: PublishingEnvironment & SavesEnv & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
@@ -56,6 +57,8 @@ export interface ToolDeps {
 	savesFetch?: typeof fetch;
 	/** Keeps the Worker alive for work that outlasts a tool call, such as refreshing a cached copy. */
 	waitUntil?: (promise: Promise<unknown>) => void;
+	/** The MCP servers connected for scripts just now, by name (“Readwise and Are.na”); empty when none is. */
+	mcp?: () => string;
 }
 
 /** The chat thread's side of the table and navigation tools. */
@@ -92,8 +95,8 @@ export const isMicropubTool = (name: string) => name.startsWith('micropub_');
 const WRITES = new Set<string>(TABLE_OWNER_TOOLS);
 /** Reads Casey's Are.na, Raindrop and Readwise with Casey's own tokens, private items included: Casey's runs only. */
 export const SAVES_TOOL = 'my_saves';
-/** Tools only Casey's own runs get. */
-export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL;
+/** Tools only Casey's own runs get: posting, changing a table, and everything that reads with Casey's own sign-ins (my_saves, and scripts over the MCP servers). */
+export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL || name === CODEMODE_TOOL || isMcpTool(name);
 /** Tools that need a table open beside the chat: all of them but the one that makes a table. */
 export const isTableTool = (name: string) => name.startsWith('table_') && name !== 'table_new';
 const isTableRead = (name: string) => name === 'table_read' || name === 'table_look';
@@ -210,6 +213,17 @@ const SAVES_SECTION = [
 	'- Name the place as Casey did (`in: "Calm Technology Research"`): titles, ids and addresses all work, and a near miss answers with the closest names. Only list a source’s places when Casey asks what there is.',
 	'- To put a whole channel, collection or book’s highlights on a table, don’t list it first: one table_add with an item {source, in} per place does it, each in its own named frame.',
 	'- Items marked `private` are for Casey’s eyes: fine to tell Casey about, but say so when you put one on a table, since a published table is public.'
+].join('\n');
+
+/**
+ * For Casey's own runs while MCP servers are connected: what `codemode` adds to my_saves, and
+ * how to write a script that costs one step and a small result.
+ */
+const scriptsSection = (names: string) => [
+	`Scripts: ${names} ${/ and |,/.test(names) ? 'are' : 'is'} also connected directly. codemode runs one short script that calls ${/ and |,/.test(names) ? 'their' : 'its'} tools (listed under “codemode” below) and hands you only what the script returns.`,
+	'- Use it for what my_saves can’t do: searching the words inside Reader documents (my_saves only searches highlights), a service’s own search, a question that needs several calls, and changes (saving, tagging, connecting) when such tools are listed. For “everything in” one channel, collection, shelf or book, my_saves with `in` is still the one call.',
+	'- One script per question. Make every call it needs (Promise.all for calls that don’t depend on each other), then `return` only what you will use: title, url, date and a line of text for at most 30 items. Tool results are JSON text: `JSON.parse` them, and never return one whole.',
+	'- A tool that isn’t listed can be found in the same script: `await searchTools("words")`, then call it. If a script fails, fix it from the error and run it once more; don’t repeat it unchanged.'
 ].join('\n');
 
 /** How much of a my_saves list is the items' own words, shared out among them. */
@@ -990,10 +1004,11 @@ export function chatExtension(deps: ToolDeps): Extension {
 			{ key: 'preamble', render: () => PREAMBLE, tag: false },
 			{ key: 'site', render: () => siteSection(now(), timeZone), tag: false },
 			// Only said when the tool is there: a thread only Casey has written in.
-			{ key: 'saves', render: () => deps.onlyOwner?.() ? SAVES_SECTION : undefined, tag: false },
+			{ key: 'saves', render: () => { if (!deps.onlyOwner?.()) return undefined; const names = deps.mcp?.(); return names ? `${SAVES_SECTION}\n\n${scriptsSection(names)}` : SAVES_SECTION; }, tag: false },
 			...(thread ? [{ key: 'table', render: () => thread.table() ? TABLE_SECTION : undefined, tag: false }] : [])
 		],
-		tools: [searchSite, fetchTool, viewImageTool, showPage, ...(thread ? [goTo] : []), mySaves, ...micropub, ...tableTools],
+		// The model's own tools: scripts (codemode) call only the MCP servers' tools, so these stay out of their listing.
+		tools: [searchSite, fetchTool, viewImageTool, showPage, ...(thread ? [goTo] : []), mySaves, ...micropub, ...tableTools].map((tool) => ({ ...tool, callers: ['model'] as const })),
 		hooks: [
 			hook(GenerationTask, {
 				async beforeProviderRequest(request, api, context) {

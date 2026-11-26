@@ -85,6 +85,7 @@ const STEP_KINDS: [test: (tool: string) => boolean, one: string, many: (count: n
 	[(tool) => tool === 'go_to', 'took you to a page', () => 'took you to a page'],
 	[(tool) => tool === 'view_image', 'looked at a picture', (count) => `looked at ${count} pictures`],
 	[(tool) => tool === 'my_saves', 'looked through your saves', () => 'looked through your saves'],
+	[(tool) => tool === 'codemode', 'asked your connected services', () => 'asked your connected services'],
 	[(tool) => tool === 'table_new' || tool === 'create_table', 'made a table', (count) => `made ${count} tables`],
 	[(tool) => tool === 'table_look', 'looked at the table', () => 'looked at the table'],
 	[(tool) => tool === 'table_read', 'read the table', () => 'read the table'],

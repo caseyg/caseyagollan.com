@@ -16,7 +16,9 @@
  */
 import { Agent, type Connection, type ConnectionContext, type WSMessage } from 'agents';
 import { PiHarness } from 'agents/harness/pi';
-import { createRegistry, Harness, type ConversationWatch } from '@earendil-works/pi-durable';
+import { createRegistry, Harness, type ConversationWatch, type Extension } from '@earendil-works/pi-durable';
+import { createCodemodeExtension } from '@earendil-works/pi-durable/codemode';
+import { createInlineCodemodeSandbox } from '@earendil-works/pi-codemode/cloudflare';
 import { CHAT_MAX_MESSAGE, chatAuthor, chatPage, chatSayId, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
 import { publishingConfig } from '../publishing/config';
 import type { PublishingEnvironment } from '../publishing/config';
@@ -28,11 +30,15 @@ import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Qu
 import { chatModels, COMPACTION } from './provider';
 import { saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
+import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, sectionsWhen, serverNames } from './mcp-tools';
+import { McpAuthError, McpError, type McpSession, type McpToolResult } from '../mcp/client';
+import { markBroken, mcpDeps, sessionFor, usableServers, type McpEnv, type UsableServer } from '../mcp/connections';
+import type { McpServer } from '../../mcp-servers';
 import { itemsFromDocument, tableThreadId, type TableOp, type TableOpReply } from '../../table-agent';
 import { emptyTable, validId } from '../../tables';
 import { readTable, writeTable } from '../tables';
 
-export interface ChatAgentEnv extends PublishingEnvironment {
+export interface ChatAgentEnv extends PublishingEnvironment, McpEnv {
 	INFERENCE_COOP_API_KEY?: string;
 	CHAT_MODEL?: string;
 	/** How hard the model thinks before each step: low (the default), medium or high. */
@@ -69,6 +75,16 @@ const MAX_MESSAGES = 300;
 const PER_PERSON_PER_HOUR = 20;
 /** Tool rounds one answer may take. The last request of a run is made without tools (`chatExtension`), so it ends in an answer. */
 const MAX_TURNS = 8;
+/** How long the thread goes on its last look at which MCP servers are connected. */
+const MCP_FRESH = 60_000;
+/**
+ * How long a script may compute between tool calls, in QuickJS interrupt polls (about three
+ * seconds on Cloudflare). Scripts run in this object's own isolate, so a script that spins
+ * holds the thread's sockets up for that long and no longer; one waiting on a tool holds nothing.
+ */
+const SCRIPT_INTERRUPT_BUDGET = 30_000;
+/** Tokens of tool signatures the `codemode` prompt section may list; scripts find the rest with searchTools(). */
+const SCRIPT_TOOLS_BUDGET = 2_500;
 /** An owner connection counts as Casey for this long; after that, reconnecting checks again. */
 const OWNER_CONNECTION_TTL = 12 * 3600_000;
 
@@ -79,7 +95,10 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	readonly harness = new PiHarness({
 		harness: ({ storage, context, onWake }) => {
 			const { models } = chatModels(this.env);
-			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT, waitUntil: (promise) => this.ctx.waitUntil(promise) }));
+			this.registry.install(chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT, waitUntil: (promise) => this.ctx.waitUntil(promise), mcp: () => serverNames(this.servers) }));
+			// After the chat's own extension, so its prompt comes first.
+			this.chatInstalled = true;
+			this.installMcp();
 			return Harness.open(storage, {
 				models, registry: this.registry, onWake, identity: { attribution: null },
 				// A failed answer doesn't hold up the next person's message.
@@ -97,6 +116,81 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	constructor(ctx: DurableObjectState, env: ChatAgentEnv & Cloudflare.Env) {
 		super(ctx, env);
 		this.lifecycle.use(this.harness);
+	}
+
+	// ------------------------------------------------------------------ MCP servers and scripts
+
+	/** The MCP servers Casey has connected on /account, with the tools the chat may call. */
+	private servers: UsableServer[] = [];
+	private mcpAt = 0;
+	private mcpKey = '';
+	private chatInstalled = false;
+	private scripts?: Extension;
+	private mcpSessions = new Map<string, McpSession>();
+
+	/**
+	 * Look again at which servers are connected, and give Pi their tools: each as a tool only
+	 * scripts may call, plus `codemode` to run the scripts. Only in a thread Casey alone has
+	 * written in; anyone else's message takes them away again.
+	 */
+	private async syncMcp(force = false) {
+		const deps = mcpDeps(this.env);
+		if (!deps) return;
+		if (!this.onlyOwner()) { if (this.servers.length) { this.servers = []; this.installMcp(); } return; }
+		if (!force && Date.now() - this.mcpAt < MCP_FRESH) return;
+		const servers = await usableServers(deps, (work) => this.ctx.waitUntil(work)).catch((error) => { console.warn(JSON.stringify({ event: 'chat_mcp_load_failed', detail: String(error).slice(0, 200) })); return undefined; });
+		// A failed look keeps what the thread had.
+		if (!servers) return;
+		this.mcpAt = Date.now();
+		this.servers = servers;
+		this.installMcp();
+	}
+
+	private installMcp() {
+		if (!this.chatInstalled) return;
+		const key = JSON.stringify(this.servers.map(({ server, tools }) => [server.id, tools.map((tool) => tool.name)]));
+		if (key === this.mcpKey) return;
+		this.mcpKey = key;
+		if (!this.servers.length) {
+			this.registry.uninstall({ name: MCP_EXTENSION });
+			if (this.scripts) this.registry.uninstall(this.scripts);
+			this.scripts = undefined;
+			return;
+		}
+		this.registry.install(mcpExtension(this.servers, (server, tool, args) => this.mcpCall(server, tool, args)));
+		// The script's own tool and its prompt section. No `models.*`: scripts here only reach the MCP servers.
+		this.scripts = budgeted(sectionsWhen(createCodemodeExtension({ sandbox: this.sandbox(), namespaces: mcpNamespaces(this.servers), inlineBudget: SCRIPT_TOOLS_BUDGET, models: false }), () => this.onlyOwner()));
+		this.registry.install(this.scripts);
+	}
+
+	private scriptSandbox?: ReturnType<typeof createInlineCodemodeSandbox>;
+	private sandbox() {
+		return this.scriptSandbox ??= createInlineCodemodeSandbox({ interruptBudget: SCRIPT_INTERRUPT_BUDGET });
+	}
+
+	/** One call of one server's tool, with Casey's sign-in. What it read is never logged. */
+	private async mcpCall(server: McpServer, tool: string, args: Record<string, unknown>): Promise<McpToolResult> {
+		const deps = mcpDeps(this.env);
+		if (!deps || !this.onlyOwner()) throw new Error('Only Casey can use this tool.');
+		let session = this.mcpSessions.get(server.id);
+		if (!session) this.mcpSessions.set(server.id, session = sessionFor(deps, server));
+		const started = Date.now();
+		try {
+			const result = await session.callTool(tool, args);
+			console.log(JSON.stringify({ event: 'chat_mcp_call', server: server.id, tool, ms: Date.now() - started, chars: result.text.length, ...(result.isError ? { error: true } : {}) }));
+			return result;
+		} catch (error) {
+			this.mcpSessions.delete(server.id);
+			console.warn(JSON.stringify({ event: 'chat_mcp_call_failed', server: server.id, tool, ms: Date.now() - started, kind: (error as Error)?.name }));
+			if (error instanceof McpAuthError) {
+				await markBroken(deps, server, `${server.name} refused the sign-in`).catch(() => undefined);
+				this.mcpAt = 0;
+				throw new Error(`${server.name} needs connecting again on the Account page (/account). Tell Casey, and don’t try it again this turn.`);
+			}
+			// The server's own complaint (a wrong argument, say) is something the script's author can fix.
+			if (error instanceof McpError && !error.status?.toString().startsWith('5')) throw new Error(error.message);
+			throw new Error(`${server.name} couldn’t be reached just now. Tell Casey, and don’t try it again this turn.`);
+		}
 	}
 
 	// ------------------------------------------------------------------ tables and browsers
@@ -255,6 +349,8 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	async onStart() {
 		this.setup();
 		// A run Pi picked up again after an eviction: watch it so readers see it finish.
+		// A script Pi resumes needs its tools back before it runs again.
+		if (this.meta('id')) await this.syncMcp().catch(() => undefined);
 		if (this.meta('id') && await this.harness.session().busy().catch(() => false)) await this.follow();
 	}
 
@@ -380,6 +476,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const who = `${author.name}${owner ? ' (Casey, the site’s owner)' : author.url ? ` (${author.url})` : ''}`;
 		// Recorded before the run starts: who has written here decides whether Casey's tools are offered.
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
+		await this.syncMcp().catch(() => undefined);
 		await this.follow();
 		this.setMeta('selection', JSON.stringify(selection?.items.map((item) => item.id) ?? []));
 		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}`, { operationId: id, whenBusy: options.queue === true ? 'followUp' : 'steer', entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
