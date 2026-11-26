@@ -1034,7 +1034,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_tag',
-			description: 'Tags of the posts, Raindrop bookmarks and Readwise items on the table. `add`/`remove` stage a change for Casey to review and save: say “staged”, never “saved”.',
+			description: 'Tags of posts, Raindrop bookmarks and Readwise items on the table. `add`/`remove` stage a change Casey reviews and saves: say “staged”, not “saved”.',
 			parameters: { type: 'object', properties: { ids: IDS, inside: { type: 'string' }, add: { type: 'array', items: { type: 'string' } }, remove: { type: 'array', items: { type: 'string' } } } },
 			async execute(args) {
 				const input = args as Record<string, unknown>;
