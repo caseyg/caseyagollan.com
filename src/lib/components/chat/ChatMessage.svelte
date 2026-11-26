@@ -4,6 +4,7 @@
 	import { Avatar, Icon, Prose } from '$lib/components/ui';
 	import { renderContent } from '$lib/utils/renderContent';
 	import { createStreamingRenderer } from '$lib/utils/streamingMarkdown';
+	import ChatSelection from './ChatSelection.svelte';
 	import ChatTool from './ChatTool.svelte';
 
 	interface Props {
@@ -53,6 +54,7 @@
 		{#if message.content}
 			<Prose class="text">{#each blocks as block, index (index)}<!-- eslint-disable-next-line svelte/no-at-html-tags -->{@html block}{/each}</Prose>
 		{/if}
+		{#if message.selection?.count}<ChatSelection items={message.selection.items} count={message.selection.count} />{/if}
 		{#if message.status === 'streaming'}
 			<span class="typing" aria-label="Writing">
 				<span></span><span></span><span></span>

@@ -5,6 +5,7 @@ import {
 	Tldraw,
 	b64Vecs,
 	createShapeId,
+	fitFrameToContent,
 	getArrowBindings,
 	getSnapshot,
 	react,
@@ -19,7 +20,9 @@ import {
 	type TLShapeId
 } from 'tldraw';
 import 'tldraw/tldraw.css';
-import { BLOCK_SHAPE, blockKey, linkBlock, type Block } from '$lib/tables';
+import { BLOCK_SHAPE, blockKey, type Block } from '$lib/tables';
+import { linkedBlock, richerBlock } from '$lib/table-sources';
+import type { ChatSelectionItem } from '$lib/chat';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
@@ -38,6 +41,8 @@ export interface TableState {
 	selected?: Block;
 	/** Whether the selected blocks show their details (source line and kind tile); unset when none are selected. */
 	details?: 'shown' | 'hidden' | 'mixed';
+	/** Everything selected, briefly (id, kind, title or first words), for the chat to act on. */
+	selection: ChatSelectionItem[];
 }
 
 /** What the Svelte page drives the canvas with. */
@@ -48,10 +53,12 @@ export interface TableApi {
 	 */
 	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
-	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'rename' }>): Promise<unknown>;
+	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'rename' }>): Promise<unknown>;
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
+	/** Clears the selection. */
+	deselect(): void;
 	undo(): void;
 	redo(): void;
 	zoomToFit(): void;
@@ -154,6 +161,7 @@ function apiFor(editor: Editor): TableApi {
 			editor.markHistoryStoppingPoint('toggle details');
 			editor.updateShapes(blocks.map((shape) => ({ id: shape.id, type: BLOCK_SHAPE, props: { hideMeta: !shown } })));
 		},
+		deselect: () => editor.selectNone(),
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
 		zoomToFit: () => editor.zoomToFit({ animation: { duration: 220 } }),
@@ -171,7 +179,8 @@ function apiFor(editor: Editor): TableApi {
 						.filter((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE))
 						.map((shape) => blockKey((shape as SiteBlockShape).props)),
 					selected: only && editor.isShapeOfType(only, BLOCK_SHAPE) ? blockOf((only as SiteBlockShape).props) : undefined,
-					details: detailsOf(selectedBlocks(editor))
+					details: detailsOf(selectedBlocks(editor)),
+					selection: editor.getSelectedShapes().map((shape) => selectionItem(editor, shape))
 				});
 			});
 		}
@@ -206,6 +215,18 @@ function itemOf(editor: Editor, shape: TLShape): TableItem {
 	};
 }
 
+/** A selected shape as the chat is told of it: enough to name it, not its whole text. */
+function selectionItem(editor: Editor, shape: TLShape): ChatSelectionItem {
+	const id = shape.id.replace(/^shape:/, '');
+	if (editor.isShapeOfType(shape, BLOCK_SHAPE)) {
+		const props = (shape as SiteBlockShape).props;
+		return { id, type: props.kind, ...(props.title || props.excerpt ? { title: (props.title || props.excerpt).slice(0, 80) } : {}) };
+	}
+	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
+	const words = (shape.type === 'frame' ? (shape.props as { name: string }).name : rich ? renderPlaintextFromRichText(editor, rich) : '').replace(/\s+/g, ' ').trim();
+	return { id, type: shape.type, ...(words ? { title: words.slice(0, 80) } : {}) };
+}
+
 /** Shapes that take up room on the table; arrows and drawings run over things by design. */
 const SOLID = (shape: TLShape) => !['arrow', 'draw', 'line', 'highlight'].includes(shape.type);
 
@@ -217,22 +238,61 @@ function boxesOf(editor: Editor, shapes: TLShape[]): Box[] {
 	});
 }
 
+/**
+ * A distance on the page, as the same distance in a shape's parent: a shape in a frame keeps its
+ * x and y from the frame's corner, so a place on the page is reached by moving it, not by setting them.
+ */
+function inParent(editor: Editor, shape: TLShape, by: { x: number; y: number }) {
+	const toParent = editor.getShapeParentTransform(shape).clone().invert();
+	const from = toParent.applyToPoint({ x: 0, y: 0 }), to = toParent.applyToPoint(by);
+	return { x: to.x - from.x, y: to.y - from.y };
+}
+
+/** Of these shapes, the ones not held by another of them: a frame's items move with the frame. */
+function outermost<T extends TLShape>(editor: Editor, shapes: T[]): T[] {
+	const ids = new Set(shapes.map((shape) => shape.id));
+	return shapes.filter((shape) => !editor.getShapeAncestors(shape).some((ancestor) => ids.has(ancestor.id)));
+}
+
 /** Moves shapes so their bounds' top-left lands on each placement, animated. */
 function place(editor: Editor, placements: Placement[]) {
 	const updates = placements.flatMap(({ id, x, y }) => {
 		const shape = editor.getShape(`shape:${id}` as TLShapeId);
 		const bounds = shape && editor.getShapePageBounds(shape);
+		if (!shape || !bounds) return [];
 		// A shape's x and y are its rotation origin; move it by how far its bounds must go.
-		return shape && bounds ? [{ id: shape.id, type: shape.type, x: shape.x + (x - bounds.x), y: shape.y + (y - bounds.y) }] : [];
+		const by = inParent(editor, shape, { x: x - bounds.x, y: y - bounds.y });
+		return [{ id: shape.id, type: shape.type, x: shape.x + by.x, y: shape.y + by.y }];
 	});
 	editor.animateShapes(updates, ANIMATION);
 	return updates.length;
+}
+
+/** Room a frame leaves around what it holds. */
+const FRAME_PAD = 40;
+
+/**
+ * A frame only draws what lies inside it, so one whose items have moved or grown past its edge
+ * hides them. Each such frame is resized to wrap what it holds; its items stay where they are.
+ */
+export function wrapFrames(editor: Editor) {
+	const frames = editor.getCurrentPageShapes().filter((shape) => shape.type === 'frame');
+	const loose = frames.filter((frame) => {
+		const { w, h } = frame.props as { w: number; h: number };
+		return editor.getSortedChildIdsForParent(frame.id).some((id) => {
+			const corners = editor.getShapeLocalTransform(id).applyToPoints(editor.getShapeGeometry(id).bounds.corners);
+			return corners.some((point) => point.x < -1 || point.y < -1 || point.x > w + 1 || point.y > h + 1);
+		});
+	});
+	if (loose.length) editor.run(() => loose.forEach((frame) => fitFrameToContent(editor, frame.id, { padding: FRAME_PAD })));
+	return loose.length;
 }
 
 /** What's wrong with the table now, once moves have finished animating. */
 async function settled(editor: Editor) {
 	await new Promise((resolve) => setTimeout(resolve, ANIMATION.animation.duration + 60));
 	followTargets(editor);
+	wrapFrames(editor);
 	return issuesOf(editor);
 }
 
@@ -549,18 +609,29 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 		case 'move': {
 			editor.markHistoryStoppingPoint('move');
 			const shapes = new Map(shapesFor(editor, op.moves.map((move) => move.id)).map((shape) => [shape.id.replace(/^shape:/, ''), shape]));
-			const updates = op.moves.flatMap((move) => {
+			// How far each moved shape travels on the page; parents are worked out before what they hold.
+			const travel = new Map<TLShapeId, { x: number; y: number }>();
+			const depth = (move: { id: string }) => { const shape = shapes.get(move.id.replace(/^shape:/, '')); return shape ? editor.getShapeAncestors(shape).length : 0; };
+			const updates = [...op.moves].sort((a, b) => depth(a) - depth(b)).flatMap((move) => {
 				const shape = shapes.get(move.id.replace(/^shape:/, ''));
 				if (!shape) return [];
 				const resizable = editor.isShapeOfType(shape, BLOCK_SHAPE) || shape.type === 'text';
 				const props = resizable && (move.w || move.h) ? { props: { ...(move.w ? { w: onGrid(move.w) } : {}), ...(move.h && shape.type !== 'text' ? { h: onGrid(move.h) } : {}), ...(shape.type === 'text' ? { autoSize: false } : {}) } } : {};
-				return [{ id: shape.id, type: shape.type, x: move.x === undefined ? shape.x : onGrid(move.x), y: move.y === undefined ? shape.y : onGrid(move.y), ...props } as TLShapePartial];
+				const bounds = editor.getShapePageBounds(shape);
+				if (!bounds) return [];
+				// A frame named along with what it holds carries those items with it: they move only the rest of the way.
+				const carrier = editor.getShapeAncestors(shape).reverse().find((ancestor) => travel.has(ancestor.id));
+				const carried = carrier ? travel.get(carrier.id)! : { x: 0, y: 0 };
+				const go = { x: move.x === undefined ? carried.x : onGrid(move.x) - bounds.x, y: move.y === undefined ? carried.y : onGrid(move.y) - bounds.y };
+				travel.set(shape.id, go);
+				const by = inParent(editor, shape, { x: go.x - carried.x, y: go.y - carried.y });
+				return [{ id: shape.id, type: shape.type, x: shape.x + by.x, y: shape.y + by.y, ...props } as TLShapePartial];
 			});
 			editor.animateShapes(updates, ANIMATION);
 			return changed(editor, { moved: updates.length });
 		}
 		case 'arrange': {
-			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			editor.markHistoryStoppingPoint('arrange');
 			const gap = Math.max(0, Math.min(200, op.gap ?? GAP));
 			const boxes = boxesOf(editor, shapes);
@@ -570,7 +641,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			return changed(editor, { arranged: shapes.length });
 		}
 		case 'align': {
-			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			if (shapes.length < 2) return { aligned: 0, note: 'Name at least two items.' };
 			editor.markHistoryStoppingPoint('align');
 			if (op.align) editor.alignShapes(shapes, op.align);
@@ -578,7 +649,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			return changed(editor, { aligned: shapes.length });
 		}
 		case 'tidy': {
-			const shapes = shapesFor(editor, op.ids).filter(SOLID);
+			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			editor.markHistoryStoppingPoint('tidy');
 			return changed(editor, { moved: place(editor, tidyLayout(boxesOf(editor, shapes))) });
 		}
@@ -630,6 +701,32 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 	}
 }
 
+/**
+ * Turns the plain link blocks an older table saved for the site's posts and Casey's Are.na channels
+ * into the rich blocks they stand for (`richerBlock`), where they stand, keeping their width. A post
+ * grows to fit itself, as one just added does. Kept out of undo: it is a repair, not an edit.
+ */
+export async function upgradeLinkBlocks(editor: Editor, richer: typeof richerBlock = richerBlock): Promise<number> {
+	const links = [...editor.getCurrentPageShapeIds()]
+		.map((id) => editor.getShape(id))
+		.filter((shape): shape is SiteBlockShape => !!shape && editor.isShapeOfType(shape, BLOCK_SHAPE) && (shape as SiteBlockShape).props.kind === 'link');
+	const upgrades = await Promise.all(links.map(async (shape) => ({ shape, block: await richer(blockOf(shape.props)).catch(() => null) })));
+	let count = 0;
+	editor.run(
+		() => {
+			for (const { shape, block } of upgrades) {
+				const current = editor.getShape<SiteBlockShape>(shape.id);
+				if (!block || !current || current.props.kind !== 'link' || current.props.url !== shape.props.url) continue;
+				const { w: _w, h: _h, hideMeta: _hideMeta, ...props } = blockProps(block);
+				editor.updateShape<SiteBlockShape>({ id: current.id, type: BLOCK_SHAPE, props, meta: fitsToPost(block) ? { ...current.meta, fit: true } : current.meta });
+				count++;
+			}
+		},
+		{ history: 'ignore' }
+	);
+	return count;
+}
+
 /** A table's canvas: tldraw without its own interface, drawn in the site's colours. */
 export function TableEditor({ document, editable, embedded = false, licenseKey, onChange, onReady }: TableEditorProps) {
 	const onMount = useCallback(
@@ -641,6 +738,8 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			// Notes and text read in the site's sans, in white.
 			editor.setStyleForNextShapes(DefaultFontStyle, 'sans');
 			editor.setStyleForNextShapes(DefaultColorStyle, 'white');
+			// A table saved with items outside their frame (hidden by it) is put right as it opens.
+			editor.run(() => wrapFrames(editor), { history: 'ignore' });
 			if (editor.getCurrentPageShapeIds().size) editor.zoomToFit({ animation: { duration: 0 } });
 			else editor.resetZoom();
 
@@ -654,8 +753,9 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			editor.on('event', offEvent);
 
 			// A pasted or dropped URL becomes a link block, or a site link for this site's pages.
-			editor.registerExternalContentHandler('url', ({ url, point }) => {
-				const block = linkBlock(url, location.origin);
+			// One of the site's posts or Casey's Are.na channels comes in drawn as itself.
+			editor.registerExternalContentHandler('url', async ({ url, point }) => {
+				const block = await linkedBlock(url, [], location.origin);
 				if (block) apiFor(editor).addBlocks([block], point ? editor.pageToScreen(point) : undefined);
 			});
 
@@ -663,6 +763,7 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			onReady?.(apiFor(editor));
 			// Read-only once the page has set anything out, so a seeded table can still be shown to visitors.
 			editor.updateInstanceState({ isReadonly: !editable });
+			if (editable) void upgradeLinkBlocks(editor);
 			if (embedded) {
 				editor.setCameraOptions({ wheelBehavior: 'none' });
 				editor.setCurrentTool('hand');

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { blockKey, KIND_LABEL, linkBlock, type Block } from '$lib/tables';
+	import { linkedBlock } from '$lib/table-sources';
 	import type { SourceFilter } from '$lib/table-sources';
 	import Button from '../ui/Button.svelte';
 	import SegmentedPill from '../ui/SegmentedPill.svelte';
@@ -92,16 +93,18 @@
 		if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
 	}
 
-	function addLink(event: SubmitEvent) {
+	async function addLink(event: SubmitEvent) {
 		event.preventDefault();
-		const block = linkBlock(link, location.origin);
-		if (!block) {
+		if (!linkBlock(link, location.origin)) {
 			linkError = 'That doesn’t look like a web address.';
 			return;
 		}
 		linkError = '';
+		const typed = link;
 		link = '';
-		onadd([block]);
+		// One of the site's posts or Casey's Are.na channels comes in drawn as itself.
+		const block = await linkedBlock(typed, [], location.origin);
+		if (block) onadd([block]);
 	}
 
 	const emptyMessage = $derived(

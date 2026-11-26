@@ -17,7 +17,7 @@
 import { Agent, type Connection, type ConnectionContext, type WSMessage } from 'agents';
 import { PiHarness } from 'agents/harness/pi';
 import { createRegistry, Harness, type ConversationWatch } from '@earendil-works/pi-durable';
-import { CHAT_MAX_MESSAGE, chatPage, chatTitle, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
+import { CHAT_MAX_MESSAGE, chatPage, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
 import { publishingConfig } from '../publishing/config';
 import type { PublishingEnvironment } from '../publishing/config';
 import { randomToken } from '../publishing/dpop';
@@ -122,6 +122,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			},
 			tableOpened: (id) => this.tableOpened(id),
 			page: () => this.speakerPage(),
+			selection: () => this.selection(),
 			navigate: async (path) => {
 				const to = this.meta('last_speaker');
 				if (!to) return false;
@@ -138,6 +139,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	}
 
 	/** The page the person who last wrote is on, from the browser they used most recently. */
+	/** The ids Casey had selected on the table when writing the latest message (none if someone else wrote last). */
+	private selection(): string[] {
+		try { return (JSON.parse(this.meta('selection') ?? '[]') as string[]).filter((id) => typeof id === 'string'); } catch { return []; }
+	}
+
 	private speakerPage(): ChatPage | undefined {
 		const speaker = this.meta('last_speaker');
 		let found: ConnectionState | undefined;
@@ -322,18 +328,18 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	}
 
 	/** Start the thread with its first message. */
-	async start(id: string, origin: string, viewer: ChatViewer, text: string, page?: ChatPage): Promise<{ ok: true } | { error: string }> {
+	async start(id: string, origin: string, viewer: ChatViewer, text: string, page?: ChatPage, selection?: unknown): Promise<{ ok: true } | { error: string }> {
 		this.setup();
 		if (this.meta('id')) return { error: 'This thread already exists.' };
 		this.setMeta('id', id);
 		this.setMeta('origin', origin);
 		this.setMeta('created', String(Date.now()));
 		this.setMeta('title', chatTitle(text));
-		return this.say(viewer, text, page);
+		return this.say(viewer, text, page, selection);
 	}
 
 	/** Add a message from a signed-in viewer (the form fallback and the WebSocket both end here). */
-	async say(viewer: ChatViewer | null, value: unknown, where?: unknown): Promise<{ ok: true } | { error: string }> {
+	async say(viewer: ChatViewer | null, value: unknown, where?: unknown, selected?: unknown): Promise<{ ok: true } | { error: string }> {
 		this.setup();
 		if (!this.meta('id')) return { error: 'This thread doesn’t exist.' };
 		if (!viewer) return { error: 'Sign in to take part.' };
@@ -354,16 +360,18 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		const { owner, ...rest } = viewer;
 		const author: ChatAuthor = { ...rest, via: owner ? 'owner' : rest.via };
 		const id = randomToken(9), at = Date.now();
-		const data: SayData = { id, author, owner, at, text };
-		// The model reads who wrote each message; the page shows only what they wrote.
-		const who = `${author.name}${owner ? ' (Casey, the site’s owner)' : author.url ? ` (${author.url})` : ''}`;
 		// Where they were, so “this page” means something: the chat follows Casey around the site.
 		const page = chatPage(where);
-		const on = page ? ` while on ${new URL(page.path, this.origin()).href}${page.title ? ` (“${page.title}”)` : ''}${page.table ? `, a table` : ''}` : '';
+		// What Casey had selected on that table, so “these” means something. Only Casey's table page can act on it.
+		const selection = owner && page?.table ? chatSelection(selected) : null;
+		const data: SayData = { id, author, owner, at, text, ...(selection ? { selection: { count: selection.count, items: selection.items.slice(0, SELECTION_LISTED) } } : {}) };
+		// The model reads who wrote each message, where, and what was selected; the page shows only what they wrote.
+		const who = `${author.name}${owner ? ' (Casey, the site’s owner)' : author.url ? ` (${author.url})` : ''}`;
 		// Recorded before the run starts: who has written here decides whether Casey's tools are offered.
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
 		await this.follow();
-		await this.harness.submit(`${who} wrote${on}:\n\n${text}`, { operationId: id, entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
+		this.setMeta('selection', JSON.stringify(selection?.items.map((item) => item.id) ?? []));
+		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}`, { operationId: id, entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
 			this.sql`DELETE FROM chat_said WHERE id = ${id}`;
 			throw error;
 		});
@@ -521,7 +529,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			return;
 		}
 		if (event?.type !== 'chat:say') return;
-		const result = await this.say(viewer, event.text, state?.page).catch((error) => {
+		const result = await this.say(viewer, event.text, state?.page, event.selection).catch((error) => {
 			console.warn(JSON.stringify({ event: 'chat_say_failed', detail: String(error).slice(0, 300) }));
 			return { error: 'That didn’t send. Try again.' };
 		});

@@ -8,6 +8,7 @@
  * (or CHAT_INFERENCE_URL pointing at a relay).
  */
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
+import { chatSelection, sayPrefix } from '../../src/lib/chat';
 import { chatExtension } from '../../src/lib/server/chat/tools';
 import { callMicropubTool, MICROPUB_TOOLS, type MicropubCall } from '../../src/lib/server/chat/micropub-mcp';
 import { fakeTable } from './fake-table';
@@ -75,7 +76,7 @@ async function complete(body: Record<string, unknown>) {
 export interface Outcome { scenario: string; status: 'answered' | 'turn_limit'; rounds: number; calls: { round: number; name: string; args: string; chars: number; error?: boolean }[]; tokensIn: number; tokensOut: number; /** The largest single request, to compare with the chat's context window. */ peakTokens: number; seconds: number; answer: string; table?: unknown; checks: { name: string; pass: boolean }[] }
 
 async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome> {
-	let table = scenario.table ? fakeTable(scenario.table) : undefined;
+	let table = scenario.table ? fakeTable(scenario.table, scenario.selected) : undefined;
 	let tableId = table ? 'evaltable1' : undefined;
 	let made: ReturnType<typeof fakeTable> | undefined;
 	const went: string[] = [];
@@ -87,7 +88,9 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 		// Going to the new table opens it beside the chat, as Casey's browser would.
 		navigate: async (path: string) => { went.push(path); if (made && /^\/tables\/evalnew001/.test(path)) { table = made; tableId = 'evalnew001'; } return true; },
 		tableOpened: async () => true,
-		page: () => scenario.page ? { path: scenario.page } : undefined
+		page: () => scenario.page ? { path: scenario.page } : undefined,
+		// What Casey had selected when asking, as the thread remembers it from the message.
+		selection: () => scenario.selected ?? []
 	};
 	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES } as never, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
@@ -95,8 +98,10 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));
 	const offered = () => [...(extension.tools as unknown as Tool[]), ...extra].filter((tool) => tableId || !tool.name.startsWith('table_') || tool.name === 'table_new');
 	const system = async () => (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
-	const where = scenario.page ? ` while on ${new URL(scenario.page, ORIGIN).href}${scenario.pageTitle ? ` (“${scenario.pageTitle}”)` : ''}${scenario.table ? ', a table' : ''}` : '';
-	const messages: Record<string, unknown>[] = [{ role: 'system', content: await system() }, { role: 'user', content: `Casey Gollan (Casey, the site’s owner) wrote${where}:\n\n${scenario.ask}` }];
+	// The same line the thread writes before each message: who, where, and what is selected on the table.
+	const selection = scenario.table && scenario.selected?.length ? chatSelection(scenario.table.filter((item) => scenario.selected!.includes(item.id)).map((item) => ({ id: item.id, type: item.type, title: item.title ?? item.text }))) : null;
+	const prefix = sayPrefix('Casey Gollan (Casey, the site’s owner)', ORIGIN, scenario.page ? { path: scenario.page, title: scenario.pageTitle, ...(scenario.table ? { table: 'evaltable1' } : {}) } : null, selection);
+	const messages: Record<string, unknown>[] = [{ role: 'system', content: await system() }, { role: 'user', content: `${prefix}\n\n${scenario.ask}` }];
 	const outcome: Outcome = { scenario: scenario.name, status: 'answered', rounds: 0, calls: [], tokensIn: 0, tokensOut: 0, peakTokens: 0, seconds: 0, answer: '', checks: [] };
 	const hooks = extension.hooks as unknown as { task: string; handlers: { beforeTool?: (call: { name: string; arguments: unknown }, api: unknown, context: unknown) => Promise<{ block?: string } | undefined>; beforeProviderRequest?: (request: { payload: unknown; model: unknown }, api: unknown, context: unknown) => Promise<{ payload: unknown } | undefined> } }[];
 	const started = Date.now();

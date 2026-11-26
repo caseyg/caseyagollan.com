@@ -2,7 +2,7 @@
  * A /chat thread in the browser: the server-rendered snapshot, kept live over the
  * thread agent's WebSocket (`/agents/chat-thread/<id>`), reconnecting with backoff.
  */
-import { CHAT_AGENT, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatViewer } from '$lib/chat';
+import { CHAT_AGENT, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatSelectionItem, type ChatServerEvent, type ChatSnapshot, type ChatViewer } from '$lib/chat';
 import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 export interface LiveThreadOptions {
@@ -74,10 +74,11 @@ export class LiveThread {
 	}
 
 	/** Send over the socket; false when it isn't open, so the page can fall back to the form. */
-	say(text: string): boolean {
+	/** `selection`: what Casey has selected on the open table, so the assistant knows what “these” are. */
+	say(text: string, selection?: ChatSelectionItem[]): boolean {
 		if (this.#socket?.readyState !== WebSocket.OPEN) return false;
 		this.error = '';
-		this.#socket.send(JSON.stringify({ type: 'chat:say', text }));
+		this.#socket.send(JSON.stringify({ type: 'chat:say', text, ...(selection?.length ? { selection } : {}) } satisfies ChatClientEvent));
 		return true;
 	}
 
