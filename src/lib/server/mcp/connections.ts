@@ -294,6 +294,26 @@ export async function setWrites(deps: McpDeps, server: McpServer, writes: boolea
 	await writeJson(deps.bucket, settingsKey(server.id), { writes } satisfies Settings);
 }
 
+/**
+ * List the tools of any usable server that has no kept list yet, so /account shows what a
+ * token-only server offers without the chat having asked first. Each gets a few seconds; one
+ * that fails keeps its “List them” button, which says why.
+ */
+export async function listMissingTools(deps: McpDeps, wait = 8000): Promise<void> {
+	await Promise.all(MCP_SERVERS.map(async (server) => {
+		const [session, stored] = await Promise.all([readJson<StoredSession>(deps.bucket, sessionKey(server.id)), readJson<StoredTools>(deps.bucket, toolsKey(server.id))]);
+		if (stored?.tools || !((session?.accessToken && !session.broken) || personalToken(deps, server))) return;
+		await Promise.race([refreshTools(deps, server).catch(() => undefined), new Promise((resolve) => setTimeout(resolve, wait))]);
+	}));
+}
+
+/** Why a server's tools could not be listed, in words for /account. */
+export function listingProblem(server: McpServer, cause: unknown, deps: McpDeps): string {
+	if (cause instanceof McpAuthError) return personalToken(deps, server) && server.signIn === false ? `${server.name} refused the access token saved with the site. It may have expired or been replaced.` : `${server.name} refused the sign-in. Connect it again.`;
+	const detail = cause instanceof Error && cause.message ? `: ${cause.message.replace(/\.$/, '').slice(0, 200)}` : '';
+	return `${server.name} didn’t list its tools${detail}.`;
+}
+
 /** What /account shows for every server. */
 export async function connections(deps: McpDeps): Promise<McpConnection[]> {
 	return Promise.all(MCP_SERVERS.map(async (server): Promise<McpConnection> => {

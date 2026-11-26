@@ -389,3 +389,30 @@ describe('a service with no sign-in for this site', () => {
 		expect(listed.find((one) => one.id === 'readwise')).toMatchObject({ signIn: true });
 	});
 });
+
+describe('listing a token-only server’s tools for /account', () => {
+	test('a missing list is fetched once, and a refused token is said plainly', async () => {
+		const { MCP_SERVERS } = await import('../src/lib/mcp-servers');
+		const { connections, listMissingTools, listingProblem } = await import('../src/lib/server/mcp/connections');
+		const { McpAuthError } = await import('../src/lib/server/mcp/client');
+		const raindrop = MCP_SERVERS.find((server) => server.id === 'raindrop')!;
+		const store = new Map<string, string>();
+		const bucket = { get: async (key: string) => store.has(key) ? { text: async () => store.get(key)!, json: async () => JSON.parse(store.get(key)!) } : null, put: async (key: string, value: string) => { store.set(key, value); }, delete: async (key: string) => { store.delete(key); }, list: async () => ({ objects: [] }) };
+		let calls = 0;
+		const fetcher = (async (_url: string, init: RequestInit) => {
+			calls++;
+			const sent = JSON.parse(String(init.body)) as { id?: number; method: string };
+			if (sent.id === undefined) return new Response(null, { status: 202 });
+			const result = sent.method === 'tools/list' ? { tools: [{ name: 'find_bookmarks' }, { name: 'create_bookmarks' }] } : { protocolVersion: '2025-06-18', capabilities: {}, serverInfo: { name: 'r', version: '1' } };
+			return Response.json({ jsonrpc: '2.0', id: sent.id, result });
+		}) as unknown as typeof fetch;
+		const deps = { bucket, env: { RAINDROP_TOKEN: 'token' }, fetcher } as never;
+		await listMissingTools(deps);
+		expect((await connections(deps)).find((one) => one.id === 'raindrop')?.tools).toEqual([{ name: 'find_bookmarks', reads: true }, { name: 'create_bookmarks', reads: false }]);
+		const before = calls;
+		await listMissingTools(deps);
+		expect(calls).toBe(before);
+		expect(listingProblem(raindrop, new McpAuthError(), deps)).toContain('refused the access token saved with the site');
+		expect(listingProblem(raindrop, new Error('The server answered 500.'), deps)).toBe('Raindrop didn’t list its tools: The server answered 500.');
+	});
+});
