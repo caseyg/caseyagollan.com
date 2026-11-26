@@ -198,7 +198,11 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'table_add_note') return args.style === 'text' ? 'Added some text' : 'Added a note';
 	if (name === 'table_move') return `Moved ${count(args.moves, 'item')}`;
 	if (name === 'table_arrange' && (args.layout === 'tidy' || !args.layout)) return args.layout === 'tidy' ? `Tidied ${args.ids ? count(args.ids, 'item') : 'the table'}` : `${args.align ? 'Lined up' : 'Spaced out'} ${count(args.ids, 'item')}`;
-	if (name === 'table_arrange') return `Arranged ${args.ids ? count(args.ids, 'item') : 'the table'} ${args.layout === 'pack' ? 'packed together' : args.layout === 'columns' ? 'in columns' : `in a ${args.layout === 'row' || args.layout === 'column' ? args.layout : 'grid'}`}`;
+	if (name === 'table_arrange') {
+		const what = args.inside ? 'a frame' : args.ids ? count(args.ids, 'item') : 'the table';
+		const how: Record<string, string> = { pack: 'packed together', columns: 'in columns', row: 'in a row', column: 'in a column', tree: 'as a tree', mindmap: 'as a mind map', radial: 'in rings', layered: 'as a flow', force: 'as a network', cluster: 'into groups', auto: '' };
+		return args.layout === 'auto' ? `Tidied up ${what}` : `Arranged ${what} ${how[String(args.layout)] ?? 'in a grid'}`;
+	}
 	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
 	if (name === 'table_select') return `Pointed out ${count(args.ids, 'item')}`;
 	if (name === 'table_rename') return `Renamed the table “${String(args.name ?? '').slice(0, 60)}”`;

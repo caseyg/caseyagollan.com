@@ -24,7 +24,8 @@ import { BLOCK_SHAPE, blockKey, type Block } from '$lib/tables';
 import { linkedBlock, richerBlock } from '$lib/table-sources';
 import type { ChatSelectionItem } from '$lib/chat';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
-import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
+import { arrange, clustersBy, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
+import { GRID, onGrid, arrowCrossings, bendAround, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
@@ -255,7 +256,7 @@ function outermost<T extends TLShape>(editor: Editor, shapes: T[]): T[] {
 }
 
 /** Moves shapes so their bounds' top-left lands on each placement, animated. */
-function place(editor: Editor, placements: Placement[]) {
+function place(editor: Editor, placements: Placement[], animate = true) {
 	const updates = placements.flatMap(({ id, x, y }) => {
 		const shape = editor.getShape(`shape:${id}` as TLShapeId);
 		const bounds = shape && editor.getShapePageBounds(shape);
@@ -264,12 +265,15 @@ function place(editor: Editor, placements: Placement[]) {
 		const by = inParent(editor, shape, { x: x - bounds.x, y: y - bounds.y });
 		return [{ id: shape.id, type: shape.type, x: shape.x + by.x, y: shape.y + by.y }];
 	});
-	editor.animateShapes(updates, ANIMATION);
+	if (animate) editor.animateShapes(updates, ANIMATION);
+	else editor.updateShapes(updates);
 	return updates.length;
 }
 
 /** Room a frame leaves around what it holds. */
 const FRAME_PAD = 40;
+/** Room a frame's name takes above it, so one set under another doesn't sit on its name. */
+const FRAME_LABEL = 40;
 
 /**
  * A frame only draws what lies inside it, so one whose items have moved or grown past its edge
@@ -365,7 +369,7 @@ function originOf(editor: Editor, place: TablePlace): { x: number; y: number } |
 	return place.at;
 }
 
-const layoutOf = (layout: TableLayout, boxes: Box[], columns: number, at: { x: number; y: number } | undefined, gap: number) =>
+const layoutOf = (layout: TableLayout | undefined, boxes: Box[], columns: number, at: { x: number; y: number } | undefined, gap: number) =>
 	layout === 'row' ? rowLayout(boxes, at, gap) : layout === 'column' ? columnLayout(boxes, at, gap) : layout === 'columns' ? columnsLayout(boxes, columns, at, gap) : gridLayout(boxes, columns, at, gap);
 
 /**
@@ -407,6 +411,131 @@ function addNotes(editor: Editor, op: { notes: TableNote[]; layout?: TableLayout
 	const added = editor.getShapePageBounds(ids[0]);
 	if (added && !editor.getViewportPageBounds().contains(added)) editor.zoomToFit({ animation: { duration: 220 } });
 	return ids;
+}
+
+/**
+ * Boxes to lay out or push apart: a frame's takes in its name, drawn above it, so nothing is set on
+ * the name. `unroomed` turns where such a box goes back into where its shape goes.
+ */
+function roomOf(editor: Editor, shapes: TLShape[]): Box[] {
+	return boxesOf(editor, shapes).map((box) => (shapeOf(editor, box.id)?.type === 'frame' ? { ...box, y: box.y - FRAME_LABEL, h: box.h + FRAME_LABEL } : box));
+}
+const unroomed = (editor: Editor, placements: Placement[]) => placements.map((spot) => (shapeOf(editor, spot.id)?.type === 'frame' ? { ...spot, y: spot.y + FRAME_LABEL } : spot));
+
+const wait = (ms = ANIMATION.animation.duration + 60) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One level of the table set out by `arrange` (`$lib/table-arrange`): these shapes as boxes (a
+ * frame's taking in its name), and the arrows tied to them as the graph. An arrow's end inside
+ * one of the shapes (an item in a frame) counts as that shape, so frames joined through what
+ * they hold are joined.
+ */
+function arrangement(editor: Editor, shapes: TLShape[], op: Extract<TableOp, { op: 'arrange' }>, at?: { x: number; y: number }) {
+	const ids = new Set(shapes.map((shape) => shape.id));
+	const within = (id: TLShapeId | string): string | undefined => {
+		const shape = shapeOf(editor, id);
+		const holder = shape && (ids.has(shape.id) ? shape : editor.getShapeAncestors(shape).reverse().find((ancestor) => ids.has(ancestor.id)));
+		return holder ? short(holder.id) : undefined;
+	};
+	const links = editor.getCurrentPageShapes().filter((shape): shape is TLArrowShape => shape.type === 'arrow').flatMap((arrow) => {
+		const ends = getArrowBindings(editor, arrow);
+		const from = ends.start && within(ends.start.toId), to = ends.end && within(ends.end.toId);
+		return from && to && from !== to ? [{ arrow, from, to }] : [];
+	});
+	const edges: Edge[] = links.map(({ from, to }) => ({ from, to }));
+	const boxes = roomOf(editor, shapes);
+	const named = op.layout === 'cluster' && op.groups?.length
+		? op.groups.map((group) => ({ ...group, ids: group.ids.flatMap((id) => within(id) ?? []) }))
+		: op.layout === 'cluster' ? clustersBy(shapes.map((shape) => ({ id: short(shape.id), kind: itemOf(editor, shape).type, color: (shape.props as { color?: string }).color })), op.by ?? 'kind', edges) : undefined;
+	const gap = Math.max(0, Math.min(200, op.gap ?? GAP));
+	const result = arrange({ mode: op.layout, boxes, edges, at, gap, ordered: op.ordered, columns: op.columns, direction: op.direction, root: op.root ? within(op.root) : undefined, groups: named, clusterGap: op.frame === false ? 120 : 200 });
+	const placements = unroomed(editor, result.placements);
+	// Arrows bent to suit where things were are straightened for a tree or flow (or squared off into
+	// elbows), then curved only as far as it takes to clear a card in the way: a flow's long way back, say.
+	const restyle = op.arrows === 'straight' || op.arrows === 'elbow' || (op.arrows !== 'keep' && usesArrows(result.mode));
+	const going = new Map(placements.map((spot) => [spot.id, spot]));
+	const landed = boxesOf(editor, shapes).map((box) => ({ ...box, ...going.get(box.id) }));
+	const travel = new Map(boxesOf(editor, shapes).map((box) => [box.id, { x: (going.get(box.id)?.x ?? box.x) - box.x, y: (going.get(box.id)?.y ?? box.y) - box.y }]));
+	const arrows = !restyle ? [] : links.map(({ arrow, from, to }) => {
+		const ends = getArrowBindings(editor, arrow);
+		const end = (id: TLShapeId, holder: string) => { const centre = editor.getShapePageBounds(id)!.center, by = travel.get(holder)!; return { x: centre.x + by.x, y: centre.y + by.y }; };
+		const bend = op.arrows === 'elbow' ? 0 : bendAround(end(ends.start!.toId, from), end(ends.end!.toId, to), landed.filter((box) => box.id !== from && box.id !== to));
+		return { id: arrow.id, type: 'arrow' as const, props: { bend, ...(op.arrows === 'elbow' ? { kind: 'elbow' as const } : {}) } };
+	});
+	return { result, placements, arrows, gap };
+}
+
+/** The shapes a frame holds that take up room. */
+const heldBy = (editor: Editor, frame: TLShape) => editor.getSortedChildIdsForParent(frame.id).map((id) => editor.getShape(id)!).filter(SOLID);
+
+/**
+ * `arrange`: the whole table, some items, or what one frame holds, set out in one change. Whatever
+ * the new layout lands on is pushed down, frames are refitted around what they hold, and named
+ * clusters get frames of their own.
+ */
+async function arrangeOp(editor: Editor, op: Extract<TableOp, { op: 'arrange' }>) {
+	const named = op.ids?.length ? shapesFor(editor, op.ids) : [];
+	// A frame is named by its id, or by the name written on it.
+	const called = (name: string) => editor.getCurrentPageShapes().find((shape) => shape.type === 'frame' && (shape.props as { name: string }).name.trim().toLowerCase() === name.trim().toLowerCase());
+	const holder = op.inside ? shapeOf(editor, op.inside) ?? called(op.inside) : named.length === 1 ? named[0] : undefined;
+	const holding = holder?.type === 'frame' ? holder : undefined;
+	if (op.inside && !holding) return { arranged: 0, note: '`inside` takes the id or the name of a frame on the table.' };
+	editor.markHistoryStoppingPoint('arrange');
+	const page = editor.getCurrentPageId();
+	const done: Record<string, unknown> = {};
+	let result: ArrangeResult;
+	let count: number;
+
+	if (holding) {
+		const shapes = heldBy(editor, holding);
+		const bounds = editor.getShapePageBounds(holding)!;
+		const plan = arrangement(editor, shapes, op, originOf(editor, op) ?? { x: bounds.x + FRAME_PAD, y: bounds.y + FRAME_PAD });
+		editor.run(() => { place(editor, plan.placements); if (plan.arrows.length) editor.updateShapes(plan.arrows); });
+		await wait();
+		// The frame takes the shape of what it now holds, and what that lands on moves down.
+		editor.run(() => fitFrameToContent(editor, holding.id, { padding: FRAME_PAD }));
+		const around = editor.getSortedChildIdsForParent(holding.parentId).map((id) => editor.getShape(id)!).filter(SOLID);
+		place(editor, unroomed(editor, tidyLayout(roomOf(editor, around), GAP, [short(holding.id)]).filter((move) => move.id !== short(holding.id))));
+		({ result } = plan);
+		count = shapes.length;
+		done.inside = short(holding.id);
+	} else {
+		// A whole table set out as it suits: what each frame holds first, so the frames are their final size.
+		if (!named.length && op.layout === 'auto') {
+			const frames = editor.getSortedChildIdsForParent(page).map((id) => editor.getShape(id)!).filter((shape) => shape.type === 'frame' && heldBy(editor, shape).length > 1);
+			editor.run(() => {
+				for (const inner of frames) {
+					const bounds = editor.getShapePageBounds(inner)!;
+					const plan = arrangement(editor, heldBy(editor, inner), { op: 'arrange', layout: 'auto', gap: op.gap }, { x: bounds.x + FRAME_PAD, y: bounds.y + FRAME_PAD });
+					place(editor, plan.placements, false);
+					if (plan.arrows.length) editor.updateShapes(plan.arrows);
+					fitFrameToContent(editor, inner.id, { padding: FRAME_PAD });
+				}
+			});
+			if (frames.length) done.frames_tidied = frames.length;
+		}
+		const turn = new Map((op.ordered ? op.ids ?? [] : []).map((id, index) => [short(id), index]));
+		const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID)).sort((a, b) => (turn.get(short(a.id)) ?? 0) - (turn.get(short(b.id)) ?? 0));
+		const plan = arrangement(editor, shapes, op, originOf(editor, op));
+		// What shares their frame (or the table) and would be covered moves down, measured from where things are going.
+		const parents = new Set(shapes.map((shape) => shape.parentId));
+		const moving = new Map(plan.result.placements.map((spot) => [spot.id, spot]));
+		const beside = parents.size === 1 ? editor.getSortedChildIdsForParent(shapes[0].parentId).map((id) => editor.getShape(id)!).filter(SOLID) : [];
+		const pushed = unroomed(editor, tidyLayout(roomOf(editor, beside).map((box) => ({ ...box, ...moving.get(box.id) })), plan.gap, moving.keys()).filter((move) => !moving.has(move.id)));
+		editor.run(() => { place(editor, [...plan.placements, ...pushed]); if (plan.arrows.length) editor.updateShapes(plan.arrows); });
+		({ result } = plan);
+		count = shapes.length;
+		if (pushed.length) done.pushed_aside = pushed.length;
+		// Named clusters each get a frame, once they have come to rest. Only on the table itself: frames don't nest well.
+		const framed = (result.groups ?? []).filter((group) => group.name && op.frame !== false);
+		if (framed.length && shapes.every((shape) => shape.parentId === page)) {
+			await wait();
+			done.frames = framed.map((group) => ({ name: group.name, id: frame(editor, { op: 'frame', name: group.name!, ids: group.ids }).added[0], holds: group.ids.length }));
+		} else if (result.groups) done.groups = result.groups.map((group) => ({ ...(group.name ? { name: group.name } : {}), holds: group.ids.length }));
+	}
+	const report = await changed(editor, { arranged: count, as: result.mode, ...done, ...(result.note ? { note: result.note } : {}) });
+	if (!named.length && !holding) editor.zoomToFit({ animation: { duration: 220 } });
+	return report;
 }
 
 /** Draws the table to a picture the assistant can look at, each item numbered, overlaps outlined in red. */
@@ -630,16 +759,8 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			editor.animateShapes(updates, ANIMATION);
 			return changed(editor, { moved: updates.length });
 		}
-		case 'arrange': {
-			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
-			editor.markHistoryStoppingPoint('arrange');
-			const gap = Math.max(0, Math.min(200, op.gap ?? GAP));
-			const boxes = boxesOf(editor, shapes);
-			const columns = Math.max(1, op.columns ?? Math.ceil(Math.sqrt(shapes.length)));
-			if (op.layout === 'pack') editor.packShapes(shapes, gap);
-			else place(editor, layoutOf(op.layout, boxes, columns, originOf(editor, op), gap));
-			return changed(editor, { arranged: shapes.length });
-		}
+		case 'arrange':
+			return arrangeOp(editor, op);
 		case 'align': {
 			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			if (shapes.length < 2) return { aligned: 0, note: 'Name at least two items.' };
