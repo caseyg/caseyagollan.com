@@ -69,7 +69,7 @@ async function complete(body: Record<string, unknown>) {
 export interface Outcome { scenario: string; status: 'answered' | 'turn_limit'; rounds: number; calls: { round: number; name: string; args: string; chars: number; error?: boolean }[]; tokensIn: number; tokensOut: number; /** The largest single request, to compare with the chat's context window. */ peakTokens: number; seconds: number; answer: string; table?: unknown; checks: { name: string; pass: boolean }[] }
 
 async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome> {
-	let table = scenario.table ? fakeTable(scenario.table) : undefined;
+	let table = scenario.table ? fakeTable(scenario.table, scenario.selected) : undefined;
 	let tableId = table ? 'evaltable1' : undefined;
 	let made: ReturnType<typeof fakeTable> | undefined;
 	const went: string[] = [];

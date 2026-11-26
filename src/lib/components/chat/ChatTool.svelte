@@ -8,7 +8,7 @@
 
 	let { step }: Props = $props();
 
-	const ICON: Record<string, IconName> = { search_site: 'search', fetch_page: 'globe', show_page: 'globe', go_to: 'arrow', table_add_note: 'sticky', table_move: 'hand', table_arrange: 'fit', table_select: 'pointer', table_remove: 'eraser', table_look: 'image', view_image: 'image', table_tidy: 'fit', table_align: 'fit', table_connect: 'arrow', table_draw: 'pencil', table_frame: 'box', table_group: 'layers', table_edit: 'text', table_add: 'sticky', table_new: 'box', table_read: 'box' };
+	const ICON: Record<string, IconName> = { search_site: 'search', fetch_page: 'globe', show_page: 'globe', go_to: 'arrow', table_add_note: 'sticky', table_move: 'hand', table_arrange: 'fit', table_select: 'pointer', table_remove: 'eraser', table_look: 'image', view_image: 'image', table_tidy: 'fit', table_align: 'fit', table_connect: 'arrow', table_draw: 'pencil', table_frame: 'box', table_group: 'layers', table_edit: 'text', table_add: 'sticky', table_pull: 'image', table_new: 'box', table_read: 'box' };
 	const icon = $derived<IconName>(ICON[step.tool] ?? (step.tool.startsWith('micropub_') ? 'article' : step.tool.startsWith('table_') || step.tool === 'create_table' ? 'box' : 'sparkle'));
 	const hasLinks = $derived(!!step.links?.length);
 </script>

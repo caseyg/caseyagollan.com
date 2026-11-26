@@ -2,7 +2,7 @@
 import type { FakeItem } from './fake-table';
 
 interface Seen { answer: string; calls: { name: string; args: string; error?: boolean }[]; went: string[]; items: FakeItem[] }
-export interface Scenario { name: string; ask: string; page?: string; pageTitle?: string; table?: FakeItem[]; checks: { name: string; pass(seen: Seen): unknown }[] }
+export interface Scenario { name: string; ask: string; page?: string; pageTitle?: string; table?: FakeItem[]; selected?: string[]; checks: { name: string; pass(seen: Seen): unknown }[] }
 
 const used = (seen: Seen, name: RegExp) => seen.calls.filter((call) => name.test(call.name)).length;
 
@@ -105,6 +105,57 @@ export const SCENARIOS: Scenario[] = [
 			{ name: 'adds at least three blocks', pass: (seen) => seen.items.filter((item) => item.url).length >= 3 },
 			{ name: 'draws at least three arrows', pass: (seen) => seen.items.filter((item) => item.type === 'arrow').length >= 3 },
 			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) }
+		]
+	},
+	{
+		// Casey's ask (2026-11-25): “pull in images and quotes” from blocks on a table, from chat.
+		name: 'table-pull',
+		ask: 'Pull in the images and quotes from these.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Writing again',
+		table: [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: 'https://caseyagollan.com/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'post', title: 'Hirschhorn', url: 'https://caseyagollan.com/2026/11/17/hirschhorn/', x: 0, y: 600, w: 240, h: 240 }
+		],
+		selected: ['b1', 'b2'],
+		checks: [
+			{ name: 'uses table_pull', pass: (seen) => used(seen, /^table_pull$/) >= 1 },
+			{ name: 'adds pieces taken from the blocks', pass: (seen) => seen.items.some((item) => item.type === 'quote' || item.type === 'image') },
+			{ name: 'joins pieces to their block', pass: (seen) => seen.items.some((item) => item.type === 'arrow' && ['b1', 'b2'].includes(item.from ?? '')) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'table-pull-named',
+		ask: 'Pull the quotes out of the Writing again post.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Writing again',
+		table: [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: 'https://caseyagollan.com/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'post', title: 'Hirschhorn', url: 'https://caseyagollan.com/2026/11/17/hirschhorn/', x: 0, y: 600, w: 240, h: 240 }
+		],
+		checks: [
+			{ name: 'pulls from Writing again only', pass: (seen) => seen.calls.some((call) => call.name === 'table_pull' && !call.error) && seen.items.filter((item) => item.type === 'arrow').every((arrow) => arrow.from === 'b1') },
+			{ name: 'quotes only', pass: (seen) => seen.items.some((item) => item.type === 'quote') && !seen.items.some((item) => item.type === 'image') },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'table-pull-all',
+		ask: 'Context pull the whole table.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Writing again',
+		table: [
+			{ id: 'b1', type: 'post', title: 'Writing again', url: 'https://caseyagollan.com/2026/11/17/writing-again/', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'post', title: 'Hirschhorn', url: 'https://caseyagollan.com/2026/11/17/hirschhorn/', x: 0, y: 600, w: 240, h: 240 },
+			{ id: 'n1', type: 'note', text: 'Why the site', x: 0, y: 1000, w: 200, h: 200 }
+		],
+		checks: [
+			{ name: 'pulls from both blocks', pass: (seen) => ['b1', 'b2'].every((id) => seen.items.some((item) => item.type === 'arrow' && item.from === id)) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
 		]
 	},
 	{

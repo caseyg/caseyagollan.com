@@ -44,6 +44,7 @@ export const tableAnswer: ChatMessage = {
 	tools: [
 		{ tool: 'table_read', label: 'Read the table', status: 'done' },
 		{ tool: 'table_add', label: 'Added 3 notes and results for “cooperatives”', status: 'done' },
+		{ tool: 'table_pull', label: 'Context pull: pictures and quotes from 2 blocks', status: 'done' },
 		{ tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' },
 		{ tool: 'table_look', label: 'Looked at the table', status: 'done', picture: { src: 'table-look.jpg', alt: 'What the assistant saw of the table, each item numbered' } },
 		{ tool: 'show_page', label: 'Showed Platform cooperativism', status: 'done', peek: { url: 'https://caseyagollan.com/wiki/platform-cooperativism', title: 'Platform cooperativism', excerpt: 'Notes on worker- and user-owned platforms, and the reading list that goes with them.' } }

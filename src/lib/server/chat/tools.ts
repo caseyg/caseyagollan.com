@@ -178,8 +178,9 @@ const TABLE_SECTION = [
 	'A table is open beside this chat: one of Casey’s canvases of blocks (posts, books, wiki pages, Are.na blocks, links), sticky notes, text, arrows and drawings. It is the table Casey has open now, or this chat’s own table when Casey has none open. The table_* tools act on it; Casey sees each change happen and can undo it. Say briefly what you changed. A table is a canvas, not rows and columns: never paste a Markdown table for Casey to copy instead of putting things on it.',
 	[
 		'Working on a table:',
-		'- table_read lists what is on it, with ids and measured boxes (canvas units; x grows right, y grows down; the dot grid is 20). Read once, before changing something that is already there. You don’t need to read an empty table, or to read again after a change: every change reports the ids and boxes of what it touched.',
+		'- table_read lists what is on it, with ids and measured boxes (canvas units; x grows right, y grows down; the dot grid is 20). Read once, before changing something that is already there (table_pull doesn’t need it). You don’t need to read an empty table, or to read again after a change: every change reports the ids and boxes of what it touched.',
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
+		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection, or the whole table (blocks ["all"]). One call reads each block’s page and adds its pictures and best passages beside it, framed and joined to it by an arrow. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
 		'- table_arrange sets out things that are already there (grid, columns, row, column, pack), pushes overlapping things apart (`tidy`), or lines them up (`align`). It measures every item, so nothing overlaps; prefer it to table_move, which is for an exact spot or size.',
 		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
 		'- Don’t guess sizes. Blocks are about 240×240 (books 180×300); sticky notes are 200 wide and grow taller with their text; text cards wrap at the width you give (320 to 480 reads well). Use `below` or `right_of` an id, rather than coordinates, to put new things beside what they belong with, and leave 80 to 120 units between sections.',
@@ -477,6 +478,8 @@ export function chatExtension(deps: ToolDeps): Extension {
 		x: { type: 'number', description: 'Left edge in canvas units, with y. Leave both places out for an open spot in view.' },
 		y: { type: 'number', description: 'Top edge in canvas units.' }
 	};
+	/** The most blocks one context pull reads; each may add seven cards. */
+	const PULL_MAX = 12;
 	const LAYOUTS = TABLE_LAYOUTS.filter((layout) => layout !== 'pack');
 
 	const tableTools: ToolRegistration[] = thread ? [
@@ -578,6 +581,63 @@ export function chatExtension(deps: ToolDeps): Extension {
 				if (troubled(issues)) issues = (await run({ op: 'tidy' })).issues;
 				const frame = typeof input.frame === 'string' && input.frame.trim() ? await run({ op: 'frame', name: input.frame.slice(0, 120), ids: added }) : undefined;
 				return report({ added: added.length, ...(said.length ? { searches: said } : {}), ...(frame ? { frame: idsOf(frame.added)[0] } : {}) }, added, frame ? undefined : issues);
+			}
+		},
+		{
+			name: 'table_pull',
+			description: 'Context pull: take the pictures and quotes out of one block, several, or the whole table, in one call. Each block’s page (post, link, wiki page, Are.na or Raindrop save) is read, and its pictures and most quotable passages are added as their own cards beside it, in a frame joined to the block by an arrow. Leave out `blocks` for the ones Casey has selected; ["all"] for every block on the table. Reports what it added, with each quote’s opening words.',
+			parameters: {
+				type: 'object',
+				properties: {
+					blocks: { type: 'array', maxItems: 12, items: { type: 'string' }, description: 'The blocks to pull from: their ids, or words from their titles; ["all"] for the whole table. Leave out for Casey’s selection.' },
+					images: { type: 'boolean', description: 'Pull pictures; true if left out. false for quotes only.' },
+					quotes: { type: 'boolean', description: 'Pull quotes; true if left out. false for pictures only.' },
+					limit: { type: 'integer', minimum: 1, maximum: 12, description: 'The most of each kind per block: 4 pictures and 3 quotes if left out.' },
+					match: { type: 'array', maxItems: 8, items: { type: 'string' }, description: 'Only passages (and pictures, by caption) holding one of these words or phrases, when Casey asks for particular ones.' }
+				}
+			},
+			async execute(args) {
+				const input = args as Record<string, unknown>;
+				const table = await run({ op: 'read' }) as { items?: TableItem[]; selected?: string[] };
+				const blocks = (table.items ?? []).filter((item) => item.url);
+				const asked = strings(input.blocks, 12).map((one) => one.trim()).filter(Boolean);
+				// The whole table: every block, but not the pieces already pulled out of one.
+				const whole = asked.some((one) => /^(all|everything|the whole table|table)$/i.test(one));
+				const everything = blocks.filter((item) => item.type !== 'image' && item.type !== 'quote');
+				const sources = whole ? everything.slice(0, PULL_MAX) : asked.length ? asked.map((one) => namedBlock(blocks, one)) : blocks.filter((item) => table.selected?.includes(item.id));
+				const skipped = whole ? Math.max(0, everything.length - PULL_MAX) : 0;
+				const missing = asked.filter((_, index) => !sources[index]);
+				const chosen = [...new Map(sources.filter((item): item is TableItem => !!item).map((item) => [item.id, item])).values()];
+				if (!chosen.length) throw new Error(whole ? 'There are no blocks on the table to pull from.' : asked.length
+					? `No block on the table matches ${missing.map((one) => `“${one}”`).join(', ')}. The blocks are: ${blocks.slice(0, 20).map((item) => `${item.id} “${clip(item.title ?? '', 40)}”`).join(', ') || 'none'}.`
+					: 'Casey has no blocks selected. Name the blocks: their ids or words from their titles.');
+				const choice = { images: input.images !== false, quotes: input.quotes !== false, limit: Number(input.limit) || undefined, match: strings(input.match, 8) };
+				if (!choice.images && !choice.quotes) throw new Error('Ask for pictures, quotes or both.');
+				const added: string[] = [], pulled: Record<string, unknown>[] = [], links: TableLink[] = [];
+				for (const source of chosen) {
+					const result = await run({ op: 'add_pieces', block: source.id, ...choice }).catch((error: Error) => ({ error: error.message })) as { added?: { id: string; kind: string; text?: string }[]; more?: { images: number; quotes: number }; note?: string; error?: string };
+					const got = result.added ?? [];
+					const more = result.more && (result.more.images || result.more.quotes) ? { left_out: result.more } : {};
+					pulled.push({
+						from: source.id, title: clip(source.title ?? '', 60),
+						pictures: got.filter((one) => one.kind === 'image').length,
+						quotes: got.filter((one) => one.kind !== 'image').map((one) => clip(one.text ?? '', 60)),
+						...more, ...(result.note || result.error ? { note: result.note ?? result.error } : {})
+					});
+					if (!got.length) continue;
+					const ids = got.map((one) => one.id);
+					added.push(...ids);
+					// Beside the block it came from, gathered in a frame the block points to: one arrow, however many pieces.
+					// Room for the arrow, and for the frame's edge and name, between the block and its pieces.
+					const framed = ids.length > 1;
+					await run({ op: 'arrange', layout: ids.length > 3 ? 'grid' : 'row', ids, columns: Math.min(ids.length, 3), at: { x: source.x + source.w + (framed ? 140 : 100), y: source.y + (framed ? 40 : 0) } });
+					const holder = framed ? idsOf((await run({ op: 'frame', name: `From ${clip(source.title ?? 'this block', 60)}`, ids })).added)[0] : ids[0];
+					if (holder) links.push({ from: source.id, to: holder });
+				}
+				if (!added.length) return json({ added: 0, pulled, note: 'Nothing was added: tell Casey what each block’s page had, from `pulled`.' });
+				let issues = (await run({ op: 'tidy' })).issues;
+				if (links.length) issues = (await run({ op: 'connect', links })).issues ?? issues;
+				return report({ added: added.length, pulled, ...(skipped ? { blocks_left: skipped } : {}), note: `Done: tell Casey what you pulled.${skipped ? ` ${skipped} more blocks weren’t pulled from (${PULL_MAX} at a time): say so.` : ''} If \`left_out\` counts more, say so; pull them only if Casey asks.` }, added, issues);
 			}
 		},
 		{
@@ -752,6 +812,18 @@ export function chatExtension(deps: ToolDeps): Extension {
 			})
 		]
 	};
+}
+
+/**
+ * The block a model means: by its id, or by words from its title (each word starting a word of
+ * the title, so “le guin” finds “Ursula K. Le Guin on …”).
+ */
+export function namedBlock<T extends { id: string; title?: string }>(blocks: T[], asked: string): T | undefined {
+	const words = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+	const id = asked.trim().replace(/^shape:/, '');
+	const want = words(asked);
+	return blocks.find((item) => item.id === id)
+		?? (want.length ? blocks.find((item) => { const title = words(item.title ?? ''); return want.every((word) => title.some((part) => part.startsWith(word))); }) : undefined);
 }
 
 /** A path on this site from what the model gave: a path, or a URL on this site's origin. Null for anywhere else. */

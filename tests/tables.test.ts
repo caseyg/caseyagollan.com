@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { blockKey, blockUrl, cleanBlock, isPublished, cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, BLOCK_SHAPE, type Table } from '../src/lib/tables';
 import { blockFromSearch } from '../src/lib/table-sources';
-import { passageUrl, piecesPath, quoteSize, remotePiecesUrl } from '../src/lib/table-pieces';
+import { passageUrl, pickPieces, piecesFrom, piecesPath, quoteScore, quoteSize, remotePiecesUrl } from '../src/lib/table-pieces';
+import { parseHTML } from 'linkedom';
 import { piecesFromHtml } from '../src/lib/server/table-pieces';
 import { connectorPath, straightPath, tableLayout, tableWireframe } from '../src/lib/table-wireframe';
 import { listPublishedTables, listTables, readTable, writeTable } from '../src/lib/server/tables';
@@ -223,5 +224,43 @@ describe('pieces of other sites', () => {
 		expect(pieces[0]).toMatchObject({ title: 'An essay', url: expect.stringMatching(/^https:\/\/example\.com\/essay#:~:text=The%20first/) });
 		expect(pieces[1]).toMatchObject({ image: 'https://example.com/img/one.jpg', title: 'A caption for the picture' });
 		expect(pieces.some((p) => p.excerpt?.includes('Subscribe'))).toBe(false);
+	});
+});
+
+describe('pulling pieces from the chat', () => {
+	const quote = (excerpt: string) => ({ kind: 'quote' as const, url: `/p#${excerpt.length}`, title: 'Page', excerpt });
+	const image = (n: number, title = 'Page') => ({ kind: 'image' as const, url: '/p', title, image: `/i/${n}.jpg` });
+
+	test('a post page drawn as a social card around its words is read as the page, with its photos', () => {
+		const { document } = parseHTML(`<html><body><article class="h-entry post"><span class="p-author h-card"><img class="u-photo" src="/author-avatar.webp" width="64"></span>
+			<div class="media"><figure><img class="u-photo" src="https://files.caseyagollan.com/a.jpg" alt="An open book"></figure></div>
+			<div class="social-card"><article class="social-post"><div class="main"><span class="name">Casey</span><div class="body"><div class="e-content">
+			<p>I re-built this site on IndieWeb protocols, and it is now simple to look after.</p></div></div></div></article></div>
+			<article class="social-post"><span class="name">Someone</span><div class="body">A reply somebody wrote back to the post.</div><a class="time" href="https://bsky.app/x">1d</a></article></article></body></html>`);
+		const pieces = piecesFrom(document as unknown as Document, '/2026/11/17/a/', 'https://caseyagollan.com');
+		expect(pieces.map((piece) => piece.kind)).toEqual(['image', 'quote', 'post']);
+		expect(pieces[0]).toMatchObject({ image: 'https://files.caseyagollan.com/a.jpg', title: 'An open book' });
+		expect(pieces[1].excerpt).toStartWith('I re-built this site');
+		expect(pieces[2]).toMatchObject({ title: 'Someone', icon: '🦋' });
+	});
+
+	test('takes the first pictures and the most quotable passages, in the page’s order', () => {
+		const pieces = [
+			image(1), quote('Short.'), quote('A passage of a few sentences that stands on its own. It says something worth keeping on a table.'),
+			image(2), quote('and then it goes on, https://example.com/a link-heavy line that leans on what came before it'),
+			quote('“The quoted words are the best of all,” somebody said once, in a talk worth remembering.'), image(3), image(4), image(5)
+		];
+		const { picked, more } = pickPieces(pieces);
+		expect(picked.map((piece) => piece.image ?? piece.excerpt?.slice(0, 12))).toEqual(['/i/1.jpg', 'A passage of', '/i/2.jpg', 'and then it ', '“The quoted ', '/i/3.jpg', '/i/4.jpg']);
+		expect(more).toEqual({ images: 1, quotes: 1 });
+		expect(quoteScore('“The quoted words are the best of all,” somebody said.')).toBeGreaterThan(quoteScore('and then, https://example.com'));
+	});
+
+	test('pictures only, quotes only, a limit, or particular words', () => {
+		const pieces = [image(1, 'A kitchen at night'), image(2), quote('The night kitchen was a place to talk late about making things.'), quote('Something else entirely, long enough to count as a passage.')];
+		expect(pickPieces(pieces, { quotes: false }).picked.every((piece) => piece.kind === 'image')).toBe(true);
+		expect(pickPieces(pieces, { images: false }).picked.every((piece) => piece.kind === 'quote')).toBe(true);
+		expect(pickPieces(pieces, { limit: 1 }).picked).toHaveLength(2);
+		expect(pickPieces(pieces, { match: ['night'] }).picked.map((piece) => piece.kind)).toEqual(['image', 'quote']);
 	});
 });
