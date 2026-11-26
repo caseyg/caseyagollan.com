@@ -6,11 +6,19 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "caseyagollan",
 	"main": "worker.mjs",
-	"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }] },
+	"durable_objects": {
+		"bindings": [
+			{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" },
+			{ "name": "ChatThread", "class_name": "ChatThread" },
+			// Live cursors and cursor chat, one object per page (src/lib/server/cursors/room.ts).
+			{ "name": "CURSORS", "class_name": "CursorRoom" }
+		]
+	},
 	"migrations": [
 		{ "tag": "v1-indieauth", "new_sqlite_classes": ["IndieAuthStore"] },
 		/** /chat threads: one Agents SDK agent per thread (src/lib/server/chat/agent.ts). */
-		{ "tag": "v2-chat", "new_sqlite_classes": ["ChatThread"] }
+		{ "tag": "v2-chat", "new_sqlite_classes": ["ChatThread"] },
+		{ "tag": "v3-cursors", "new_sqlite_classes": ["CursorRoom"] }
 	],
 	"compatibility_date": "2025-01-19",
 	"compatibility_flags": [
@@ -93,7 +101,7 @@
 	 * Publishing and syndication tokens must never be added to Previews Base.
 	 */
 	"previews": {
-		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }] },
+		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }, { "name": "CURSORS", "class_name": "CursorRoom" }] },
 		/** AUTH_ISSUER is production itself: a preview redeems sign-in codes through it, since fetching caseyagollan.com from this script never reaches it. */
 		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }, { "binding": "AUTH_ISSUER", "service": "caseyagollan" }],
 		"vars": {
