@@ -10,6 +10,8 @@
 		closeLabel?: string;
 		/** Tighter padding, with rules under the header and over the footer, for a panel that is a tool (a chat) rather than a page of details. */
 		compact?: boolean;
+		/** A window floating over the bottom right corner of the page instead of a panel down its side; the page keeps its full width. */
+		floating?: boolean;
 		/** Beside the close button: the panel's title. */
 		header?: Snippet;
 		/** Small buttons before the close button. */
@@ -21,17 +23,17 @@
 		[key: string]: unknown;
 	}
 
-	let { label, onclose, closeLabel = 'Close', compact = false, header, actions, footer, children, class: className = '', ...rest }: Props = $props();
+	let { label, onclose, closeLabel = 'Close', compact = false, floating = false, header, actions, footer, children, class: className = '', ...rest }: Props = $props();
 </script>
 
 <!--
 	A panel down the right side of the page, beneath the site navigation and inset like it, so the
 	navigation stays whole while the panel is open. The body scrolls; the header and footer stay.
 	The library's book details and the docked chat are both one of these. On a phone it lies along
-	the bottom instead. Set `--side-panel-width` to change its width; a panel that should stand
+	the bottom instead. `floating` makes it a window over the bottom right corner. Set `--side-panel-width` to change its width; a panel that should stand
 	beside another reads `--side-panel-offset`.
 -->
-<aside class="side-panel {className}" class:compact aria-label={label} {...rest}>
+<aside class="side-panel {className}" class:compact class:floating aria-label={label} {...rest}>
 	{#if header || actions || onclose}
 		<header class="side-panel-header">
 			<div class="side-panel-title">{@render header?.()}</div>
@@ -68,6 +70,19 @@
 
 	.compact {
 		--side-panel-pad: var(--space-3);
+	}
+
+	/* A window over the page's corner: solid enough to read over whatever is under it, and lifted off it. */
+	.floating {
+		top: auto;
+		right: calc(var(--nav-inset) + var(--space-3) + env(safe-area-inset-right));
+		bottom: calc(var(--nav-inset) + var(--space-3) + env(safe-area-inset-bottom));
+		height: min(var(--side-panel-height, 38rem), calc(100vh - var(--nav-lane) - 2 * var(--nav-inset) - 2 * var(--space-3)));
+		border-color: var(--border);
+		border-radius: var(--radius-lg);
+		background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+		box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.3);
+		overflow: hidden;
 	}
 
 	.side-panel-header {

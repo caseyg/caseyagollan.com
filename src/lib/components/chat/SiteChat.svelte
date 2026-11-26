@@ -5,7 +5,8 @@
 	import { goto } from '$app/navigation';
 	import { chatAuthor, chatHref, SELECTION_LISTED, SELECTION_MAX, type ChatMessage, type ChatPage, type ChatSelectionItem, type ChatSendOptions, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { LiveThread } from '$lib/chat-client.svelte';
-	import { siteChat } from '$lib/site-chat.svelte';
+	import { siteChat, type ChatPlacement } from '$lib/site-chat.svelte';
+	import type { ChatPlace } from './ChatModeMenu.svelte';
 	import ChatOverlay, { type ChatOverlayMode } from './ChatOverlay.svelte';
 
 	/**
@@ -19,8 +20,11 @@
 	const MODE_KEY = 'site-chat';
 	const SHEET_KEY = 'site-chat-sheet';
 	const THREAD_KEY = 'site-chat-thread';
+	const PLACEMENT_KEY = 'site-chat-placement';
 
 	let mode = $state<ChatOverlayMode>('minimized');
+	/** Open on a wide screen: down the side of the page, or a window over its corner. */
+	let placement = $state<ChatPlacement>('sidebar');
 	let sheetExpanded = $state(true);
 	let sheetRestHeight = $state(0);
 	let threadId = $state<string | null>(null);
@@ -47,6 +51,7 @@
 		const saved = read(MODE_KEY) ?? read('table-chat');
 		// Open was once floating or docked; both are docked now.
 		if (saved === 'floating' || saved === 'docked') mode = 'docked';
+		if (read(PLACEMENT_KEY) === 'floating') placement = 'floating';
 		sheetExpanded = (read(SHEET_KEY) ?? read('table-chat-sheet')) !== 'folded';
 		threadId = read(THREAD_KEY);
 		loaded = true;
@@ -55,6 +60,7 @@
 	$effect(() => {
 		if (!loaded) return;
 		write(MODE_KEY, mode);
+		write(PLACEMENT_KEY, placement);
 		write(SHEET_KEY, sheetExpanded ? 'open' : 'folded');
 		write(THREAD_KEY, threadId);
 	});
@@ -105,8 +111,36 @@
 		return () => cancelAnimationFrame(frame);
 	});
 
-	// Make room for a docked chat: a sidebar on wide screens, the folded sheet on narrow ones.
-	const dock = $derived(!hidden && mode === 'docked' ? (narrow.current ? 'sheet' : 'side') : null);
+	// Make room for a docked chat: a sidebar on wide screens, the folded sheet on narrow ones. A floating window needs none.
+	const dock = $derived(!hidden && mode === 'docked' ? (narrow.current ? 'sheet' : placement === 'sidebar' ? 'side' : null) : null);
+
+	// Where to go back to when a /chat page leaves full screen.
+	$effect(() => {
+		if (!hidden) siteChat.lastPage = page.url.pathname + page.url.search;
+	});
+
+	// A /chat page left full screen: its chat opens here, where it was asked to sit.
+	$effect(() => {
+		const asked = siteChat.dock;
+		if (!loaded || !asked) return;
+		siteChat.dock = null;
+		placement = asked.placement;
+		mode = 'docked';
+		if (asked.draft) draft = asked.draft;
+		if (asked.thread && asked.thread !== untrack(() => threadId)) pick(asked.thread);
+		else if (!asked.thread) startOver();
+	});
+
+	/** The title bar's Sidebar, Floating or Full screen. Full screen is the chat's own page. */
+	function place(choice: ChatPlace) {
+		if (choice !== 'fullscreen') {
+			placement = choice;
+			return;
+		}
+		siteChat.draft = draft;
+		draft = '';
+		void goto(threadId ? chatHref(threadId) : '/chat');
+	}
 	// Both live on <html>, so every change restyles the whole page: set each only when it changes.
 	$effect(() => {
 		const root = document.documentElement;
@@ -185,6 +219,8 @@
 			current={threadId ?? undefined}
 			selection={siteChat.table?.selection ?? []}
 			ondeselect={() => siteChat.table?.deselect?.()}
+			{placement}
+			onplace={place}
 		/>
 	</div>
 {/if}

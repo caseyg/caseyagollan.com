@@ -62,6 +62,18 @@
 	{/snippet}
 </Story>
 
+<!-- A window over the corner of the page, which keeps its full width: the chat's Floating setting. -->
+<Story name="Floating" args={{ label: 'Notes', compact: true, floating: true }}>
+	{#snippet template(args)}
+		{@render page()}
+		<SidePanel {...args} onclose={() => {}} closeLabel="Close the notes">
+			{#snippet header()}<strong>Notes</strong>{/snippet}
+			{#snippet footer()}<TextField label="Add a note" placeholder="Something to remember" />{/snippet}
+			{#each lines as line (line)}<p>{line}</p>{/each}
+		</SidePanel>
+	{/snippet}
+</Story>
+
 <!-- Two at once: the second reads `--side-panel-offset` and stands beside the first, as a book's details do beside the docked chat. -->
 <Story name="Beside another panel">
 	{#snippet template(args)}

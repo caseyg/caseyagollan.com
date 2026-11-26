@@ -26,7 +26,7 @@ import { viewerFrom } from './identity';
 import { DEFAULT_CHAT_MODEL, ModelError, streamCompletion } from './model';
 import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Queued, type SayData } from './projection';
 import { chatModels, COMPACTION } from './provider';
-import { saveSummary } from './threads';
+import { saveSearchDoc, saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
 import { itemsFromDocument, tableThreadId, type TableOp, type TableOpReply } from '../../table-agent';
 import { emptyTable, validId } from '../../tables';
@@ -328,7 +328,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	/** The thread's summary changed: a title, a message, an answer. */
 	protected async index(messages?: ChatMessage[]) {
 		const id = this.meta('id');
-		if (id && this.env.PUBLISHING_STATE) await saveSummary(this.env.PUBLISHING_STATE, this.summary(messages ?? await this.messages())).catch(() => undefined);
+		if (!id || !this.env.PUBLISHING_STATE) return;
+		const all = messages ?? await this.messages();
+		const summary = this.summary(all);
+		// The words too, for Casey's search of chats (`searchThreads`).
+		await Promise.all([saveSummary(this.env.PUBLISHING_STATE, summary), saveSearchDoc(this.env.PUBLISHING_STATE, summary, all)]).catch(() => undefined);
 	}
 
 	/** Start the thread with its first message. */
