@@ -82,8 +82,18 @@
 	});
 
 	function here(): ChatPage {
-		return { path: page.url.pathname + page.url.search, title: typeof document === 'undefined' ? undefined : document.title, ...(siteChat.table ? { table: siteChat.table.table } : {}) };
+		const hiddenTab = typeof document !== 'undefined' && document.hidden;
+		return { path: page.url.pathname + page.url.search, title: typeof document === 'undefined' ? undefined : document.title, ...(siteChat.table ? { table: siteChat.table.table } : {}), ...(hiddenTab ? { hidden: true } : {}) };
 	}
+
+	// A tab in the background is slowed down or frozen, so the thread sends table changes to the one in front.
+	$effect(() => {
+		const thread = live;
+		if (!thread) return;
+		const tell = () => thread.here(here());
+		document.addEventListener('visibilitychange', tell);
+		return () => document.removeEventListener('visibilitychange', tell);
+	});
 
 	// Tell the thread where Casey is after each navigation, once the new page has set its title.
 	$effect(() => {

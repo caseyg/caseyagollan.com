@@ -100,17 +100,20 @@ export interface ChatPage {
 	path: string;
 	title?: string;
 	table?: string;
+	/** The tab is in the background, where a browser slows a page down or freezes it. */
+	hidden?: boolean;
 }
 
 /** A page as sent by a browser, cleaned up; null when it isn't a path on this site. */
 export function chatPage(value: unknown): ChatPage | null {
 	if (!value || typeof value !== 'object') return null;
-	const { path, title, table } = value as Record<string, unknown>;
+	const { path, title, table, hidden } = value as Record<string, unknown>;
 	if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') || path.length > 500) return null;
 	return {
 		path,
 		...(typeof title === 'string' && title.trim() ? { title: title.replace(/\s+/g, ' ').trim().slice(0, 200) } : {}),
-		...(typeof table === 'string' && /^[a-z0-9-]{4,40}$/.test(table) ? { table } : {})
+		...(typeof table === 'string' && /^[a-z0-9-]{4,40}$/.test(table) ? { table } : {}),
+		...(hidden === true ? { hidden: true } : {})
 	};
 }
 

@@ -238,6 +238,17 @@ export const SCENARIOS: Scenario[] = [
 		]
 	},
 	{
+		// A pasted are.na address: the page itself is drawn in the browser, so it has to come through the API.
+		name: 'arena-address',
+		ask: 'What’s in https://www.are.na/casey-gollan/calm-technology-research ? Just the highlights.',
+		page: '/',
+		checks: [
+			{ name: 'reads it without an error', pass: (seen) => seen.calls.some((call) => (call.name === 'fetch_page' || call.name === 'my_saves') && /calm/i.test(call.args) && !call.error) },
+			{ name: 'names things that are in it', pass: (seen) => /weiser|daylight|calm tech certified|amber case|principles and patterns/i.test(seen.answer) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
 		// Needs READWISE_ACCESS_TOKEN; without it the chat should say Readwise isn't connected.
 		name: 'readwise-highlights',
 		ask: 'What did I highlight in Living With Complexity?',
