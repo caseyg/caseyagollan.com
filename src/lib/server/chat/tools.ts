@@ -35,10 +35,12 @@ import { TABLE_ALIGNS, TABLE_ARRANGEMENTS, TABLE_COLORS, TABLE_DIRECTIONS, TABLE
 import { imageFromDataUrl, viewImage } from './view-image';
 import { SAVE_SOURCES, SOURCE_NAME, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavedItem, type SavedPage, type SaveSource, type SavesDeps, type SavesEnv } from '../saves';
 import { ownerMicropub } from '../publishing/post-editor';
+import { renderTool } from './render-tool';
+import type { ScreenshotEnvironment } from '../screenshot';
 import { CODEMODE_TOOL, isMcpTool } from './mcp-tools';
 
 export interface ToolDeps {
-	env: PublishingEnvironment & SavesEnv & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
+	env: PublishingEnvironment & SavesEnv & ScreenshotEnvironment & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
 	/** The site's origin, for its own pages and search index. */
 	origin: () => string;
 	/** After a run answered, for work outside Pi such as naming the thread. */
@@ -60,6 +62,8 @@ export interface ToolDeps {
 	now?: () => Date;
 	/** Are.na, Raindrop and Readwise, in place of the real services: for tests and replays. */
 	savesFetch?: typeof fetch;
+	/** The web and Browser Rendering as table_render reaches them, in place of the network: for tests and replays. */
+	renderFetch?: typeof fetch;
 	/** Keeps the Worker alive for work that outlasts a tool call, such as refreshing a cached copy. */
 	waitUntil?: (promise: Promise<unknown>) => void;
 	/** Whether Casey turned this tool off for this chat (the composer's Tools menu). */
@@ -212,6 +216,7 @@ const TABLE_SECTION = [
 		'- What is on the table is listed at the end of these instructions, current at every step, your own changes included: each item’s id, kind, first words and measured box (canvas units; x grows right, y grows down; the dot grid is 20). Work from that list; don’t table_read to find things or to check your work. The list clips words: table_read with `ids` gives those items’ whole text, for summarizing, comparing or quoting them. table_read with no ids is only for a list that says it was cut short.',
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
 		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s source and adds its pictures and best passages beside it, each joined to it by a line. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
+		'- table_render is for “render this PDF’s pages”, “screenshot this page”, “full-page screenshot of <address>”: one call, on blocks, Casey’s selection or `urls`. Don’t fetch_page or table_add first.',
 		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
 		'- table_tag reads tags and stages tag changes for posts, Raindrop bookmarks and Readwise items on the table: “tag these as X”, “retag this frame”, “what are these tagged”. One call for all the blocks (no ids: every one; `inside`: a frame’s id or name). Changes are staged for Casey to review and save on the table: say “staged”, never “saved”. Never micropub_update_post for their tags.',
 		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
@@ -928,6 +933,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 				return report({ added: added.length, pulled, ...(skipped ? { blocks_left: skipped } : {}), note: `Done: tell Casey what you pulled.${skipped ? ` ${skipped} more blocks weren’t pulled from (${PULL_MAX} at a time): say so.` : ''} If \`left_out\` counts more, say so; pull them only if Casey asks.` }, added, {});
 			}
 		},
+		renderTool({ env: deps.env, origin: deps.origin, run, report, selection: () => thread.selection?.() ?? [], named: namedBlock, saves: () => savesDeps(), fetcher: deps.renderFetch }),
 		{
 			name: 'table_arrange',
 			description: 'Fix the layout of the whole table, some items, or what one frame holds, in one call. It measures everything, so you never work out coordinates. Can also line items up (`align`) or space them evenly (`distribute`).',

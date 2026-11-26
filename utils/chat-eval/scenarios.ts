@@ -153,6 +153,57 @@ export const SCENARIOS: Scenario[] = [
 		]
 	},
 	{
+		// Casey's ask (2026-11-26): “if the source is a PDF there should be a tool to render those pages out onto canvas as images”.
+		name: 'table-render-pdf',
+		ask: 'Render this PDF’s pages onto the table.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Transformers',
+		table: [
+			{ id: 'b1', type: 'link', title: 'Attention Is All You Need', url: 'https://arxiv.org/pdf/1706.03762', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'n1', type: 'note', text: 'Read before Friday', x: 0, y: 320, w: 200, h: 200 }
+		],
+		selected: ['b1'],
+		checks: [
+			{ name: 'uses table_render', pass: (seen) => used(seen, /^table_render$/) >= 1 },
+			{ name: 'puts twelve pages on the table', pass: (seen) => seen.items.filter((item) => item.type === 'image' && /#page=\d+$/.test(item.url ?? '')).length === 12 },
+			{ name: 'joins the pages to the PDF', pass: (seen) => seen.items.some((item) => item.type === 'arrow' && item.from === 'b1') },
+			{ name: 'says there are more pages', pass: (seen) => /15|more|rest|remaining|13/i.test(seen.answer) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		// The same message: “and a tool for webpages to render a full webpage screenshot”.
+		name: 'table-render-screenshot',
+		ask: 'Put a full-page screenshot of https://indieweb.org/Micropub on the table.',
+		page: '/tables/evaltable1',
+		pageTitle: 'IndieWeb',
+		table: [{ id: 'n1', type: 'note', text: 'Protocols to read up on', x: 0, y: 0, w: 200, h: 200 }],
+		checks: [
+			{ name: 'uses table_render', pass: (seen) => used(seen, /^table_render$/) >= 1 },
+			{ name: 'adds one tall picture of the page', pass: (seen) => { const shots = seen.items.filter((item) => item.type === 'image' && /indieweb\.org\/Micropub/.test(item.url ?? '')); return shots.length === 1 && shots[0].h > shots[0].w * 2; } },
+			{ name: 'doesn’t read the page instead', pass: (seen) => !used(seen, /^fetch_page$/) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'table-render-selected-page',
+		ask: 'Screenshot the whole page for this one.',
+		page: '/tables/evaltable1',
+		pageTitle: 'IndieWeb',
+		table: [
+			{ id: 'b1', type: 'link', title: 'Webmention - IndieWeb', url: 'https://indieweb.org/Webmention', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'b2', type: 'link', title: 'Micropub - IndieWeb', url: 'https://indieweb.org/Micropub', x: 0, y: 320, w: 240, h: 240 }
+		],
+		selected: ['b1'],
+		checks: [
+			{ name: 'uses table_render', pass: (seen) => used(seen, /^table_render$/) >= 1 },
+			{ name: 'screenshots only the selected block', pass: (seen) => { const shots = seen.items.filter((item) => item.type === 'image'); return shots.length === 1 && /Webmention/.test(shots[0].url ?? ''); } },
+			{ name: 'joins it to its block', pass: (seen) => seen.items.some((item) => item.type === 'arrow' && item.from === 'b1') },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
 		// Casey's ask (2026-11-25): “pull in images and quotes” from blocks on a table, from chat.
 		name: 'table-pull',
 		ask: 'Pull in the images and quotes from these.',
