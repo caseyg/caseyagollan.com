@@ -96,7 +96,8 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));
-	const offered = () => [...(extension.tools as unknown as Tool[]), ...extra].filter((tool) => tableId || !tool.name.startsWith('table_') || tool.name === 'table_new');
+	const plain = () => [...(extension.tools as unknown as Tool[]), ...extra].filter((tool) => tableId || !tool.name.startsWith('table_') || tool.name === 'table_new');
+	const offered = () => (process.env.CHAT_EVAL_VARIANT ?? '').split(',').includes('code') ? codeMode(plain()) : plain();
 	const system = async () => (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
 	// The same line the thread writes before each message: who, where, and what is selected on the table.
 	const selection = scenario.table && scenario.selected?.length ? chatSelection(scenario.table.filter((item) => scenario.selected!.includes(item.id)).map((item) => ({ id: item.id, type: item.type, title: item.title ?? item.text }))) : null;
@@ -142,6 +143,34 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	if (table) outcome.table = table.items();
 	outcome.checks = scenario.checks.map((check) => ({ name: check.name, pass: !!check.pass({ answer: outcome.answer, calls: outcome.calls, went, items: table?.items() ?? [] }) }));
 	return outcome;
+}
+
+/**
+ * Experiment (CHAT_EVAL_VARIANT=code): the table tools behind one tool that runs JavaScript, with their
+ * schemas a `table_help` call away, the way tldraw's MCP server has `exec` and `search`. Checks that
+ * look for a tool by name don't see calls made inside the code. See docs/tables/tldraw-mcp-comparison.md.
+ */
+function codeMode(tools: Tool[]): Tool[] {
+	const kept = tools.filter((tool) => !tool.name.startsWith('table_') || tool.name === 'table_new' || tool.name === 'table_look');
+	const fns = tools.filter((tool) => tool.name.startsWith('table_') && tool.name !== 'table_new' && tool.name !== 'table_look');
+	if (!fns.length) return kept;
+	const short = (tool: Tool) => `table.${tool.name.slice(6)}({ ${Object.keys((tool.parameters as { properties?: object }).properties ?? {}).join(', ')} }): ${tool.description.split(/(?<=[.:]) /)[0]}`;
+	return [...kept, {
+		name: 'table_help',
+		description: 'The full description and argument schema of table functions, by name (such as ["add", "arrange"]). Call it before the first use of a function in table_run.',
+		parameters: { type: 'object', properties: { names: { type: 'array', items: { type: 'string' } } }, required: ['names'] },
+		async execute(args: unknown) { const names = ((args as { names?: string[] }).names ?? []).map((name) => name.replace(/^table[._]/, '')); return { output: [{ type: 'text', text: JSON.stringify(fns.filter((tool) => names.includes(tool.name.slice(6))).map((tool) => ({ name: `table.${tool.name.slice(6)}`, description: tool.description, args: tool.parameters }))) }] }; }
+	}, {
+		name: 'table_run',
+		description: ['Run JavaScript on the table. The code is the body of an async function with `table` in scope; every table function takes one object and returns a promise of its result (ids and boxes of what it touched). Use `return` to send something back. Do everything for one request in one run: results of one call (ids) feed the next.', 'Functions:', ...fns.map(short), 'Example: const { added } = await table.add({ items: [{ note: "A" }, { note: "B" }] }); await table.connect({ links: [{ from: added[0].id, to: added[1].id }] }); return added;'].join('\n'),
+		parameters: { type: 'object', properties: { code: { type: 'string', description: 'JavaScript: the body of an async function. `table` is in scope.' } }, required: ['code'] },
+		async execute(args: unknown) {
+			const api = Object.fromEntries(fns.map((tool) => [tool.name.slice(6), async (input: unknown) => { const out = (await tool.execute(input ?? {})).output.map((part) => part.text ?? '').join('\n'); try { return JSON.parse(out); } catch { return out; } }]));
+			const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor as new (...names: string[]) => (...values: unknown[]) => Promise<unknown>;
+			const result = await new AsyncFunction('table', String((args as { code?: string }).code ?? ''))(api);
+			return { output: [{ type: 'text', text: (JSON.stringify(result) ?? 'done').slice(0, 8000) }] };
+		}
+	}];
 }
 
 const label = process.env.CHAT_EVAL_LABEL || 'run';

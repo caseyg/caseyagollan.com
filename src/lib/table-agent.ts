@@ -149,6 +149,33 @@ export function tableThreadId(tableId: string): string {
  */
 export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull'] as const;
 
+/** The most items `tableListing` writes out; the rest are counted. */
+export const LISTING_MAX = 60;
+const LISTING_WORDS = 60;
+
+/**
+ * What is on the table, a line per item, for the model to keep in view while it works (as
+ * tldraw's own MCP server keeps the canvas in the model's context): it can act on what is there
+ * without first asking what is there. Words are clipped; `table_read` with ids gives them whole.
+ */
+export function tableListing(items: TableItem[], selected: readonly string[] = [], name?: string): string {
+	const title = name ? ` “${name.replace(/\s+/g, ' ').slice(0, 80)}”` : '';
+	const solid = items.filter((item) => item.type !== 'arrow' && item.type !== 'draw');
+	if (!solid.length) return `On the table${title} now: nothing yet.`;
+	const chosen = new Set(selected);
+	const words = (item: TableItem) => { const all = (item.title ?? item.text ?? '').replace(/\s+/g, ' ').trim(); return all.length > LISTING_WORDS ? `${all.slice(0, LISTING_WORDS).trimEnd()}…` : all; };
+	const lines = solid.slice(0, LISTING_MAX).map((item) => `${item.id} ${item.type}${words(item) ? ` “${words(item)}”` : ''} at ${item.x},${item.y} ${item.w}×${item.h}${item.parent ? ` in ${item.parent}` : ''}${chosen.has(item.id) ? ' (selected)' : ''}`);
+	const arrows = items.filter((item) => item.type === 'arrow' && item.from && item.to);
+	const strokes = items.filter((item) => item.type === 'draw').length;
+	return [
+		`On the table${title} now, ${solid.length === 1 ? 'one item' : `${solid.length} items`} (id, kind, first words, left,top, width×height, the frame it is in):`,
+		...lines,
+		...(solid.length > LISTING_MAX ? [`…and ${solid.length - LISTING_MAX} more: table_read lists them all.`] : []),
+		...(arrows.length ? [`Arrows: ${arrows.slice(0, 80).map((arrow) => `${arrow.from}→${arrow.to}${arrow.text ? ` “${arrow.text.replace(/\s+/g, ' ').slice(0, 30)}”` : ''}`).join(', ')}${arrows.length > 80 ? `, and ${arrows.length - 80} more` : ''}`] : []),
+		...(strokes ? [`Pen strokes: ${strokes}.`] : [])
+	].join('\n');
+}
+
 /** What is on a saved table, from its tldraw document, for when no canvas is open to ask. */
 export function itemsFromDocument(document: unknown): TableItem[] {
 	const store = (document as { store?: Record<string, unknown> } | null)?.store;

@@ -26,7 +26,7 @@ import { SAY_KIND, type SayData } from './projection';
 import { daysBefore, findDocuments, loadAgentIndex, localDate, searchDocuments, SEARCH_TYPES, type AgentSearchDocument } from './site-search';
 import { publishingConfig, type PublishingEnvironment } from '../publishing/config';
 import { ARENA_ICON, type Block } from '../../tables';
-import { TABLE_ALIGNS, TABLE_ARRANGEMENTS, TABLE_COLORS, TABLE_DIRECTIONS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, type TableCluster, type TableAlign, type TableColor, type TableItem, type TableLink, type TableNote, type TablePlace, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
+import { TABLE_ALIGNS, TABLE_ARRANGEMENTS, TABLE_COLORS, TABLE_DIRECTIONS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, tableListing, type TableCluster, type TableAlign, type TableColor, type TableItem, type TableLink, type TableNote, type TablePlace, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
 import { imageFromDataUrl, viewImage } from './view-image';
 import { SAVE_SOURCES, SOURCE_NAME, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavedItem, type SavedPage, type SaveSource, type SavesDeps, type SavesEnv } from '../saves';
 import { ownerMicropub } from '../publishing/post-editor';
@@ -191,7 +191,7 @@ const TABLE_SECTION = [
 	[
 		'Working on a table:',
 		'- Casey’s selection: a message written with things selected on the table says so, with their ids and titles. “These”, “this”, “them”, “the selected ones”, or an ask about particular things that doesn’t name them, mean just those: act on them alone, by their ids or with ["selected"] wherever a tool takes ids (`ids`, `remove`, an edit’s `id`, `around`, `below`, `blocks`). Don’t table_read to find them. To summarize, compare or quote them, table_read with ids ["selected"] gives just their words and urls in one call; fetch_page a url only if that isn’t enough. When Casey names other things or says the whole table, the selection doesn’t matter.',
-		'- table_read lists what is on it, with ids and measured boxes (canvas units; x grows right, y grows down; the dot grid is 20). Read once, before changing something that is already there (table_pull, and table_arrange on the whole table, a selection or a frame by name, don’t need it). You don’t need to read an empty table, or to read again after a change: every change reports the ids and boxes of what it touched.',
+		'- What is on the table is listed at the end of these instructions, current at every step, your own changes included: each item’s id, kind, first words and measured box (canvas units; x grows right, y grows down; the dot grid is 20). Work from that list; don’t table_read to find things or to check your work. The list clips words: table_read with `ids` gives those items’ whole text, for summarizing, comparing or quoting them. table_read with no ids is only for a list that says it was cut short.',
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
 		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s page and adds its pictures and best passages beside it, framed and joined to it by an arrow. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
 		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
@@ -201,6 +201,25 @@ const TABLE_SECTION = [
 		'- After building or rearranging more than a few things, call table_look once: it shows you a picture of the table with each item numbered (red means it overlaps). Fix what looks wrong, then answer. Don’t look more than twice.'
 	].join('\n')
 ].join('\n\n');
+
+/** How long the prompt waits for Casey's page to say what is on the table; past it, the model reads the table itself. */
+const TABLE_NOW_WAIT = 2_500;
+
+/** The table as it stands, for the prompt of each step. Nothing when it can't be read in time: table_read still can. */
+async function tableNow(thread: ThreadHooks): Promise<string | undefined> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		const table = await Promise.race([
+			thread.readTable() as Promise<{ name?: string; items?: TableItem[]; note?: string }>,
+			new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('slow')), TABLE_NOW_WAIT); })
+		]);
+		return `${tableListing(table.items ?? [], thread.selection?.() ?? [], table.name)}${table.note ? `\n(${table.note})` : ''}`;
+	} catch {
+		return 'What is on the table couldn’t be listed just now: table_read lists it.';
+	} finally {
+		clearTimeout(timer);
+	}
+}
 
 /** For Casey's own runs: what my_saves is for, since search alone can't list a channel. */
 const SAVES_SECTION = [
@@ -678,7 +697,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_read',
-			description: 'List what is on the table: each item’s id, kind, title, URL, text and measured box, what Casey has selected, and any layout issues. With `ids` (["selected"] for Casey’s selection), just those items with all their words: for summarizing or comparing them. Once is enough: changes report what they touched.',
+			description: 'List what is on the table: each item’s id, kind, title, URL, text and measured box, what Casey has selected, and any layout issues. With `ids` (["selected"] for Casey’s selection), just those items with all their words: for summarizing or comparing them. Rarely needed without ids: your instructions already list the table.',
 			parameters: { type: 'object', properties: { ids: { ...IDS, description: 'Only these items, with their full text; ["selected"] for what Casey had selected. Leave out for the whole table.' } } },
 			replay: 'safe',
 			async execute(args) {
@@ -1010,7 +1029,11 @@ export function chatExtension(deps: ToolDeps): Extension {
 			{ key: 'site', render: () => siteSection(now(), timeZone), tag: false },
 			// Only said when the tool is there: a thread only Casey has written in.
 			{ key: 'saves', render: () => deps.onlyOwner?.() ? SAVES_SECTION : undefined, tag: false },
-			...(thread ? [{ key: 'table', render: () => thread.table() ? TABLE_SECTION : undefined, tag: false }] : [])
+			...(thread ? [
+				{ key: 'table', render: () => thread.table() ? TABLE_SECTION : undefined, tag: false },
+				// Last, since it changes with every step and everything above it stays the same.
+				{ key: 'table-now', render: () => thread.table() ? tableNow(thread) : undefined, tag: false }
+			] : [])
 		],
 		tools: [searchSite, fetchTool, viewImageTool, showPage, ...(thread ? [goTo] : []), mySaves, ...micropub, ...tableTools],
 		hooks: [
