@@ -341,7 +341,7 @@ function readerItem(document: ReaderDocument): SavedItem {
 	const text = flat(document.summary) || undefined;
 	return {
 		id: document.id, title, url, kind: document.category ?? 'document', date, text, image: webUrl(document.image_url),
-		block: { kind: 'link', url, title, meta: ['Readwise', flat(document.site_name) || host(url), date].filter(Boolean).join(' · '), excerpt: text?.slice(0, 300), image: webUrl(document.image_url), icon: '📖' }
+		block: { kind: 'link', url, title, meta: ['Readwise', flat(document.site_name) || host(url), date].filter(Boolean).join(' · '), excerpt: text?.slice(0, 300), image: webUrl(document.image_url), icon: '📖', ...(/^[0-9a-z]{20,40}$/.test(document.id) ? { ref: `readwise:document:${document.id}` } : {}) }
 	};
 }
 
@@ -353,7 +353,7 @@ function bookItem(book: ReadwiseBook): SavedItem {
 	const text = [author, `${count} highlight${count === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
 	return {
 		id: String(book.id), title, url: bookUrl(book), kind: book.category ?? 'book', date: day(book.last_highlight_at), text, image: webUrl(book.cover_image_url),
-		block: { kind: 'link', url: bookUrl(book), title, meta: ['Readwise', author, `${count} highlight${count === 1 ? '' : 's'}`].filter(Boolean).join(' · '), image: webUrl(book.cover_image_url), icon: '📖' }
+		block: { kind: 'link', url: bookUrl(book), title, meta: ['Readwise', author, `${count} highlight${count === 1 ? '' : 's'}`].filter(Boolean).join(' · '), image: webUrl(book.cover_image_url), icon: '📖', ref: `readwise:book:${book.id}` }
 	};
 }
 
@@ -362,7 +362,7 @@ function highlightItem(highlight: { id: number | string; text?: string; note?: s
 	const url = book.url ?? webUrl(highlight.url) ?? `https://readwise.io/open/${highlight.id}`;
 	return {
 		id: String(highlight.id), title: book.title, url, kind: 'highlight', date: day(highlight.date), text: note ? `${words} (Casey’s note: ${note})` : words,
-		block: words ? { kind: 'quote', url, title: book.title, meta: ['Readwise', book.author].filter(Boolean).join(' · '), excerpt: words.slice(0, 600), icon: '📖' } : null
+		block: words ? { kind: 'quote', url, title: book.title, meta: ['Readwise', book.author].filter(Boolean).join(' · '), excerpt: words.slice(0, 600), icon: '📖', ...(/^\d+$/.test(String(highlight.id)) ? { ref: `readwise:highlight:${highlight.id}` } : {}) } : null
 	};
 }
 
@@ -505,3 +505,115 @@ export async function savedAll(deps: SavesDeps, source: SaveSource, options: Lis
 	const cut = items.length > max;
 	return { place: last?.place, items: items.slice(0, max), total: last?.total ?? items.length, ...(after && !cut ? { more: after } : {}) };
 }
+
+// ---------------------------------------------------------------- tags
+
+/** Sends a change and reads the answer, which a service may leave empty. Never retried: a write may have landed. */
+async function sendJson<T>(deps: SavesDeps, name: string, url: string, method: string, authorization: string, body?: unknown): Promise<T | null> {
+	const response = await (deps.fetcher ?? fetch)(url, {
+		method, headers: { accept: 'application/json', 'user-agent': USER_AGENT, authorization, ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+		...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(20_000)
+	});
+	if (response.status === 404) throw new SavesError(`${name} no longer has this.`);
+	if (response.status === 401 || response.status === 403) throw new SavesError(`${name} refused: the site’s ${name} token can’t change this.`);
+	if (response.status === 429) throw new RateLimited(name);
+	if (!response.ok) throw new Error(`${name}: ${response.status}`);
+	const text = await response.text();
+	try { return text ? (JSON.parse(text) as T) : null; } catch { return null; }
+}
+
+/** A service asked to slow down: what wasn't done can be asked for again in a minute. */
+export class RateLimited extends SavesError {
+	constructor(name: string) { super(`${name} is rate-limiting the site right now. Wait a minute and save again.`); }
+}
+const limited = (error: unknown) => error instanceof RateLimited || (error instanceof SavesError && /rate-limiting/.test(error.message));
+
+const raindropAuth = (deps: SavesDeps) => {
+	if (!deps.env.RAINDROP_TOKEN) throw new SavesError('Raindrop isn’t connected here (the site has no RAINDROP_TOKEN).');
+	return `Bearer ${deps.env.RAINDROP_TOKEN}`;
+};
+const readwiseAuth = (deps: SavesDeps) => {
+	if (!deps.env.READWISE_ACCESS_TOKEN) throw new SavesError('Readwise isn’t connected here (the site has no READWISE_ACCESS_TOKEN).');
+	return `Token ${deps.env.READWISE_ACCESS_TOKEN}`;
+};
+
+/** A saved thing's tags as they are now, and what to call it when writing them back. */
+export interface SavedTags { id: string; tags: string[] }
+
+/** A Raindrop bookmark by `raindrop:<id>`, or by `raindrop:link:<url>` for one set down before blocks kept ids. */
+export async function raindropTags(deps: SavesDeps, ref: string): Promise<SavedTags> {
+	const link = /^raindrop:link:(.+)$/.exec(ref)?.[1];
+	if (link) {
+		const data = await raindropGet<{ items?: RaindropFull[] }>(deps, `/raindrops/0?${new URLSearchParams({ search: link, perpage: '10' })}`);
+		const bare = (url: string) => url.replace(/\/+$/, '');
+		const item = (data.items ?? []).find((one) => one.link && bare(one.link) === bare(link));
+		if (!item) throw new SavesError('Raindrop has no bookmark with that link.');
+		return { id: String(item._id), tags: item.tags ?? [] };
+	}
+	const id = /^raindrop:(\d+)$/.exec(ref)?.[1];
+	if (!id) throw new SavesError('That isn’t a Raindrop bookmark.');
+	const { item } = await raindropGet<{ item?: RaindropFull }>(deps, `/raindrop/${id}`);
+	if (!item) throw new SavesError('Raindrop has no bookmark with that id.');
+	return { id, tags: item.tags ?? [] };
+}
+
+/** Replaces a bookmark's tags; returns them as Raindrop kept them. */
+export async function setRaindropTags(deps: SavesDeps, id: string, tags: string[]): Promise<string[]> {
+	const data = await sendJson<{ item?: RaindropFull }>(deps, 'Raindrop', `${RAINDROP}/raindrop/${id}`, 'PUT', raindropAuth(deps), { tags });
+	return data?.item?.tags ?? tags;
+}
+
+type ReaderTags = Record<string, { name?: string } | null> | null | undefined;
+type V2Tag = { id: number; name?: string };
+const readwiseRef = (ref: string) => /^readwise:(document|highlight|book):([0-9a-z]+)$/.exec(ref);
+
+/**
+ * Tags in Readwise: a Reader document's (`readwise:document:<id>`), or those on a highlight or a
+ * highlighted book (`readwise:highlight|book:<id>`), which Readwise keeps as separate records.
+ */
+export async function readwiseTags(deps: SavesDeps, ref: string): Promise<SavedTags & { records?: V2Tag[] }> {
+	const [, kind, id] = readwiseRef(ref) ?? [];
+	if (!kind) throw new SavesError('That isn’t something in Readwise.');
+	if (kind === 'document') {
+		const data = await readwiseGet<{ results?: { tags?: ReaderTags }[] }>(deps, `/v3/list/?id=${id}&withHtmlContent=false`);
+		const document = data.results?.[0];
+		if (!document) throw new SavesError('Readwise has no document with that id.');
+		return { id, tags: Object.entries(document.tags ?? {}).map(([key, tag]) => tag?.name || key) };
+	}
+	const data = await readwiseGet<{ results?: V2Tag[] }>(deps, `/v2/${kind}s/${id}/tags/`);
+	const records = (data.results ?? []).filter((tag) => tag.name);
+	return { id, tags: records.map((tag) => tag.name!), records };
+}
+
+/** Replaces the tags of up to 50 Reader documents in one request; says which were saved. */
+export async function setReaderTags(deps: SavesDeps, updates: { id: string; tags: string[] }[]): Promise<{ id: string; ok: boolean; error?: string }[]> {
+	if (!updates.length) return [];
+	const data = await sendJson<{ results?: { id?: string; success?: boolean; error?: string }[] }>(deps, 'Readwise', `${READWISE}/v3/bulk_update/`, 'PATCH', readwiseAuth(deps), { updates: updates.slice(0, 50) });
+	const answers = new Map((data?.results ?? []).map((result) => [result.id, result]));
+	return updates.slice(0, 50).map(({ id }) => {
+		const answer = answers.get(id);
+		return answer ? { id, ok: answer.success === true, ...(answer.success ? {} : { error: answer.error || 'Readwise didn’t save this.' }) } : { id, ok: !!data && !data.results };
+	});
+}
+
+/** Adds and removes tags on one highlight or highlighted book, a request per tag; returns what it has after. */
+export async function changeReadwiseTags(deps: SavesDeps, ref: string, change: { add: string[]; remove: string[] }): Promise<string[]> {
+	const [, kind, id] = readwiseRef(ref) ?? [];
+	if (kind !== 'highlight' && kind !== 'book') throw new SavesError('That isn’t a highlight or a highlighted book.');
+	const base = `${READWISE}/v2/${kind}s/${id}/tags/`;
+	const { records = [] } = await readwiseTags(deps, ref);
+	const lower = (value: string) => value.toLowerCase();
+	let tags = records.map((tag) => tag.name!);
+	for (const record of records.filter((tag) => change.remove.some((name) => lower(name) === lower(tag.name!)))) {
+		await sendJson(deps, 'Readwise', `${base}${record.id}`, 'DELETE', readwiseAuth(deps));
+		tags = tags.filter((name) => name !== record.name);
+	}
+	for (const name of change.add.filter((tag) => !tags.some((one) => lower(one) === lower(tag)))) {
+		await sendJson(deps, 'Readwise', base, 'POST', readwiseAuth(deps), { name });
+		tags.push(name);
+	}
+	return tags;
+}
+
+/** Whether an error is a service asking to slow down, so the rest of a batch is left for later. */
+export const isRateLimited = limited;

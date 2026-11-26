@@ -7,6 +7,8 @@
  * Pure, so it is shared by the page's first render and the live socket, and tested alone.
  */
 import type { ChatAuthor, ChatMessage, ChatSelection, ChatToolUse } from '../../chat';
+import { MCP_SERVERS } from '../../mcp-servers';
+import { CODEMODE_TOOL, isMcpTool, scriptCalls } from './mcp-tools';
 
 /** The entry kind people's messages are stored as, with their author in `data`. */
 export const SAY_KIND = 'chat.say';
@@ -160,8 +162,8 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 export const RESPONSE_SHOWN = 3000;
 const clip = (text: string, most: number) => text.length > most ? `${text.slice(0, most).trimEnd()}…` : text;
 
-/** Tools that read or write what only Casey may see (drafts, private saves): their results stay out of the chat. */
-export const isPrivateTool = (name: string) => name.startsWith('micropub_') || name === 'my_saves';
+/** Tools that read or write what only Casey may see (drafts, private saves, anything a script read with Casey's sign-ins): their results stay out of the chat. */
+export const isPrivateTool = (name: string) => name.startsWith('micropub_') || name === 'my_saves' || name === CODEMODE_TOOL || isMcpTool(name);
 /** The Micropub arguments that say what was done without saying what was written. */
 const MICROPUB_SHOWN = new Set(['url', 'post_status', 'type', 'drafts_only', 'limit', 'action']);
 
@@ -209,6 +211,10 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		const parts = [notes ? `${notes} note${notes === 1 ? '' : 's'}` : '', links ? `${links} link${links === 1 ? '' : 's'}` : '', searches.length && !places.length ? `results for ${searches.join(', ')}` : '', places.length ? `everything in ${places.join(', ')}` : ''].filter(Boolean);
 		return `Added ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'to the table'}`.slice(0, 120);
 	}
+	if (name === CODEMODE_TOOL) {
+		const asked = scriptCalls(String(args.code ?? ''), Object.fromEntries(MCP_SERVERS.map((server) => [server.id, server.name])));
+		return asked.length ? `Asked ${asked[0]}${asked.length > 1 ? ` and ${asked.length - 1} more` : ''}`.slice(0, 100) : 'Ran a script';
+	}
 	if (name === 'my_saves') {
 		const source = ({ arena: 'Are.na', raindrop: 'Raindrop', readwise: 'Readwise' } as Record<string, string>)[String(args.source ?? '').toLowerCase()] ?? 'saves';
 		const place = typeof args.in === 'string' && args.in ? ` “${args.in.slice(0, 50)}”` : '';
@@ -252,6 +258,11 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		return args.layout === 'auto' ? `Tidied up ${what}` : `Arranged ${what} ${how[String(args.layout)] ?? 'in a grid'}`;
 	}
 	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
+	if (name === 'table_tag') {
+		const where = args.inside ? 'a frame' : Array.isArray(args.ids) && args.ids.length ? count(args.ids, 'item') : 'the table';
+		const tags = [...(Array.isArray(args.add) ? args.add.map((tag) => `+${tag}`) : []), ...(Array.isArray(args.remove) ? args.remove.map((tag) => `−${tag}`) : [])].join(' ').slice(0, 60);
+		return tags ? `Staged tags for ${where}: ${tags}` : `Read the tags of ${where}`;
+	}
 	if (name === 'table_select') return `Pointed out ${count(args.ids, 'item')}`;
 	if (name === 'table_rename') return `Renamed the table “${String(args.name ?? '').slice(0, 60)}”`;
 	return name.replace(/_/g, ' ');

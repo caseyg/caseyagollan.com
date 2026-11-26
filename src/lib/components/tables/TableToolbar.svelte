@@ -40,9 +40,15 @@
 		/** Whether the selected blocks show their details; with `ondetails`, the owner gets a Details toggle while blocks are selected. */
 		details?: 'shown' | 'hidden' | 'mixed';
 		ondetails?: (shown: boolean) => void;
+		/**
+		 * With `ontags`, the owner gets a Tags button: it opens the tag panel for the selection (or the
+		 * whole table). `count` is how many things have tag changes not saved yet.
+		 */
+		tags?: { open: boolean; count: number };
+		ontags?: () => void;
 	}
 
-	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails }: Props = $props();
+	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -61,6 +67,10 @@
 		{#if details && ondetails}
 			<span class="divider" aria-hidden="true"></span>
 			<Button variant="quiet" size="sm" icon="properties" pressed={details === 'shown'} onclick={() => ondetails(details !== 'shown')} title={details === 'shown' ? 'Hide the selected blocks’ source line and kind tile' : 'Show the selected blocks’ source line and kind tile'}>Details</Button>
+		{/if}
+		{#if tags && ontags}
+			<span class="divider" aria-hidden="true"></span>
+			<Button variant="quiet" size="sm" icon="hash" pressed={tags.open} aria-expanded={tags.open} onclick={ontags} title={tags.count ? `${tags.count} with tag changes not saved yet` : 'Read and change tags: posts, Raindrop bookmarks, Readwise'}>Tags{#if tags.count}<span class="pending" aria-label="{tags.count} not saved">{tags.count}</span>{/if}</Button>
 		{/if}
 	{/if}
 	<Button variant="icon" icon="fit" label="Fit to screen" onclick={onfit} />
@@ -110,6 +120,18 @@
 		color: var(--text-muted);
 		font-size: var(--fs-xs);
 		white-space: nowrap;
+	}
+
+	/* How many things have tag changes waiting to be saved. */
+	.pending {
+		margin-left: var(--space-1);
+		padding: 0 0.4em;
+		border-radius: var(--radius-full);
+		background: var(--text-primary);
+		color: var(--bg-primary);
+		font-size: var(--fs-xs);
+		font-weight: var(--fw-semibold);
+		line-height: 1.4;
 	}
 
 	.draft {

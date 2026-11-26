@@ -12,7 +12,8 @@ describe('Raindrop bookmarks for the owner', () => {
 			meta: 'Raindrop · robinsloan.com · 2026-10-02',
 			excerpt: 'Small software · reread',
 			image: 'https://rdl.ink/c.jpg',
-			icon: '📄'
+			icon: '📄',
+			ref: 'raindrop:1'
 		});
 		expect(raindropBlock({ _id: 2, link: 'https://www.example.com/x', cover: 'http://insecure/c.jpg' })).toMatchObject({ title: 'example.com', image: undefined, icon: '💧' });
 		expect(raindropBlock({ _id: 3, link: 'javascript:alert(1)' })).toBeNull();
