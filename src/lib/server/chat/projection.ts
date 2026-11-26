@@ -87,7 +87,9 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 			for (const part of assistant.content) {
 				if (part.type !== 'toolCall') continue;
 				const call = part as Call;
-				const use: ChatToolUse = { tool: call.name, label: toolLabel(call.name, call.arguments ?? {}), status: 'running' };
+				const request = requestOf(call.name, call.arguments ?? {});
+				// After the text written so far: where the reader sees the step in the reply.
+				const use: ChatToolUse = { tool: call.name, label: toolLabel(call.name, call.arguments ?? {}), status: 'running', at: target.content.trimEnd().length, ...(request.length ? { request } : {}) };
 				target.tools!.push(use);
 				calls.set(call.id, { use, args: call.arguments ?? {} });
 			}
@@ -97,6 +99,9 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 			const call = calls.get(result.toolCallId);
 			if (!call) continue;
 			call.use.status = result.isError ? 'failed' : 'done';
+			const said = textOf(result.content).trim();
+			if (result.isError && said) call.use.error = clip(said, 300);
+			else if (said && !isPrivateTool(result.toolName)) call.use.response = clip(said, RESPONSE_SHOWN);
 			if (!result.isError && (result.toolName === 'search_site' || result.toolName === 'fetch_page')) {
 				const links = linksFrom(result.toolName, textOf(result.content));
 				if (links.length) call.use.links = links;
@@ -138,6 +143,32 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 		if (message.role === 'assistant' && !message.tools?.length) delete message.tools;
 	}
 	return messages;
+}
+
+/** How much of a step's result a reader can open. */
+export const RESPONSE_SHOWN = 3000;
+const clip = (text: string, most: number) => text.length > most ? `${text.slice(0, most).trimEnd()}…` : text;
+
+/** Tools that read or write what only Casey may see (drafts, private saves): their results stay out of the chat. */
+export const isPrivateTool = (name: string) => name.startsWith('micropub_') || name === 'my_saves';
+/** The Micropub arguments that say what was done without saying what was written. */
+const MICROPUB_SHOWN = new Set(['url', 'post_status', 'type', 'drafts_only', 'limit', 'action']);
+
+/**
+ * What a step was asked, for readers who open it: each argument by name (`page_size` reads “Page
+ * size”) with its value, long ones cut. A Micropub step shows where and how, never the words.
+ */
+export function requestOf(name: string, args: Record<string, unknown>): NonNullable<ChatToolUse['request']> {
+	const rows: NonNullable<ChatToolUse['request']> = [];
+	for (const [key, value] of Object.entries(args)) {
+		if (value === undefined || value === null || value === '') continue;
+		if (name.startsWith('micropub_') && !MICROPUB_SHOWN.has(key)) continue;
+		const words = key.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim().toLowerCase();
+		if (!words) continue;
+		rows.push({ name: words[0].toUpperCase() + words.slice(1), value: clip(typeof value === 'string' ? value : JSON.stringify(value) ?? '', 300) });
+		if (rows.length >= 12) break;
+	}
+	return rows;
 }
 
 /** What readers see for a step: the query, the address, or what Micropub was asked to do. */

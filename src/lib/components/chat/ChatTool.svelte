@@ -1,113 +1,96 @@
 <script lang="ts">
 	import type { ChatToolUse } from '$lib/chat';
-	import { Icon, LinkPreviewCard, type IconName } from '$lib/components/ui';
+	import { Disclosure, JsonView } from '$lib/components/ui';
 
 	interface Props {
 		step: ChatToolUse;
+		/** `row` in a list of steps; `line` when it is the only step and stands in the reply by itself. */
+		variant?: 'row' | 'line';
+		/** Supports bind:open. */
+		open?: boolean;
 	}
 
-	let { step }: Props = $props();
+	let { step, variant = 'row', open = $bindable(false) }: Props = $props();
 
-	const ICON: Record<string, IconName> = { search_site: 'search', fetch_page: 'globe', show_page: 'globe', go_to: 'arrow', table_add_note: 'sticky', table_move: 'hand', table_arrange: 'fit', table_select: 'pointer', table_remove: 'eraser', table_look: 'image', view_image: 'image', table_tidy: 'fit', table_align: 'fit', table_connect: 'arrow', table_draw: 'pencil', table_frame: 'box', table_group: 'layers', table_edit: 'text', table_add: 'sticky', table_pull: 'image', table_new: 'box', table_read: 'box' };
-	const icon = $derived<IconName>(ICON[step.tool] ?? (step.tool.startsWith('micropub_') ? 'article' : step.tool.startsWith('table_') || step.tool === 'create_table' ? 'box' : 'sparkle'));
-	const hasLinks = $derived(!!step.links?.length);
+	// What the step was about (the words in quotes) reads brighter than what it did.
+	const words = $derived(step.label.split(/(“[^”]*”)/).filter(Boolean).map((text) => /^“.*”$/.test(text) ? { text: text.slice(1, -1), subject: true } : { text, subject: false }));
+	const details = $derived(!!(step.picture || step.links?.length || step.request?.length || step.response || step.error));
 </script>
 
-<!-- One step the agent took, in gray: what it searched or read. Links open on demand; a page it showed is a card. -->
-{#if step.peek}
-	<div class="chat-tool chat-tool--peek" data-status={step.status}>
-		<LinkPreviewCard class="peek" href={step.peek.url} title={step.peek.title} excerpt={step.peek.excerpt} />
-	</div>
-{:else if step.picture}
-	<!-- A picture the assistant looked at: its snapshot of the table, or an image it opened. Shown on demand. -->
-	<details class="chat-tool" data-status={step.status}>
-		<summary>
-			<Icon name={icon} size={13} />
-			<span class="label">{step.label}</span>
-			<span class="more"><Icon name="chevron" size={12} /></span>
-		</summary>
-		<a class="picture" href={step.picture.src} target="_blank" rel="nofollow noopener"><img src={step.picture.src} alt={step.picture.alt} loading="lazy" /></a>
-	</details>
-{:else if hasLinks}
-	<details class="chat-tool" data-status={step.status}>
-		<summary>
-			<Icon name={icon} size={13} />
-			<span class="label">{step.label}</span>
-			<span class="more"><Icon name="chevron" size={12} /></span>
-		</summary>
-		<ul>
-			{#each step.links ?? [] as link (link.url)}
-				<li><a href={link.url} rel="nofollow noopener">{link.title}</a></li>
-			{/each}
-		</ul>
-	</details>
+{#snippet summary()}
+	<span class="chat-tool" data-status={step.status}>
+		{#each words as word, index (index)}{#if word.subject}<span class="subject">{word.text}</span>{:else}{word.text}{/if}{/each}{step.status === 'running' ? '…' : ''}
+		{#if step.status === 'failed'}<span class="failed">didn’t work</span>{/if}
+	</span>
+{/snippet}
+
+<!-- One step the agent took: what it did in a line, opening to what it saw, what it was asked and what came back. -->
+{#if details}
+	<Disclosure {variant} bind:open {summary}>
+		<div class="chat-tool-details">
+			{#if step.picture}
+				<a class="picture" href={step.picture.src} target="_blank" rel="nofollow noopener"><img src={step.picture.src} alt={step.picture.alt} loading="lazy" /></a>
+			{/if}
+			{#if step.links?.length}
+				<ul class="links">
+					{#each step.links as link (link.url)}
+						<li><a href={link.url} rel="nofollow noopener">{link.title}</a></li>
+					{/each}
+				</ul>
+			{/if}
+			{#if step.error}
+				<section class="panel">
+					<h4>Error</h4>
+					<p>{step.error}</p>
+				</section>
+			{/if}
+			{#if step.request?.length}
+				<section class="panel">
+					<h4>Request</h4>
+					<dl>
+						{#each step.request as row (row.name)}
+							<dt>{row.name}</dt>
+							<dd>{row.value}</dd>
+						{/each}
+					</dl>
+				</section>
+			{/if}
+			{#if step.response}
+				<section class="panel">
+					<h4>Response</h4>
+					<JsonView text={step.response} label="Response" />
+				</section>
+			{/if}
+		</div>
+	</Disclosure>
 {:else}
-	<div class="chat-tool" data-status={step.status}>
-		<span class="row">
-			<Icon name={icon} size={13} />
-			<span class="label">{step.label}{step.status === 'running' ? '…' : ''}</span>
-			{#if step.status === 'failed'}<span class="failed">didn’t work</span>{/if}
-		</span>
-	</div>
+	<Disclosure {variant} {summary} />
 {/if}
 
 <style>
-	/* A page the assistant showed sits in the reply, so it needs no popover shadow. */
-	.chat-tool--peek :global(.peek) {
-		box-shadow: none;
+	.subject {
+		color: var(--text-primary);
 	}
 
-	.chat-tool {
-		color: var(--text-muted);
-		font-size: var(--fs-xs);
-		line-height: var(--lh-snug);
-	}
-
-	summary,
-	.row {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--space-1);
-		padding: 0.15rem var(--space-2);
-		border-radius: var(--radius-full);
-		background: var(--surface-2);
-	}
-
-	summary {
-		cursor: pointer;
-		list-style: none;
-		transition: color var(--duration) var(--ease);
-	}
-
-	summary::-webkit-details-marker {
-		display: none;
-	}
-
-	summary:hover {
-		color: var(--text-secondary);
-	}
-
-	.more {
-		display: inline-flex;
-		transition: transform var(--duration) var(--ease);
-	}
-
-	details[open] .more {
-		transform: rotate(180deg);
-	}
-
-	[data-status='running'] .label {
+	[data-status='running'] {
 		animation: chat-tool-pulse 1.4s var(--ease) infinite;
 	}
 
 	.failed {
+		margin-inline-start: var(--space-1);
 		color: var(--text-secondary);
+		font-size: var(--fs-xs);
+	}
+
+	.chat-tool-details {
+		display: grid;
+		gap: var(--space-2);
+		min-width: 0;
 	}
 
 	.picture {
 		display: block;
 		max-width: min(100%, 22rem);
-		margin-top: var(--space-1);
 	}
 
 	/* Tall tables stay a glance; the link opens the whole picture. */
@@ -121,18 +104,56 @@
 		border: 1px solid var(--border);
 	}
 
-	ul {
-		margin: var(--space-1) 0 0;
+	.links {
+		margin: 0;
 		padding: 0 0 0 var(--space-4);
 	}
 
-	li {
+	.links li {
 		margin: 0.15rem 0;
 	}
 
 	a {
 		color: var(--text-secondary);
 		text-underline-offset: var(--underline-offset);
+		overflow-wrap: anywhere;
+	}
+
+	.panel {
+		min-width: 0;
+		padding: var(--space-2) var(--space-3);
+		border-radius: var(--radius-md);
+		background: var(--surface-sunken);
+	}
+
+	h4 {
+		margin: 0 0 var(--space-1);
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+		font-weight: var(--fw-regular);
+	}
+
+	p {
+		margin: 0;
+		color: var(--text-secondary);
+		overflow-wrap: anywhere;
+	}
+
+	dl {
+		display: grid;
+		grid-template-columns: minmax(4rem, max-content) minmax(0, 1fr);
+		gap: var(--space-1) var(--space-3);
+		margin: 0;
+	}
+
+	dt {
+		color: var(--text-muted);
+	}
+
+	dd {
+		margin: 0;
+		color: var(--text-primary);
+		overflow-wrap: anywhere;
 	}
 
 	@keyframes chat-tool-pulse {
@@ -140,6 +161,6 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		[data-status='running'] .label { animation: none; }
+		[data-status='running'] { animation: none; }
 	}
 </style>

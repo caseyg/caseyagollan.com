@@ -23,7 +23,7 @@ export interface ChatViewer extends ChatAuthor {
 	owner: boolean;
 }
 
-/** One step the agent took while answering, shown in gray under its reply. */
+/** One step the agent took while answering, shown in gray in its reply, where it happened. */
 export interface ChatToolUse {
 	/** `search_site`, `fetch_page`, or a `micropub_*` tool. */
 	tool: string;
@@ -37,6 +37,79 @@ export interface ChatToolUse {
 	peek?: { url: string; title: string; excerpt?: string };
 	/** A picture the assistant looked at (`view_image`), or its snapshot of a table (`table_look`). */
 	picture?: { src: string; alt: string };
+	/** Where in the reply's `content` the step happened: the length of the text written before it. */
+	at?: number;
+	/** What the step was asked, one row per argument. Never the contents of a post or a private save. */
+	request?: { name: string; value: string }[];
+	/** The start of what came back, as text (often JSON). Only for tools whose results anyone may read. */
+	response?: string;
+	/** Why it didn't work. */
+	error?: string;
+}
+
+/** A reply in the order it happened: stretches of text, and the steps taken between them. */
+export type ChatPart =
+	| { type: 'text'; text: string }
+	/** `first` is the index of the group's first step in the message's `tools`. */
+	| { type: 'steps'; steps: ChatToolUse[]; first: number };
+
+/**
+ * A reply's text cut where its steps happened (`ChatToolUse.at`), so each group of steps sits between
+ * the text before and after it. Steps without a place (older threads) come first, as they used to.
+ */
+export function messageParts(message: Pick<ChatMessage, 'content' | 'tools'>): ChatPart[] {
+	const { content } = message;
+	const parts: ChatPart[] = [];
+	let from = 0;
+	let group: Extract<ChatPart, { type: 'steps' }> | undefined;
+	(message.tools ?? []).forEach((step, index) => {
+		const at = Math.max(from, Math.min(content.length, Math.round(step.at ?? 0) || 0));
+		if (at > from) {
+			const text = content.slice(from, at);
+			if (text.trim()) { parts.push({ type: 'text', text }); group = undefined; }
+			from = at;
+		}
+		if (!group) parts.push(group = { type: 'steps', steps: [], first: index });
+		group.steps.push(step);
+	});
+	const rest = content.slice(from);
+	if (rest.trim()) parts.push({ type: 'text', text: rest });
+	return parts;
+}
+
+/** What a kind of step is called in a summary: once, and several times. */
+const STEP_KINDS: [test: (tool: string) => boolean, one: string, many: (count: number) => string][] = [
+	[(tool) => tool === 'search_site', 'searched the site', (count) => `searched the site ${count} times`],
+	[(tool) => tool === 'fetch_page', 'read a page', (count) => `read ${count} pages`],
+	[(tool) => tool === 'show_page', 'showed a page', (count) => `showed ${count} pages`],
+	[(tool) => tool === 'go_to', 'took you to a page', () => 'took you to a page'],
+	[(tool) => tool === 'view_image', 'looked at a picture', (count) => `looked at ${count} pictures`],
+	[(tool) => tool === 'my_saves', 'looked through your saves', () => 'looked through your saves'],
+	[(tool) => tool === 'table_new' || tool === 'create_table', 'made a table', (count) => `made ${count} tables`],
+	[(tool) => tool === 'table_look', 'looked at the table', () => 'looked at the table'],
+	[(tool) => tool === 'table_read', 'read the table', () => 'read the table'],
+	[(tool) => tool.startsWith('table_'), 'changed the table', (count) => `made ${count} changes to the table`],
+	[(tool) => tool === 'micropub_create_post' || tool === 'micropub_update_post', 'saved a post', (count) => `saved ${count} posts`],
+	[(tool) => tool.startsWith('micropub_'), 'looked through your posts', () => 'looked through your posts'],
+	[() => true, 'took a step', (count) => `took ${count} other steps`]
+];
+
+/**
+ * A group of steps in a line, such as “Searched the site, read 2 pages”: each kind once, in the order
+ * it first happened. One step alone is its own label.
+ */
+export function stepsSummary(steps: readonly ChatToolUse[]): string {
+	if (steps.length === 1) return steps[0].label;
+	const counts = new Map<number, number>();
+	for (const step of steps) {
+		const kind = STEP_KINDS.findIndex(([test]) => test(step.tool));
+		counts.set(kind, (counts.get(kind) ?? 0) + 1);
+	}
+	const said = [...counts].map(([kind, count]) => count === 1 ? STEP_KINDS[kind][1] : STEP_KINDS[kind][2](count));
+	const failed = steps.filter((step) => step.status === 'failed').length;
+	if (failed) said.push(failed === steps.length ? 'none of it worked' : `${failed} didn’t work`);
+	const line = said.join(', ');
+	return line ? line[0].toUpperCase() + line.slice(1) : '';
 }
 
 export interface ChatMessage {
@@ -208,9 +281,12 @@ export function latestAssistantLine(messages: ChatMessage[]): { text: string; wr
 		.split('\n')
 		.map((line) => line.replace(/^\s*(#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)+/, '').replace(/[*_`~]+/g, '').replace(/\s+/g, ' ').trim())
 		.filter((line) => line && !/^[-|:\s]+$/.test(line));
+	// A step under way is the newest thing happening, even after some text.
+	const running = writing ? message.tools?.findLast((tool) => tool.status === 'running') : undefined;
+	if (running) return { text: `${running.label}…`, writing };
 	const last = lines.at(-1);
 	if (last) return { text: last, writing };
-	const step = message.tools?.findLast((tool) => tool.status === 'running') ?? message.tools?.at(-1);
+	const step = message.tools?.at(-1);
 	if (writing) return { text: step ? `${step.label}…` : 'Thinking…', writing };
 	return { text: message.status === 'failed' ? 'The assistant couldn’t answer.' : step?.label ?? '', writing };
 }
