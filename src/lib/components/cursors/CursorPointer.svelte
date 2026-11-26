@@ -1,11 +1,9 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { countryFlag, cursorInk } from '$lib/cursors';
+	import { cursorInk } from '$lib/cursors';
 
 	interface Props {
 		color: string;
-		/** Two-letter country code, shown as a flag beside the pointer when there's no message. */
-		country?: string;
 		/** What this visitor is saying, in a bubble by the pointer. */
 		message?: string;
 		/** Replaces the message bubble's text: the visitor's own chat field. */
@@ -18,9 +16,8 @@
 		flipY?: boolean;
 	}
 
-	let { color, country, message, field, bubbleOnly = false, flipX = false, flipY = false }: Props = $props();
+	let { color, message, field, bubbleOnly = false, flipX = false, flipY = false }: Props = $props();
 
-	const flag = $derived(countryFlag(country));
 	const ink = $derived(cursorInk(color));
 </script>
 
@@ -38,8 +35,6 @@
 		<div class="bubble bubble--field">{@render field()}</div>
 	{:else if message}
 		<div class="bubble">{message}</div>
-	{:else if flag && !bubbleOnly}
-		<span class="flag">{flag}</span>
 	{/if}
 </div>
 
@@ -66,15 +61,11 @@
 		stroke-linejoin: round;
 	}
 
-	.bubble,
-	.flag {
+	.bubble {
 		position: absolute;
 		top: 16px;
 		left: 14px;
 		white-space: nowrap;
-	}
-
-	.bubble {
 		max-width: min(20rem, 70vw);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -92,13 +83,6 @@
 	.bubble--field {
 		max-width: none;
 		overflow: visible;
-	}
-
-	.flag {
-		top: 14px;
-		left: 12px;
-		font-size: var(--fs-sm);
-		line-height: 1;
 	}
 
 	.flip-x .bubble {

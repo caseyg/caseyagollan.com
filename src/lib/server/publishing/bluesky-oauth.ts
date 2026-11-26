@@ -33,7 +33,7 @@ const PENDING_TTL = 10 * 60_000;
 const REFRESH_EARLY = 60_000;
 const ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
 const DID = /^did:(plc:[a-z2-7]{24}|web:[a-z0-9.-]+)$/;
-const HANDLE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
+export const HANDLE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/i;
 
 /** Where the client lives, from the site's own address. */
 export interface BlueskyOAuthConfig {
@@ -58,7 +58,7 @@ export class OAuthUnavailable extends Error {
 }
 
 interface ClientKeyRecord { key: SigningKey; createdAt: number }
-interface ServerMetadata { issuer: string; authorization_endpoint: string; token_endpoint: string; pushed_authorization_request_endpoint: string; revocation_endpoint?: string }
+export interface ServerMetadata { issuer: string; authorization_endpoint: string; token_endpoint: string; pushed_authorization_request_endpoint: string; revocation_endpoint?: string }
 interface Pending { state: string; verifier: string; binding: string; did: string; handle: string; pds: string; server: ServerMetadata; dpopKey: SigningKey; nonce?: string; createdAt: number }
 export interface StoredSession {
 	did: string; handle: string; pds: string; server: ServerMetadata; scope: string;
@@ -185,7 +185,7 @@ export async function authorizationServer(pds: string, fetcher: PublicFetcher): 
 }
 
 /** A token-endpoint style POST: client assertion and DPoP proof, retried once for a fresh nonce. */
-async function serverPost(config: BlueskyOAuthConfig, server: ServerMetadata, url: string, params: Record<string, string>, dpopKey: SigningKey, nonce: string | undefined, fetcher: PublicFetcher) {
+export async function serverPost(config: Pick<BlueskyOAuthConfig, 'bucket' | 'clientId'>, server: ServerMetadata, url: string, params: Record<string, string>, dpopKey: SigningKey, nonce: string | undefined, fetcher: PublicFetcher) {
 	const key = await clientKey(config.bucket);
 	for (let attempt = 0; ; attempt++) {
 		const body = new URLSearchParams({ ...params, client_id: config.clientId, client_assertion_type: ASSERTION_TYPE, client_assertion: await clientAssertion(key, config.clientId, server.issuer) });

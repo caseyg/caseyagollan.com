@@ -7,11 +7,34 @@
 	import { OPENSEARCH_PATH, OPENSEARCH_TITLE } from '$lib/opensearch';
 	import WikiPreviews from '$lib/components/wiki/WikiPreviews.svelte';
 	import CursorPresence from '$lib/components/cursors/CursorPresence.svelte';
+	import { onMount } from 'svelte';
+	import { ownerSignedIn } from '$lib/owner';
+	import { CHAT_OWNER_ONLY, type ChatViewer } from '$lib/chat';
 
 	let { children } = $props();
 
 	// A type or tag page names its own feeds first, so a reader given the page picks those.
 	const scoped = $derived(page.data.feeds as ScopedFeeds | undefined);
+
+	// Casey's chat follows them around the site. Visitors never load it: chat is owner-only for now.
+	let chatViewer = $state<ChatViewer | null>(null);
+	const framed = () => {
+		try {
+			return window.self !== window.top;
+		} catch {
+			return true;
+		}
+	};
+	onMount(() => {
+		void (async () => {
+			// A page shown inside another (a table's preview in a chat answer or a post) is not
+			// where Casey is: a second chat there opened inside the first.
+			if (framed()) return;
+			if (CHAT_OWNER_ONLY && !(await ownerSignedIn())) return;
+			const response = await fetch('/api/chat', { credentials: 'same-origin', cache: 'no-store' }).catch(() => null);
+			if (response?.ok) chatViewer = ((await response.json()) as { viewer: ChatViewer }).viewer;
+		})();
+	});
 </script>
 
 <svelte:head>
@@ -46,3 +69,9 @@
 
 <!-- Other visitors' cursors on this page, and chat by your own (press C). -->
 <CursorPresence />
+
+{#if chatViewer}
+	{#await import('$lib/components/chat/SiteChat.svelte') then { default: SiteChat }}
+		<SiteChat viewer={chatViewer} />
+	{/await}
+{/if}

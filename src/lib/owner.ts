@@ -3,6 +3,8 @@
  * to ask the server about the session; the session cookie still gates every action.
  */
 const KEY = 'owner-signed-in';
+/** Set by the server beside the session cookie (see src/lib/server/owner-hint.ts), readable here. */
+export const OWNER_HINT_COOKIE = 'owner-hint';
 
 let check: Promise<boolean> | undefined;
 
@@ -12,10 +14,19 @@ export function rememberOwner(signedIn: boolean): void {
 		if (signedIn) localStorage.setItem(KEY, '1');
 		else localStorage.removeItem(KEY);
 	} catch { /* Storage can be unavailable; the edit page still offers sign-in. */ }
+	if (!signedIn && typeof document !== 'undefined') document.cookie = `${OWNER_HINT_COOKIE}=; Path=/; Secure; SameSite=Lax; Max-Age=0`;
+}
+
+function hintCookie(): boolean {
+	try {
+		return typeof document !== 'undefined' && document.cookie.split(';').some((part) => part.trim() === `${OWNER_HINT_COOKIE}=1`);
+	} catch { return false; }
 }
 
 export function ownerHint(): boolean {
-	try { return localStorage.getItem(KEY) === '1'; } catch { return false; }
+	// Either hint will do: the server sets the cookie at sign-in, some pages set the stored one.
+	try { if (localStorage.getItem(KEY) === '1') return true; } catch { /* fall through to the cookie */ }
+	return hintCookie();
 }
 
 /**

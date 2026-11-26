@@ -2,32 +2,49 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import type { AuthOperations } from '$lib/server/indieauth/contracts';
-	import { Button, Checkbox, CheckboxGroup, Heading, Notice, Page, PageHeader, Section, TextField } from '$lib/components/ui';
+	import { replaceState } from '$app/navigation';
+	import { Button, Heading, Notice, Page, PageHeader, Row, RowList, Section, Tabs, type TabItem } from '$lib/components/ui';
 	import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
-	import { passkeyError, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
+	import { issuerName, passkeyError, previewSignInHref, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
 	import { rememberOwner } from '$lib/owner';
 	import NewsletterSettings from '$lib/components/NewsletterSettings.svelte';
 	import BlueskySettings from '$lib/components/BlueskySettings.svelte';
+	import McpConnections from '$lib/components/account/McpConnections.svelte';
+	import AccountSignIn from '$lib/components/account/AccountSignIn.svelte';
+	import ConsentRequest from '$lib/components/account/ConsentRequest.svelte';
+	import Passkeys from '$lib/components/account/Passkeys.svelte';
+	import AccessTokens from '$lib/components/account/AccessTokens.svelte';
+	import { accountDate } from '$lib/components/account/scopes';
 
-	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean };
+	/** `signInWith` is set on branch previews, which sign in through that site instead of a passkey. */
+	type Session = { authenticated: boolean; csrf?: string; expiresAt?: number; credentialCount: number; setupAvailable: boolean; signInWith?: string };
 	type Request = { clientId: string; redirectUri: string; scope: string[] };
 	type Token = AuthOperations['listTokens']['output'][number];
 	type Credential = { id: string; createdAt: number; deviceType?: string; backedUp?: boolean };
-	const scopes: Record<string, string> = {
-		profile: 'Read your public profile.', read: 'Read content available to this account.',
-		create: 'Create posts.', update: 'Edit existing posts.', delete: 'Delete posts.',
-		draft: 'Work with drafts.', media: 'Upload images and other media.'
-	};
+
+	/** The settings groups. Add a connection to `connections`, not a new group. */
+	const SECTIONS: TabItem[] = [
+		{ value: 'tools', label: 'Tools' },
+		{ value: 'connections', label: 'Connections' },
+		{ value: 'newsletter', label: 'Newsletter' },
+		{ value: 'security', label: 'Security' }
+	];
+	/** Addresses inside a group that open it: where sign-in callbacks and old links land. */
+	const ANCHORS: Record<string, string> = { bluesky: 'connections', 'connections-chat': 'connections', passkeys: 'security', tokens: 'security' };
+	function sectionFor(url: URL): string | undefined {
+		const anchor = url.hash.slice(1);
+		if (SECTIONS.some((section) => section.value === anchor)) return anchor;
+		if (ANCHORS[anchor]) return ANCHORS[anchor];
+		if (url.searchParams.has('bluesky') || url.searchParams.has('mcp')) return 'connections';
+	}
+	let section = $state('tools');
 	let session = $state<Session | null>(null);
 	let request = $state<Request | null>(null);
 	let selectedScopes = $state<string[]>([]);
-	let personalScopes = $state<string[]>([]);
 	let tokens = $state<Token[]>([]);
 	let credentials = $state<Credential[]>([]);
-	let setupToken = $state('');
 	let newToken = $state('');
-	let personalTokenName = $state('');
 	let busy = $state(false);
 	let error = $state('');
 	let notice = $state('');
@@ -36,6 +53,8 @@
 	let loadedRequestId = $state<string | null>(null);
 	let requestError = $state('');
 	const requestId = $derived(page.url.searchParams.get('request'));
+	const previewFailed = $derived(page.url.searchParams.get('signin') === 'failed');
+	const previewReturn = $derived(safeReturnTo(page.url.searchParams.get('returnTo'), page.url.origin) ?? '/account');
 	function returnToPage() {
 		const target = safeReturnTo(page.url.searchParams.get('returnTo'), page.url.origin);
 		if (!target || requestId) return false;
@@ -92,6 +111,7 @@
 	}
 	onMount(() => {
 		passkeysSupported = browserSupportsWebAuthn();
+		section = sectionFor(new URL(window.location.href)) ?? section;
 		void run(async () => {
 			try { await refresh(); } finally { ready = true; }
 		});
@@ -103,116 +123,123 @@
 			await refresh(); notice = 'You are signed in.';
 		});
 	}
-	async function register() {
+	async function register(setupToken = '') {
 		await run(async () => {
 			const authorization = session?.authenticated ? { csrf: session.csrf } : { setupToken };
-			try {
+			{
 				const challenge = await api<{ id: string; options: PublicKeyCredentialCreationOptionsJSON }>('/auth/passkey/register/options', authorization);
 				const response = await startRegistration({ optionsJSON: challenge.options });
 				await api('/auth/passkey/register/verify', { id: challenge.id, response, ...authorization });
 				await refresh(); notice = 'Passkey added.';
-			} finally { setupToken = ''; }
+			}
 		});
 	}
-	function date(value: number) { return new Date(value < 1e12 ? value * 1000 : value).toLocaleString(); }
 	async function consent() {
 		await run(async () => {
 			const result = await api<{ redirect: string }>('/auth/consent', { id: requestId, scope: selectedScopes, csrf: session?.csrf });
 			window.location.assign(result.redirect);
 		});
 	}
-	async function createToken() {
+	async function createToken(name: string, scope: string[]) {
 		await run(async () => {
 			newToken = '';
-			const result = await api<{ access_token: string }>('/auth/tokens', { scope: personalScopes, name: personalTokenName, csrf: session?.csrf });
+			const result = await api<{ access_token: string }>('/auth/tokens', { scope, name, csrf: session?.csrf });
 			newToken = result.access_token;
-			personalTokenName = '';
 			await refresh();
 		});
 	}
+	const revokeToken = (id: string) => run(async () => { await api('/auth/tokens/revoke', { id, csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'Access revoked.'; });
+	const removePasskey = (id: string) => run(async () => { await api('/auth/credentials/remove', { id, csrf: session?.csrf }); await refresh(); notice = 'Passkey removed.'; });
+	const copyToken = () => run(async () => { await navigator.clipboard.writeText(newToken); notice = 'Token copied.'; });
+	const signOut = () => run(async () => { await api('/auth/logout', { csrf: session?.csrf }); rememberOwner(false); newToken = ''; await refresh(); notice = 'You are signed out.'; });
+
+	// The open group is part of the address, so it can be linked to and survives a reload.
+	function openSection(value: string) {
+		section = value;
+		const url = new URL(page.url);
+		url.hash = value;
+		replaceState(url, page.state);
+	}
+	function onhashchange() {
+		section = sectionFor(new URL(window.location.href)) ?? section;
+	}
+	const signedOut = $derived(!!session && !session.authenticated);
+	/** An app's request, or a sign-in, is one decision: it gets the page to itself. */
+	const focused = $derived(!!requestId || signedOut);
 </script>
 
 <svelte:head><title>Account · Casey Gollan</title><meta name="robots" content="noindex, nofollow" /></svelte:head>
+<svelte:window {onhashchange} />
 
-<Page as="main" width="wide" aria-busy={busy}>
-	<PageHeader trail={[{ label: 'Casey Gollan', href: '/', icon: '👋' }]} tight>
-		<Heading level={1} size="display">Account</Heading>
+<Page as="main" width={focused ? 'reading' : 'wide'} aria-busy={busy}>
+	<PageHeader trail={[{ label: 'Casey Gollan', href: '/', icon: '👋' }]} title={focused ? 'Account' : undefined} tight>
+		{#if !focused}<Heading level={1} size="display">Account</Heading>{/if}
 	</PageHeader>
 	{#if error}<Notice tone="error">{error}</Notice>{/if}
-	<p class="status" role="status" aria-live="polite">{busy ? 'Please wait…' : notice}</p>
-	{#if !ready && !error}<p>Loading account…</p>{/if}
-	{#if ready && !passkeysSupported}<Notice tone="error">This browser does not support passkeys. Open this page in a browser with passkey support to sign in or add a passkey.</Notice>{/if}
-	{#if requestError}<Notice tone="error">{requestError}</Notice>{/if}
-	{#if requestId && session && !session.authenticated}<p>Sign in to review this app's access request.</p>{/if}
-	{#if session && !session.authenticated}
-		<Section title="Owner sign-in">
-			<p>Use a passkey to manage this site's connected apps and access tokens.</p>
-			{#if session.credentialCount > 0}<Button variant="primary" disabled={busy || !passkeysSupported} onclick={login}>Sign in with passkey</Button>{/if}
-			{#if session.setupAvailable}
-				<Heading level={3} size="subtitle" class="subsection">Set up your account</Heading>
-				<p>Enter the setup token provided by your site operator, then create your first passkey.</p>
-				<form onsubmit={(event) => { event.preventDefault(); void register(); }}>
-					<TextField label="Setup token" id="setup-token" type="password" autocomplete="off" bind:value={setupToken} required disabled={busy} />
-					<Button type="submit" variant="primary" disabled={busy || !setupToken || !passkeysSupported}>Create first passkey</Button>
-				</form>
-			{/if}
-		</Section>
-	{/if}
-	{#if request}
-		<Section title="Connect an app">
-			<p>This app is requesting access to your account. Review its address and permissions before continuing.</p>
-			<dl><dt>App address</dt><dd>{request.clientId}</dd><dt>Return address</dt><dd>{request.redirectUri}</dd></dl>
-			<fieldset disabled={busy || !session?.authenticated}><legend>Permissions</legend>
-				<CheckboxGroup label="Requested permissions" bind:value={selectedScopes}>{#each request.scope as scope (scope)}<Checkbox value={scope}><strong>{scope}</strong> — {scopes[scope] ?? 'Requested permission'}</Checkbox>{/each}</CheckboxGroup>
-				{#if !request.scope.length}<p>Confirm your identity without granting additional permissions.</p>{/if}
-			</fieldset>
-			<div class="actions">
-				{#if session?.authenticated}<Button variant="primary" disabled={busy} onclick={consent}>Allow access</Button>{:else}<p>Sign in to review and approve access.</p>{/if}
-				<Button href="/account" variant="quiet">Cancel</Button>
-			</div>
-		</Section>
-	{/if}
-	{#if session?.authenticated}
-		<p><a href="/new/">Write a new post →</a></p>
-		<p><a href="/readwise">Review Readwise bookmarks →</a></p>
-		<NewsletterSettings csrf={session.csrf} />
-		<BlueskySettings csrf={session.csrf} result={page.url.searchParams.get('bluesky')} message={page.url.searchParams.get('message')} />
-		<Section title="Passkeys">
-			<p>Keep a second passkey so you can sign in if a device is unavailable.</p>
-			<Button disabled={busy || !passkeysSupported} onclick={register}>Add passkey</Button>
-			<ul class="rows">{#each credentials as credential}<li><span>Passkey added {date(credential.createdAt)}{credential.backedUp ? ' · Backed up' : ''}</span>
-				<Button size="sm" disabled={busy || credentials.length <= 1} aria-label={`Remove passkey added ${date(credential.createdAt)}`} onclick={() => run(async () => { await api('/auth/credentials/remove', { id: credential.id, csrf: session?.csrf }); await refresh(); notice = 'Passkey removed.'; })}>Remove</Button>
-			</li>{/each}</ul>
-			{#if credentials.length <= 1}<p class="hint">Your last passkey must remain on your account.</p>{/if}
-		</Section>
-		<Section title="Access tokens">
-			<p>Tokens let apps act with the permissions you grant. Revoke a token to stop its access.</p>
-			{#if tokens.length}<ul class="rows">{#each tokens as token}<li><div><strong>{token.name || token.clientId}</strong><br />Permissions: {token.scope || 'Identity only'}<br /><small>Created {date(token.createdAt)} · Expires {date(token.expiresAt)}</small></div>
-				<Button size="sm" disabled={busy} aria-label={`Revoke access for ${token.name || token.clientId}`} onclick={() => run(async () => { await api('/auth/tokens/revoke', { id: token.id, csrf: session?.csrf }); newToken = ''; await refresh(); notice = 'Access revoked.'; })}>Revoke</Button>
-			</li>{/each}</ul>{:else}<p class="hint">No active access tokens.</p>{/if}
-			<Heading level={3} size="subtitle" class="subsection">Create a personal token</Heading>
-			<TextField label="Token name (optional)" id="token-name" bind:value={personalTokenName} maxlength={100} placeholder="e.g. Laptop publishing" disabled={busy} />
-			<fieldset disabled={busy}><legend>Token permissions</legend><CheckboxGroup bind:value={personalScopes}>{#each Object.entries(scopes) as [scope, description] (scope)}<Checkbox value={scope}><strong>{scope}</strong> — {description}</Checkbox>{/each}</CheckboxGroup></fieldset>
-			<Button variant="primary" disabled={busy || !personalScopes.length} onclick={createToken}>Create token</Button>
-			{#if newToken}<div class="token"><TextField multiline mono label="Copy your new token now. It will not be shown again." id="new-token" readonly value={newToken} spellcheck="false" autocomplete="off" />
-				<div class="actions"><Button disabled={busy} onclick={() => run(async () => { await navigator.clipboard.writeText(newToken); notice = 'Token copied.'; })}>Copy token</Button>
-				<Button variant="quiet" disabled={busy} onclick={() => { newToken = ''; }}>Dismiss token</Button></div></div>{/if}
-		</Section>
-		<Button disabled={busy} onclick={() => run(async () => { await api('/auth/logout', { csrf: session?.csrf }); rememberOwner(false); newToken = ''; await refresh(); notice = 'You are signed out.'; })}>Sign out</Button>
+	<p class="status" role="status" aria-live="polite">{busy && ready ? 'Please wait…' : notice}</p>
+	{#if !ready && !error}<p class="status">Loading account…</p>{/if}
+	{#if previewFailed && signedOut}<Notice tone="error">Sign-in could not be completed. Please try again.</Notice>{/if}
+	{#if session && signedOut}
+		<AccountSignIn
+			signInWith={session.signInWith}
+			returnTo={previewReturn}
+			hasPasskey={session.credentialCount > 0}
+			setupAvailable={session.setupAvailable}
+			{passkeysSupported}
+			{busy}
+			reason={requestId ? 'An app is asking for access. Sign in to review its request.' : undefined}
+			onlogin={login}
+			onsetup={register}
+		/>
+	{:else if requestId && ready}
+		{#if request}
+			<ConsentRequest clientId={request.clientId} redirectUri={request.redirectUri} scope={request.scope} bind:selected={selectedScopes} {busy} onallow={consent} />
+		{:else if requestError}
+			<Notice tone="error">{requestError}</Notice>
+			<Button href="/account">Go to your account</Button>
+		{/if}
+	{:else if session?.authenticated}
+		{@const owner = session}
+		<Tabs tabs={SECTIONS} label="Account settings" bind:value={() => section, openSection}>
+			{#snippet panel(value)}
+				{#if value === 'tools'}
+					<Section title="Tools">
+						<RowList label="Tools">
+							<Row href="/new/" title="Write a new post" detail="Notes, articles, photos, replies and the rest." />
+							<Row href="/readwise" title="Review Readwise bookmarks" detail="Choose which saved links become bookmark posts." />
+							<Row href="/chat" title="Chat" detail="Ask about the site, or have it draft and publish." />
+							<Row href="/tables/" title="Tables" detail="Canvases of posts, links and saves." />
+						</RowList>
+					</Section>
+				{:else if value === 'connections'}
+					<BlueskySettings csrf={owner.csrf} result={page.url.searchParams.get('bluesky')} message={page.url.searchParams.get('message')} />
+					<McpConnections csrf={owner.csrf} result={page.url.searchParams.get('mcp')} server={page.url.searchParams.get('server')} message={page.url.searchParams.get('message')} />
+				{:else if value === 'newsletter'}
+					<NewsletterSettings csrf={owner.csrf} />
+				{:else if value === 'security'}
+					{#if owner.signInWith}
+						<Section title="Passkeys and tokens">
+							<p>Signed in to this preview through {issuerName(owner.signInWith)}. Passkeys and access tokens are managed there.</p>
+							<Button href={new URL('/account#security', owner.signInWith).href}>Open {issuerName(owner.signInWith)}</Button>
+						</Section>
+					{:else}
+						<Passkeys {credentials} {busy} {passkeysSupported} onadd={() => register()} onremove={removePasskey} />
+						<AccessTokens {tokens} {newToken} {busy} oncreate={createToken} onrevoke={revokeToken} oncopy={copyToken} ondismiss={() => { newToken = ''; }} />
+					{/if}
+					<Section title="This session">
+						<RowList label="This session">
+							<Row title="Signed in on this browser" detail={owner.expiresAt ? `Until ${accountDate(owner.expiresAt)}` : undefined}>
+								{#snippet action()}<Button size="sm" disabled={busy} onclick={signOut}>Sign out</Button>{/snippet}
+							</Row>
+						</RowList>
+					</Section>
+				{/if}
+			{/snippet}
+		</Tabs>
 	{/if}
 </Page>
 
 <style>
-	:global(.subsection) { margin-top: var(--space-6); }
-	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
 	.status { min-height: 1.5em; margin: var(--space-2) 0; color: var(--text-secondary); font-size: var(--fs-sm); }
 	.status:empty { display: none; }
-	.hint, small { color: var(--text-muted); font-size: var(--fs-sm); }
-	.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); margin-top: var(--space-3); }
-	fieldset { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-4) 0; padding: var(--space-3) var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); }
-	legend { padding: 0 var(--space-2); color: var(--text-secondary); font-size: var(--fs-sm); }
-	dt { color: var(--text-muted); font-size: var(--fs-sm); } dd { margin: 0 0 var(--space-3); overflow-wrap: anywhere; }
-	.rows { margin: var(--space-4) 0; padding: 0; list-style: none; }
-	.rows li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) 0; border-top: 1px solid var(--border-subtle); font-variant-numeric: tabular-nums; }
-	.token { margin: var(--space-4) 0; padding: var(--space-3) var(--space-4) var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); }
 </style>

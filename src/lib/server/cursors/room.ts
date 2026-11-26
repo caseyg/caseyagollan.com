@@ -1,4 +1,4 @@
-import { Server, type Connection, type ConnectionContext, type WSMessage } from 'partyserver';
+import { Server, type Connection, type WSMessage } from 'partyserver';
 import { cursorColor, parseClientMessage, ROOM_CAPACITY, type Cursor, type ServerMessage } from '../../cursors';
 
 /** Messages one connection may send per second before the rest are dropped. */
@@ -15,13 +15,12 @@ export class CursorRoom extends Server {
 	/** Per-connection message budget for the current second. Lost on hibernation, which is fine. */
 	#budget = new Map<string, { second: number; count: number }>();
 
-	onConnect(connection: Connection<Cursor>, { request }: ConnectionContext) {
+	onConnect(connection: Connection<Cursor>) {
 		if ([...this.getConnections()].length > ROOM_CAPACITY) {
 			connection.close(1013, 'This page is full');
 			return;
 		}
-		const country = (request as Request & { cf?: { country?: string } }).cf?.country;
-		const cursor: Cursor = { color: cursorColor(connection.id), ...(country ? { country } : {}) };
+		const cursor: Cursor = { color: cursorColor(connection.id) };
 		connection.setState(cursor);
 
 		const cursors: Record<string, Cursor> = {};

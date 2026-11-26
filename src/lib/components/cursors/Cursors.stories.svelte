@@ -12,11 +12,11 @@
 	import PresenceButton from './PresenceButton.svelte';
 
 	const room: Record<string, Cursor> = {
-		a: { color: CURSOR_COLORS[0], country: 'US', position: { x: 0.18, y: 120 } },
-		b: { color: CURSOR_COLORS[2], country: 'DE', position: { x: 0.42, y: 260 }, message: 'love this library graph' },
+		a: { color: CURSOR_COLORS[0], position: { x: 0.18, y: 120 } },
+		b: { color: CURSOR_COLORS[2], position: { x: 0.42, y: 260 }, message: 'love this library graph' },
 		c: { color: CURSOR_COLORS[4], position: { x: 0.68, y: 90 }, message: 'hi Casey 👋' },
-		d: { color: CURSOR_COLORS[5], country: 'JP', position: { x: 0.95, y: 200 }, message: 'near the edge, so the bubble flips' },
-		e: { color: CURSOR_COLORS[1], country: 'BR' }
+		d: { color: CURSOR_COLORS[5], position: { x: 0.95, y: 200 }, message: 'near the edge, so the bubble flips' },
+		e: { color: CURSOR_COLORS[1] }
 	};
 	const long = 'x'.repeat(CHAT_MAX_LENGTH).replace(/x/g, (_, i) => (i % 6 === 5 ? ' ' : 'w'));
 	let width = $state(800);
@@ -33,7 +33,7 @@
 <Story name="Pointers">
 	<div class="grid">
 		{#each CURSOR_COLORS as color (color)}
-			<div class="cell"><CursorPointer {color} country="US" /></div>
+			<div class="cell"><CursorPointer {color} /></div>
 		{/each}
 	</div>
 	<div class="grid">
@@ -47,7 +47,6 @@
 	<div class="stack">
 		<div class="cell cell--wide"><CursorPointer color={CURSOR_COLORS[0]} message="Short" /></div>
 		<div class="cell cell--wide"><CursorPointer color={CURSOR_COLORS[3]} message={long} /></div>
-		<div class="cell cell--wide"><CursorPointer color={CURSOR_COLORS[6]} message="Without a flag" /></div>
 		<div class="cell cell--wide"><CursorPointer color={CURSOR_COLORS[7]} {field} bubbleOnly /></div>
 		<div class="cell cell--wide"><CursorPointer color={CURSOR_COLORS[2]} field={emptyField} bubbleOnly /></div>
 		<div class="cell cell--wide flip"><CursorPointer color={CURSOR_COLORS[5]} message="Flipped left and up" flipX flipY /></div>

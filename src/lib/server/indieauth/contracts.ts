@@ -5,12 +5,19 @@ export function tokenName(value: unknown): string | undefined {
  if (typeof value !== 'string' || value.length > AUTH_TOKEN_NAME_MAX_LENGTH) authError('invalid_request');
  return value.trim() || undefined;
 }
-export interface AuthSettings { issuer: string; me: string; rpID: string; rpName: string; tokenTTL: number; setupToken?: string }
+/**
+ * `previewIssuer` is set on branch previews (`AUTH_PREVIEW_ISSUER`): the preview has no
+ * passkeys and issues no tokens. Casey signs in by approving the preview as an IndieAuth
+ * client on that issuer (production), and the preview keeps its own owner session.
+ */
+export interface AuthSettings { issuer: string; me: string; rpID: string; rpName: string; tokenTTL: number; setupToken?: string; previewIssuer?: string }
 export interface IndieAuthEnvironment {
- AUTH_ENABLED?: string; AUTH_ORIGIN?: string; AUTH_ME?: string; AUTH_RP_NAME?: string;
+ AUTH_ENABLED?: string; AUTH_ORIGIN?: string; AUTH_ME?: string; AUTH_RP_NAME?: string; AUTH_PREVIEW_ISSUER?: string;
  AUTH_SETUP_TOKEN?: string; AUTH_INTROSPECTION_TOKEN?: string; AUTH_TOKEN_TTL_SECONDS?: string;
  AUTH_STORE?: DurableObjectNamespace;
  ASSETS?: Pick<Fetcher, 'fetch'>;
+ /** On previews: the production Worker, for redeeming the sign-in code. A Worker can't fetch a custom domain served by its own script over the network. */
+ AUTH_ISSUER?: Pick<Fetcher, 'fetch'>;
 }
 export interface AuthorizationRequest { clientId: string; redirectUri: string; state?: string; scope: string[]; codeChallenge: string; clientName?: string }
 export interface SessionInfo { csrf: string; expiresAt: number }
@@ -25,6 +32,7 @@ export interface AuthOperations {
  authenticationVerify: { input: { id: string; response: unknown; origin: string }; output: { sessionToken: string; csrf: string; expiresAt: number } };
  session: { input: { token: string }; output: SessionInfo | null };
  logout: { input: { session: string; csrf: string }; output: boolean };
+ previewSession: { input: { me: string }; output: { sessionToken: string; csrf: string; expiresAt: number } };
  createRequest: { input: AuthorizationRequest; output: { id: string } };
  request: { input: { id: string }; output: AuthorizationRequest | null };
  approveRequest: { input: { id: string; session: string; csrf: string; scope: string[] }; output: { code: string; redirectUri: string; state?: string } };
@@ -42,15 +50,32 @@ export interface AuthRPC { invoke<K extends keyof AuthOperations>(operation: K, 
 export type AuthOperation = keyof AuthOperations;
 export const AUTH_ERRORS: Record<string, number> = { invalid_request: 400, invalid_client: 400, invalid_redirect_uri: 400, invalid_scope: 400, invalid_grant: 400, unsupported_grant_type: 400, invalid_token: 401, invalid_owner_auth: 401, invalid_authentication: 401, access_denied: 403, setup_closed: 403, csrf_failed: 403, credential_limit: 409, last_credential: 409, slow_down: 429, temporarily_unavailable: 503 };
 export function authError(code: keyof typeof AUTH_ERRORS): never { throw new Error(`indieauth:${code}`); }
+/** Stands in for the preview's own origin inside its Durable Object, which never sees a request URL. */
+const PREVIEW_STORE_ORIGIN = 'https://preview.invalid/';
+function rootUrl(value: string): URL | undefined {
+ const url = new URL(value);
+ return url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash || url.port ? undefined : url;
+}
 export function authSettings(env: IndieAuthEnvironment): AuthSettings | undefined {
- if (env.AUTH_ENABLED !== 'true' || !env.AUTH_STORE || !env.AUTH_ORIGIN) return;
+ const preview = env.AUTH_PREVIEW_ISSUER;
+ if (env.AUTH_ENABLED !== 'true' || !env.AUTH_STORE || !(env.AUTH_ORIGIN || preview)) return;
  try {
-  const issuer = new URL(env.AUTH_ORIGIN); const me = new URL(env.AUTH_ME ?? 'https://caseyagollan.com/');
-  for (const url of [issuer,me]) if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash || url.port) return;
+  const issuer = rootUrl(env.AUTH_ORIGIN ?? PREVIEW_STORE_ORIGIN); const me = rootUrl(env.AUTH_ME ?? 'https://caseyagollan.com/');
+  const previewIssuer = preview === undefined ? undefined : rootUrl(preview);
+  if (!issuer || !me || (preview !== undefined && !previewIssuer)) return;
   const ttl = Number(env.AUTH_TOKEN_TTL_SECONDS ?? 30 * 86400);
   if (!Number.isInteger(ttl) || ttl < 300 || ttl > 90 * 86400) return;
-  return { issuer: issuer.origin + '/', me: me.href, rpID: issuer.hostname, rpName: env.AUTH_RP_NAME ?? 'Casey Gollan', tokenTTL: ttl, setupToken: env.AUTH_SETUP_TOKEN };
+  return { issuer: issuer.origin + '/', me: me.href, rpID: issuer.hostname, rpName: env.AUTH_RP_NAME ?? 'Casey Gollan', tokenTTL: ttl, setupToken: previewIssuer ? undefined : env.AUTH_SETUP_TOKEN, ...(previewIssuer ? { previewIssuer: previewIssuer.href } : {}) };
  } catch { return; }
+}
+/**
+ * Previews are served from a per-branch workers.dev host that no var can name, so the
+ * Worker sets `AUTH_ORIGIN` to the host each request arrived on. Production is untouched.
+ */
+export function withPreviewOrigin<E extends IndieAuthEnvironment>(env: E, request: Request): E {
+ if (!env.AUTH_PREVIEW_ISSUER) return env;
+ const url = new URL(request.url);
+ return url.protocol === 'https:' ? { ...env, AUTH_ORIGIN: url.origin + '/' } : env;
 }
 export function authStore(env: IndieAuthEnvironment): AuthRPC | undefined {
  if (!authSettings(env) || !env.AUTH_STORE) return;

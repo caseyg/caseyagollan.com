@@ -41,4 +41,21 @@
 		bottom: calc(var(--nav-inset) + env(safe-area-inset-bottom));
 		z-index: var(--z-nav);
 	}
+
+	/* Beside the chat's round button, when that is in this corner too. */
+	:global(body:has(.floating-button[data-corner='bottom-right'])) .floating {
+		right: calc(var(--nav-inset) + 2.75rem + var(--space-2) + env(safe-area-inset-right));
+	}
+
+	/* Clear of the docked chat: left of its sidebar, above its folded sheet. */
+	@media (min-width: 900px) {
+		:global(html[data-chat-dock='side']) .floating {
+			right: calc(var(--chat-dock-width) + 2 * var(--nav-inset));
+		}
+	}
+
+	:global(html[data-chat-dock='sheet']) .floating {
+		bottom: calc(var(--chat-sheet-rest, 0px) + var(--nav-inset));
+		z-index: calc(var(--z-menu) - 1);
+	}
 </style>

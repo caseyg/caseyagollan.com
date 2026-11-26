@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { CHAT_MAX_LENGTH, cleanChat, countryFlag, cursorColor, cursorInk, cursorRoom, cursorsAllowed, CURSOR_COLORS, parseClientMessage } from '../src/lib/cursors';
+import { CHAT_MAX_LENGTH, cleanChat, cursorColor, cursorInk, cursorRoom, cursorsAllowed, CURSOR_COLORS, parseClientMessage } from '../src/lib/cursors';
 
 describe('cursor messages', () => {
 	test('reads moves and clamps them to the page', () => {
@@ -37,8 +37,5 @@ describe('cursor rooms', () => {
 		expect(CURSOR_COLORS as readonly string[]).toContain(cursorColor('xyz'));
 		expect(cursorInk('#ffffff')).toBe('#1a1a1a');
 		expect(cursorInk('#b26bff')).toBe('#fff');
-		expect(countryFlag('US')).toBe('🇺🇸');
-		expect(countryFlag('XX')).toBe('');
-		expect(countryFlag(undefined)).toBe('');
 	});
 });

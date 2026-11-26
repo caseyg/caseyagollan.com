@@ -25,17 +25,22 @@
 		context?: Snippet;
 		/** Small markers after the time, such as "♥ liked" linking to the like. */
 		marks?: { icon: string; label: string; href?: string }[];
+		/** Shows the avatar and the name, handle, time and links line. Off, only the post's content is drawn, as a table block with its details hidden. */
+		byline?: boolean;
 		children: Snippet;
 	}
 
-	let { author, date, url, sources = [], editHref, connected = false, hEntry = false, context, marks = [], children }: Props = $props();
+	let { author, date, url, sources = [], editHref, connected = false, hEntry = false, context, marks = [], byline = true, children }: Props = $props();
 </script>
 
-<article class="social-post" class:h-entry={hEntry} class:connected>
+<article class="social-post" class:h-entry={hEntry} class:connected class:content-only={!byline}>
+	{#if byline}
 	<div class="rail" aria-hidden="true">
 		<a href={author.url} tabindex="-1"><Avatar src={author.avatar} name={author.name} /></a>
 	</div>
+	{/if}
 	<div class="main">
+		{#if byline}
 		<div class="meta">
 			<span class="meta-text">
 			<a class="author" class:p-author={hEntry} class:h-card={hEntry} href={author.url}>
@@ -60,7 +65,8 @@
 				</span>
 			{/if}
 		</div>
-		{#if context}<div class="context">{@render context()}</div>{/if}
+		{/if}
+		{#if context && byline}<div class="context">{@render context()}</div>{/if}
 		<div class="body">{@render children()}</div>
 	</div>
 </article>
@@ -70,6 +76,10 @@
 		display: grid;
 		grid-template-columns: 2.75rem minmax(0, 1fr);
 		column-gap: var(--space-3);
+	}
+
+	.content-only {
+		grid-template-columns: minmax(0, 1fr);
 	}
 
 	.rail a {

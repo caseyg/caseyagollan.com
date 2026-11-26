@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { blockIcon, KIND_LABEL, type Block } from '$lib/tables';
+	import { fetchSourcePost, isSitePostLink, isSocialPiece, isSourcePost, sourceView, type SourceView } from '$lib/table-post-source';
+	import ArenaBlock from './ArenaBlock.svelte';
+	import SocialBlock from './SocialBlock.svelte';
 
 	interface Props {
 		block: Block;
@@ -12,10 +15,33 @@
 		bare?: boolean;
 		/** Shows the block's details: its source line (site, author, year) and the kind tile in the corner. */
 		details?: boolean;
+		/**
+		 * How a note, like or repost reads where it came from. Tiles fetch it themselves (`fetchSourcePost`);
+		 * stories pass it in, and null keeps the plain tile.
+		 */
+		source?: SourceView;
 		class?: string;
 	}
 
-	let { block, layout = 'tile', bare = false, details = true, class: className = '' }: Props = $props();
+	let { block, layout = 'tile', bare = false, details = true, source, class: className = '' }: Props = $props();
+
+	// A tile draws a block like its source where it has one: a Bluesky or Mastodon post as that post, the site's
+	// notes as they read on the site, Are.na as Are.na. Rows (the picker) and bare thumbnails stay plain.
+	const native = $derived(layout === 'tile' && !bare);
+	let fetched = $state<SourceView>(null);
+	$effect(() => {
+		fetched = null;
+		// A plain link to one of the site's posts (an older table's) draws as that post too.
+		if (!native || source !== undefined || !(isSourcePost(block) || isSitePostLink(block))) return;
+		let current = true;
+		void fetchSourcePost(block.url).then((post) => {
+			if (current) fetched = sourceView(post);
+		});
+		return () => {
+			current = false;
+		};
+	});
+	const view = $derived(source === undefined ? fetched : source);
 
 	let failed = $state(false);
 	let loaded = $state(false);
@@ -32,13 +58,19 @@
 	const line = $derived(quote ? block.title : block.meta);
 </script>
 
+{#if native && (view || isSocialPiece(block))}
+	<SocialBlock {block} {view} {details} />
+{:else if native && block.kind === 'arena'}
+	<ArenaBlock {block} {details} />
+{:else}
 <article class="block-card block-card--{layout} block-card--{tone} block-card--{block.kind} {className}" class:bare class:plain={!details} data-kind={block.kind}>
 	{#if image}
 		<div class="media">
 			<img src={image} alt="" loading="lazy" decoding="async" draggable="false" class:loaded use:arrive onload={() => (loaded = true)} onerror={() => (failed = true)} />
 		</div>
 	{/if}
-	{#if !bare}
+	<!-- With details hidden a picture is only itself; text blocks keep their words. -->
+	{#if !bare && !(image && !details && layout === 'tile')}
 		<div class="body">
 			<h3 class="title">{heading}</h3>
 			{#if line && details}<p class="meta">{line}</p>{/if}
@@ -47,6 +79,7 @@
 	{/if}
 	{#if details}<span class="tile" role="img" aria-label={KIND_LABEL[block.kind]} title={KIND_LABEL[block.kind]}>{blockIcon(block)}</span>{/if}
 </article>
+{/if}
 
 <style>
 	.block-card {

@@ -41,8 +41,6 @@ export interface Cursor {
 	/** Unset while the pointer is outside the window or the visitor is on a touch screen. */
 	position?: CursorPosition;
 	color: string;
-	/** Two-letter country code, from Cloudflare, shown as a flag. */
-	country?: string;
 	/** What the visitor is typing or just said. */
 	message?: string;
 }
@@ -118,12 +116,6 @@ export function cursorInk(color: string): string {
 	if (!match) return '#fff';
 	const [r, g, b] = match.slice(1).map((hex) => parseInt(hex, 16) / 255);
 	return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.55 ? '#1a1a1a' : '#fff';
-}
-
-/** The flag emoji for a two-letter country code, or an empty string. */
-export function countryFlag(country?: string): string {
-	if (!country || !/^[A-Z]{2}$/.test(country) || country === 'XX' || country === 'T1') return '';
-	return String.fromCodePoint(...[...country].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65));
 }
 
 function clamp(value: number, min: number, max: number) {

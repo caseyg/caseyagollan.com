@@ -38,7 +38,6 @@
 			<div class="placed" style:transform="translate({(cursor.position?.x ?? 0) * width}px, {cursor.position?.y ?? 0}px)">
 				<CursorPointer
 					color={cursor.color}
-					country={cursor.country}
 					message={cursor.message}
 					flipX={(cursor.position?.x ?? 0) * width > width - ROOM_X}
 					flipY={height > 0 && (cursor.position?.y ?? 0) - scrollY > height - ROOM_Y}

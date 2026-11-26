@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-17T10:22:56.749Z",
+  "updatedAt": "2026-11-25T10:24:05.362Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -1234,7 +1234,7 @@
     {
       "service": "bluesky",
       "handle": "danhon.com",
-      "name": "Dan \"copper line\" Hon"
+      "name": "Dan \"Decorative Horde\" Hon"
     },
     {
       "service": "mastodon",
@@ -3383,6 +3383,11 @@
     },
     {
       "service": "bluesky",
+      "handle": "markhurst.bsky.social",
+      "name": "Mark Hurst"
+    },
+    {
+      "service": "bluesky",
       "handle": "martin.kleppmann.com",
       "name": "Martin Kleppmann"
     },
@@ -4258,6 +4263,11 @@
     },
     {
       "service": "bluesky",
+      "handle": "pa.ulst.ar",
+      "name": "Paul Starr"
+    },
+    {
+      "service": "bluesky",
       "handle": "pablod.bsky.social",
       "name": "Pablo Defendini"
     },
@@ -4310,6 +4320,11 @@
       "service": "bluesky",
       "handle": "patternist.xyz",
       "name": "Alex Good"
+    },
+    {
+      "service": "bluesky",
+      "handle": "paulrobertlloyd.com",
+      "name": "Paul Robert Lloyd"
     },
     {
       "service": "mastodon",
@@ -4728,7 +4743,7 @@
     },
     {
       "service": "mastodon",
-      "handle": "roeldobbe@akademienl.social",
+      "handle": "roeldobbe@social.edu.nl",
       "name": "Roel Dobbe"
     },
     {
@@ -5134,7 +5149,7 @@
     {
       "service": "mastodon",
       "handle": "slightlyoff@toot.cafe",
-      "name": "Alex Russell (no relation)"
+      "name": "Alex Russell"
     },
     {
       "service": "bluesky",
@@ -5229,7 +5244,7 @@
     {
       "service": "mastodon",
       "handle": "stelar@mas.to",
-      "name": "Your boy Monokuma"
+      "name": "Monokuma"
     },
     {
       "service": "bluesky",

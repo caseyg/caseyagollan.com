@@ -43,11 +43,23 @@
 		const filterObserver = new MutationObserver(() => updateFilterDisplay(filterPane));
 		filterObserver.observe(filterPane, { childList: true, subtree: true });
 		updateFilterDisplay(filterPane);
-		void import('@pagefind/component-ui').then(() => customElements.whenDefined('pagefind-modal')).then(openFromUrl);
+		// Pagefind's components are a big script, and nobody needs them until they search. Load them once the
+		// page is idle, or straight away when a finger or the keyboard heads for search.
+		const load = () => void loadPagefind();
+		// A `?q=` link opens search right away.
+		const linked = new URL(location.href).searchParams.has(SEARCH_QUERY_PARAM);
+		if (linked) void loadPagefind().then(openFromUrl);
+		const idle = linked ? 0 : window.requestIdleCallback ? window.requestIdleCallback(load, { timeout: 4000 }) : window.setTimeout(load, 2000);
+		root.addEventListener('pointerdown', load, { once: true, capture: true });
+		root.addEventListener('focusin', load, { once: true });
+		const slash = (event: KeyboardEvent) => { if (event.key === '/') load(); };
+		document.addEventListener('keydown', slash, { capture: true });
 		// Pagefind moves its modal outside the navigation markup.
 		document.addEventListener('click', handleResultClick);
 		document.addEventListener('click', keepOpenForNewTab, true);
 		return () => {
+			if (window.cancelIdleCallback) window.cancelIdleCallback(idle); else window.clearTimeout(idle);
+			document.removeEventListener('keydown', slash, { capture: true });
 			document.removeEventListener('click', keepOpenForNewTab, true);
 			filterObserver.disconnect();
 			triggerObserver.disconnect();
@@ -57,8 +69,13 @@
 
 	let { onResultClick }: { onResultClick?: (url: URL) => boolean } = $props();
 
+	let pagefind: Promise<unknown> | undefined;
+	/** Loads Pagefind's components, once. */
+	const loadPagefind = () => (pagefind ??= import('@pagefind/component-ui').then(() => customElements.whenDefined('pagefind-modal')));
+
 	/** Opens search, with `query` already typed, as the command palette does. */
-	export function openWith(query = '') {
+	export async function openWith(query = '') {
+		await loadPagefind();
 		const modal = document.querySelector('pagefind-modal') as (HTMLElement & { open(): void }) | null;
 		if (!modal?.open) return;
 		modal.open();
@@ -119,7 +136,9 @@
 </script>
 
 <div class="site-search" bind:this={root}>
-	<pagefind-config bundle-path="/pagefind/" faceted preload></pagefind-config>
+	<!-- No `preload`: with `faceted`, loading the index runs an empty search that draws every result and
+	     filter (about 35,000 elements) into the closed dialog on every page. Opening search loads it. -->
+	<pagefind-config bundle-path="/pagefind/" faceted></pagefind-config>
 	<!-- ⌘K is the command palette; / opens search directly. -->
 	<pagefind-modal-trigger compact hide-shortcut shortcut="/" placeholder="Search posts, books, wiki, and Are.na">
 		<!-- Match Pagefind's button before its browser-only upgrade replaces this markup. -->

@@ -9,17 +9,22 @@
 	"durable_objects": {
 		"bindings": [
 			{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" },
+			{ "name": "ChatThread", "class_name": "ChatThread" },
 			// Live cursors and cursor chat, one object per page (src/lib/server/cursors/room.ts).
 			{ "name": "CURSORS", "class_name": "CursorRoom" }
 		]
 	},
 	"migrations": [
 		{ "tag": "v1-indieauth", "new_sqlite_classes": ["IndieAuthStore"] },
-		{ "tag": "v2-cursors", "new_sqlite_classes": ["CursorRoom"] }
+		/** /chat threads: one Agents SDK agent per thread (src/lib/server/chat/agent.ts). */
+		{ "tag": "v2-chat", "new_sqlite_classes": ["ChatThread"] },
+		{ "tag": "v3-cursors", "new_sqlite_classes": ["CursorRoom"] }
 	],
 	"compatibility_date": "2025-01-19",
 	"compatibility_flags": [
-		"nodejs_als"
+		"nodejs_als",
+		/** The Agents SDK (/chat) needs Node.js APIs. */
+		"nodejs_compat", "enable_weak_ref"
 	],
 	/**
 	 * Enable workers.dev subdomain for preview deployments
@@ -46,7 +51,11 @@
 		"PUBLISHING_TIMEZONE": "America/New_York",
 		"PUBLISHING_MASTODON_INSTANCE": "https://social.coop",
 		"PUBLISHING_BLUESKY_SERVICE": "https://bsky.social",
-		"PUBLISHING_BLUESKY_IDENTIFIER": "caseyagollan.com"
+		"PUBLISHING_BLUESKY_IDENTIFIER": "caseyagollan.com",
+		/** The inference.coop model /chat answers with (key: the INFERENCE_COOP_API_KEY secret). */
+		"CHAT_MODEL": "glm-flash-green",
+		/** US dollars each /chat visitor may spend a month (Casey is not capped). */
+		"CHAT_MONTHLY_BUDGET": "3"
 	},
 	"assets": {
 		"binding": "ASSETS",
@@ -61,6 +70,15 @@
 	 */
 	"images": { "binding": "IMAGES" },
 	/**
+	 * Per-visitor limits on the endpoints anyone can call that cost money or fetch other sites
+	 * (src/lib/server/rate-limit.ts): model calls for the homepage's insights and bio, and fresh
+	 * screenshots. Counted per address at each Cloudflare location; not a spending cap.
+	 */
+	"ratelimits": [
+		{ "name": "AI_RATE_LIMITER", "namespace_id": "2001", "simple": { "limit": 12, "period": 60 } },
+		{ "name": "FETCH_RATE_LIMITER", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } }
+	],
+	/**
 	 * Enable preview URLs for branch deployments
 	 */
 	"preview_urls": true,
@@ -70,28 +88,40 @@
 	 * that implement a Durable Object, so branch builds use Previews instead.
 	 * Previews inherit nothing from the settings above except assets and
 	 * compatibility settings, and each Preview gets its own AUTH_STORE namespace.
-	 * Sign-in, publishing, and imports stay off: passkeys are bound to the
-	 * production hostname, and previews must not write content or post socially.
+	 * Passkeys are bound to the production hostname, so Casey signs in to a preview
+	 * through production instead: AUTH_PREVIEW_ISSUER makes the preview an IndieAuth
+	 * client of caseyagollan.com (src/lib/server/indieauth/preview.ts). The preview
+	 * holds no passkeys and issues no tokens. Publishing and imports stay off: previews
+	 * must not write content or post socially.
 	 * Media, screenshots, and the insight cache are read from production.
+	 * Secrets are not inherited either: a new Preview copies the Worker's Previews Base secrets
+	 * (`npx wrangler preview base-config secret list`), which is where /chat's INFERENCE_COOP_API_KEY,
+	 * KAGI_API_KEY and the ARENA_PAT, RAINDROP_TOKEN and READWISE_ACCESS_TOKEN read tokens live. A Preview
+	 * made before a secret was added there needs `npx wrangler preview secret put <KEY> --name <preview>`.
+	 * Publishing and syndication tokens must never be added to Previews Base.
 	 */
 	"previews": {
-		"durable_objects": {
-			"bindings": [
-				{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" },
-				{ "name": "CURSORS", "class_name": "CursorRoom" }
-			]
-		},
-		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }],
+		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }, { "name": "CURSORS", "class_name": "CursorRoom" }] },
+		/** AUTH_ISSUER is production itself: a preview redeems sign-in codes through it, since fetching caseyagollan.com from this script never reaches it. */
+		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }, { "binding": "AUTH_ISSUER", "service": "caseyagollan" }],
 		"vars": {
-			"AUTH_ENABLED": "false",
+			"AUTH_ENABLED": "true",
+			"AUTH_ME": "https://caseyagollan.com/",
+			"AUTH_PREVIEW_ISSUER": "https://caseyagollan.com/",
 			"PUBLISHING_ENABLED": "false",
 			"PESOS_ENABLED": "false",
 			"PUBLISHING_DELIVERY_ENABLED": "false",
 			"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
 			"PUBLISHING_ME": "https://caseyagollan.com/",
-			"PUBLISHING_TIMEZONE": "America/New_York"
+			"PUBLISHING_TIMEZONE": "America/New_York",
+			"CHAT_MODEL": "glm-flash-green",
+			"CHAT_MONTHLY_BUDGET": "3"
 		},
 		"kv_namespaces": [{ "binding": "INSIGHT_CACHE", "id": "9eca3bf2742740d78191c5be95a5be97" }],
+		"ratelimits": [
+			{ "name": "AI_RATE_LIMITER", "namespace_id": "2001", "simple": { "limit": 12, "period": 60 } },
+			{ "name": "FETCH_RATE_LIMITER", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } }
+		],
 		"r2_buckets": [
 			{ "binding": "PUBLISHING_STATE", "bucket_name": "caseyagollan-publishing-state-preview" },
 			{ "binding": "PUBLISHING_MEDIA", "bucket_name": "caseyagollan-content" },

@@ -39,7 +39,8 @@ export function raindropBlock(item: Raindrop): Block | null {
 		meta: ['Raindrop', domain, date].filter(Boolean).join(' · '),
 		excerpt,
 		image: cover,
-		icon: ICON[item.type ?? ''] ?? '💧'
+		icon: ICON[item.type ?? ''] ?? '💧',
+		...(Number.isSafeInteger(item._id) && item._id > 0 ? { ref: `raindrop:${item._id}` } : {})
 	};
 }
 

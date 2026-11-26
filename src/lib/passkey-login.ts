@@ -1,14 +1,7 @@
 import { rememberOwner } from './owner';
 import { startAuthentication, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 
-/** Only return to local pages, including their query and fragment. */
-export function safeReturnTo(value: string | null, origin: string): string | null {
- if (!value?.startsWith('/') || value.startsWith('//')) return null;
- try {
-  const target = new URL(value, origin);
-  return target.origin === origin ? target.pathname + target.search + target.hash : null;
- } catch { return null; }
-}
+export { safeReturnTo } from './return-to';
 
 export function passkeyError(cause: unknown): string {
  return cause instanceof Error && cause.name === 'NotAllowedError'
@@ -33,4 +26,25 @@ export async function signInWithPasskey(): Promise<void> {
  const response = await startAuthentication({ optionsJSON: challenge.options });
  await post('/auth/passkey/login/verify', { id: challenge.id, response });
  rememberOwner(true);
+}
+
+/**
+ * Branch previews have no passkeys; Casey signs in to them through production
+ * (src/lib/server/indieauth/preview.ts). Returns that site, or undefined on production.
+ */
+export async function previewSignInIssuer(): Promise<string | undefined> {
+ try {
+  const response = await fetch('/auth/session', { credentials: 'same-origin', cache: 'no-store' });
+  if (!response.ok) return;
+  const { signInWith } = (await response.json()) as { signInWith?: unknown };
+  return typeof signInWith === 'string' ? signInWith : undefined;
+ } catch { return; }
+}
+
+export function previewSignInHref(returnTo: string): string {
+ return `/auth/preview?returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+export function issuerName(issuer: string): string {
+ try { return new URL(issuer).host; } catch { return issuer; }
 }
