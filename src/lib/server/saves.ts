@@ -83,8 +83,20 @@ const day = (value: unknown) => (typeof value === 'string' && value ? value.slic
 const norm = (value: string) => value.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 const pageNumber = (after: string | undefined, first: number) => (after && /^\d+$/.test(after) ? Number(after) : first);
 
+/** Are.na asks every client to say what it is and where to reach it. */
+const USER_AGENT = 'caseyagollan.com/1.0 (+https://caseyagollan.com/)';
+/** The longest `Retry-After`, in seconds, worth waiting out inside one answer. */
+const RETRY_WITHIN = 4;
+
 async function getJson<T>(deps: SavesDeps, name: string, url: string, init: RequestInit = {}): Promise<T> {
-	const response = await (deps.fetcher ?? fetch)(url, { ...init, headers: { accept: 'application/json', ...(init.headers as Record<string, string> | undefined) }, signal: AbortSignal.timeout(20_000) });
+	const ask = () => (deps.fetcher ?? fetch)(url, { ...init, headers: { accept: 'application/json', 'user-agent': USER_AGENT, ...(init.headers as Record<string, string> | undefined) }, signal: AbortSignal.timeout(20_000) });
+	let response = await ask();
+	// A service that says how soon to come back is asked once more, when that is soon.
+	const wait = response.status === 429 ? Number(response.headers.get('retry-after')) : NaN;
+	if (wait >= 0 && wait <= RETRY_WITHIN) {
+		await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+		response = await ask();
+	}
 	if (response.status === 404) throw new SavesError(`${name} has nothing at that address.`);
 	if (response.status === 401 || response.status === 403) throw new SavesError(`${name} refused: that is private, or the site’s ${name} token has stopped working.`);
 	if (response.status === 429) throw new SavesError(`${name} is rate-limiting the site right now. Wait a minute before asking it again.`);
@@ -157,7 +169,7 @@ function arenaItem(item: ArenaItem): SavedItem {
 export async function arenaChannels(deps: SavesDeps): Promise<SavedPlace[]> {
 	const places: SavedPlace[] = [];
 	for (let page = 1; page <= 5; page++) {
-		const { data, meta } = await arenaGet<ArenaPage>(deps, `/users/${ARENA_USER}/contents?type=Channel&per=100&page=${page}`);
+		const { data, meta } = await arenaGet<ArenaPage>(deps, `/users/${ARENA_USER}/contents?type=Channel&sort=updated_at_desc&per=100&page=${page}`);
 		places.push(...data.filter((item) => item.type === 'Channel').map(arenaPlace));
 		if (!meta?.has_more_pages || !data.length) break;
 	}
@@ -194,7 +206,7 @@ async function arenaList(deps: SavesDeps, options: ListOptions): Promise<SavedPa
 		return { items, total: items.length };
 	}
 	const place = await arenaChannel(deps, options.in);
-	const contents = (page: number, size: number) => arenaGet<ArenaPage>(deps, `/channels/${encodeURIComponent(place.in)}/contents?per=${size}&page=${page}`);
+	const contents = (page: number, size: number) => arenaGet<ArenaPage>(deps, `/channels/${encodeURIComponent(place.in)}/contents?sort=position_desc&per=${size}&page=${page}`);
 	if (query) {
 		// Are.na's own search is for paying members; a channel is small enough to read and filter here.
 		const items: SavedItem[] = [];
@@ -215,7 +227,7 @@ async function arenaRead(deps: SavesDeps, wanted: string): Promise<Record<string
 	if (!id) throw new SavesError('Give the block’s id or its are.na/block/… address. To list a channel, use `in`.');
 	const block = await arenaGet<ArenaItem & { content?: { plain?: string | null; markdown?: string | null } | null; description?: { plain?: string | null } | null }>(deps, `/blocks/${id}`);
 	const item = arenaItem(block);
-	const channels = await arenaGet<ArenaPage>(deps, `/blocks/${id}/connections?per=30`).then((page) => page.data.map((channel) => ({ title: channel.title, in: channel.slug, url: channelUrl(channel) }))).catch(() => []);
+	const channels = await arenaGet<ArenaPage>(deps, `/blocks/${id}/connections?sort=created_at_desc&per=30`).then((page) => page.data.map((channel) => ({ title: channel.title, in: channel.slug, url: channelUrl(channel) }))).catch(() => []);
 	const content = flat(block.content?.markdown ?? block.content?.plain ?? '');
 	return {
 		id: item.id, title: item.title, kind: item.kind, url: item.url, date: item.date, ...(item.private ? { private: true } : {}),

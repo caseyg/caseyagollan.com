@@ -129,6 +129,8 @@ export const LOOK_MAX_SIDE = 1280;
 /** Messages between the thread and the table page, beside the chat's own. */
 export type TableOpEvent = { type: 'table:op'; id: string } & TableOp;
 export type TableOpReply = { type: 'table:result'; id: string } & TableOpResult;
+/** The thread stopped waiting for a change it asked for; a page that hasn't made it yet must not. */
+export type TableCancelEvent = { type: 'table:cancel'; id: string };
 
 /** The chat thread that belongs to a table: ten lowercase letters and digits, the same everywhere. */
 export function tableThreadId(tableId: string): string {

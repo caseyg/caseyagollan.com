@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { pickPlace, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavesDeps } from '../src/lib/server/saves';
-import { chatExtension, isOwnerTool, savesListing } from '../src/lib/server/chat/tools';
+import { arenaAddress, chatExtension, isOwnerTool, savesListing } from '../src/lib/server/chat/tools';
 
 /** Are.na, Raindrop and Readwise, answered from a few fixtures; `asked` records every address and its credentials. */
 function services() {
@@ -251,5 +251,16 @@ describe('my_saves and table_add in the chat', () => {
 		const done = JSON.parse(await out(tool('table_add'), { items: [{ source: 'readwise', in: 'Living With Complexity' }] }));
 		expect(done.sections[0]).toMatchObject({ name: 'Living With Complexity', added: 2 });
 		expect(ops.find((op) => op.op === 'add_blocks')!.blocks!.map((block) => block.kind)).toEqual(['quote', 'quote']);
+	});
+});
+
+describe('are.na addresses given to fetch_page', () => {
+	test('channels and blocks are read through the API; other pages are not', () => {
+		expect(arenaAddress('https://www.are.na/casey-gollan/calm-technology')).toEqual({});
+		expect(arenaAddress('https://www.are.na/block/12345')).toEqual({ block: '12345' });
+		expect(arenaAddress('https://www.are.na/about')).toBeNull();
+		expect(arenaAddress('https://www.are.na/explore/channels')).toBeNull();
+		expect(arenaAddress('https://example.com/a/b')).toBeNull();
+		expect(arenaAddress('/2026/some-post/')).toBeNull();
 	});
 });
