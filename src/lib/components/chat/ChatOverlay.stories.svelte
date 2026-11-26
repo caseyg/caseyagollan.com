@@ -14,7 +14,7 @@
 
 <!-- Over a table's canvas: a round floating button, or the site's side panel, which the canvas makes room for beneath the navigation. On a phone, docked is a bottom sheet. -->
 {#snippet stage(args: ComponentProps<typeof ChatOverlay>, mode: 'minimized' | 'docked')}
-	<div class="stage" data-chat={mode}>
+	<div class="stage" data-chat={args.placement === 'floating' ? 'floating' : mode}>
 		<div class="canvas">Canvas</div>
 		<ChatOverlay {...args} {mode} launcher="bottom-right" onsend={() => true} />
 	</div>
@@ -23,6 +23,12 @@
 <Story name="Minimized">{#snippet template(args)}{@render stage(args, 'minimized')}{/snippet}</Story>
 
 <Story name="Docked">{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
+
+<!-- With `onplace` the title bar has the Sidebar / Floating / Full screen switch. -->
+<Story name="With the place switch" args={{ onplace: () => {}, onnew: () => {}, onpick: () => {}, onlistthreads: () => {}, threads: fixtureThreads }}>{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
+
+<!-- Floating: a window over the corner; the page keeps its full width. -->
+<Story name="Floating" args={{ placement: 'floating', onplace: () => {}, onnew: () => {}, onpick: () => {}, onlistthreads: () => {}, threads: fixtureThreads }}>{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>
 
 <!-- Things are selected on the canvas: the chip above the composer names what “these” will mean (× clears it), and a sent message keeps what was selected. -->
 <Story name="With a selection" args={{ messages: selectionConversation, selection }}>{#snippet template(args)}{@render stage(args, 'docked')}{/snippet}</Story>

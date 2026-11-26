@@ -20,6 +20,7 @@ import { createRegistry, Harness, type ConversationWatch, type Extension } from 
 import { createCodemodeExtension } from '@earendil-works/pi-durable/codemode';
 import { createInlineCodemodeSandbox } from '@earendil-works/pi-codemode/cloudflare';
 import { CHAT_MAX_MESSAGE, chatAuthor, chatPage, chatSayId, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
+import { canvasOrder, HIDDEN_TABLE_OP_TIMEOUT, TABLE_OP_TIMEOUT, unansweredTable } from './canvas';
 import { publishingConfig } from '../publishing/config';
 import type { PublishingEnvironment } from '../publishing/config';
 import { randomToken } from '../publishing/dpop';
@@ -28,13 +29,13 @@ import { viewerFrom } from './identity';
 import { DEFAULT_CHAT_MODEL, ModelError, streamCompletion } from './model';
 import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Queued, type SayData } from './projection';
 import { chatModels, COMPACTION } from './provider';
-import { saveSummary } from './threads';
+import { saveSearchDoc, saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
 import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, sectionsWhen, serverNames } from './mcp-tools';
 import { McpAuthError, McpError, type McpSession, type McpToolResult } from '../mcp/client';
 import { markBroken, mcpDeps, sessionFor, usableServers, type McpEnv, type UsableServer } from '../mcp/connections';
 import type { McpServer } from '../../mcp-servers';
-import { itemsFromDocument, tableThreadId, type TableOp, type TableOpReply } from '../../table-agent';
+import { itemsFromDocument, tableThreadId, type TableCancelEvent, type TableOp, type TableOpReply } from '../../table-agent';
 import { emptyTable, validId } from '../../tables';
 import { readTable, writeTable } from '../tables';
 
@@ -57,7 +58,7 @@ interface ConnectionState {
 	canvas?: boolean;
 	/** The page this browser is on, which the chat now follows across the site. */
 	page?: ChatPage;
-	/** When this browser last said anything: the freshest of Casey's open pages takes the table's changes. */
+	/** When Casey last did something in this browser (wrote, or brought its tab to the front); see `canvasOrder`. */
 	active?: number;
 }
 
@@ -65,7 +66,6 @@ interface ConnectionState {
 const NAVIGATE_WAIT = 20_000;
 
 /** How long the assistant waits for Casey's table page to make a change. */
-const TABLE_OP_TIMEOUT = 30_000;
 /** How long go_to waits for a table it sent Casey to to open and take changes. */
 const TABLE_OPEN_WAIT = 20_000;
 /** The largest answer Casey's table page may send: a `look` picture is a few hundred kilobytes. */
@@ -264,16 +264,16 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		return sent;
 	}
 
-	/** Casey's open page for this thread's table, freshest first. */
+	/** Casey's open table pages that can take edits, the one to try first at the front. */
+	private canvases(): Connection<ConnectionState>[] {
+		const open: Connection<ConnectionState>[] = [];
+		for (const connection of this.getConnections<ConnectionState>()) if (connection.state?.canvas && connection.state.viewer?.owner) open.push(connection);
+		// A page left open in another tab (or a phone's sleeping browser) still looks connected.
+		return canvasOrder(open, (connection) => ({ hidden: connection.state?.page?.hidden, active: connection.state?.active ?? connection.state?.at ?? 0 }));
+	}
+
 	private canvas(): Connection<ConnectionState> | undefined {
-		let found: Connection<ConnectionState> | undefined;
-		for (const connection of this.getConnections<ConnectionState>()) {
-			const state = connection.state;
-			if (!state?.canvas || !state.viewer?.owner) continue;
-			// A page left open in another tab (or a phone's sleeping browser) still looks connected; prefer the one Casey used last.
-			if (!found || (state.active ?? state.at) >= (found.state?.active ?? found.state?.at ?? 0)) found = connection;
-		}
-		return found;
+		return this.canvases()[0];
 	}
 
 	/** Waiting for Casey's page to show a table, after go_to sent them there. */
@@ -293,19 +293,35 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		return this.canvas()?.state?.page?.table ?? this.meta('table');
 	}
 
-	private tableOp(op: TableOp): Promise<unknown> {
-		const connection = this.canvas();
-		if (!connection) return Promise.reject(new Error('Casey doesn’t have this table open, so it can’t be changed right now. Ask Casey to open it.'));
+	/** Ask Casey's table page for a change. A page that doesn't answer is told to drop it, and the next open page of the same table is tried once. */
+	private async tableOp(op: TableOp): Promise<unknown> {
+		const [first, ...rest] = this.canvases();
+		if (!first) throw new Error('Casey doesn’t have this table open, so it can’t be changed right now. Ask Casey to open it.');
+		const table = first.state?.page?.table;
+		const next = rest.find((connection) => connection.state?.page?.table === table);
+		let hidden = false;
+		for (const connection of next ? [first, next] : [first]) {
+			const answer = await this.tableOpOn(connection, op);
+			if (answer.answered) return answer.result;
+			hidden ||= !!connection.state?.page?.hidden;
+		}
+		throw new Error(unansweredTable(hidden));
+	}
+
+	/** One page's go at a change: its answer (an error it reports is thrown), or `answered: false` when it stayed silent. */
+	private tableOpOn(connection: Connection<ConnectionState>, op: TableOp): Promise<{ answered: true; result: unknown } | { answered: false }> {
 		const id = randomToken(8);
+		const hidden = !!connection.state?.page?.hidden;
 		return new Promise((resolve, reject) => {
 			const timer = setTimeout(() => {
 				this.tableOps.delete(id);
-				console.warn(JSON.stringify({ event: 'chat_table_op_timeout', op: op.op, table: connection.state?.page?.table }));
-				// That page isn't answering: stop sending it changes until it says where it is again.
+				console.warn(JSON.stringify({ event: 'chat_table_op_timeout', op: op.op, table: connection.state?.page?.table, hidden }));
+				// That page isn't answering: it must not make the change late, and gets no more until it says where it is again.
+				try { connection.send(JSON.stringify({ type: 'table:cancel', id } satisfies TableCancelEvent)); } catch { /* already gone */ }
 				if (connection.state) connection.setState({ ...connection.state, canvas: false });
-				reject(new Error('The table didn’t answer in time.'));
-			}, TABLE_OP_TIMEOUT);
-			this.tableOps.set(id, { resolve, reject, timer });
+				resolve({ answered: false });
+			}, hidden ? HIDDEN_TABLE_OP_TIMEOUT : TABLE_OP_TIMEOUT);
+			this.tableOps.set(id, { resolve: (result) => resolve({ answered: true, result }), reject, timer });
 			connection.send(JSON.stringify({ type: 'table:op', id, ...op }));
 		});
 	}
@@ -424,7 +440,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	/** The thread's summary changed: a title, a message, an answer. */
 	protected async index(messages?: ChatMessage[]) {
 		const id = this.meta('id');
-		if (id && this.env.PUBLISHING_STATE) await saveSummary(this.env.PUBLISHING_STATE, this.summary(messages ?? await this.messages())).catch(() => undefined);
+		if (!id || !this.env.PUBLISHING_STATE) return;
+		const all = messages ?? await this.messages();
+		const summary = this.summary(all);
+		// The words too, for Casey's search of chats (`searchThreads`).
+		await Promise.all([saveSummary(this.env.PUBLISHING_STATE, summary), saveSearchDoc(this.env.PUBLISHING_STATE, summary, all)]).catch(() => undefined);
 	}
 
 	/** Start the thread with its first message. */
@@ -625,7 +645,10 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		if (typeof raw !== 'string' || raw.length > (connection.state?.canvas ? TABLE_RESULT_MAX : CHAT_MAX_MESSAGE * 2)) return;
 		let event: ChatClientEvent;
 		try { event = JSON.parse(raw); } catch { return; }
-		if (connection.state) connection.setState({ ...connection.state, active: Date.now() });
+		// Writing is something Casey did there; a page saying where it is counts only when it's in front (a
+		// background tab says so each time its socket reconnects, which isn't Casey using it).
+		const acted = event?.type === 'chat:say' || (event?.type === 'page:here' && !chatPage(event.page)?.hidden);
+		if (connection.state && acted) connection.setState({ ...connection.state, active: Date.now() });
 		const state = connection.state;
 		const viewer = state?.viewer && (!state.viewer.owner || Date.now() - state.at < OWNER_CONNECTION_TTL) ? state.viewer : state?.viewer ? { ...state.viewer, owner: false } : null;
 		// Casey's table page says it's there to take edits, and answers them.
