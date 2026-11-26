@@ -5,12 +5,22 @@
 	const { Story } = defineMeta({
 		title: 'Chat/ChatTool',
 		component: ChatTool,
-		args: { step: { tool: 'search_site', label: 'Searched the site for “cooperatives”', status: 'done', links: [{ url: '/library/', title: 'Library' }, { url: '/wiki/cooperatives', title: 'Cooperatives' }] } }
+		args: { open: false, step: { tool: 'search_site', label: 'Searched the site for “cooperatives”', status: 'done', request: [{ name: 'Query', value: 'cooperatives' }, { name: 'Limit', value: '8' }], response: JSON.stringify({ total: 2, results: [{ url: 'https://caseyagollan.com/library/', title: 'Library', type: 'page' }, { url: 'https://caseyagollan.com/wiki/cooperatives', title: 'Cooperatives', type: 'wiki', text: 'Notes on worker- and user-owned organisations.' }] }), links: [{ url: '/library/', title: 'Library' }, { url: '/wiki/cooperatives', title: 'Cooperatives' }] } }
 	});
 </script>
 
-<!-- Gray, like the site's other in-feed controls; links open on demand. -->
-<Story name="Search with links" />
+<!-- A gray line, the words it was about brighter. It opens to what it found, what it was asked and what came back. -->
+<Story name="Search, closed" />
+
+<Story name="Search, open" args={{ open: true }} />
+
+<!-- The only step in its stretch of a reply stands as a line by itself. -->
+<Story name="Alone in a reply" args={{ variant: 'line' }} />
+
+<Story name="Failed with a reason" args={{ open: true, step: { tool: 'fetch_page', label: 'Read example.com/private', status: 'failed', request: [{ name: 'Url', value: 'https://example.com/private' }], error: 'example.com answered 403.' } }} />
+
+<!-- A long address and long values wrap inside a narrow chat. -->
+<Story name="Open on a phone" args={{ open: true, step: { tool: 'fetch_page', label: 'Read caseyagollan.com/2026/11/14/micropub-threads/', status: 'done', request: [{ name: 'Url', value: 'https://caseyagollan.com/2026/11/14/micropub-threads/?utm_source=a-very-long-query-string-that-never-breaks' }], response: '# Syndication threads over Micropub\nURL: https://caseyagollan.com/2026/11/14/micropub-threads/\n\nA post can carry its social copy as a reply chain.' } }} parameters={{ viewport: { defaultViewport: 'mobile1' } }} />
 
 <Story name="Running" args={{ step: { tool: 'fetch_page', label: 'Read indieweb.org/Micropub', status: 'running' } }} />
 
@@ -18,11 +28,11 @@
 
 <Story name="Micropub" args={{ step: { tool: 'micropub_update_post', label: 'Updated a post', status: 'done' } }} />
 
-<!-- `show_page`: the page as a card everyone reading can open. -->
-<Story name="Page peek" args={{ step: { tool: 'show_page', label: 'Showed Syndication threads over Micropub', status: 'done', peek: { url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub', excerpt: 'A post can carry its social copy as a reply chain, and the endpoint advertises it in q=config.' } } }} />
+<!-- `show_page`: here only the line; `ChatSteps` puts the page's card under the steps, always in view. -->
+<Story name="Page shown" args={{ step: { tool: 'show_page', label: 'Showed Syndication threads over Micropub', status: 'done', peek: { url: 'https://caseyagollan.com/2026/11/14/micropub-threads/', title: 'Syndication threads over Micropub', excerpt: 'A post can carry its social copy as a reply chain, and the endpoint advertises it in q=config.' } } }} />
 
 <!-- `table_look`: the snapshot the assistant checked its layout against, items numbered, overlaps in red. Opens on demand. -->
-<Story name="Table snapshot" args={{ step: { tool: 'table_look', label: 'Looked at the table', status: 'done', picture: { src: 'table-look.jpg', alt: 'What the assistant saw of the table, each item numbered' } } }} />
+<Story name="Table snapshot" args={{ open: true, step: { tool: 'table_look', label: 'Looked at the table', status: 'done', picture: { src: 'table-look.jpg', alt: 'What the assistant saw of the table, each item numbered' } } }} />
 
 <Story name="Table change" args={{ step: { tool: 'table_arrange', label: 'Arranged the table in a grid', status: 'done' } }} />
 

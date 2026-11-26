@@ -26,7 +26,7 @@ import { SAY_KIND, type SayData } from './projection';
 import { daysBefore, findDocuments, loadAgentIndex, localDate, searchDocuments, SEARCH_TYPES, type AgentSearchDocument } from './site-search';
 import { publishingConfig, type PublishingEnvironment } from '../publishing/config';
 import { ARENA_ICON, type Block } from '../../tables';
-import { TABLE_ALIGNS, TABLE_COLORS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, type TableAlign, type TableColor, type TableItem, type TableLink, type TableNote, type TablePlace, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
+import { TABLE_ALIGNS, TABLE_ARRANGEMENTS, TABLE_COLORS, TABLE_DIRECTIONS, TABLE_LAYOUTS, TABLE_OWNER_TOOLS, type TableCluster, type TableAlign, type TableColor, type TableItem, type TableLink, type TableNote, type TablePlace, type TableStroke, type TableLayout, type TableLook, type TableOp } from '../../table-agent';
 import { imageFromDataUrl, viewImage } from './view-image';
 import { SAVE_SOURCES, SOURCE_NAME, savedAll, savedItem, savedList, savedPlaces, SavesError, type SavedItem, type SavedPage, type SaveSource, type SavesDeps, type SavesEnv } from '../saves';
 import { ownerMicropub } from '../publishing/post-editor';
@@ -191,13 +191,13 @@ const TABLE_SECTION = [
 	[
 		'Working on a table:',
 		'- Casey’s selection: a message written with things selected on the table says so, with their ids and titles. “These”, “this”, “them”, “the selected ones”, or an ask about particular things that doesn’t name them, mean just those: act on them alone, by their ids or with ["selected"] wherever a tool takes ids (`ids`, `remove`, an edit’s `id`, `around`, `below`, `blocks`). Don’t table_read to find them. To summarize, compare or quote them, table_read with ids ["selected"] gives just their words and urls in one call; fetch_page a url only if that isn’t enough. When Casey names other things or says the whole table, the selection doesn’t matter.',
-		'- table_read lists what is on it, with ids and measured boxes (canvas units; x grows right, y grows down; the dot grid is 20). Read once, before changing something that is already there (table_pull doesn’t need it). You don’t need to read an empty table, or to read again after a change: every change reports the ids and boxes of what it touched.',
+		'- table_read lists what is on it, with ids and measured boxes (canvas units; x grows right, y grows down; the dot grid is 20). Read once, before changing something that is already there (table_pull, and table_arrange on the whole table, a selection or a frame by name, don’t need it). You don’t need to read an empty table, or to read again after a change: every change reports the ids and boxes of what it touched.',
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
 		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s page and adds its pictures and best passages beside it, framed and joined to it by an arrow. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
-		'- table_arrange sets out things that are already there (grid, columns, row, column, pack), pushes overlapping things apart (`tidy`), or lines them up (`align`). It measures every item, so nothing overlaps; prefer it to table_move, which is for an exact spot or size.',
+		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
 		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
 		'- Don’t guess sizes. Blocks are about 240×240 (books 180×300); sticky notes are 200 wide and grow taller with their text; text cards wrap at the width you give (320 to 480 reads well). Use `below` or `right_of` an id, rather than coordinates, to put new things beside what they belong with, and leave 80 to 120 units between sections.',
-		'- Each change reports `issues` only when something overlaps, is crammed, or an arrow runs through a card it doesn’t join (`crossings`). Fix those (table_arrange with layout `tidy`, or move things) before you answer. No `issues` means the layout is clean.',
+		'- Each change reports `issues` only when something overlaps, is crammed, or an arrow runs through a card it doesn’t join (`crossings`). Fix those with one table_arrange (layout `tidy`, or `auto` when it is a real mess) before you answer. No `issues` means the layout is clean.',
 		'- After building or rearranging more than a few things, call table_look once: it shows you a picture of the table with each item numbered (red means it overlaps). Fix what looks wrong, then answer. Don’t look more than twice.'
 	].join('\n')
 ].join('\n\n');
@@ -845,14 +845,24 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_arrange',
-			description: 'Set out items that are already on the table from their measured sizes, so nothing overlaps: grid (columns and rows line up), columns (masonry: each into the shortest column), row, column, pack (tightest; order not kept), or tidy (push overlapping items apart with the least movement). And/or line them up with `align`, or space them evenly with `distribute`. Leave out ids for everything.',
+			description: 'Fix the layout of the whole table, some items, or what one frame holds, in one call. It measures every item and reads the arrows between them, so nothing overlaps and you never work out coordinates. Leave out ids for the whole table. Can also line items up (`align`) or space them evenly (`distribute`).',
 			parameters: {
 				type: 'object',
 				properties: {
-					layout: { type: 'string', enum: [...TABLE_LAYOUTS, 'tidy'] },
-					ids: IDS,
+					layout: { type: 'string', enum: [...TABLE_ARRANGEMENTS, 'tidy'], description: 'auto: the best fit for what is there (“clean this up”). grid; columns (masonry); row; column; pack (tightest); tidy (only push overlaps apart). From the arrows: tree (org chart), mindmap (one idea in the middle, branches both sides), radial (rings around the middle), layered (a flow, where arrows merge or loop), force (a network). cluster: named groups, each in its own frame.' },
+					ids: { ...IDS, description: 'Only these, set out in the order you give them; ["selected"] for Casey’s selection. Leave out for the whole table (a frame moves as one with what it holds).' },
+					inside: { type: 'string', description: 'A frame’s id or name: arrange what it holds, and refit it.' },
+					direction: { type: 'string', enum: [...TABLE_DIRECTIONS], description: 'Which way a tree or flow grows; down if left out.' },
+					root: { type: 'string', description: 'Id of the item a tree, mindmap or radial starts from, if not the obvious one.' },
+					groups: {
+						type: 'array', maxItems: 12, description: 'For cluster: each group’s short name and its items’ ids. Each gets a frame; items in none go last.',
+						items: { type: 'object', properties: { name: { type: 'string', maxLength: 60 }, ids: { type: 'array', items: { type: 'string' }, maxItems: 100 } }, required: ['ids'] }
+					},
+					by: { type: 'string', enum: ['kind', 'color', 'connected'], description: 'For cluster without groups.' },
+					frame: { type: 'boolean', description: 'For cluster: false for no frames.' },
+					arrows: { type: 'string', enum: ['keep', 'straight', 'elbow'], description: 'Leave out normally: the arrow layouts straighten arrows. keep leaves their bends; elbow squares them off (org charts).' },
 					columns: { type: 'integer', minimum: 1, maximum: 20 },
-					gap: { type: 'number', description: 'Space between items; 20 (one grid step) if left out.' },
+					gap: { type: 'number', description: 'Space between items; 20 if left out.' },
 					align: { type: 'string', enum: [...TABLE_ALIGNS] },
 					distribute: { type: 'string', enum: ['horizontal', 'vertical'] },
 					...PLACE
@@ -861,20 +871,40 @@ export function chatExtension(deps: ToolDeps): Extension {
 			async execute(args) {
 				const input = args as Record<string, unknown>;
 				const ids = input.ids ? pick(input.ids) : undefined;
+				// Ids written out are in the order meant (“research, then draft…”); a selection keeps the order it reads in.
+				const ordered = !!ids && strings(input.ids, 100).every((id) => !SELECTED.test(id.trim()));
 				const align = TABLE_ALIGNS.find((one) => one === input.align), distribute = input.distribute === 'horizontal' || input.distribute === 'vertical' ? input.distribute : undefined;
-				const layout = input.layout === 'tidy' ? 'tidy' : TABLE_LAYOUTS.find((one) => one === input.layout);
-				if (!layout && !align && !distribute) throw new Error('Say how: a `layout` (grid, columns, row, column, pack, tidy), an `align`, or a `distribute`.');
+				// Models reach for the words they know: masonry is columns, org chart a tree, flow layered.
+				const ALIASES: Record<string, string> = { masonry: 'columns', org: 'tree', orgchart: 'tree', hierarchy: 'tree', flow: 'layered', flowchart: 'layered', dag: 'layered', network: 'force', graph: 'force', 'mind map': 'mindmap', 'mind-map': 'mindmap', circle: 'radial', group: 'cluster', clusters: 'cluster' };
+				const asked = typeof input.layout === 'string' ? input.layout.trim().toLowerCase() : undefined;
+				const wanted = asked && (ALIASES[asked] ?? asked);
+				const layout = wanted === 'tidy' ? 'tidy' : TABLE_ARRANGEMENTS.find((one) => one === wanted) ?? (input.groups || input.by ? 'cluster' : undefined);
+				if (!layout && !align && !distribute) throw new Error(`Say how: a \`layout\` (${[...TABLE_ARRANGEMENTS, 'tidy'].join(', ')}), an \`align\`, or a \`distribute\`.`);
 				const done: Record<string, unknown> = {};
 				let issues: unknown;
+				const touched = [...(ids ?? [])];
 				if (layout === 'tidy') { const result = await run({ op: 'tidy', ids }); done.moved = result.moved; issues = result.issues; }
-				else if (layout) { const result = await run({ op: 'arrange', layout, ids, columns: Number(input.columns) || undefined, gap: typeof input.gap === 'number' ? input.gap : undefined, ...place(input) }); done.arranged = result.arranged; issues = result.issues; }
+				else if (layout) {
+					const groups: TableCluster[] = list(input.groups, 12).map((group) => ({ ...(typeof group.name === 'string' && group.name.trim() ? { name: group.name.trim().slice(0, 60) } : {}), ids: pick(group.ids) })).filter((group) => group.ids.length);
+					const result = await run({
+						op: 'arrange', layout, ids, ...(ordered ? { ordered } : {}), inside: one(input.inside), columns: Number(input.columns) || undefined, gap: typeof input.gap === 'number' ? input.gap : undefined,
+						direction: TABLE_DIRECTIONS.find((way) => way === input.direction), root: one(input.root), ...(groups.length ? { groups } : {}),
+						by: input.by === 'kind' || input.by === 'color' || input.by === 'connected' ? input.by : undefined, ...(input.frame === false ? { frame: false } : {}),
+						arrows: input.arrows === 'keep' || input.arrows === 'straight' || input.arrows === 'elbow' ? input.arrows : undefined, ...place(input)
+					});
+					// `layout` is the canvas's word that nothing overlaps; `as` is the layout it used (what auto chose).
+					const { issues: found, layout: _clean, ...rest } = result;
+					Object.assign(done, rest);
+					issues = found;
+					touched.push(...idsOf(result.frames));
+				}
 				if (align || distribute) {
 					if (!ids || ids.length < 2) throw new Error('To align or distribute, name at least two ids.');
 					const result = await run({ op: 'align', ids, align, distribute });
 					done.aligned = result.aligned;
 					issues = result.issues;
 				}
-				return report(done, ids ?? [], issues);
+				return report(done, touched, issues);
 			}
 		},
 		{

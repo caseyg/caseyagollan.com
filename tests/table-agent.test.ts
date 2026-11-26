@@ -57,7 +57,7 @@ describe('table chat', () => {
 			{ id: 'e3', kind: 'message', model: [{ role: 'toolResult', toolCallId: 'c1', toolName: 'show_page', isError: false, content: [{ type: 'text', text: JSON.stringify({ url: 'https://caseyagollan.com/library', title: 'Library', excerpt: 'Books Casey is reading.' }) }] }] }
 		];
 		const [, reply] = projectMessages(entries as never, {}, 3);
-		expect(reply.tools?.[0]).toEqual({ tool: 'show_page', label: 'Showed Library', status: 'done', peek: { url: 'https://caseyagollan.com/library', title: 'Library', excerpt: 'Books Casey is reading.' } });
+		expect(reply.tools?.[0]).toMatchObject({ tool: 'show_page', label: 'Showed Library', status: 'done', peek: { url: 'https://caseyagollan.com/library', title: 'Library', excerpt: 'Books Casey is reading.' } });
 		expect(peekFrom('{"url":"javascript:x","title":"x"}')).toBeUndefined();
 		expect(peekFrom('not json')).toBeUndefined();
 	});
@@ -109,6 +109,9 @@ describe('table chat pictures', () => {
 		expect(toolLabel('table_new', { name: 'Calm tech' })).toBe('Made a table, “Calm tech”');
 		expect(toolLabel('table_add', { items: [{ note: 'a' }, { text: 'b' }, { url: '/x' }, { search: 'oliveros' }] })).toBe('Added 2 notes, 1 link and results for “oliveros”');
 		expect(toolLabel('table_arrange', { layout: 'tidy' })).toBe('Tidied the table');
+		expect(toolLabel('table_arrange', { layout: 'auto' })).toBe('Tidied up the table');
+		expect(toolLabel('table_arrange', { layout: 'tree', ids: ['selected'] })).toBe('Arranged the selected items as a tree');
+		expect(toolLabel('table_arrange', { layout: 'cluster', inside: 'f1' })).toBe('Arranged a frame into groups');
 		expect(toolLabel('table_arrange', { align: 'left', ids: ['a', 'b'] })).toBe('Lined up 2 items');
 		expect(toolLabel('table_group', { ids: ['a', 'b'], name: 'Sources' })).toBe('Framed 2 items as “Sources”');
 		expect(toolLabel('table_edit', { edits: [{ id: 'a', text: 'x' }], remove: ['b', 'c'] })).toBe('Edited 1 item, removed 2 items');

@@ -4,7 +4,7 @@
 </script>
 
 <script lang="ts">
-	import { latestAssistantLine, type ChatMessage, type ChatSelectionItem, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
+	import { latestAssistantLine, type ChatMessage, type ChatSendOptions, type ChatSelectionItem, type ChatThreadSummary, type ChatViewer } from '$lib/chat';
 	import { BottomSheet, Button, FloatingButton, Notice, SidePanel, type FloatingCorner } from '$lib/components/ui';
 	import ChatConversation from './ChatConversation.svelte';
 	import ChatPromptInput from './ChatPromptInput.svelte';
@@ -20,7 +20,9 @@
 		tools?: string[];
 		mode?: ChatOverlayMode;
 		/** Sends over the live connection; without it the composer's form posts to `action`. */
-		onsend?: (text: string) => boolean | Promise<boolean>;
+		onsend?: (text: string, options: ChatSendOptions) => boolean | Promise<boolean>;
+		/** What's written in the composer. */
+		text?: string;
 		action?: string;
 		/** The page to come back to after signing in or out. */
 		returnTo: string;
@@ -56,12 +58,11 @@
 		ondeselect?: () => void;
 	}
 
-	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect }: Props = $props();
+	let { title, messages, viewer, tools = [], mode = $bindable('minimized'), onsend, text = $bindable(''), action = '', returnTo, href, error = null, signinError = null, offline = false, placeholder = '', launcher, sheet = false, sheetExpanded = $bindable(true), sheetRestHeight = $bindable(0), intro, onnew, threads, onlistthreads, onpick, current, selection = [], ondeselect }: Props = $props();
 
 	/** Showing the list of chats instead of the conversation. */
 	let listing = $state(false);
 
-	let text = $state('');
 	const working = $derived(messages.at(-1)?.status === 'streaming');
 	const latest = $derived(latestAssistantLine(messages));
 

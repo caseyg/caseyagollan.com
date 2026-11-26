@@ -6,7 +6,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { Notice, Page, PageHeader } from '$lib/components/ui';
 	import { LiveThread } from '$lib/chat-client.svelte';
-	import { chatHref } from '$lib/chat';
+	import { chatHref, type ChatSendOptions } from '$lib/chat';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -15,7 +15,7 @@
 	const relist = () => { clearTimeout(refresh); refresh = setTimeout(() => invalidate('chat:threads'), 400); };
 	// svelte-ignore state_referenced_locally
 	// The assistant's go_to sends the person who asked to another page of the site.
-	const live = new LiveThread(data.snapshot, data.viewer, relist, { onnavigate: (path) => void goto(path) });
+	const live = new LiveThread(data.snapshot, data.viewer, relist, { onnavigate: (path) => void goto(path), onreturn: (value) => { if (!text.trim()) text = value; } });
 	const viewer = $derived(live.viewer);
 	const thread = $derived(live.snapshot.thread);
 	const href = $derived(chatHref(thread.id));
@@ -27,7 +27,7 @@
 	});
 
 	/** Over the socket when it's open; otherwise the form posts. */
-	const send = (value: string) => live.say(value);
+	const send = (value: string, { queue }: ChatSendOptions) => live.say(value, undefined, queue);
 </script>
 
 <svelte:head>
