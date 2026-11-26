@@ -15,6 +15,42 @@ const SELECTION_TABLE: FakeItem[] = [
 	{ id: 'n1', type: 'note', text: 'Attention as a practice', x: 300, y: 400, w: 200, h: 200 }
 ];
 
+/* Messy tables, for the layout scenarios: things dropped on top of each other, as after a long chat. */
+const note = (id: string, text: string, x: number, y: number, h = 200): FakeItem => ({ id, type: 'note', text, x, y, w: 200, h });
+const arrow = (id: string, from: string, to: string): FakeItem => ({ id, type: 'arrow', from, to, x: 0, y: 0, w: 1, h: 1 });
+const HEAP: FakeItem[] = [
+	...SELECTION_TABLE.map((item, index) => ({ ...item, x: 40 + index * 90, y: 30 + (index % 3) * 70 })),
+	note('n2', 'Listening is not the same as hearing', 120, 260, 248),
+	note('n3', 'Sonic meditations', 300, 180),
+	note('n4', 'Write in public, in small pieces, often, and let the pieces add up to something over the years rather than waiting for the finished thing', 520, 90, 320),
+	{ id: 'b5', type: 'arena', title: 'Calm Technology Research', url: 'https://www.are.na/casey-gollan/calm-technology-research', x: 200, y: 420, w: 240, h: 240 },
+	{ id: 'b6', type: 'wiki', title: 'Share interests daily', url: 'https://caseyagollan.com/wiki/share-interests-daily', x: 330, y: 480, w: 240, h: 240 },
+	note('n5', 'Energy yes, quality no', 610, 330),
+	note('n6', 'Ambiguous utopia', 60, 520)
+];
+const ORG: FakeItem[] = [
+	note('o1', 'Editor in chief', 300, 260), note('o2', 'Managing editor', 120, 80), note('o3', 'Art director', 340, 120), note('o4', 'Web editor', 500, 300),
+	note('o5', 'Copy editor', 80, 300), note('o6', 'Fact checker', 260, 420), note('o7', 'Designer', 560, 60), note('o8', 'Photo editor', 480, 480),
+	arrow('a1', 'o1', 'o2'), arrow('a2', 'o1', 'o3'), arrow('a3', 'o1', 'o4'), arrow('a4', 'o2', 'o5'), arrow('a5', 'o2', 'o6'), arrow('a6', 'o3', 'o7'), arrow('a7', 'o3', 'o8')
+];
+const MIND: FakeItem[] = [
+	note('m0', 'Deep listening', 900, 40), note('m1', 'Attention', 0, 0), note('m2', 'Sonic meditations', 120, 90), note('m3', 'Environment', 260, 30),
+	note('m4', 'Breath', 60, 240), note('m5', 'Improvisation', 300, 260), note('m6', 'Accordion', 420, 120), note('m7', 'Silence', 200, 380),
+	arrow('a1', 'm0', 'm1'), arrow('a2', 'm0', 'm2'), arrow('a3', 'm0', 'm3'), arrow('a4', 'm0', 'm5'), arrow('a5', 'm2', 'm4'), arrow('a6', 'm5', 'm6'), arrow('a7', 'm1', 'm7')
+];
+const THEMES: FakeItem[] = [
+	note('t1', 'Sourdough starter', 0, 0), note('t2', 'Tomato seedlings', 90, 60), note('t3', 'Bike chain needs oil', 180, 20), note('t4', 'Rye loaf, 75% hydration', 40, 180),
+	note('t5', 'Compost bin', 260, 140), note('t6', 'New brake pads', 330, 40), note('t7', 'Focaccia for Sunday', 140, 260), note('t8', 'Plant garlic in October', 300, 300), note('t9', 'Route to the reservoir', 420, 200)
+];
+const FRAMED: FakeItem[] = [
+	{ id: 'f1', type: 'frame', text: 'Listening', x: 0, y: 0, w: 700, h: 560 },
+	...[note('k1', 'Attention', 40, 40), note('k2', 'Sonic meditations', 150, 100), note('k3', 'Breath', 260, 60, 280), note('k4', 'Silence', 120, 280), note('k5', 'Environment', 330, 300), note('k6', 'Improvisation', 440, 120)].map((item) => ({ ...item, parent: 'f1' })),
+	note('x1', 'Unrelated: buy stamps', 800, 40), note('x2', 'Unrelated: call the landlord', 800, 300)
+];
+const at = (seen: Seen, id: string) => seen.items.find((item) => item.id === id)!;
+const arranged = (seen: Seen, layout: RegExp) => seen.calls.some((call) => call.name === 'table_arrange' && !call.error && layout.test(call.args));
+const noMoves = (seen: Seen) => !used(seen, /^table_move$/);
+
 export const SCENARIOS: Scenario[] = [
 	{
 		// https://caseyagollan.com/chat/7agbgpwcka: 18 tool calls over 94 seconds, then "it took too many steps".
@@ -235,6 +271,103 @@ export const SCENARIOS: Scenario[] = [
 			{ name: 'lists the channel, not a search', pass: (seen) => seen.calls.some((call) => call.name === 'my_saves' && /calm/i.test(call.args) && !call.error) },
 			{ name: 'names things that are in it', pass: (seen) => /weiser|daylight|calm tech certified|amber case|principles and patterns/i.test(seen.answer) },
 			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		// Casey, 2026-11-26: “give the chat much better tools for fixing layout of a selection or a whole table”.
+		name: 'layout-mess',
+		ask: 'This table is a mess. Fix the layout.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Listening',
+		table: HEAP,
+		checks: [
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'one arrange does it, with no moving by hand', pass: (seen) => used(seen, /^table_arrange$/) >= 1 && noMoves(seen) },
+			{ name: 'everything is still there', pass: (seen) => seen.items.length >= HEAP.length },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'layout-org-chart',
+		ask: 'Lay this out as an org chart.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Masthead',
+		table: ORG,
+		checks: [
+			{ name: 'arranges as a tree', pass: (seen) => arranged(seen, /"(tree|layered|org|hierarchy)/) },
+			{ name: 'everyone sits under who they report to', pass: (seen) => seen.items.filter((item) => item.type === 'arrow').every((link) => at(seen, link.from!).y + at(seen, link.from!).h <= at(seen, link.to!).y) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'no moving by hand', pass: noMoves },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'layout-mindmap',
+		ask: 'Turn this into a mind map around “Deep listening”.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Listening',
+		table: MIND,
+		checks: [
+			{ name: 'arranges as a mind map or rings', pass: (seen) => arranged(seen, /"(mindmap|radial)/) },
+			{ name: 'branches on both sides of the middle', pass: (seen) => { const middle = at(seen, 'm0'); const others = seen.items.filter((item) => item.type === 'note' && item.id !== 'm0'); return others.some((item) => item.x + item.w <= middle.x) && others.some((item) => item.x >= middle.x + middle.w); } },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'layout-themes',
+		ask: 'Group these by theme.',
+		page: '/tables/evaltable1',
+		pageTitle: 'To do',
+		table: THEMES,
+		checks: [
+			{ name: 'clusters with named groups', pass: (seen) => arranged(seen, /groups/) },
+			{ name: 'makes a named frame per theme, at least three', pass: (seen) => seen.items.filter((item) => item.type === 'frame' && item.text).length >= 3 },
+			{ name: 'bread goes together, and not with the bike', pass: (seen) => at(seen, 't1').parent && at(seen, 't1').parent === at(seen, 't4').parent && at(seen, 't1').parent === at(seen, 't7').parent && at(seen, 't3').parent !== at(seen, 't1').parent && at(seen, 't3').parent === at(seen, 't6').parent },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'layout-frame',
+		ask: 'Tidy up what’s inside the Listening frame.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Listening',
+		table: FRAMED,
+		checks: [
+			{ name: 'arranges inside the frame', pass: (seen) => seen.calls.some((call) => call.name === 'table_arrange' && !call.error && /f1|listening/i.test(call.args)) },
+			{ name: 'what it holds is still inside it', pass: (seen) => { const frame = at(seen, 'f1'); return seen.items.filter((item) => item.parent === 'f1').every((item) => item.x >= frame.x && item.y >= frame.y && item.x + item.w <= frame.x + frame.w && item.y + item.h <= frame.y + frame.h); } },
+			{ name: 'the notes outside it stay outside and apart from it', pass: (seen) => ['x1', 'x2'].every((id) => !at(seen, id).parent && (at(seen, id).x >= at(seen, 'f1').x + at(seen, 'f1').w || at(seen, id).y >= at(seen, 'f1').y + at(seen, 'f1').h)) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'layout-selection',
+		ask: 'Make these a tidy row.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Listening',
+		table: HEAP,
+		selected: ['n2', 'n3', 'n5', 'n6'],
+		checks: [
+			{ name: 'arranges only the selection', pass: (seen) => seen.calls.some((call) => call.name === 'table_arrange' && !call.error && /selected|n2/.test(call.args)) },
+			{ name: 'the four share a top edge and don’t overlap each other', pass: (seen) => { const four = ['n2', 'n3', 'n5', 'n6'].map((id) => at(seen, id)); return new Set(four.map((item) => item.y)).size === 1 && !overlaps(four); } },
+			{ name: 'doesn’t read the table to find them', pass: (seen) => !used(seen, /^table_read$/) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'layout-flow',
+		ask: 'Show the notes on this table as a process, left to right: research, then draft, then edit, then publish.',
+		page: '/tables/evaltable1',
+		pageTitle: 'Writing',
+		table: [note('p1', 'Publish', 0, 0), note('p2', 'Draft', 80, 60), note('p3', 'Research', 160, 20), note('p4', 'Edit', 60, 160)],
+		checks: [
+			{ name: 'uses the four notes that are there', pass: (seen) => seen.items.filter((item) => item.type === 'note' || item.type === 'text').length === 4 },
+			{ name: 'joins the steps with three arrows', pass: (seen) => seen.items.filter((item) => item.type === 'arrow').length === 3 },
+			{ name: 'reads left to right in order', pass: (seen) => ['p3', 'p2', 'p4', 'p1'].every((id, index, ids) => !index || at(seen, ids[index - 1]).x + 200 <= at(seen, id).x) },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'four calls or fewer', pass: (seen) => seen.calls.length <= 4 }
 		]
 	},
 	{
