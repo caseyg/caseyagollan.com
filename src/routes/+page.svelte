@@ -17,6 +17,7 @@
     import type { Node as GraphNode } from "$lib/data/graph-data";
 
     import type { InsightResponse, InsightSource } from "$lib/insight-types";
+    import { cleanSources, HOME_BIO } from "$lib/home-insights";
     import { usePageCommands } from "$lib/page-commands.svelte";
 
 
@@ -69,9 +70,7 @@
     });
 
     let textContainer: HTMLElement;
-    let documentContent: string = $state(
-        "Casey is a Senior Manager of Engineering in IBM's Product Excellence Office, leading a team that builds AI productivity platforms for hundreds of product teams across one of the largest and oldest technology companies.\n\nPreviously, he co-founded the School for Poetic Computation and led operations at NYU's AI Now Institute. He serves on the ResearchOps Community board and is a member of ChaCha Club.",
-    );
+    let documentContent: string = $state(HOME_BIO);
     let isDocumentUpdating: boolean = $state(false);
     let isDocumentAnimating: boolean = $state(false);
     let currentEditEvent: { old_text: string; new_text: string } | undefined =
@@ -226,6 +225,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     topic: topics,
+                    topics: updates.map((u) => u.topic),
                     insight: combinedInsight,
                     currentDocument: documentContent,
                     clickedTopics: Array.from(clickedTopics),
@@ -600,7 +600,8 @@
                 currentInsight.isStreaming = false;
                 currentInsight.isThinking = false;
                 currentInsight.insight = data.insight || "";
-                currentInsight.sources = data.sources || [];
+                // Web addresses only: these become links and open in a new tab.
+                currentInsight.sources = cleanSources(data.sources);
                 currentInsight.recommendedTopics = data.recommendedTopics || [];
 
                 // Update the insight in the array to trigger reactivity

@@ -2,12 +2,16 @@ import Defuddle from 'defuddle';
 import { parseHTML } from 'linkedom';
 import { piecesIn } from '$lib/table-pieces';
 import type { Block } from '$lib/tables';
+import { safePublicFetch } from './publishing/public-fetch';
 
 const MAX_HTML = 3_000_000;
 const TIMEOUT = 10_000;
 
 /** Fetches another site's page, keeps its main text with defuddle, and takes it into paragraphs and pictures. */
-export async function remotePagePieces(address: string, fetcher: typeof fetch = fetch): Promise<Block[]> {
+/** Public HTTPS hosts only, each redirect checked, and no more than the page limit read. */
+const publicPage = ((input: RequestInfo | URL, init?: RequestInit) => safePublicFetch(String(input instanceof Request ? input.url : input), init, fetch, MAX_HTML)) as typeof fetch;
+
+export async function remotePagePieces(address: string, fetcher: typeof fetch = publicPage): Promise<Block[]> {
 	const url = new URL(address);
 	const response = await fetcher(url.href, {
 		headers: { accept: 'text/html,application/xhtml+xml', 'user-agent': 'Mozilla/5.0 (compatible; caseyagollan.com tables)' },
