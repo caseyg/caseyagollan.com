@@ -5,6 +5,7 @@ import TableBlock from '../TableBlock.svelte';
 import { BLOCK_SHAPE, blockHref, isBlockKind, type Block } from '$lib/tables';
 import { wikiHref } from '$lib/wiki/links';
 import { quoteSize } from '$lib/table-pieces';
+import { cardSize, isCard } from '$lib/table-card';
 import { isSocialPiece, isSourcePost, socialSize } from '$lib/table-post-source';
 
 /** A block's props: the `Block` it shows, with '' for anything it lacks, and its size. */
@@ -22,6 +23,11 @@ export interface SiteBlockProps {
 	hideMeta: boolean;
 	/** What the block is where it was saved (`Block.ref`), or '' for none. */
 	ref: string;
+	/** `card` for a source card (`Block.form`), or ''. */
+	form: string;
+	/** A source card's quote, and whether it is Casey's own highlight. */
+	quote: string;
+	marked: boolean;
 }
 
 declare module 'tldraw' {
@@ -41,7 +47,8 @@ export function blockOf(props: SiteBlockProps): Block {
 		excerpt: props.excerpt || undefined,
 		image: props.image || undefined,
 		icon: props.icon || undefined,
-		...(props.ref ? { ref: props.ref } : {})
+		...(props.ref ? { ref: props.ref } : {}),
+		...(props.form === 'card' ? { form: 'card' as const, ...(props.quote ? { quote: props.quote, ...(props.marked ? { marked: true } : {}) } : {}) } : {})
 	};
 }
 
@@ -53,6 +60,7 @@ export function openBlock(shape: SiteBlockShape) {
 
 /** The size a block starts at: covers are portrait, pictures landscape, text square. */
 export function blockSize(block: Block): { w: number; h: number } {
+	if (isCard(block)) return cardSize(block);
 	if (block.kind === 'book') return { w: 180, h: 300 };
 	if (block.kind === 'quote' && block.excerpt && !block.image) return quoteSize(block.excerpt);
 	// Posts are drawn as the Bluesky or Mastodon post they are; Are.na blocks are squares with their title under them.
@@ -63,10 +71,10 @@ export function blockSize(block: Block): { w: number; h: number } {
 }
 
 export function blockProps(block: Block): SiteBlockProps {
-	return { ...blockSize(block), kind: block.kind, url: block.url, title: block.title, meta: block.meta ?? '', excerpt: block.excerpt ?? '', image: block.image ?? '', icon: block.icon ?? '', hideMeta: false, ref: block.ref ?? '' };
+	return { ...blockSize(block), kind: block.kind, url: block.url, title: block.title, meta: block.meta ?? '', excerpt: block.excerpt ?? '', image: block.image ?? '', icon: block.icon ?? '', hideMeta: false, ref: block.ref ?? '', form: block.form ?? '', quote: block.quote ?? '', marked: !!block.marked };
 }
 
-const versions = createShapePropsMigrationIds(BLOCK_SHAPE, { AddHideMeta: 1, AddRef: 2 });
+const versions = createShapePropsMigrationIds(BLOCK_SHAPE, { AddHideMeta: 1, AddRef: 2, AddCard: 3 });
 
 /** Blocks saved before details could be hidden show them. */
 export const siteBlockMigrations = createShapePropsMigrationSequence({
@@ -88,6 +96,20 @@ export const siteBlockMigrations = createShapePropsMigrationSequence({
 			},
 			down(props: Record<string, unknown>) {
 				delete props.ref;
+			}
+		},
+		{
+			// Blocks from before source cards are whatever their kind draws.
+			id: versions.AddCard,
+			up(props: Record<string, unknown>) {
+				props.form = '';
+				props.quote = '';
+				props.marked = false;
+			},
+			down(props: Record<string, unknown>) {
+				delete props.form;
+				delete props.quote;
+				delete props.marked;
 			}
 		}
 	]
@@ -221,7 +243,7 @@ function BlockCardView({ shape }: { shape: SiteBlockShape }) {
 	const props = shape.props;
 	const target = useRef<HTMLDivElement>(null);
 	useFitToPost(shape, target);
-	const { kind, url, title, meta, excerpt, image, icon, hideMeta, ref } = props;
+	const { kind, url, title, meta, excerpt, image, icon, hideMeta, ref, form, quote, marked } = props;
 	useEffect(() => {
 		if (!target.current) return;
 		const component = mount(TableBlock, { target: target.current, props: { block: blockOf({ ...props }), details: !hideMeta } });
@@ -229,7 +251,7 @@ function BlockCardView({ shape }: { shape: SiteBlockShape }) {
 			void unmount(component);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [kind, url, title, meta, excerpt, image, icon, hideMeta, ref]);
+	}, [kind, url, title, meta, excerpt, image, icon, hideMeta, ref, form, quote, marked]);
 	return <div ref={target} className="site-block" />;
 }
 
@@ -247,11 +269,14 @@ export class SiteBlockShapeUtil extends BaseBoxShapeUtil<SiteBlockShape> {
 		image: T.string,
 		icon: T.string,
 		hideMeta: T.boolean,
-		ref: T.string
+		ref: T.string,
+		form: T.string,
+		quote: T.string,
+		marked: T.boolean
 	};
 
 	override getDefaultProps(): SiteBlockProps {
-		return { w: 240, h: 240, kind: 'link', url: '/', title: 'Untitled', meta: '', excerpt: '', image: '', icon: '', hideMeta: false, ref: '' };
+		return { w: 240, h: 240, kind: 'link', url: '/', title: 'Untitled', meta: '', excerpt: '', image: '', icon: '', hideMeta: false, ref: '', form: '', quote: '', marked: false };
 	}
 
 	override canEdit() {

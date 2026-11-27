@@ -52,6 +52,10 @@ export interface SavedItem {
 	text?: string;
 	image?: string;
 	private?: boolean;
+	/** The page a saved link leads to, when the item's own address is where it is kept (an Are.na block). */
+	source?: string;
+	/** Casey's highlights of it, where the source keeps them with the item. */
+	highlights?: string[];
 	block: Block | null;
 }
 
@@ -162,7 +166,8 @@ function arenaSaved(document: ArenaDocument, hidden: boolean): SavedItem {
 function arenaItem(item: ArenaItem): SavedItem {
 	const document = arenaDocument(item);
 	if (item.type === 'Channel') document.url = channelUrl(item);
-	return arenaSaved(document, item.visibility === 'private' || (item.visibility !== undefined && !isVisible(item)));
+	const source = webUrl(item.source?.url);
+	return { ...arenaSaved(document, item.visibility === 'private' || (item.visibility !== undefined && !isVisible(item))), ...(source ? { source } : {}) };
 }
 
 /** Casey's channels, newest first; private ones too when the token is set. */
@@ -283,7 +288,8 @@ function raindropItem(item: RaindropFull): SavedItem | null {
 	const block = raindropBlock(item);
 	if (!block) return null;
 	const text = [item.excerpt, item.note, item.tags?.length ? `Tags: ${item.tags.join(', ')}` : ''].map(flat).filter(Boolean).join(' · ');
-	return { id: String(item._id), title: block.title, url: block.url, kind: item.type ?? 'link', date: day(item.created), text: text || undefined, image: block.image, block };
+	const highlights = (item.highlights ?? []).map((highlight) => flat(highlight.text)).filter(Boolean);
+	return { id: String(item._id), title: block.title, url: block.url, kind: item.type ?? 'link', date: day(item.created), text: text || undefined, image: block.image, ...(highlights.length ? { highlights } : {}), block };
 }
 
 async function raindropList(deps: SavesDeps, options: ListOptions): Promise<SavedPage> {
@@ -322,7 +328,7 @@ const READWISE = 'https://readwise.io/api';
 const SHELVES: Record<string, string> = { inbox: 'new', later: 'later', shortlist: 'shortlist', archive: 'archive', feed: 'feed' };
 const HIGHLIGHT_KINDS = ['books', 'articles', 'tweets', 'podcasts', 'supplementals'];
 
-interface ReaderDocument { id: string; url?: string; source_url?: string | null; title?: string | null; author?: string | null; category?: string; location?: string | null; summary?: string | null; saved_at?: string; created_at?: string; image_url?: string | null; site_name?: string | null; parent_id?: string | null; word_count?: number | null; reading_progress?: number | null; html_content?: string | null; notes?: string | null; tags?: Record<string, unknown> | null }
+export interface ReaderDocument { id: string; content?: string | null; updated_at?: string; published_date?: string | number | null; url?: string; source_url?: string | null; title?: string | null; author?: string | null; category?: string; location?: string | null; summary?: string | null; saved_at?: string; created_at?: string; image_url?: string | null; site_name?: string | null; parent_id?: string | null; word_count?: number | null; reading_progress?: number | null; html_content?: string | null; notes?: string | null; tags?: Record<string, unknown> | null }
 interface ReadwiseBook { id: number; title?: string; author?: string | null; category?: string; num_highlights?: number; last_highlight_at?: string | null; cover_image_url?: string | null; source_url?: string | null; highlights_url?: string | null }
 interface ReadwiseHighlight { id: number; text?: string; note?: string | null; highlighted_at?: string | null; url?: string | null; readwise_url?: string | null; book_id?: number }
 
@@ -343,6 +349,29 @@ function readerItem(document: ReaderDocument): SavedItem {
 		id: document.id, title, url, kind: document.category ?? 'document', date, text, image: webUrl(document.image_url),
 		block: { kind: 'link', url, title, meta: ['Readwise', flat(document.site_name) || host(url), date].filter(Boolean).join(' · '), excerpt: text?.slice(0, 300), image: webUrl(document.image_url), icon: '📖', ...(/^[0-9a-z]{20,40}$/.test(document.id) ? { ref: `readwise:document:${document.id}` } : {}) }
 	};
+}
+
+/**
+ * Reader documents whole (their text as HTML, and the highlights made in them as child documents),
+ * newest first: everything changed since `since`, or everything on a shelf or under a tag. For
+ * `table_map`, which keeps what it reads and next time asks only for what changed since.
+ */
+export async function readerDocuments(deps: SavesDeps, options: { since?: string; location?: string; tag?: string; max?: number } = {}): Promise<{ documents: ReaderDocument[]; more: boolean }> {
+	const max = options.max ?? 300;
+	const params = new URLSearchParams({ withHtmlContent: 'true', limit: '100' });
+	if (options.since) params.set('updatedAfter', options.since);
+	if (options.location) params.set('location', SHELVES[options.location.toLowerCase()] ?? options.location);
+	if (options.tag) params.set('tag', options.tag);
+	const documents: ReaderDocument[] = [];
+	let cursor: string | undefined;
+	for (let round = 0; round < 10; round++) {
+		if (cursor) params.set('pageCursor', cursor);
+		const data = await readwiseGet<{ results?: ReaderDocument[]; nextPageCursor?: string | null }>(deps, `/v3/list/?${params}`);
+		documents.push(...(data.results ?? []));
+		cursor = data.nextPageCursor ?? undefined;
+		if (!cursor || documents.filter((document) => !document.parent_id).length >= max) break;
+	}
+	return { documents, more: !!cursor };
 }
 
 const bookUrl = (book: ReadwiseBook) => webUrl(book.source_url) ?? webUrl(book.highlights_url) ?? `https://readwise.io/bookreview/${book.id}`;

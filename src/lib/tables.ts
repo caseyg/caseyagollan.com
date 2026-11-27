@@ -24,6 +24,15 @@ export interface Block {
 	 * `raindrop:<id>` or `readwise:document|highlight|book:<id>` (see `src/lib/tag-edits.ts`).
 	 */
 	ref?: string;
+	/**
+	 * `card`: drawn as a source card (`SourceCard`), the form a saved page takes on a map: its
+	 * picture or a title tile, its title, a quote and where it is from (see `src/lib/table-card.ts`).
+	 */
+	form?: 'card';
+	/** A source card's quote: words taken from the page exactly as written there. */
+	quote?: string;
+	/** The quote is Casey's own highlight. */
+	marked?: boolean;
 }
 
 /** A table as the browse page lists it. */
@@ -111,7 +120,8 @@ export function cleanBlock(value: unknown): Block | null {
 	const title = text(raw.title, 300);
 	if (!isBlockKind(raw.kind) || !url || !title) return null;
 	const ref = typeof raw.ref === 'string' && BLOCK_REF.test(raw.ref) ? raw.ref : undefined;
-	return { kind: raw.kind, url, title, meta: text(raw.meta, 200), excerpt: text(raw.excerpt), image: imageUrl(raw.image), icon: text(raw.icon, 16), ...(ref ? { ref } : {}) };
+	const card = raw.form === 'card' ? { form: 'card' as const, ...(text(raw.quote, 400) ? { quote: text(raw.quote, 400), ...(raw.marked === true ? { marked: true } : {}) } : {}) } : {};
+	return { kind: raw.kind, url, title, meta: text(raw.meta, 200), excerpt: text(raw.excerpt), image: imageUrl(raw.image), icon: text(raw.icon, 16), ...(ref ? { ref } : {}), ...card };
 }
 
 /** The block a kind of shape stands for, or null for drawings, notes and arrows. */
