@@ -25,7 +25,7 @@ export interface McpToolResult {
 
 /** The server refused the token: sign in again. */
 export class McpAuthError extends Error {
-	constructor(message = 'The server refused the sign-in.') { super(message); this.name = 'McpAuthError'; }
+	constructor(message = 'The server refused the sign-in.', readonly status?: number, /** The server's own reason (`error` and `error_description` of its challenge), when it gave one. */ readonly detail?: string) { super(message); this.name = 'McpAuthError'; }
 }
 export class McpError extends Error {
 	constructor(message: string, readonly status?: number) { super(message); this.name = 'McpError'; }
@@ -61,6 +61,14 @@ export function replyFrom(body: string, contentType: string, id: number): RpcRep
 	}
 	const replies = candidates.flatMap((value) => Array.isArray(value) ? value : [value]) as RpcReply[];
 	return replies.find((reply) => reply && typeof reply === 'object' && reply.id === id && ('result' in reply || 'error' in reply));
+}
+
+/** What a `WWW-Authenticate` challenge says went wrong: its error code and description. Never a token. */
+export function challengeReason(header: string | null): string | undefined {
+	if (!header) return undefined;
+	const part = (name: string) => new RegExp(`${name}="([^"]*)"`).exec(header)?.[1]?.trim();
+	const reason = [part('error'), part('error_description')].filter(Boolean).join(': ');
+	return reason ? reason.slice(0, 300) : undefined;
 }
 
 /**
@@ -100,7 +108,7 @@ export class McpSession {
 	private async rpc(method: string, params: unknown, signal?: AbortSignal): Promise<unknown> {
 		const id = ++this.#id;
 		const response = await this.post({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }, signal);
-		if (response.status === 401 || response.status === 403) { await response.body?.cancel().catch(() => undefined); throw new McpAuthError(); }
+		if (response.status === 401 || response.status === 403) { await response.body?.cancel().catch(() => undefined); throw new McpAuthError(undefined, response.status, challengeReason(response.headers.get('www-authenticate'))); }
 		// Redirects are not followed (the token must not travel to another address), so one is a failure.
 		if (response.status >= 300 && response.status < 400) { await response.body?.cancel().catch(() => undefined); throw new McpError(`The server sent the request elsewhere (${response.status}).`, response.status); }
 		const session = response.headers.get('mcp-session-id');

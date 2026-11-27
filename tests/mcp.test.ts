@@ -5,7 +5,7 @@ import { CodemodeSandbox } from '@earendil-works/pi-codemode';
 import { createRegistry, Harness, MemoryStorage } from '@earendil-works/pi-durable';
 import { createCodemodeExtension } from '@earendil-works/pi-durable/codemode';
 import { MCP_SERVERS, mcpServer } from '../src/lib/mcp-servers';
-import { McpAuthError, McpSession, readsOnly, replyFrom } from '../src/lib/server/mcp/client';
+import { challengeReason, McpAuthError, McpSession, readsOnly, replyFrom } from '../src/lib/server/mcp/client';
 import { bearer, connections, disconnect, finishConnect, markBroken, mcpDeps, setWrites, startConnect, usableServers, McpConnectError } from '../src/lib/server/mcp/connections';
 import { budgeted, withOutputBudget, mcpExtension, mcpNamespaces, mcpToolName, mcpTools, parametersOf, scriptCalls, sectionsWhen, serverNames } from '../src/lib/server/chat/mcp-tools';
 import { isPrivateTool, projectMessages, SAY_KIND, toolLabel } from '../src/lib/server/chat/projection';
@@ -132,7 +132,7 @@ describe('MCP sign-in from /account', () => {
 		const world = setup();
 		const page = await signIn(world);
 		expect(page.origin + page.pathname).toBe('https://readwise.io/o/authorize/');
-		expect(Object.fromEntries(page.searchParams)).toMatchObject({ response_type: 'code', client_id: 'client-1', redirect_uri: 'https://caseyagollan.com/oauth/mcp/callback', code_challenge_method: 'S256', resource: READWISE.url, scope: 'read write' });
+		expect(Object.fromEntries(page.searchParams)).toMatchObject({ response_type: 'code', client_id: 'client-1', redirect_uri: 'https://caseyagollan.com/oauth/mcp/callback', code_challenge_method: 'S256', resource: READWISE.url, scope: 'openid read write' });
 		const registration = JSON.parse(world.seen.find((request) => request.url.endsWith('/register/'))!.body);
 		expect(registration).toMatchObject({ redirect_uris: ['https://caseyagollan.com/oauth/mcp/callback'], token_endpoint_auth_method: 'none', client_name: 'caseyagollan.com' });
 		const exchange = new URLSearchParams(world.seen.find((request) => request.url.endsWith('/token/'))!.body);
@@ -431,5 +431,13 @@ describe('the client on Workers', () => {
 		try {
 			expect((await new McpSession('https://mcp.example/mcp', async () => 't').listTools()).map((tool) => tool.name)).toEqual(['find_bookmarks']);
 		} finally { globalThis.fetch = real; }
+	});
+});
+
+describe('MCP sign-in details', () => {
+	test('a challenge gives its reason without anything else', () => {
+		expect(challengeReason('Bearer error="invalid_token", error_description="The token is not recognized.", resource_metadata="https://x.example/.well-known/x"')).toBe('invalid_token: The token is not recognized.');
+		expect(challengeReason('Bearer resource_metadata="https://x.example/.well-known/x"')).toBeUndefined();
+		expect(challengeReason(null)).toBeUndefined();
 	});
 });

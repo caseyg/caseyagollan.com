@@ -97,7 +97,27 @@ export function withOutputBudget(code: string): string {
 
 /** The code mode extension with the chat's output budget on every script. */
 export function budgeted(extension: Extension): Extension {
-	return { ...extension, tools: extension.tools?.map((tool): ToolRegistration => tool.name !== CODEMODE_TOOL ? tool : { ...tool, prepareArguments: (args: unknown) => { const given = (args ?? {}) as { code?: unknown }; return typeof given.code === 'string' && given.code.trim() ? { ...given, code: withOutputBudget(given.code) } : given; } }) };
+	return {
+		...extension, tools: extension.tools?.map((tool): ToolRegistration => tool.name !== CODEMODE_TOOL ? tool : {
+			...tool,
+			prepareArguments: (args: unknown) => { const given = (args ?? {}) as { code?: unknown }; return typeof given.code === 'string' && given.code.trim() ? { ...given, code: withOutputBudget(given.code) } : given; },
+			// One log line per script: which servers' tools its code names, how long it ran and whether it failed. Never the code or what it returned.
+			execute: async (args, api, context) => {
+				const started = Date.now();
+				const code = typeof (args as { code?: unknown })?.code === 'string' ? (args as { code: string }).code : '';
+				const note = (extra: Record<string, unknown>) => console.log(JSON.stringify({ event: 'chat_script', calls: scriptCalls(code).slice(0, 12), finds: /\b(searchTools|describeTool|describeNamespace)\s*\(/.test(code), codeChars: code.length, ms: Date.now() - started, ...extra }));
+				try {
+					const result = await tool.execute(args as never, api, context);
+					const output = (result as { output?: unknown })?.output;
+					note({ chars: typeof output === 'string' ? output.length : JSON.stringify(output ?? '').length, ...((result as { isError?: boolean })?.isError ? { error: true } : {}) });
+					return result;
+				} catch (error) {
+					note({ threw: (error as Error)?.name ?? 'Error' });
+					throw error;
+				}
+			}
+		})
+	};
 }
 
 /** The `tools.mcp__…` calls a script makes, as readers see them: “Readwise: reader search documents”. */

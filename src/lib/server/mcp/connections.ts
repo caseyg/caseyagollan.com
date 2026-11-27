@@ -36,7 +36,7 @@ export class McpConnectError extends Error {
 }
 
 interface ServerMetadata { issuer: string; authorization_endpoint: string; token_endpoint: string; registration_endpoint?: string; revocation_endpoint?: string }
-interface ClientRecord { clientId: string; clientSecret?: string; redirectUri: string; issuer: string; registeredAt: number }
+interface ClientRecord { clientId: string; clientSecret?: string; redirectUri: string; issuer: string; /** The scopes it was registered for; a registration for other scopes is made again. */ scope?: string; registeredAt: number }
 interface Pending { server: string; state: string; verifier: string; binding: string; redirectUri: string; resource: string; metadata: ServerMetadata; client: ClientRecord; createdAt: number }
 interface StoredSession {
 	accessToken: string; refreshToken?: string; expiresAt?: number; scope?: string;
@@ -103,7 +103,7 @@ export async function discover(deps: McpDeps, server: McpServer): Promise<{ reso
 		if (Array.isArray(methods) && !methods.includes('S256')) continue;
 		return {
 			resource: https(resource?.resource) ?? server.url,
-			scopes: (Array.isArray(resource?.scopes_supported) ? resource.scopes_supported : Array.isArray(found.scopes_supported) ? found.scopes_supported : []).filter((scope): scope is string => typeof scope === 'string' && scope !== 'openid'),
+			scopes: (Array.isArray(resource?.scopes_supported) ? resource.scopes_supported : Array.isArray(found.scopes_supported) ? found.scopes_supported : []).filter((scope): scope is string => typeof scope === 'string' && !!scope),
 			metadata: { issuer: typeof found.issuer === 'string' ? found.issuer : issuer, authorization_endpoint: authorization, token_endpoint: token, registration_endpoint: https(found.registration_endpoint), revocation_endpoint: https(found.revocation_endpoint) }
 		};
 	}
@@ -114,7 +114,7 @@ export async function discover(deps: McpDeps, server: McpServer): Promise<{ reso
 async function client(deps: McpDeps, server: McpServer, metadata: ServerMetadata, redirectUri: string, scopes: string[]): Promise<ClientRecord> {
 	const key = await clientKey(server.id, redirectUri);
 	const stored = await readJson<ClientRecord>(deps.bucket, key);
-	if (stored?.clientId && stored.redirectUri === redirectUri && stored.issuer === metadata.issuer) return stored;
+	if (stored?.clientId && stored.redirectUri === redirectUri && stored.issuer === metadata.issuer && (stored.scope ?? '') === scopes.join(' ')) return stored;
 	if (!metadata.registration_endpoint) throw new McpConnectError(`${server.name} doesn’t let apps register themselves, so it can’t be connected from here.`);
 	const origin = new URL(redirectUri).origin;
 	const response = await (deps.fetcher ?? fetch)(metadata.registration_endpoint, {
@@ -131,7 +131,7 @@ async function client(deps: McpDeps, server: McpServer, metadata: ServerMetadata
 		const reason = [body?.error_description, body?.error].find((value): value is string => typeof value === 'string' && !!value.trim())?.trim().slice(0, 200);
 		throw new McpConnectError(`${server.name} didn’t accept this site as an app${response ? ` (${response.status})` : ''}${reason ? `: ${reason.replace(/\.$/, '')}` : ''}.`);
 	}
-	const record: ClientRecord = { clientId: body.client_id, ...(typeof body.client_secret === 'string' && body.client_secret ? { clientSecret: body.client_secret } : {}), redirectUri, issuer: metadata.issuer, registeredAt: (deps.now ?? Date.now)() };
+	const record: ClientRecord = { clientId: body.client_id, ...(typeof body.client_secret === 'string' && body.client_secret ? { clientSecret: body.client_secret } : {}), redirectUri, issuer: metadata.issuer, scope: scopes.join(' '), registeredAt: (deps.now ?? Date.now)() };
 	await writeJson(deps.bucket, key, record);
 	return record;
 }
@@ -250,7 +250,14 @@ export function sessionFor(deps: McpDeps, server: McpServer): McpSession {
 
 /** Ask the server what it offers and keep the answer. */
 export async function refreshTools(deps: McpDeps, server: McpServer): Promise<StoredTools> {
-	const listed = await sessionFor(deps, server).listTools();
+	const listed = await sessionFor(deps, server).listTools().catch(async (cause) => {
+		if (cause instanceof McpAuthError) {
+			// Why the server refused, in its own words, with what was granted: never a token.
+			const session = await readJson<StoredSession>(deps.bucket, sessionKey(server.id)).catch(() => undefined);
+			console.warn(JSON.stringify({ event: 'mcp_auth_refused', server: server.id, status: cause.status, detail: cause.detail, oauth: !!session?.accessToken, scope: session?.scope, expires: !!session?.expiresAt, age: session ? (deps.now ?? Date.now)() - (session.refreshedAt ?? session.connectedAt) : undefined }));
+		}
+		throw cause;
+	});
 	// Only what the chat needs of each tool; a server's extra fields stay out of the bucket.
 	const tools = listed.slice(0, 200).map((tool): McpTool => ({ name: tool.name, ...(tool.description ? { description: tool.description } : {}), ...(tool.inputSchema && typeof tool.inputSchema === 'object' ? { inputSchema: tool.inputSchema } : {}), ...(tool.annotations ? { annotations: { readOnlyHint: tool.annotations.readOnlyHint, destructiveHint: tool.annotations.destructiveHint } } : {}) }));
 	const stored: StoredTools = { tools, at: (deps.now ?? Date.now)() };
