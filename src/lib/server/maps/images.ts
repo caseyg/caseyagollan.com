@@ -57,7 +57,7 @@ async function mirror(src: string, deps: ImageDeps): Promise<Kept | null> {
 		bytes = new Uint8Array(await response.arrayBuffer());
 		if (bytes.length < SMALLEST) return null;
 		if (deps.images) {
-			const shrunk = await deps.images.input(new Blob([bytes]).stream()).transform({ width: PICTURE.width, height: PICTURE.height, fit: 'cover' }).output({ format: 'image/jpeg', quality: 78 });
+			const shrunk = await deps.images.input(new Blob([bytes as BlobPart]).stream()).transform({ width: PICTURE.width, height: PICTURE.height, fit: 'cover' }).output({ format: 'image/jpeg', quality: 78 });
 			bytes = new Uint8Array(await shrunk.response().arrayBuffer());
 		} else if (type !== 'image/jpeg' || bytes.length > LARGEST) return null;
 	} catch { return null; }

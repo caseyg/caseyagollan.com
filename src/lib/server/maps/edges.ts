@@ -80,7 +80,7 @@ export function buildEdges(docs: MapDoc[], options: EdgeOptions = {}): LinksStag
 	const texts = docs.map((doc) => { const language = languageOf(`${doc.title}. ${doc.text}`); languages[language] = (languages[language] ?? 0) + 1; return { id: doc.id, title: doc.title, text: doc.text, language }; });
 	if (most > 0 && docs.length > 1) {
 		const pairs = likeness(texts, Math.min(threshold, 0.08));
-		for (const pair of pairs) if (pair.score >= 0.9) add({ from: pair.a, to: pair.b, kind: 'same', strong: true, weight: 1, label: 'same story' });
+		for (const pair of pairs) if (pair.score >= 0.9 && pair.cover >= 0.6) add({ from: pair.a, to: pair.b, kind: 'same', strong: true, weight: 1, label: 'same story' });
 		// Tier two. Each document's nearest few; a tie is kept when both name each other, or it is either's very nearest.
 		const nearest = new Map<string, typeof pairs>();
 		for (const pair of pairs) for (const id of [pair.a, pair.b]) { const list = nearest.get(id) ?? []; if (list.length < most) list.push(pair); nearest.set(id, list); }

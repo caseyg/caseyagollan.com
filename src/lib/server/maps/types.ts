@@ -9,7 +9,11 @@ export type MapSource = (typeof MAP_SOURCES)[number];
 export const MAP_SOURCE_NAME: Record<MapSource, string> = { readwise: 'Readwise', arena: 'Are.na', raindrop: 'Raindrop', site: 'This site' };
 
 /** One place to take documents from: a source, and optionally a place in it or words to match. */
-export interface MapAsk { source: MapSource; in?: string; query?: string }
+export interface MapAsk {
+	source: MapSource; in?: string; query?: string;
+	/** This place's own window, over the map's: 0 is all of it (“this week's saves, plus the whole of that channel”). */
+	days?: number;
+}
 
 /** A saved thing with everything later stages need: its words, what it links to, its pictures, Casey's highlights. */
 export interface MapDoc {
@@ -43,7 +47,11 @@ export interface MapDoc {
 	updated?: string;
 }
 
-export interface DocsStage { asks: MapAsk[]; days?: number; fetched: string; docs: MapDoc[]; notes: string[] }
+export interface DocsStage {
+	asks: MapAsk[]; days?: number; fetched: string; docs: MapDoc[]; notes: string[];
+	/** A source couldn't be reached, so this isn't everything: the next run reads afresh rather than only what changed since. */
+	partial?: boolean;
+}
 
 export type EdgeKind = 'link' | 'cites' | 'same' | 'similar' | 'site';
 /** A tie between two documents. `strong` ties are facts (a link, a shared citation); the rest are likeness. */

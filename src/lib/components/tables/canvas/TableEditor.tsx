@@ -23,7 +23,7 @@ import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, type Block } from '$lib/tables';
 import { linkedBlock, richerBlock } from '$lib/table-sources';
 import type { ChatSelectionItem } from '$lib/chat';
-import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
+import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableMapCard, type TableMapLink, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { arrange, clustersBy, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
 import { GRID, onGrid, arrowCrossings, bendAround, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { tagRef } from '$lib/tag-edits';
@@ -662,6 +662,66 @@ function connect(editor: Editor, links: TableLink[]) {
 	return { added, ...(missing.length ? { not_found: missing } : {}) };
 }
 
+/** Room above a map's cards for its heading and the line under it. */
+const MAP_HEADER = 200;
+
+/**
+ * A map set down whole: heading, cards where the server's layout put them, and the ties between
+ * them, sent to the back so every line runs under the cards. Strong ties are solid; likeness is a
+ * thin dotted grey. A map with the same key is replaced where it stands.
+ */
+function addMap(editor: Editor, op: { key: string; title?: string; note?: string; cards: TableMapCard[]; links: TableMapLink[]; at?: { x: number; y: number } }) {
+	const mine = (shape: TLShape) => shape.meta?.map === op.key;
+	const old = editor.getCurrentPageShapes().filter(mine);
+	const rest = editor.getCurrentPageShapes().filter((shape) => !mine(shape) && !shape.parentId.startsWith('shape:') && shape.type !== 'arrow');
+	const was = old.length ? editor.getShapePageBounds(old.find((shape) => shape.meta?.mapPart === 'title') ?? old[0]) : undefined;
+	const others = rest.map((shape) => editor.getShapePageBounds(shape)).filter((box): box is NonNullable<typeof box> => !!box);
+	// Where it was; or where asked; or clear of everything else, underneath; or the middle of an empty table.
+	const origin = op.at ?? (was ? { x: was.x, y: was.y } : others.length ? { x: Math.min(...others.map((box) => box.x)), y: Math.max(...others.map((box) => box.maxY)) + 240 } : { x: 0, y: 0 });
+	const left = onGrid(origin.x), top = onGrid(origin.y);
+	const meta = { map: op.key };
+	const cards: TLShapeId[] = [], lines: TLShapeId[] = [];
+	editor.markHistoryStoppingPoint('add map');
+	editor.run(() => {
+		if (old.length) editor.deleteShapes(old.map((shape) => shape.id));
+		// The heading is read with the whole map in view, so it grows with the map.
+		const wide = Math.max(0, ...op.cards.map((card) => card.x + card.w));
+		const big = Math.max(1, Math.min(5, Math.round((wide / 1500) * 4) / 4));
+		if (op.title) editor.createShape({ id: createShapeId(), type: 'text', x: left, y: top, meta: { ...meta, mapPart: 'title' }, props: { richText: toRichText(op.title.slice(0, 120)), size: 'xl', autoSize: true, color: 'white', scale: big } });
+		if (op.note) editor.createShape({ id: createShapeId(), type: 'text', x: left, y: top + 80 * big, meta, props: { richText: toRichText(op.note.slice(0, 400)), size: 's', autoSize: false, w: 1100, color: 'white', scale: big } });
+		const down = op.title || op.note ? onGrid(MAP_HEADER * 0.8 * big) : 0;
+		for (const card of op.cards) {
+			const id = createShapeId();
+			editor.createShape<SiteBlockShape>({ id, type: BLOCK_SHAPE, x: left + onGrid(card.x), y: top + down + onGrid(card.y), props: { ...blockProps(card.block), w: Math.max(40, Math.round(card.w)), h: Math.max(40, Math.round(card.h)) }, meta });
+			cards.push(id);
+		}
+		for (const link of op.links) {
+			const from = cards[link.from], to = cards[link.to];
+			if (!from || !to || from === to) continue;
+			const a = editor.getShapePageBounds(from)!.center, b = editor.getShapePageBounds(to)!.center;
+			const id = createShapeId();
+			editor.createShape<TLArrowShape>({
+				id, type: 'arrow', x: a.x, y: a.y, meta,
+				props: {
+					start: { x: 0, y: 0 }, end: { x: b.x - a.x, y: b.y - a.y }, kind: 'arc', bend: 0, arrowheadStart: 'none', arrowheadEnd: 'none',
+					...(link.strong ? { color: 'white', dash: 'solid', size: 'm' } : { color: 'grey', dash: 'dotted', size: 'm' }),
+					richText: toRichText(link.strong ? (link.label ?? '').slice(0, 60) : '')
+				}
+			});
+			const end = (terminal: 'start' | 'end', target: TLShapeId) => ({ type: 'arrow' as const, fromId: id, toId: target, props: { terminal, normalizedAnchor: { x: 0.5, y: 0.5 }, isExact: false, isPrecise: false, snap: 'none' as const } });
+			editor.createBindings([end('start', from), end('end', to)]);
+			lines.push(id);
+		}
+		// Lines first in the stack, likeness lowest: cards sit on top of every line.
+		if (lines.length) editor.sendToBack(lines);
+	});
+	editor.selectNone();
+	editor.setCurrentTool('select');
+	const box = cards.length ? editor.getShapePageBounds(cards[0]) : undefined;
+	if (box) editor.zoomToFit({ animation: { duration: 320 } });
+	return { cards: cards.map(short), lines: lines.length, replaced: old.length > 0, at: { x: left, y: top } };
+}
+
 /** Pen strokes in page units: a path through points, or a loop drawn around an item. */
 function draw(editor: Editor, strokes: TableStroke[]) {
 	const added: string[] = [];
@@ -761,6 +821,11 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			return look(editor, op.ids);
 		case 'add_blocks':
 			return changed(editor, { added: api.addBlocks(op.blocks, op.at, { columns: op.columns ?? Math.min(op.blocks.length, 4), page: !!op.at, sizes: op.sizes, plain: op.plain }).map((id) => id.replace(/^shape:/, '')) });
+		case 'add_map': {
+			const made = addMap(editor, op);
+			const issues = await settled(editor);
+			return { ...made, ...(issues.overlaps.length ? { overlaps: issues.overlaps.length } : { layout: 'no overlaps' }) };
+		}
 		case 'add_note': {
 			const id = createShapeId();
 			const text = toRichText(op.text.slice(0, 2000));

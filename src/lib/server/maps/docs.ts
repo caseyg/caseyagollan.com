@@ -162,26 +162,29 @@ export const sameAsks = (a: MapAsk[], b: MapAsk[]) => JSON.stringify(a) === JSON
  * the web are not read again. The same page saved in two places appears once.
  */
 export async function loadDocs(asks: MapAsk[], days: number | undefined, deps: DocsDeps, before?: DocsStage): Promise<DocsStage & { read: { filled: number; failed: number; waiting: number } }> {
-	const since = days ? `${daysBefore(localDate(deps.now, deps.timeZone), Math.max(0, days - 1))}T00:00:00Z` : undefined;
-	const reuse = before && sameAsks(before.asks, asks) && before.days === days ? before : undefined;
+	const sinceFor = (span: number | undefined) => (span ? `${daysBefore(localDate(deps.now, deps.timeZone), Math.max(0, span - 1))}T00:00:00Z` : undefined);
+	const reuse = before && !before.partial && sameAsks(before.asks, asks) && before.days === days ? before : undefined;
+	let partial = false;
 	const old = new Map((reuse?.docs ?? []).map((doc) => [doc.id, doc]));
 	const fetched = deps.now.toISOString();
 	const notes: string[] = [];
 	const docs: MapDoc[] = [];
 	const seen = new Set<string>(), pages = new Set<string>();
 	for (const ask of asks) {
+		const span = ask.days ?? days, since = sinceFor(span);
 		let got: { docs: MapDoc[]; note?: string };
 		try {
 			got = ask.source === 'readwise' ? await readwiseDocs(ask, since, deps, reuse?.docs ?? [], reuse?.fetched)
 				: ask.source === 'site' ? await siteDocs(ask, since, deps)
 				: await savedDocs(ask.source, ask, since, deps);
 		} catch (error) {
-			if (!(error instanceof SavesError)) throw error;
-			notes.push(`${MAP_SOURCE_NAME[ask.source]}${ask.in ? ` “${ask.in}”` : ''}: ${error.message}`);
+			// One source being down leaves the others their map.
+			notes.push(`${MAP_SOURCE_NAME[ask.source]}${ask.in ? ` “${ask.in}”` : ''} couldn’t be read: ${error instanceof SavesError ? error.message : 'it didn’t answer just now.'}`);
+			partial = true;
 			continue;
 		}
 		if (got.note) notes.push(got.note);
-		if (!got.docs.length) notes.push(`${MAP_SOURCE_NAME[ask.source]}${ask.in ? ` “${ask.in}”` : ''} had nothing${days ? ` saved in the last ${days} days` : ''}.`);
+		if (!got.docs.length) notes.push(`${MAP_SOURCE_NAME[ask.source]}${ask.in ? ` “${ask.in}”` : ''} had nothing${span ? ` saved in the last ${span} days` : ''}.`);
 		for (const doc of got.docs) {
 			const page = normalUrl(doc.url) ?? doc.id;
 			if (seen.has(doc.id) || pages.has(page)) continue;
@@ -195,5 +198,5 @@ export async function loadDocs(asks: MapAsk[], days: number | undefined, deps: D
 	if (docs.length > kept.length) notes.push(`${docs.length} documents in all; a map holds ${MAP_MAX}, so the rest were left out. Narrow it with fewer days or one place.`);
 	const read = await fillDocs(kept, deps);
 	if (read.waiting) notes.push(`${read.waiting} documents still have only a line of text: run the map again to read their pages.`);
-	return { asks, ...(days ? { days } : {}), fetched, docs: kept, notes, read };
+	return { asks, ...(days ? { days } : {}), fetched, docs: kept, notes, ...(partial ? { partial } : {}), read };
 }

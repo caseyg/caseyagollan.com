@@ -95,7 +95,11 @@ export function terms(text: string, language = 'en'): string[] {
 }
 
 export interface TextDoc { id: string; title: string; text: string; language?: string }
-export interface Likeness { a: string; b: string; score: number; shared: string[] }
+export interface Likeness {
+	a: string; b: string; score: number; shared: string[];
+	/** How much of the shorter document's vocabulary the two share, 0 to 1: among a handful of documents a high score alone can rest on a few words. */
+	cover: number;
+}
 
 /**
  * How alike each pair of documents is: TF-IDF cosine over title (counted three times) and body.
@@ -136,7 +140,7 @@ export function likeness(docs: TextDoc[], floor = 0.05): Likeness[] {
 		const shared: [string, number][] = [];
 		for (const [word, weight] of small.weights) { const other = large.weights.get(word); if (other) { dot += weight * other; shared.push([word, weight * other]); } }
 		const score = dot / (one.length * two.length);
-		if (score >= floor) pairs.push({ a: one.id, b: two.id, score, shared: shared.sort((x, y) => y[1] - x[1]).slice(0, 3).map(([word]) => word) });
+		if (score >= floor) pairs.push({ a: one.id, b: two.id, score, cover: shared.length / Math.max(1, Math.min(one.counts.size, two.counts.size)), shared: shared.sort((x, y) => y[1] - x[1]).slice(0, 3).map(([word]) => word) });
 	}
 	return pairs.sort((x, y) => y.score - x.score);
 }

@@ -62,7 +62,7 @@ const PREFIX = 'private/chat/maps';
 
 /** The same sources, places and days are the same map, whatever order they were named in. */
 export async function mapKey(request: Pick<MapRequest, 'asks' | 'days'>): Promise<string> {
-	const asks = request.asks.map((ask) => `${ask.source}|${(ask.in ?? '').trim().toLowerCase()}|${(ask.query ?? '').trim().toLowerCase()}`).sort();
+	const asks = request.asks.map((ask) => `${ask.source}|${(ask.in ?? '').trim().toLowerCase()}|${(ask.query ?? '').trim().toLowerCase()}${ask.days !== undefined && ask.days !== request.days ? `|${ask.days}` : ''}`).sort();
 	return (await addressHash(JSON.stringify([asks, request.days ?? 0]))).slice(0, 16);
 }
 
@@ -81,7 +81,7 @@ const write = (bucket: R2Bucket | undefined, key: string, stage: MapStage, value
 	bucket?.put(`${PREFIX}/${key}/${stage}.json`, JSON.stringify(value), { httpMetadata: { contentType: 'application/json' } }).catch(() => undefined);
 
 export async function buildMap(request: MapRequest, deps: MapDeps): Promise<BuiltMap> {
-	const asks = request.asks.map((ask) => ({ source: ask.source, ...(ask.in?.trim() ? { in: ask.in.trim() } : {}), ...(ask.query?.trim() ? { query: ask.query.trim() } : {}) }));
+	const asks = request.asks.map((ask) => ({ source: ask.source, ...(ask.in?.trim() ? { in: ask.in.trim() } : {}), ...(ask.query?.trim() ? { query: ask.query.trim() } : {}), ...(ask.days !== undefined && ask.days !== request.days ? { days: ask.days } : {}) }));
 	const key = await mapKey({ asks, days: request.days });
 	const redo = new Set(request.redo ?? []);
 	const ran: MapStage[] = [];

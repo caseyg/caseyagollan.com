@@ -39,10 +39,14 @@ import { isSkillTool, skillsSection, skillTools } from './skill-tools';
 import { renderTool } from './render-tool';
 import type { ScreenshotEnvironment } from '../screenshot';
 import { CODEMODE_TOOL, isMcpTool } from './mcp-tools';
+import { mapTool, type MapToolDeps } from './map-tool';
+import type { MapModelEnv } from '../maps/model';
 import { isAnthropicModel } from './provider';
 
 export interface ToolDeps {
-	env: PublishingEnvironment & SavesEnv & ScreenshotEnvironment & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
+	env: PublishingEnvironment & SavesEnv & ScreenshotEnvironment & MapModelEnv & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
+	/** The map pipeline's model, page and picture reach and storage, in place of the real ones: for tests and replays. */
+	mapOverrides?: MapToolDeps['overrides'];
 	/** The site's origin, for its own pages and search index. */
 	origin: () => string;
 	/** After a run answered, for work outside Pi such as naming the thread. */
@@ -123,8 +127,8 @@ export const OWN_TOOL_GROUPS: { id: string; name: string; summary: string; has: 
 export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL || name === CODEMODE_TOOL || isMcpTool(name) || isSkillTool(name);
 /** Tools that need a table open beside the chat: all of them but the one that makes a table. */
 export const isTableTool = (name: string) => name.startsWith('table_') && name !== 'table_new';
-/** The table tools that need a table open already. `table_new` and `table_add` make one, so they are offered without. */
-export const needsTable = (name: string) => isTableTool(name) && name !== 'table_add';
+/** The table tools that need a table open already. `table_new`, `table_add` and `table_map` make one, so they are offered without. */
+export const needsTable = (name: string) => isTableTool(name) && name !== 'table_add' && name !== 'table_map';
 const isTableRead = (name: string) => name === 'table_read' || name === 'table_look';
 
 /** How often one run is carried on after a reply was cut off at the length limit. */
@@ -229,6 +233,7 @@ const TABLE_SECTION = [
 		'- What is on the table is listed at the end of these instructions, current at every step, your own changes included: each item’s id, kind, first words and measured box (canvas units; x grows right, y grows down; the dot grid is 20). Work from that list; don’t table_read to find things or to check your work. The list clips words: table_read with `ids` gives those items’ whole text, for summarizing, comparing or quoting them. table_read with no ids is only for a list that says it was cut short.',
 		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Clusters, categories or a board’s columns are one table_add with `frames`, a named frame each. Never add things one call at a time, or a frame at a time.',
 		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s source and adds its pictures and best passages beside it, each joined to it by a line. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
+		'- table_map is for “map / canvas / graph of everything I saved to <source> this week” (or a whole channel, collection or tag), sources mixed freely: one call, no my_saves, table_add or table_arrange. To fix a map, call it again with `redo`.',
 		'- table_render is for “render this PDF’s pages”, “screenshot this page”, “full-page screenshot of <address>”: one call, on blocks, Casey’s selection or `urls`. Don’t fetch_page or table_add first.',
 		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. A force-directed graph of clusters is cards and arrows, not frames (`force` sees a frame as one box): a text card per cluster, table_connect it to each of its items, then `force`. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
 		'- table_tag reads tags and stages tag changes for posts, Raindrop bookmarks and Readwise items on the table: “tag these as X”, “retag this frame”, “what are these tagged”. One call for all the blocks (no ids: every one; `inside`: a frame’s id or name). Changes are staged for Casey to review and save on the table: say “staged”, never “saved”. Never micropub_update_post for their tags.',
@@ -240,7 +245,7 @@ const TABLE_SECTION = [
 ].join('\n\n');
 
 /** Casey's own runs with no table open: what a table is, and that asking for one is a single call. */
-const NO_TABLE_SECTION = 'Tables: none is open beside this chat. A table is one of Casey’s canvases of blocks, notes and arrows; “canvas”, “board”, “map”, “graph” or “cluster these” ask for one. table_add makes a new table and puts everything on it in the same call: `frames` for named groups set out as grids; for a force-directed graph of clusters, no frames but a text card per cluster among the items, then table_connect each card to its links and table_arrange `force`. table_new makes an empty one. The other table_* tools join your tool list as soon as a table is open: Never tell Casey a table tool is missing: call it.';
+const NO_TABLE_SECTION = 'Tables: none is open beside this chat. A table is one of Casey’s canvases of blocks, notes and arrows; “canvas”, “board”, “map”, “graph” or “cluster these” ask for one. table_add makes a new table and puts everything on it in the same call: `frames` for named groups set out as grids; for a force-directed graph of clusters, no frames but a text card per cluster among the items, then table_connect each card to its links and table_arrange `force`. table_map maps everything saved to a source over some days (“a canvas of what I saved to Readwise this week”), table and all. table_new makes an empty one. The other table_* tools join your tool list as soon as a table is open: Never tell Casey a table tool is missing: call it.';
 
 /** How long the prompt waits for Casey's page to say what is on the table; past it, the model reads the table itself. */
 const TABLE_NOW_WAIT = 2_500;
@@ -1023,6 +1028,11 @@ export function chatExtension(deps: ToolDeps): Extension {
 				return report({ added: added.length, pulled, ...(skipped ? { blocks_left: skipped } : {}), note: `Done: tell Casey what you pulled.${skipped ? ` ${skipped} more blocks weren’t pulled from (${PULL_MAX} at a time): say so.` : ''} If \`left_out\` counts more, say so; pull them only if Casey asks.` }, added, {});
 			}
 		},
+		mapTool({
+			env: deps.env, origin: deps.origin, now, timeZone, table: () => thread.table(), makeTable, run, overrides: deps.mapOverrides,
+			// A table is public: Casey's private Are.na only where the thread is Casey's alone, as table_add has it.
+			saves: () => (deps.onlyOwner?.() ? savesDeps() : { ...savesDeps(), env: { ...deps.env, ARENA_PAT: undefined } })
+		}),
 		renderTool({ env: deps.env, origin: deps.origin, run, report, selection: () => thread.selection?.() ?? [], named: namedBlock, saves: () => savesDeps(), fetcher: deps.renderFetch }),
 		{
 			name: 'table_arrange',
