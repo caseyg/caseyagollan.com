@@ -3,13 +3,13 @@
 	import { page } from '$app/state';
 	import { rememberOwner } from '$lib/owner';
 	import { CITE_KINDS, COMPOSER_KINDS, isCiteKind, type ComposerFields, type ComposerKind, type LegFields } from '$lib/composer-kinds';
-	import { formatAbsoluteDate } from '$lib/utils/formatDate';
 	import OwnerSignIn from '$lib/components/composer/OwnerSignIn.svelte';
 	import Icon, { type IconName } from '$lib/components/ui/Icon.svelte';
 	import ComposerBar from '$lib/components/composer/ComposerBar.svelte';
+	import DraftsMenu from '$lib/components/composer/DraftsMenu.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ComposerToolbar from '$lib/components/composer/ComposerToolbar.svelte';
-	import { Heading, Notice, Page, PageHeader, Popover, SelectMenu, CheckboxGroup, ToggleChip } from '$lib/components/ui';
+	import { Heading, Notice, Page, PageHeader, SelectMenu, CheckboxGroup, ToggleChip } from '$lib/components/ui';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -142,29 +142,8 @@
 				{#snippet icon(option)}<Icon name={KIND_ICONS[option.value as ComposerKind]} size={18} />{/snippet}
 			</SelectMenu>
 			{#snippet actions()}
+			<DraftsMenu drafts={data.draftsEnabled ? data.drafts : undefined} error={data.draftsError} content={data.contentDrafts} currentId={data.draft?.id} csrf={data.csrf} />
 			{#if data.draftsEnabled}
-				<Popover panelClass="drafts-panel" align="end" label="Drafts ({data.drafts.length})">
-					{#snippet trigger()}<Icon name="drafts" size={18} /><span class="count-badge">{data.drafts.length}</span>{/snippet}
-					<!-- Full page loads: opening a draft must start the form from the draft, not the current state. -->
-					<div class="draft-list" data-sveltekit-reload>
-						{#if data.draftsError}<p class="hint">{data.draftsError}</p>
-						{:else if !data.drafts.length}<p class="hint">No drafts yet. “Save draft” keeps a post in your private drafts repository.</p>
-						{:else}
-							<ul>
-								{#each data.drafts as draft (draft.id)}
-									<li class:current={draft.id === data.draft?.id}>
-										<a href="/new/{draft.kind}/?draft={draft.id}"><Icon name={KIND_ICONS[draft.kind]} size={16} /><span><strong>{draft.title}</strong><small>Saved {formatAbsoluteDate(draft.updated)}</small></span></a>
-										<form method="POST" action="?/discard">
-											<input type="hidden" name="csrf" value={data.csrf} />
-											<input type="hidden" name="id" value={draft.id} />
-											<Button variant="icon" size="sm" icon="close" type="submit" label="Discard {draft.title}" />
-										</form>
-									</li>
-								{/each}
-							</ul>
-						{/if}
-					</div>
-				</Popover>
 				<Button variant="quiet" type="submit" form="composer" name="intent" value="save" formnovalidate disabled={submitting || uploading > 0}>Save draft</Button>
 			{/if}
 			<Button variant="primary" type="submit" form="composer" name="intent" value="publish" disabled={submitting || uploading > 0}>{submitting && intent === 'publish' ? 'Posting…' : 'Publish'}</Button>
@@ -443,17 +422,6 @@
 	a { color: inherit; text-decoration-thickness: from-font; text-underline-offset: var(--underline-offset); }
 
 
-	.count-badge { min-width: 1em; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
-	.draft-list ul { margin: 0; padding: 0; list-style: none; }
-	.draft-list a { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); text-decoration: none; }
-	.draft-list a:hover { background: var(--surface-2); }
-	.draft-list a span { display: flex; flex-direction: column; min-width: 0; font-size: var(--fs-sm); line-height: var(--lh-snug); }
-	.draft-list small { color: var(--text-muted); font-size: var(--fs-xs); }
-	.draft-list li { display: flex; align-items: center; gap: var(--space-1); }
-	.draft-list li > a { flex: 1; min-width: 0; }
-	.draft-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.draft-list li.current { background: var(--surface-1); border-radius: var(--radius-sm); }
-	.draft-list .hint { margin: var(--space-2); }
 
 	.composer { display: flex; flex-direction: column; gap: var(--space-2); }
 	input, select, textarea { font: inherit; color: var(--text-primary); }

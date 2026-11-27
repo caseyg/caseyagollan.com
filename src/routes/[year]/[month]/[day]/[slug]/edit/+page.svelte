@@ -53,7 +53,7 @@
 				</ComposerBar>
 				<Notice tone="error">{editor.error}</Notice>
 			{:else}
-				<PostEditor {editor} csrf={data.csrf} form={form as never} {base} moved={data.moved} />
+				<PostEditor {editor} csrf={data.csrf} form={form as never} {base} moved={data.moved} merged={data.merged} />
 			{/if}
 		{/await}
 	{/if}

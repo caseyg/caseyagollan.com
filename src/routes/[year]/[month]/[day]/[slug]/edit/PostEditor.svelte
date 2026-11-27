@@ -12,7 +12,8 @@
 	import type { EditorFields, EditorSource } from '$lib/server/publishing/post-editor';
 
 	interface Props {
-		editor: EditorSource & { github?: string };
+		/** `pull` is set when the post is read from a pull request's branch in the content repository. */
+		editor: EditorSource & { github?: string; pull?: { number: number; title: string; url: string } };
 		csrf: string;
 		/** The result of a failed or successful save. */
 		form?: { message?: string; saved?: boolean; fields?: EditorFields } | null;
@@ -20,8 +21,12 @@
 		base: string;
 		/** Set when the last save moved the post here from another slug. */
 		moved?: boolean;
+		/** The pull request the last Publish merged. */
+		merged?: number;
 	}
-	let { editor, csrf, form, base, moved = false }: Props = $props();
+	let { editor, csrf, form, base, moved = false, merged }: Props = $props();
+	// A stored draft, or any post still on a pull request, is published from here.
+	const unpublished = $derived(editor.fields.status === 'draft' || !!editor.pull);
 	const savedSlug = $derived(decodeURIComponent(base.split('/')[4] ?? ''));
 
 	// Content folders, named and drawn as in the composer's post-type menu.
@@ -50,6 +55,8 @@
 	let lossy = $state(false);
 	const rich = $derived(!!Editor && format === 'markdown' && !source);
 	let saving = $state(false);
+	// Disabling the buttons on submit drops the clicked button's name and value, so carry it in a hidden field.
+	let intent = $state('');
 	onMount(() => {
 		void Promise.all([import('$lib/components/MarkdownEditor.svelte'), import('$lib/markdown-editor')]).then(([module, markdown]) => {
 			lossy = format === 'markdown' && !!content && !markdown.roundTrips(content);
@@ -62,17 +69,25 @@
 <svelte:head><title>Edit {kindLabel} — Casey Gollan</title></svelte:head>
 
 <ComposerBar>
-	<Button variant="icon" icon="close" label="Back to the post" href={base} />
+	<Button variant="icon" icon="close" label={editor.pull ? 'Back to the composer' : 'Back to the post'} href={editor.pull ? '/new/' : base} />
 	<span class="kind"><Icon name={kindIcon} size={18} /> Edit {kindLabel}</span>
 	{#snippet actions()}
 		{#if editor.github}<Button variant="icon" icon="github" label="Open on GitHub" href={editor.github} target="_blank" rel="noopener noreferrer" />{/if}
-		{#if !reaction}<Button variant="icon" icon="share" label="Syndicate" href="{base}syndicate/" />{/if}
-		<Button variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+		{#if !reaction && !editor.pull}<Button variant="icon" icon="share" label="Syndicate" href="{base}syndicate/" />{/if}
+		{#if unpublished}
+			<Button variant="quiet" type="submit" form="editor" name="intent" value="save" disabled={saving}>{saving && intent !== 'publish' ? 'Saving…' : 'Save draft'}</Button>
+			<Button variant="primary" type="submit" form="editor" name="intent" value="publish" disabled={saving}>{saving && intent === 'publish' ? 'Publishing…' : 'Publish'}</Button>
+		{:else}
+			<Button variant="primary" type="submit" form="editor" disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
+		{/if}
 	{/snippet}
 </ComposerBar>
 {#if form?.message}<Notice tone={form.saved ? 'info' : 'error'}>{form.message}</Notice>
+{:else if merged}<Notice tone="info">Published. Pull request #{merged} was merged, and the public page appears after the site rebuilds, usually within a few minutes.</Notice>
+{:else if editor.pull}<Notice tone="info">This draft is on <a href={editor.pull.url} target="_blank" rel="noopener noreferrer">pull request #{editor.pull.number}</a> in the content repository. Save draft commits to its branch. Publish also merges it.</Notice>
 {:else if moved}<Notice tone="info">Saved at this new address. The old one redirects here once the site rebuilds, usually within a few minutes.</Notice>{/if}
-<form id="editor" class="composer" method="POST" onsubmit={() => { saving = true; }}>
+<form id="editor" class="composer" method="POST" onsubmit={event => { intent = (event.submitter as HTMLButtonElement | null)?.value ?? ''; saving = true; }}>
+	{#if intent}<input type="hidden" name="intent" value={intent} />{/if}
 	<input type="hidden" name="csrf" value={csrf} />
 	<input type="hidden" name="revision" value={editor.revision} />
 	{#if !reaction}

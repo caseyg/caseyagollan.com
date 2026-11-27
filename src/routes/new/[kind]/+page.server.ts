@@ -4,6 +4,7 @@ import { isComposerKind, type ComposerFields } from '$lib/composer-kinds';
 import { ProtocolError } from '$lib/server/publishing/auth';
 import { entryFromFields, fieldsFromForm, fieldsFromQuery, publishEntry, readForm } from '$lib/server/publishing/composer';
 import { COMPOSER_HEADERS, composerContext } from '$lib/server/publishing/composer-route';
+import { listContentDrafts } from '$lib/server/publishing/content-drafts';
 import { syndicationTargets } from '$lib/server/publishing/delivery';
 import { validateEditorSubmission } from '$lib/server/publishing/syndication-editor';
 
@@ -34,8 +35,10 @@ export const load: PageServerLoad = async ({ request, params, url, platform, set
 	let list: Awaited<ReturnType<NonNullable<typeof drafts>['list']>> = [], draftsError = '';
 	try { if (drafts) list = await drafts.list(); }
 	catch (cause) { draftsError = cause instanceof ProtocolError ? cause.message : 'Drafts could not be loaded.'; }
+	// Streamed: the composer is usable while GitHub is searched for posts marked draft.
+	const contentDrafts = listContentDrafts(config).catch(() => ({ drafts: [], error: 'Drafts in the content repository could not be loaded.' }));
 	return {
-		signedIn: true as const, kind: params.kind, csrf: context.session.csrf, fields, draft, drafts: list, draftsError,
+		signedIn: true as const, kind: params.kind, csrf: context.session.csrf, fields, draft, drafts: list, draftsError, contentDrafts,
 		syndication: syndicationTargets(config), mediaEnabled: !!config.mediaEnabled, draftsEnabled: !!drafts, timeZone: config.timeZone
 	};
 };
