@@ -35,6 +35,10 @@ declare global {
 				INFERENCE_COOP_API_KEY: string;
 				/** /chat threads, one Agents SDK agent each (`src/lib/server/chat/agent.ts`). */
 				ChatThread?: DurableObjectNamespace;
+				/** The site's own copy of Casey's Readwise, Raindrop and Are.na (`src/lib/server/sources/store.ts`). Owner-only: read it through `sourcesFor`. */
+				SOURCES?: DurableObjectNamespace;
+				/** `true` where the source cache keeps itself in sync (production). */
+				SOURCES_SYNC?: string;
 				/** Claude for /chat, straight from Anthropic; its models join the composer's Model menu when set. */
 				ANTHROPIC_API_KEY?: string;
 				/** Cerebras's very fast models for /chat; they join the Model menu when set. */

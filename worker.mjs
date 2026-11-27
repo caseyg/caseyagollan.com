@@ -16,6 +16,7 @@ import { withPreviewOrigin } from './src/lib/server/indieauth/contracts.ts';
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 export { ChatThread } from './src/lib/server/chat/agent.ts';
 export { CursorRoom } from './src/lib/server/cursors/room.ts';
+export { SourceStore } from './src/lib/server/sources/store.ts';
 
 /**
  * /chat threads are Agents (one Durable Object each) at /agents/chat-thread/<id>. Only
@@ -92,6 +93,16 @@ export default {
         if (!result.skipped) console.log(JSON.stringify({ event: 'backfeed_sync', ...result }));
       } catch {
         console.error(JSON.stringify({ event: 'backfeed_sync_failed' }));
+        failed = true;
+      }
+    }
+    // Bring the site's own copy of Casey's Readwise, Raindrop and Are.na up to date. The store decides
+    // what is due, logs its own counts, and wakes itself to carry on a long first sync.
+    if (env.SOURCES && env.SOURCES_SYNC === 'true') {
+      try {
+        await env.SOURCES.get(env.SOURCES.idFromName('main')).tick();
+      } catch {
+        console.error(JSON.stringify({ event: 'source_sync_failed' }));
         failed = true;
       }
     }

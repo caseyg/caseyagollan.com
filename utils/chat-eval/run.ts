@@ -12,6 +12,8 @@ import { chatSelection, sayPrefix } from '../../src/lib/chat';
 import { chatExtension, needsTable } from '../../src/lib/server/chat/tools';
 import { callMicropubTool, MICROPUB_TOOLS, type MicropubCall } from '../../src/lib/server/chat/micropub-mcp';
 import { invokedSkills, saveSkill } from '../../src/lib/server/chat/skills';
+import { localBackend } from '../../src/lib/server/sources/access';
+import { localIndex } from '../sources/try';
 import { fakeTable } from './fake-table';
 import { SCENARIOS, type Scenario } from './scenarios';
 
@@ -26,6 +28,13 @@ const NOW = process.env.CHAT_EVAL_NOW ? new Date(process.env.CHAT_EVAL_NOW) : ne
  * answer only with READWISE_ACCESS_TOKEN and RAINDROP_TOKEN set, and say they aren't connected otherwise.
  */
 const SAVES = { ARENA_PAT: process.env.ARENA_PAT, RAINDROP_TOKEN: process.env.RAINDROP_TOKEN, READWISE_ACCESS_TOKEN: process.env.READWISE_ACCESS_TOKEN };
+
+/**
+ * The site's own copy of Casey's saves: a local database filled by `bun utils/sources/try.ts sync`,
+ * named in CHAT_EVAL_SOURCES. Without it my_saves asks the services themselves, as it did before
+ * the copy existed, which is the comparison to run.
+ */
+const SOURCES = process.env.CHAT_EVAL_SOURCES ? localBackend(localIndex(process.env.CHAT_EVAL_SOURCES), SAVES) : null;
 
 /** The Worker's assets, stood in for by the live site. */
 const assets = { fetch: (request: Request | string | URL) => fetch(new Request(request as Request, { redirect: 'follow' })) } as unknown as Fetcher;
@@ -118,7 +127,7 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 		const listing = /^https:\/\/api\.github\.com\/repos\/anthropics\/skills\/git\/trees\//.test(String(input));
 		return listing ? Response.json({ tree: ['frontend-design', 'doc-coauthoring', 'internal-comms', 'brand-guidelines'].map((name) => ({ path: `skills/${name}/SKILL.md`, type: 'blob' })) }) : fetch(input, init);
 	}) as typeof fetch;
-	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore } as never, renderFetch, skillsFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
+	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore } as never, renderFetch, skillsFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, sources: () => SOURCES, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));
