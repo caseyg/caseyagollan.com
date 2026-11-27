@@ -30,7 +30,7 @@ import { DEFAULT_CHAT_MODEL, ModelError, streamCompletion } from './model';
 import { diffMessages, projectMessages, SAY_KIND, type Entry, type Live, type Queued, type SayData } from './projection';
 import { chatModels, COMPACTION } from './provider';
 import { invokedSkills } from './skills';
-import { saveSearchDoc, saveSummary } from './threads';
+import { deleteThreadFiles, saveSearchDoc, saveSummary } from './threads';
 import { chatExtension, type ThreadHooks } from './tools';
 import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, mcpToolName, sectionsWhen, serverNames } from './mcp-tools';
 import { McpAuthError, McpError, type McpSession, type McpToolResult } from '../mcp/client';
@@ -482,8 +482,35 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			id: this.meta('id') ?? '', title: this.meta('title') ?? 'New chat',
 			createdAt: Number(this.meta('created') ?? first?.createdAt ?? Date.now()),
 			updatedAt: Number(this.meta('updated')) || (messages.at(-1)?.createdAt ?? Date.now()),
-			messageCount: messages.length, ...(first?.author ? { startedBy: first.author } : {}), participants: [...people.values()].slice(0, 6)
+			messageCount: messages.length, ...(first?.author ? { startedBy: first.author } : {}), participants: [...people.values()].slice(0, 6),
+			...(Number(this.meta('archived')) ? { archivedAt: Number(this.meta('archived')) } : {})
 		};
+	}
+
+	/** Casey puts the chat away, or brings it back. It can still be read and written in either way. */
+	async archive(archived: boolean): Promise<ChatThreadSummary | null> {
+		this.setup();
+		if (!this.meta('id')) return null;
+		if (archived) { if (!Number(this.meta('archived'))) this.setMeta('archived', String(Date.now())); }
+		else this.sql`DELETE FROM chat_meta WHERE key = 'archived'`;
+		const messages = this.watch ? this.shown : await this.messages();
+		await this.index(messages);
+		return this.summary(messages);
+	}
+
+	/** Casey deletes the chat: its place in the lists and the search, then everything this object holds. */
+	async remove(): Promise<boolean> {
+		this.setup();
+		const id = this.meta('id');
+		if (!id) return false;
+		// Nothing writes the summary back: `index` reads the id, and it goes first.
+		this.sql`DELETE FROM chat_meta WHERE key = 'id'`;
+		await deleteThreadFiles(this.env.PUBLISHING_STATE, id);
+		for (const connection of this.getConnections<ConnectionState>()) {
+			try { connection.send(JSON.stringify({ type: 'chat:removed' } satisfies ChatServerEvent)); connection.close(1000, 'deleted'); } catch { /* already gone */ }
+		}
+		await this.destroy();
+		return true;
 	}
 
 	async snapshot(): Promise<ChatSnapshot | null> {

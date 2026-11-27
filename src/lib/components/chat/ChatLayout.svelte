@@ -3,7 +3,9 @@
 	import { chatHref, type ChatThreadSummary } from '$lib/chat';
 	import type { ChatSearchResult } from '$lib/chat-search';
 	import { sitePalette, usePageCommands } from '$lib/page-commands.svelte';
+	import { ConfirmDialog } from '$lib/components/ui';
 	import ChatSidebar from './ChatSidebar.svelte';
+	import { provideChatManage, type ChatManage } from './manage.svelte';
 	import { ChatSidebarState, provideChatSidebar, type SidebarState } from './sidebar.svelte';
 
 	interface Props {
@@ -14,21 +16,30 @@
 		initial?: SidebarState;
 		/** The viewer may search chats by what was said in them (Casey only): ⌘K lists and searches chats, and the sidebar offers it. */
 		searchable?: boolean;
+		/** Casey's archiving and deleting of chats: the list, a chat's header and the archive offer them, and a delete asks here first. */
+		manage?: ChatManage;
+		/** Where the archived chats are, and whether that is the page being read. */
+		archivedHref?: string;
+		archivedCurrent?: boolean;
 		children: Snippet;
 	}
 
-	let { threads, currentId, now, initial = 'auto', searchable = false, children }: Props = $props();
+	let { threads, currentId, now, initial = 'auto', searchable = false, manage, archivedHref, archivedCurrent = false, children }: Props = $props();
+
+	// svelte-ignore state_referenced_locally
+	provideChatManage(manage);
 
 	// ⌘K on a chat page: the chats by title, and, typing, the ones where the words were said.
 	async function search(query: string, signal: AbortSignal) {
 		const response = await fetch(`/api/chat?search=${encodeURIComponent(query)}`, { credentials: 'same-origin', cache: 'no-store', signal });
 		const body = (response.ok ? await response.json() : null) as { results?: ChatSearchResult[] } | null;
-		return (body?.results ?? []).map((result) => ({ value: `go:${chatHref(result.id)}`, label: result.title, hint: result.excerpt, icon: '💬' }));
+		return (body?.results ?? []).map((result) => ({ value: `go:${chatHref(result.id)}`, label: result.title, hint: result.archived ? `Archived${result.excerpt ? ` · ${result.excerpt}` : ''}` : result.excerpt, icon: result.archived ? '🗄️' : '💬' }));
 	}
 	usePageCommands(() => [{
 		label: 'Chats',
 		items: [
 			{ value: 'go:/chat', label: 'New chat', icon: '➕', keywords: ['start', 'ask'] },
+			...(manage && archivedHref ? [{ value: `go:${archivedHref}`, label: 'Archived chats', icon: '🗄️', keywords: ['archive', 'old', 'hidden'] }] : []),
 			...threads.filter((thread) => thread.id !== currentId).slice(0, 40).map((thread) => ({ value: `go:${chatHref(thread.id)}`, label: thread.title, icon: '💬' }))
 		],
 		...(searchable ? { search } : {})
@@ -49,11 +60,19 @@
 -->
 <div class="chat-layout" data-sidebar={sidebar.state}>
 	<div class="panel">
-		<ChatSidebar id="chat-sidebar" {threads} {currentId} {now} onsearch={() => { sidebar.closeIfCovering(); sitePalette.open = true; }} onnavigate={() => sidebar.closeIfCovering()} />
+		<ChatSidebar id="chat-sidebar" {threads} {currentId} {now} onsearch={() => { sidebar.closeIfCovering(); sitePalette.open = true; }} onnavigate={() => sidebar.closeIfCovering()}
+			onarchive={manage ? (chat) => void manage.archive(chat) : undefined} ondelete={manage ? (chat) => void manage.remove(chat) : undefined}
+			archivedHref={manage ? archivedHref : undefined} {archivedCurrent} error={manage?.error} />
 	</div>
 	<button type="button" class="backdrop" aria-label="Hide chats" tabindex="-1" onclick={() => sidebar.set('auto')}></button>
 	<div class="main">{@render children()}</div>
 </div>
+
+{#if manage}
+	<ConfirmDialog bind:open={() => !!manage.asking, (open) => { if (!open) manage.cancel(); }} title="Delete this chat?" confirm="Delete" error={manage.deleteError} onconfirm={() => manage.confirm()}>
+		“{manage.askingTitle}” and everything said in it will be deleted for good. To keep it out of the way instead, archive it.
+	</ConfirmDialog>
+{/if}
 
 <style>
 	.chat-layout {
