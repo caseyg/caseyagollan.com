@@ -2,14 +2,15 @@ import type { RequestHandler } from './$types';
 import { cleanName, isPublished, summarizeDocument, validDocument, type Table } from '$lib/tables';
 import { readTable, writeTable } from '$lib/server/tables';
 import { isOwner, ownerBucket, PRIVATE } from '$lib/server/tables-api';
+import { passFor, passMayEdit } from '$lib/server/table-pass';
 
 export const prerender = false;
 
-/** A table; a draft only for the owner, and anyone else is told there's no such table. */
+/** A table; a draft only for the owner or a browser holding a pass to it, and anyone else is told there's no such table. */
 export const GET: RequestHandler = async ({ params, platform, request }) => {
 	const table = await readTable(platform?.env?.PUBLISHING_STATE, params.id);
 	const draft = !!table && !isPublished(table);
-	if (!table || (draft && !(await isOwner(request, platform?.env)))) return Response.json({ error: 'No such table.' }, { status: 404, headers: PRIVATE });
+	if (!table || (draft && !(await isOwner(request, platform?.env)) && !(await passFor(request, platform?.env?.PUBLISHING_STATE, table.id)))) return Response.json({ error: 'No such table.' }, { status: 404, headers: PRIVATE });
 	return Response.json({ table }, { headers: draft ? PRIVATE : { 'cache-control': 'no-cache' } });
 };
 
@@ -18,12 +19,16 @@ export const GET: RequestHandler = async ({ params, platform, request }) => {
  * any of them together.
  */
 export const PUT: RequestHandler = async ({ params, request, platform }) => {
-	const bucket = await ownerBucket(request, platform?.env);
+	// A browser holding an editing pass (a table opened from the Claude connector) saves that one table, and can't publish it.
+	const state = platform?.env?.PUBLISHING_STATE;
+	const onPass = !!state && (await passMayEdit(request, state, params.id));
+	const bucket = onPass ? state : await ownerBucket(request, platform?.env);
 	if (bucket instanceof Response) return bucket;
 	const table = await readTable(bucket, params.id);
 	if (!table) return Response.json({ error: 'No such table.' }, { status: 404, headers: PRIVATE });
 
 	const body = (await request.json().catch(() => null)) as { name?: unknown; document?: unknown; published?: unknown } | null;
+	if (onPass && body?.published !== undefined) return Response.json({ error: 'Sign in to publish or unpublish a table.' }, { status: 403, headers: PRIVATE });
 	const next: Table = { ...table };
 	if (body?.name !== undefined) {
 		const name = cleanName(body.name);

@@ -25,7 +25,9 @@ function fixture(micropub?: ((query: string, init?: RequestInit) => Promise<Resp
 		ASSETS: { fetch: async (request: Request | string) => new URL(typeof request === 'string' ? request : request.url).pathname === '/pagefind/agent-index.json' ? Response.json(INDEX) : new Response('', { status: 404 }) },
 		PUBLISHING_STATE: {
 			get: async (key: string) => key in files ? { json: async () => files[key], text: async () => JSON.stringify(files[key]) } : null,
-			put: async (key: string, value: string) => void (files[key] = JSON.parse(value))
+			put: async (key: string, value: string) => void (files[key] = JSON.parse(value)),
+			delete: async (key: string) => void delete files[key],
+			files
 		}
 	};
 	// One canvas per table thread, as the thread's Durable Object keeps.
@@ -42,7 +44,7 @@ function fixture(micropub?: ((query: string, init?: RequestInit) => Promise<Resp
 	});
 	const call = async (name: string, args: Record<string, unknown> = {}) =>
 		((await answerMcp(server, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }))!.result as { content: { type: string; text?: string }[]; isError?: boolean; structuredContent?: Record<string, any> });
-	return { server, call, asked, files };
+	return { server, call, asked, files, bucket: env.PUBLISHING_STATE };
 }
 
 describe('the MCP transport', () => {
@@ -96,7 +98,7 @@ describe('who may call /mcp', () => {
 	test('a token Casey approved with read gets the tools', async () => {
 		const response = await ask('reader');
 		expect(response.status).toBe(200);
-		expect(((await response.json()) as { result: { tools: unknown[] } }).result.tools.length).toBe(24);
+		expect(((await response.json()) as { result: { tools: unknown[] } }).result.tools.length).toBe(26);
 	});
 });
 
@@ -105,8 +107,8 @@ describe('the site’s tools over MCP', () => {
 		const { server } = fixture();
 		// What a client that draws no views is offered: everything that works without a canvas.
 		const names = server.tools.filter((tool) => !tool.app).map((tool) => tool.name);
-		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_read', 'table_list']);
-		const VIEW = ['table_open', 'table_view_load', 'table_view_save', 'table_view_next', 'table_view_done'];
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_read', 'table_list', 'table_link']);
+		const VIEW = ['table_link', 'table_open', 'table_view_link', 'table_view_load', 'table_view_save', 'table_view_next', 'table_view_done'];
 		const chat = chatExtension({ env: {} as never, origin: () => ORIGIN, micropub: async () => Response.json({}), thread: { table: () => 'x' } as never }).tools!;
 		for (const tool of server.tools.filter((one) => one.name !== 'table_list' && !VIEW.includes(one.name))) {
 			const same = chat.find((one) => one.name === tool.name)!;
@@ -188,7 +190,8 @@ describe('a table open as a canvas inside Claude', () => {
 	test('table_open shows a table, or makes a new draft and shows that', async () => {
 		const { call, files } = fixture();
 		const opened = await call('table_open', { table: 'calm' });
-		expect(opened.structuredContent!.table).toEqual({ id: 'calm1234', name: 'Calm technology', url: `${ORIGIN}/tables/calm1234`, draft: true });
+		expect(opened.structuredContent!.table).toMatchObject({ id: 'calm1234', name: 'Calm technology', draft: true });
+		expect(opened.structuredContent!.table.url).toMatch(new RegExp(`^${ORIGIN}/tables/calm1234\\?pass=[\\w-]{43}$`));
 		expect(opened.content[0].text).toContain('Hello tables');
 		const made = await call('table_open', { new: 'Field notes' });
 		const id = made.structuredContent!.table.id as string;
@@ -236,5 +239,22 @@ describe('a table open as a canvas inside Claude', () => {
 			expect(refused.content[0].text).toContain('permission');
 		}
 		expect((files['tables/calm1234.json'] as { name: string }).name).toBe('Calm technology');
+	});
+
+	test('table_link gives a link whose pass opens that table alone, to change only where the connection may', async () => {
+		const { readPass } = await import('../src/lib/server/table-pass');
+		const now = new Date('2026-11-25T20:00:00Z').getTime();
+		for (const [scopes, edit] of [[['read', 'update'], true], [['read'], false]] as const) {
+			const { call, bucket } = fixture(null, [...scopes]);
+			const linked = await call('table_link', { table: 'calm' });
+			const url = new URL(linked.structuredContent!.table.url);
+			expect(url.pathname).toBe('/tables/calm1234');
+			expect(linked.content[0].text).toContain(url.href);
+			expect(await readPass(bucket as never, url.searchParams.get('pass'), now)).toMatchObject({ table: 'calm1234', edit, kind: 'link' });
+			// Nothing kept can be turned back into the link.
+			expect(JSON.stringify(Object.keys((bucket as unknown as { files: object }).files))).not.toContain(url.searchParams.get('pass')!);
+			const fresh = (await call('table_view_link', { table: 'calm1234', view: VIEW })).structuredContent!.url as string;
+			expect(fresh).not.toBe(url.href);
+		}
 	});
 });

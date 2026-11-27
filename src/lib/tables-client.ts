@@ -7,9 +7,10 @@ import { byUpdated, cleanName, emptyTable, linkBlock, summarizeDocument, toSumma
 /**
  * Who is looking at tables, and where changes go: the signed-in owner saves to the site, `demo`
  * (`?owner=demo` away from caseyagollan.com, where sign-in is off) saves in this browser only,
- * and visitors only look.
+ * and visitors only look. `pass`: a browser that opened one table from the Claude connector and may
+ * change that table alone (`$lib/server/table-pass`), without the owner's other tools.
  */
-export type TablesMode = 'owner' | 'demo' | 'visitor';
+export type TablesMode = 'owner' | 'pass' | 'demo' | 'visitor';
 
 export interface TablesSession {
 	mode: TablesMode;
