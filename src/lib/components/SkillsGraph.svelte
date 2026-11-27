@@ -88,7 +88,7 @@
 	// A link node's preview card. With a mouse it follows the pointer while it is over the node;
 	// on touch the first tap holds it open beside the node, and pressing the card opens the page.
 	type Preview =
-		| { mode: 'hover'; node: Node; x: number; y: number }
+		| { mode: 'hover'; node: Node }
 		| { mode: 'tap'; node: Node; anchor: Element };
 	let preview = $state.raw<Preview | null>(null);
 	let previewImage = $state<LinkPreviewImage>('loading');
@@ -261,8 +261,11 @@
 	// closes on Escape or a press anywhere else. Its anchor is read as the card is placed, so it
 	// follows the pointer (hover) or the node (tap).
 	const previewCard = createHoverCardController();
+	// The pointer's place is kept out of the page's state: the card reads it as it is placed, so a
+	// moving mouse moves the card without anything being drawn again.
+	let pointer = { x: 0, y: 0 };
 	const previewAnchor = {
-		getBoundingClientRect: () => (preview?.mode === 'tap' ? preview.anchor.getBoundingClientRect() : new DOMRect(preview?.x ?? 0, preview?.y ?? 0, 0, 0))
+		getBoundingClientRect: () => (preview?.mode === 'tap' ? preview.anchor.getBoundingClientRect() : new DOMRect(pointer.x, pointer.y, 0, 0))
 	};
 	const shownPreview = $derived(preview?.node.url ? `${preview.mode}:${preview.node.id}` : null);
 	$effect(() => {
@@ -851,11 +854,12 @@
 			.on('pointerenter', function (event: PointerEvent, d: Node) {
 				if (event.pointerType !== 'mouse' || d.type !== 'citation' || !d.url) return;
 				if (preview?.mode === 'tap') return;
-				showPreview({ mode: 'hover', node: d, x: event.clientX, y: event.clientY });
+				pointer = { x: event.clientX, y: event.clientY };
+				showPreview({ mode: 'hover', node: d });
 			})
 			.on('pointermove', function (event: PointerEvent, d: Node) {
 				if (preview?.mode !== 'hover' || preview.node.id !== d.id) return;
-				preview = { ...preview, x: event.clientX, y: event.clientY };
+				pointer = { x: event.clientX, y: event.clientY };
 			})
 			.on('pointerleave', function (_event: PointerEvent, d: Node) {
 				if (preview?.mode === 'hover' && preview.node.id === d.id) preview = null;
