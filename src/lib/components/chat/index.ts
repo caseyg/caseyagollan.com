@@ -15,3 +15,6 @@ export { default as ChatPane } from './ChatPane.svelte';
 export { default as ChatThreadView } from './ChatThreadView.svelte';
 export { default as ChatModeMenu, type ChatPlace } from './ChatModeMenu.svelte';
 export { default as ChatToolsMenu } from './ChatToolsMenu.svelte';
+export { default as ChatActionsMenu } from './ChatActionsMenu.svelte';
+export { default as ChatArchive } from './ChatArchive.svelte';
+export { ChatManage, chatActions, useChatManage, type ChatActions, type ChatChange, type ManagedChat } from './manage.svelte';

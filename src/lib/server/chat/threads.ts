@@ -14,7 +14,7 @@ export async function saveSummary(bucket: R2Bucket, summary: ChatThreadSummary):
 	if (!CHAT_ID.test(summary.id)) return;
 	await bucket.put(`${PREFIX}${summary.id}.json`, JSON.stringify(summary), {
 		httpMetadata: { contentType: 'application/json' },
-		customMetadata: { updatedAt: String(summary.updatedAt) }
+		customMetadata: { updatedAt: String(summary.updatedAt), ...(summary.archivedAt ? { archived: '1' } : {}) }
 	});
 }
 
@@ -22,6 +22,13 @@ export async function saveSummary(bucket: R2Bucket, summary: ChatThreadSummary):
 export async function saveSearchDoc(bucket: R2Bucket, summary: ChatThreadSummary, messages: ChatMessage[]): Promise<void> {
 	if (!CHAT_ID.test(summary.id)) return;
 	await bucket.put(`${SEARCH_PREFIX}${summary.id}.json`, JSON.stringify(chatSearchDoc(summary, messages)), { httpMetadata: { contentType: 'application/json' } });
+}
+
+/** A deleted thread leaves the lists and the search. */
+export async function deleteThreadFiles(bucket: R2Bucket | undefined, id: string): Promise<void> {
+	if (!bucket || !CHAT_ID.test(id)) return;
+	await bucket.delete([`${PREFIX}${id}.json`, `${SEARCH_PREFIX}${id}.json`]);
+	for (const version of docCache.keys()) if (version.startsWith(`${id}:`)) docCache.delete(version);
 }
 
 const docCache = new Map<string, ChatSearchDoc>();
@@ -33,7 +40,9 @@ const docCache = new Map<string, ChatSearchDoc>();
 export async function searchThreads(env: { PUBLISHING_STATE?: R2Bucket; ChatThread?: DurableObjectNamespace }, query: string, limit = 8): Promise<ChatSearchResult[]> {
 	const bucket = env.PUBLISHING_STATE;
 	if (!bucket || !query.trim()) return [];
-	const threads = await listThreads(bucket, 200);
+	// Archived chats are searched too, and say so.
+	const threads = (await Promise.all([listThreads(bucket, 200), listThreads(bucket, 200, true)])).flat();
+	const archived = new Set(threads.filter((thread) => thread.archivedAt).map((thread) => thread.id));
 	const docs = await Promise.all(threads.map(async (thread): Promise<ChatSearchDoc> => {
 		const titled = { id: thread.id, title: thread.title, updatedAt: thread.updatedAt, messages: [] };
 		// Typing searches again and again: a thread that hasn't moved is read once per isolate.
@@ -53,17 +62,17 @@ export async function searchThreads(env: { PUBLISHING_STATE?: R2Bucket; ChatThre
 		await saveSearchDoc(bucket, snapshot.thread, snapshot.messages).catch(() => undefined);
 		return chatSearchDoc(thread, snapshot.messages);
 	}));
-	return searchChats(docs, query, limit);
+	return searchChats(docs, query, limit).map((result) => (archived.has(result.id) ? { ...result, archived: true } : result));
 }
 
-/** Threads, most recently active first. */
-export async function listThreads(bucket: R2Bucket | undefined, limit = 50): Promise<ChatThreadSummary[]> {
+/** Threads, most recently active first: the ones in the list of chats, or with `archived` the ones put away. */
+export async function listThreads(bucket: R2Bucket | undefined, limit = 50, archived = false): Promise<ChatThreadSummary[]> {
 	if (!bucket) return [];
 	const keys: { key: string; updatedAt: number }[] = [];
 	let cursor: string | undefined;
 	do {
 		const page = await bucket.list({ prefix: PREFIX, cursor, include: ['customMetadata'] } as R2ListOptions);
-		for (const object of page.objects) keys.push({ key: object.key, updatedAt: Number(object.customMetadata?.updatedAt) || object.uploaded.getTime() });
+		for (const object of page.objects) if (!!object.customMetadata?.archived === archived) keys.push({ key: object.key, updatedAt: Number(object.customMetadata?.updatedAt) || object.uploaded.getTime() });
 		cursor = page.truncated ? page.cursor : undefined;
 	} while (cursor && keys.length < 2000);
 	const newest = keys.sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
@@ -83,6 +92,10 @@ export interface ChatThreadStub {
 	snapshot(): Promise<import('../../chat').ChatSnapshot | null>;
 	start(id: string, origin: string, viewer: import('../../chat').ChatViewer, text: string, page?: import('../../chat').ChatPage, selection?: unknown, sayId?: unknown): Promise<{ ok: true } | { error: string }>;
 	say(viewer: import('../../chat').ChatViewer | null, text: string, page?: import('../../chat').ChatPage, selection?: unknown): Promise<{ ok: true } | { error: string }>;
+	/** Puts the chat away or brings it back; null when there is no such thread. */
+	archive(archived: boolean): Promise<import('../../chat').ChatThreadSummary | null>;
+	/** Deletes the chat and everything said in it; false when there is no such thread. */
+	remove(): Promise<boolean>;
 	/** A table's thread, made on first ask; null when the thread id isn't that table's. */
 	openTable(tableId: string, origin: string, name: string): Promise<import('../../chat').ChatSnapshot | null>;
 }

@@ -54,6 +54,8 @@ export class LiveThread {
 	choices = $state<import('./chat-tool-groups').ChatToolChoices | null>(null);
 	status = $state<LiveStatus>('connecting');
 	error = $state('');
+	/** The chat was deleted while this page had it open. */
+	removed = $state(false);
 
 	#socket?: WebSocket;
 	#retry = 0;
@@ -292,6 +294,7 @@ export class LiveThread {
 			case 'chat:tools': { const message = this.#find(event.id); if (message) message.tools = event.tools; break; }
 			case 'chat:done': { const message = this.#find(event.id); if (message) { message.status = event.status; message.content = event.content; } this.#onchange?.(); break; }
 			case 'chat:title': this.snapshot.thread.title = event.title; this.#onchange?.(); break;
+			case 'chat:removed': this.removed = true; this.#dropThinking(); this.close(); this.#onchange?.(); break;
 			case 'chat:error': {
 				this.error = event.error;
 				this.#dropThinking();

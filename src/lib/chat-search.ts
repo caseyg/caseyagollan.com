@@ -21,6 +21,7 @@ export interface ChatSearchResult {
 	excerpt?: string;
 	/** Who wrote the passage. */
 	by?: 'user' | 'assistant';
+	archived?: boolean;
 }
 
 const MAX_MESSAGE = 6000;

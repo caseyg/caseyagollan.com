@@ -144,6 +144,8 @@ export interface ChatThreadSummary {
 	startedBy?: ChatAuthor;
 	/** People who have written in the thread, most recent first, at most six. */
 	participants?: ChatAuthor[];
+	/** When Casey put the chat away: it leaves the list of chats and waits under Archived. */
+	archivedAt?: number;
 }
 
 export interface ChatSnapshot {
@@ -159,6 +161,8 @@ export type ChatServerEvent =
 	| { type: 'chat:tools'; id: string; tools: ChatToolUse[] }
 	| { type: 'chat:done'; id: string; status: ChatMessage['status']; content: string }
 	| { type: 'chat:title'; title: string }
+	/** Casey deleted the chat: there is nothing here to read or write any more. */
+	| { type: 'chat:removed' }
 	/** `id`: the message that didn't go, as the browser named it. */
 	| { type: 'chat:error'; error: string; id?: string }
 	/** The messages' order, sent when it is more than new ones at the end: a message that waited its turn now sits where it was answered. */

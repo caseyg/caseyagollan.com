@@ -20,6 +20,16 @@
 	{#snippet template(args)}<div style="width: 17rem; height: 28rem;"><ChatSidebar {...args} /></div>{/snippet}
 </Story>
 
+<!-- For Casey: Archived at the foot of the list, and a ⋯ on each chat (on hover, with the keyboard, or by right-click) with Archive and Delete. -->
+<Story name="With actions" args={{ onarchive: () => {}, ondelete: () => {}, archivedHref: '/chat/archived' }}>
+	{#snippet template(args)}<div style="width: 17rem; height: 28rem;"><ChatSidebar {...args} /></div>{/snippet}
+</Story>
+
+<!-- An archive that didn't go through says so above the list. -->
+<Story name="Action failed" args={{ onarchive: () => {}, ondelete: () => {}, archivedHref: '/chat/archived', error: 'The site couldn’t be reached. Try again.' }}>
+	{#snippet template(args)}<div style="width: 17rem; height: 28rem;"><ChatSidebar {...args} /></div>{/snippet}
+</Story>
+
 <Story name="Empty" args={{ threads: [] }}>
 	{#snippet template(args)}<div style="width: 17rem; height: 12rem;"><ChatSidebar {...args} /></div>{/snippet}
 </Story>
