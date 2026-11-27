@@ -34,7 +34,7 @@ function fixture(micropub?: ((query: string, init?: RequestInit) => Promise<Resp
 	const canvases = new Map<string, RemoteCanvas>();
 	const thread = (id: string) => {
 		const canvas = canvases.get(id) ?? canvases.set(id, new RemoteCanvas()).get(id)!;
-		return { viewAttach: async (view: string) => canvas.attach(view), viewNext: async (view: string, wait?: number) => canvas.next(view, wait), viewDone: async (view: string, reply: never) => canvas.done(view, reply), viewOpen: async () => canvas.open(), viewOp: async (op: never) => canvas.perform(op) };
+		return { viewAttach: async (view: string) => canvas.attach(view), viewNext: async (view: string, wait?: number) => canvas.next(view, wait), viewDone: async (view: string, reply: never) => canvas.done(view, reply), viewOpen: async () => canvas.open(), viewOp: async (op: never) => canvas.perform(op), viewExpect: async () => canvas.expect(), viewReady: async () => canvas.ready(300), viewHolds: async (view: string) => canvas.holds(view), viewRelease: async () => canvas.release() };
 	};
 	const asked: string[] = [];
 	const server = siteMcpServer({
@@ -103,11 +103,11 @@ describe('who may call /mcp', () => {
 });
 
 describe('the site’s tools over MCP', () => {
-	test('offers the chat’s own tools, unchanged, and nothing that needs a chat or a canvas', async () => {
+	test('offers the chat’s own tools, unchanged, and nothing that needs a chat or a view', async () => {
 		const { server } = fixture();
-		// What a client that draws no views is offered: everything that works without a canvas.
+		// What a client that draws no views is offered: everything but the view itself. The table tools change a table where it is saved.
 		const names = server.tools.filter((tool) => !tool.app).map((tool) => tool.name);
-		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_read', 'table_list', 'table_link']);
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'my_saves', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_read', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_list', 'table_link']);
 		const VIEW = ['table_link', 'table_open', 'table_view_link', 'table_view_load', 'table_view_save', 'table_view_next', 'table_view_done'];
 		const chat = chatExtension({ env: {} as never, origin: () => ORIGIN, micropub: async () => Response.json({}), thread: { table: () => 'x' } as never }).tools!;
 		for (const tool of server.tools.filter((one) => one.name !== 'table_list' && !VIEW.includes(one.name))) {
@@ -133,7 +133,8 @@ describe('the site’s tools over MCP', () => {
 		const list = JSON.parse((await call('table_list')).content[0].text!);
 		expect(list.tables.map((table: { id: string; draft?: boolean }) => [table.id, !!table.draft])).toEqual([['calm1234', true], ['maps5678', false]]);
 		const read = JSON.parse((await call('table_read', { table: 'calm' })).content[0].text!);
-		expect(read).toMatchObject({ name: 'Calm technology', draft: true, note: 'As last saved.' });
+		expect(read).toMatchObject({ name: 'Calm technology', draft: true });
+		expect(read.note).toContain('As last saved');
 		expect(read.items.map((item: { id: string; type: string; text?: string }) => [item.id, item.type])).toEqual([['a', 'post'], ['b', 'note']]);
 		const missing = await call('table_read', { table: 'nothing like it' });
 		expect(missing.isError).toBe(true);
@@ -171,7 +172,8 @@ describe('a table open as a canvas inside Claude', () => {
 		expect(drawn.some((tool) => tool.name === 'table_add')).toBe(true);
 		const plain = (await rpc(server, 'tools/list', {}, false)).result.tools as { name: string }[];
 		expect(plain.map((tool) => tool.name)).not.toContain('table_open');
-		expect(plain.map((tool) => tool.name)).not.toContain('table_add');
+		// The table tools need no view: with none, they change the table where it is saved.
+		expect(plain.map((tool) => tool.name)).toContain('table_add');
 		expect((await rpc(server, 'resources/list', {}, false)).result.resources).toEqual([]);
 		expect((await rpc(server, 'tools/call', { name: 'table_view_save', arguments: {} }, false)).error!.code).toBe(-32602);
 	});
@@ -198,12 +200,18 @@ describe('a table open as a canvas inside Claude', () => {
 		expect(files[`tables/${id}.json`]).toMatchObject({ name: 'Field notes', published: false });
 	});
 
-	test('a table tool’s change is made by the open view, and refused when none is open', async () => {
-		const { call } = fixture();
-		const closed = await call('table_move', { table: 'calm1234', moves: [{ id: 'a', x: 40, y: 40 }] });
-		expect(closed.isError).toBe(true);
-		expect(closed.content[0].text).toContain('table_open');
-		expect((await call('table_view_load', { table: 'calm1234', view: VIEW })).structuredContent).toMatchObject({ editable: true, table: { id: 'calm1234', document: DOCUMENT } });
+	test('a table tool’s change is made by the open view, and where the table is saved when none is open', async () => {
+		const { call, files } = fixture();
+		const closed = await call('table_move', { table: 'calm1234', moves: [{ id: 'a', x: 40, y: 60 }] });
+		expect(closed.isError).toBeFalsy();
+		expect(closed.content[0].text).toContain('"moved":1');
+		expect((files['tables/calm1234.json'] as { document: { store: Record<string, { x: number; y: number }> }; updated: string }).document.store['shape:a']).toMatchObject({ x: 40, y: 60 });
+		expect((files['tables/calm1234.json'] as { updated: string }).updated).toBe('2026-11-25T20:00:00.000Z');
+		// What only a canvas can do says so, and says how to get one.
+		const drawn = await call('table_draw', { table: 'calm1234', strokes: [{ around: 'a' }] });
+		expect(drawn.isError).toBe(true);
+		expect(drawn.content[0].text).toContain('table_open');
+		expect((await call('table_view_load', { table: 'calm1234', view: VIEW })).structuredContent).toMatchObject({ editable: true, table: { id: 'calm1234' } });
 		// The view takes each change the tool asks for and reports back, until the tool has its answer.
 		const seen: string[] = [];
 		let answered = false;

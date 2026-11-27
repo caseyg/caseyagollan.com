@@ -11,7 +11,7 @@
 import dagre from '@dagrejs/dagre';
 import { graphLayout, separate } from './table-graph';
 import { TABLE_ARRANGEMENTS, type TableArrangement, type TableCluster, type TableDirection } from './table-agent';
-import { GRID, columnLayout, columnsLayout, gridLayout, onGrid, rowLayout, upToGrid, type Box, type Placement } from './table-layout';
+import { GRID, bendAround, segmentHitsBox, columnLayout, columnsLayout, gridLayout, onGrid, rowLayout, upToGrid, type Box, type Placement } from './table-layout';
 
 /** An arrow tied to two items: `from` points at `to`. */
 export interface Edge { from: string; to: string }
@@ -42,7 +42,17 @@ export interface ArrangeRequest {
 	groups?: Cluster[];
 	/** Space between clusters. */
 	clusterGap?: number;
+	/** Text that titles the set: in a graph layout, one of these joined to nothing sits above the drawing as its heading, not in the grid of leftovers underneath. */
+	headings?: string[];
 }
+
+export interface ArrowLink { id: string; from: string; to: string; label?: string }
+/**
+ * How one arrow runs once things have landed: where on each card it leaves and arrives (a
+ * fraction of the card's width and height; `precise` false means its middle), how far it curves,
+ * and where along it the label sits.
+ */
+export interface ArrowRoute { id: string; bend: number; start: Point; end: Point; startPrecise: boolean; endPrecise: boolean; labelPosition: number }
 
 export interface ArrangeResult {
 	/** The layout used: what `auto` chose, or what a graph layout fell back to with no arrows. */
@@ -395,15 +405,19 @@ export function arrange(request: ArrangeRequest): ArrangeResult {
 			return mode === 'mindmap' ? mindmapLayout(tree, sizes, now, gap, rankGap) : radialLayout(tree, sizes, gap * 2, rankGap);
 		});
 	}
-	const main = shelved(blocks, rankGap);
+	// A title joined to nothing heads the drawing; whatever else is loose goes in a grid underneath.
+	const heads = loose.filter((box) => request.headings?.includes(box.id)), rest = loose.filter((box) => !request.headings?.includes(box.id));
+	const titles = heads.length ? rowLayout(heads.map((box, index) => ({ ...box, x: index, y: 0 })), origin, gap * 2) : [];
+	const headRoom = heads.length ? Math.max(...heads.map((box) => upToGrid(box.h))) + gap * 2 : 0;
+	const main = shelved(blocks, rankGap, rankGap, { x: origin.x, y: origin.y + headRoom });
 	const drawn = main.map((spot) => ({ ...spot, ...sized(spot.id) }));
 	const bottom = Math.max(...drawn.map((one) => one.y + one.h)), width = Math.max(...drawn.map((one) => one.x + one.w)) - origin.x;
-	const average = loose.reduce((sum, box) => sum + upToGrid(box.w) + gap, 0) / Math.max(1, loose.length);
-	const others = loose.length ? gridLayout(loose, Math.max(1, Math.min(loose.length, Math.max(wide(loose.length), Math.floor((width + gap) / average)))), { x: origin.x, y: bottom + rankGap }, gap) : [];
+	const average = rest.reduce((sum, box) => sum + upToGrid(box.w) + gap, 0) / Math.max(1, rest.length);
+	const others = rest.length ? gridLayout(rest, Math.max(1, Math.min(rest.length, Math.max(wide(rest.length), Math.floor((width + gap) / average)))), { x: origin.x, y: bottom + rankGap }, gap) : [];
 	// Rounding to the grid, a ring or a spring can leave two cards a hair too close: the last pass settles it.
-	const settled = separate([...main, ...others].map((spot) => ({ ...spot, ...sized(spot.id) })), gap);
+	const settled = separate([...titles, ...main, ...others].map((spot) => ({ ...spot, ...sized(spot.id) })), gap);
 	const corner = { x: Math.min(...settled.map((box) => box.x)), y: Math.min(...settled.map((box) => box.y)) };
-	return done(settled.map((box) => ({ id: box.id, x: box.x - corner.x + origin.x, y: box.y - corner.y + origin.y })), loose.length ? { note: note ?? `${loose.length} ${loose.length === 1 ? 'item isn’t' : 'items aren’t'} joined to anything by an arrow: set in a grid below.` } : {});
+	return done(settled.map((box) => ({ id: box.id, x: box.x - corner.x + origin.x, y: box.y - corner.y + origin.y })), rest.length ? { note: note ?? `${rest.length} ${rest.length === 1 ? 'item isn’t' : 'items aren’t'} joined to anything by an arrow: set in a grid below.` } : {});
 }
 
 /** How an item is told from another when clustering without named groups. */
@@ -419,4 +433,112 @@ export function clustersBy(items: Sortable[], by: 'kind' | 'color' | 'connected'
 		groups.set(key, [...(groups.get(key) ?? []), item.id]);
 	}
 	return [...groups].map(([key, ids]) => ({ name: by === 'color' ? key.replace(/-/g, ' ').replace(/^./, (letter) => letter.toUpperCase()) : KIND_NAMES[key] ?? key.replace(/^./, (letter) => letter.toUpperCase()), ids }));
+}
+
+type Side = 'top' | 'bottom' | 'left' | 'right';
+/** A label's box, roughly: arrow labels are drawn at about this size and wrap past this width. */
+const labelSize = (label: string): Size => { const lines = Math.max(1, Math.ceil((label.length * 10) / 180)); return { w: Math.min(180, label.length * 10) + 16, h: lines * 26 + 8 }; };
+const hits = (a: Box, b: Box, room = 0) => a.x < b.x + b.w + room && a.x + a.w + room > b.x && a.y < b.y + b.h + room && a.y + a.h + room > b.y;
+
+/**
+ * Arrows routed once their cards have landed, so a busy diagram reads:
+ * - arrows that share a side of a card fan out along it, in the order of where they go, where
+ *   they used to meet at one point in its middle;
+ * - each curves only as far as it must to clear a card in its way;
+ * - each label slides along its arrow to a place clear of the cards and of the labels already set.
+ * Pure: the canvas and the server's changes to a saved table both draw from it.
+ */
+export function routeArrows(boxes: Box[], links: ArrowLink[], options: { elbow?: boolean } = {}): ArrowRoute[] {
+	const byId = new Map(boxes.map((box) => [box.id, box]));
+	const live = links.filter((link) => byId.has(link.from) && byId.has(link.to) && link.from !== link.to);
+	const sideOf = (box: Box, other: Box): Side => {
+		const dx = centre(other).x - centre(box).x, dy = centre(other).y - centre(box).y;
+		return Math.abs(dx) / Math.max(1, box.w + other.w) > Math.abs(dy) / Math.max(1, box.h + other.h) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'bottom' : 'top';
+	};
+	// Every end, by the card and side it meets.
+	const ports = new Map<string, { link: ArrowLink; terminal: 'start' | 'end'; along: number; index: number }[]>();
+	live.forEach((link, index) => {
+		for (const terminal of ['start', 'end'] as const) {
+			const box = byId.get(terminal === 'start' ? link.from : link.to)!, other = byId.get(terminal === 'start' ? link.to : link.from)!;
+			const side = sideOf(box, other);
+			const key = `${box.id} ${side}`;
+			const along = side === 'top' || side === 'bottom' ? centre(other).x : centre(other).y;
+			ports.set(key, [...(ports.get(key) ?? []), { link, terminal, along, index }]);
+		}
+	});
+	const anchors = new Map<string, { point: Point; precise: boolean }>();
+	for (const [key, ends] of ports) {
+		const side = key.slice(key.lastIndexOf(' ') + 1) as Side;
+		ends.sort((a, b) => a.along - b.along || a.index - b.index);
+		ends.forEach((end, place) => {
+			const along = ends.length === 1 ? 0.5 : 0.2 + (0.6 * place) / (ends.length - 1);
+			anchors.set(`${end.link.id} ${end.terminal}`, { point: side === 'top' || side === 'bottom' ? { x: along, y: 0.5 } : { x: 0.5, y: along }, precise: ends.length > 1 });
+		});
+	}
+	const placed: Box[] = [];
+	const middle = { x: (Math.min(...boxes.map((box) => box.x)) + Math.max(...boxes.map((box) => box.x + box.w))) / 2, y: (Math.min(...boxes.map((box) => box.y)) + Math.max(...boxes.map((box) => box.y + box.h))) / 2 };
+	return live.map((link) => {
+		const from = byId.get(link.from)!, to = byId.get(link.to)!;
+		const start = anchors.get(`${link.id} start`)!, end = anchors.get(`${link.id} end`)!;
+		const a = { x: from.x + from.w * start.point.x, y: from.y + from.h * start.point.y }, b = { x: to.x + to.w * end.point.x, y: to.y + to.h * end.point.y };
+		// An arrow that must curve goes round the outside of the drawing, where a loop reads as a loop and the middle stays clear.
+		const others = boxes.filter((box) => box !== from && box !== to);
+		let bend = options.elbow ? 0 : bendAround(a, b, others);
+		if (bend) {
+			const length = Math.hypot(b.x - a.x, b.y - a.y) || 1, mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+			const outward = ((mid.x - middle.x) * -(b.y - a.y) + (mid.y - middle.y) * (b.x - a.x)) / length >= 0 ? 1 : -1;
+			const clear = (by: number) => { const top = { x: mid.x - ((b.y - a.y) / length) * by, y: mid.y + ((b.x - a.x) / length) * by }; return !others.some((box) => segmentHitsBox(a, top, box) || segmentHitsBox(top, b, box)); };
+			const way = [80, 140, 200, 260, 300].map((by) => by * outward).find((by) => Math.abs(by) < length && clear(by));
+			if (way !== undefined && Math.abs(way) <= Math.abs(bend) + 120) bend = way;
+		}
+		let labelPosition = 0.5;
+		if (link.label?.trim()) {
+			// The arrow as a curve through the top of its bend; the part outside its two cards is what is drawn.
+			const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+			const control = { x: (a.x + b.x) / 2 - ((b.y - a.y) / length) * bend * 2, y: (a.y + b.y) / 2 + ((b.x - a.x) / length) * bend * 2 };
+			const at = (t: number) => ({ x: (1 - t) ** 2 * a.x + 2 * t * (1 - t) * control.x + t ** 2 * b.x, y: (1 - t) ** 2 * a.y + 2 * t * (1 - t) * control.y + t ** 2 * b.y });
+			const inside = (point: Point, box: Box) => point.x > box.x && point.x < box.x + box.w && point.y > box.y && point.y < box.y + box.h;
+			let leaves = 0, arrives = 1;
+			while (leaves < 0.45 && inside(at(leaves), from)) leaves += 0.02;
+			while (arrives > 0.55 && inside(at(arrives), to)) arrives -= 0.02;
+			const size = labelSize(link.label.trim());
+			const boxAt = (position: number): Box => { const point = at(leaves + (arrives - leaves) * position); return { id: link.id, x: point.x - size.w / 2, y: point.y - size.h / 2, ...size }; };
+			const cost = (position: number) => { const label = boxAt(position); return placed.filter((other) => hits(label, other, 4)).length * 2 + boxes.filter((box) => hits(label, box)).length; };
+			const tries = [0.5, 0.4, 0.6, 0.3, 0.7, 0.22, 0.78];
+			labelPosition = tries.reduce((best, position) => (cost(position) < cost(best) ? position : best), 0.5);
+			placed.push(boxAt(labelPosition));
+		}
+		return { id: link.id, bend, start: start.point, end: end.point, startPrecise: start.precise, endPrecise: end.precise, labelPosition };
+	});
+}
+
+/** An arrow as it is drawn, for checking where its label lands: its ends, the cards they are on, its curve and label. */
+export interface DrawnArrow { id: string; a: Point; b: Point; from: Box; to: Box; bend: number; label?: string; labelPosition?: number }
+
+/** Where an arrow's label is drawn: on its curve, `labelPosition` of the way along the part outside its two cards. */
+export function labelBox(line: DrawnArrow): Box | undefined {
+	const label = line.label?.trim();
+	if (!label) return undefined;
+	const { a, b } = line;
+	const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+	const control = { x: (a.x + b.x) / 2 - ((b.y - a.y) / length) * line.bend * 2, y: (a.y + b.y) / 2 + ((b.x - a.x) / length) * line.bend * 2 };
+	const at = (t: number) => ({ x: (1 - t) ** 2 * a.x + 2 * t * (1 - t) * control.x + t ** 2 * b.x, y: (1 - t) ** 2 * a.y + 2 * t * (1 - t) * control.y + t ** 2 * b.y });
+	const inside = (point: Point, box: Box) => point.x > box.x && point.x < box.x + box.w && point.y > box.y && point.y < box.y + box.h;
+	let leaves = 0, arrives = 1;
+	while (leaves < 0.45 && inside(at(leaves), line.from)) leaves += 0.02;
+	while (arrives > 0.55 && inside(at(arrives), line.to)) arrives -= 0.02;
+	const point = at(leaves + (arrives - leaves) * (line.labelPosition ?? 0.5)), size = labelSize(label);
+	return { id: line.id, x: point.x - size.w / 2, y: point.y - size.h / 2, ...size };
+}
+
+/**
+ * Arrow labels that can't be read where they are: `labels_covered` sit under a card (the arrow's id,
+ * then the card's), `labels_colliding` sit on each other. Empty when every label is clear.
+ */
+export function labelIssues(cards: Box[], lines: DrawnArrow[]): { labels_covered?: [string, string][]; labels_colliding?: [string, string][] } {
+	const labels = lines.flatMap((line) => labelBox(line) ?? []);
+	const covered = labels.flatMap((label) => cards.filter((card) => hits(label, card, -6)).map((card): [string, string] => [label.id, card.id])).slice(0, 20);
+	const colliding: [string, string][] = [];
+	for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) if (hits(labels[i], labels[j], -4)) colliding.push([labels[i].id, labels[j].id]);
+	return { ...(covered.length ? { labels_covered: covered } : {}), ...(colliding.length ? { labels_colliding: colliding.slice(0, 20) } : {}) };
 }

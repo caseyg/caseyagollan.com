@@ -3,32 +3,13 @@ import { mount, unmount } from 'svelte';
 import { BaseBoxShapeUtil, HTMLContainer, T, useEditor, type Editor, type TLShapeId, createShapePropsMigrationIds, createShapePropsMigrationSequence, type RecordProps, type TLShape } from 'tldraw';
 import TableBlock from '../TableBlock.svelte';
 import { BLOCK_SHAPE, blockHref, isBlockKind, type Block } from '$lib/tables';
+import { blockProps, blockSize, fitsToPost, type SiteBlockProps } from '$lib/table-block-props';
+
+export { blockProps, blockSize, fitsToPost, type SiteBlockProps };
 import { wikiHref } from '$lib/wiki/links';
 import { quoteSize } from '$lib/table-pieces';
 import { cardSize, isCard } from '$lib/table-card';
 import { isSocialPiece, isSourcePost, socialSize } from '$lib/table-post-source';
-
-/** A block's props: the `Block` it shows, with '' for anything it lacks, and its size. */
-export interface SiteBlockProps {
-	w: number;
-	h: number;
-	kind: string;
-	url: string;
-	title: string;
-	meta: string;
-	excerpt: string;
-	image: string;
-	icon: string;
-	/** Hides the block's details (its source line and kind tile), chosen by the owner for everyone. */
-	hideMeta: boolean;
-	/** What the block is where it was saved (`Block.ref`), or '' for none. */
-	ref: string;
-	/** `card` for a source card (`Block.form`), or ''. */
-	form: string;
-	/** A source card's quote, and whether it is Casey's own highlight. */
-	quote: string;
-	marked: boolean;
-}
 
 declare module 'tldraw' {
 	export interface TLGlobalShapePropsMap {
@@ -56,22 +37,6 @@ export function blockOf(props: SiteBlockProps): Block {
 export function openBlock(shape: SiteBlockShape) {
 	const block = blockOf(shape.props);
 	window.open(new URL(wikiHref(block.url) ?? blockHref(block, location.origin), location.origin).href, '_blank', 'noopener');
-}
-
-/** The size a block starts at: covers are portrait, pictures landscape, text square. */
-export function blockSize(block: Block): { w: number; h: number } {
-	if (isCard(block)) return cardSize(block);
-	if (block.kind === 'book') return { w: 180, h: 300 };
-	if (block.kind === 'quote' && block.excerpt && !block.image) return quoteSize(block.excerpt);
-	// Posts are drawn as the Bluesky or Mastodon post they are; Are.na blocks are squares with their title under them.
-	if (isSourcePost(block) || isSocialPiece(block)) return socialSize(block);
-	if (block.kind === 'arena') return { w: 240, h: 280 };
-	if (block.image) return { w: 280, h: 240 };
-	return { w: 240, h: 240 };
-}
-
-export function blockProps(block: Block): SiteBlockProps {
-	return { ...blockSize(block), kind: block.kind, url: block.url, title: block.title, meta: block.meta ?? '', excerpt: block.excerpt ?? '', image: block.image ?? '', icon: block.icon ?? '', hideMeta: false, ref: block.ref ?? '', form: block.form ?? '', quote: block.quote ?? '', marked: !!block.marked };
 }
 
 const versions = createShapePropsMigrationIds(BLOCK_SHAPE, { AddHideMeta: 1, AddRef: 2, AddCard: 3 });
@@ -119,8 +84,6 @@ export const siteBlockMigrations = createShapePropsMigrationSequence({
 const FIT_FOR_MS = 6000;
 const MAX_FIT = 720;
 
-/** Whether a block just set down should grow to fit the post it draws (see `fitToPost`). */
-export const fitsToPost = (block: Block) => isSourcePost(block) || isSocialPiece(block);
 
 /**
  * Makes a box shape `by` taller and moves what sits below it, beside the same parent, down as far,

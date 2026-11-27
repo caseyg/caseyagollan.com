@@ -22,7 +22,10 @@ import { listTables, readTable, writeTable } from '../tables';
 import { passLink } from '../table-pass';
 import type { ChatThreadStub } from '../chat/threads';
 import { itemsFromDocument, tableListing, tableThreadId, type TableItem, type TableOp } from '../../table-agent';
-import { cleanName, emptyTable, summarizeDocument, validDocument, validId, type Table, type TableSummary } from '../../tables';
+import { cleanName, emptyTable, linkBlock, summarizeDocument, validDocument, validId, type Block, type Table, type TableSummary } from '../../tables';
+import { documentTable } from '../../table-document';
+import { tablePlanSvg } from '../../table-plan';
+import { tablePictureJpeg } from '../table-picture';
 import { MCP_APP_MIME, MCP_CORS, mcpUnauthorized, serveMcp, type McpContent, type McpResource, type McpServerInfo, type McpTool } from './server';
 
 /** Where the server lives, and so the `resource` its tokens are for. */
@@ -37,7 +40,7 @@ export const TABLE_VIEW = 'ui://caseyagollan/table.html';
 
 /**
  * The chat tools offered, with the title a client shows and whether each only reads. `canvas`:
- * it works on an open canvas, so it is offered only to a client that can show one.
+ * it changes or draws a table, on its canvas inside Claude when one is open and where it is saved when none is.
  */
 const OFFERED: Record<string, { title: string; reads: boolean; canvas?: boolean }> = {
 	search_site: { title: 'Search the site', reads: true },
@@ -63,7 +66,9 @@ const OFFERED: Record<string, { title: string; reads: boolean; canvas?: boolean 
 const TABLE_ARG = { type: 'string', description: 'Which table: its id, its name, or its address (/tables/<id>). table_list gives them.' };
 
 export interface SiteMcpDeps {
-	env: ToolDeps['env'] & { PUBLISHING_STATE?: R2Bucket };
+	env: ToolDeps['env'] & { PUBLISHING_STATE?: R2Bucket; CLOUDFLARE_ACCOUNT_ID?: string; CLOUDFLARE_API_TOKEN?: string };
+	/** Draws a saved table's picture; Browser Rendering unless a test gives another. */
+	pictureFetch?: typeof fetch;
 	origin: string;
 	/** Micropub with the caller's own token. */
 	micropub: MicropubCall;
@@ -75,7 +80,7 @@ export interface SiteMcpDeps {
 	 */
 	scopes?: readonly string[];
 	/** A chat thread by id; a table's own thread is where its canvas inside Claude is reached. */
-	thread?: (id: string) => Pick<ChatThreadStub, 'viewAttach' | 'viewNext' | 'viewDone' | 'viewOpen' | 'viewOp'> | undefined;
+	thread?: (id: string) => Pick<ChatThreadStub, 'viewAttach' | 'viewNext' | 'viewDone' | 'viewOpen' | 'viewOp' | 'viewExpect' | 'viewReady' | 'viewHolds' | 'viewRelease'> | undefined;
 	/** The file names of the view's script and stylesheet, as the build wrote them; unset where it wasn't built. */
 	viewAssets?: () => Promise<{ js: string; css?: string } | null>;
 }
@@ -94,22 +99,60 @@ export function pickTable(tables: TableSummary[], asked: unknown): TableSummary 
 		: `There’s no table “${wanted}”. table_list gives the ones there are.`);
 }
 
-/** What a chat thread does for the tools, for a caller with no chat: one table, on its canvas inside Claude when that is open, else as last saved. */
+/**
+ * A change made to a table where it is saved, because no canvas has it open (`table-document.ts`):
+ * read, changed, written back. Links are set down as plain link blocks, since finding what each
+ * one is belongs to a page; `look` is a picture of the plan, drawn by Browser Rendering.
+ */
+async function savedOp(deps: SiteMcpDeps, id: string, op: TableOp, canvas: ReturnType<NonNullable<SiteMcpDeps['thread']>>): Promise<unknown> {
+	const bucket = deps.env.PUBLISHING_STATE;
+	const saved = await readTable(bucket, id);
+	if (!bucket || !saved) throw new Error('That table couldn’t be read.');
+	const table = documentTable(saved.document, { name: saved.name });
+	let result: unknown;
+	if (op.op === 'add_links') {
+		const blocks = op.urls.map((url) => linkBlock(url, deps.origin)).filter((block): block is Block => !!block);
+		if (!blocks.length) throw new Error('None of those were links.');
+		result = table.perform({ op: 'add_blocks', blocks, columns: op.columns ?? Math.min(blocks.length, 3), at: op.at });
+	} else if (op.op === 'look') {
+		const plan = table.plan(op.ids);
+		const picture = tablePlanSvg(plan);
+		if (!picture) return { empty: true };
+		const jpeg = await tablePictureJpeg(deps.env, picture, deps.pictureFetch);
+		const key = (table.perform(op) as { key: unknown }).key;
+		return { image: jpeg ? `data:${jpeg.mimeType};base64,${jpeg.data}` : '', width: picture.width, height: picture.height, key, issues: plan.issues, note: jpeg ? 'A drawing of the saved table: boxes, words and arrows where they are, not the cards as Casey sees them.' : 'No picture could be drawn just now; the key and the issues are from the saved table.' };
+	} else if (op.op === 'rename') {
+		const name = cleanName(op.name);
+		if (!name) throw new Error('A table needs a name.');
+		result = table.perform({ op: 'rename', name });
+	} else result = table.perform(op);
+	if (op.op === 'read') return { ...(result as object), url: `${deps.origin}/tables/${saved.id}`, ...(saved.published === false ? { draft: true } : {}) };
+	if (table.changed() || table.name() !== saved.name) {
+		const document = table.document();
+		await writeTable(bucket, { ...saved, name: table.name() ?? saved.name, document, ...summarizeDocument(document), updated: (deps.now?.() ?? new Date()).toISOString() });
+		// A view left open from before holds the older copy: it is told to stand down, not to save over this.
+		await canvas?.viewRelease().catch(() => undefined);
+	}
+	return result;
+}
+
+/**
+ * What a chat thread does for the tools, for a caller with no chat: one table, changed on its
+ * canvas inside Claude when that is open (waiting a moment for one just opened), else where it is saved.
+ */
 function tableHooks(deps: SiteMcpDeps, table: TableSummary | undefined): ThreadHooks {
 	const canvas = table ? deps.thread?.(tableThreadId(table.id)) : undefined;
 	const never = async (): Promise<never> => { throw new Error('That isn’t available here.'); };
+	const perform = async (op: TableOp) => {
+		if (!table) throw new Error('Say which `table`: its id, name or address. table_list gives them.');
+		const live = !!canvas && await canvas.viewReady().catch(() => false);
+		if (op.op !== 'read') console.log(JSON.stringify({ event: 'mcp_table_op', op: op.op, table: table.id, on: live ? 'view' : 'saved' }));
+		return live ? canvas!.viewOp(op) : savedOp(deps, table.id, op, canvas);
+	};
 	return {
 		table: () => table?.id,
-		async tableOp(op: TableOp) {
-			if (!canvas) throw new Error('Tables can’t be changed here.');
-			return canvas.viewOp(op);
-		},
-		async readTable() {
-			if (canvas && await canvas.viewOpen().catch(() => false)) return canvas.viewOp({ op: 'read' });
-			const saved = table && await readTable(deps.env.PUBLISHING_STATE, table.id);
-			if (!saved) throw new Error('That table couldn’t be read.');
-			return { name: saved.name, url: `${deps.origin}/tables/${saved.id}`, ...(saved.published === false ? { draft: true } : {}), items: itemsFromDocument(saved.document), note: 'As last saved.' };
-		},
+		tableOp: perform,
+		readTable: () => perform({ op: 'read' }),
 		createTable: never,
 		navigate: async () => false,
 		tableOpened: async () => false,
@@ -208,8 +251,10 @@ const tableOpen = (deps: SiteMcpDeps): McpTool => ({
 			await writeTable(bucket, table);
 		} else table = await readTable(bucket, pickTable(await listTables(bucket), args.table).id);
 		if (!table) throw new Error('That table couldn’t be read.');
-		const items = itemsFromDocument(table.document);
+		const items = documentTable(table.document).items();
 		const url = await tableLink(deps, table.id);
+		// Its view is on its way: the first change waits a moment for it, so Casey watches it happen.
+		if (validId(table.id)) await deps.thread?.(tableThreadId(table.id))?.viewExpect().catch(() => undefined);
 		return said(
 			[`“${table.name}” (${table.id}${table.published === false ? ', a draft' : ''}) is open as a canvas here. Its link is ${url} . ${LINK_NOTE}`, items.length ? tableListing(items as TableItem[], [], table.name) : 'It is empty.', 'Change it with the table_* tools, passing this table’s id.'].join('\n\n'),
 			{ table: { id: table.id, name: table.name, url, draft: table.published === false } }
@@ -237,11 +282,12 @@ function viewTools(deps: SiteMcpDeps): McpTool[] {
 		({ name, title: name, description: `${description} Called by the table view itself, never by a model.`, inputSchema: { type: 'object', properties: { ...VIEW_ARGS, ...properties }, required: ['table', 'view', ...required] }, _meta: VIEW_ONLY, app: true, call });
 	return [
 		tool('table_view_load', 'The table’s canvas, and from now on this view is the one that takes its changes.', {}, [], async (args) => {
-			const table = await readTable(deps.env.PUBLISHING_STATE, String(args.table));
-			if (!table) throw new Error('No such table.');
 			// A connection that may not change tables gets the table to look at, and takes no changes.
 			const editable = !!deps.scopes?.includes('update');
-			if (editable) await canvas(table.id).viewAttach(viewId(args.view));
+			// Attached before the table is read: from here every change comes to this view, so none is made behind its back to the copy it is about to load.
+			if (editable) await canvas(String(args.table)).viewAttach(viewId(args.view));
+			const table = await readTable(deps.env.PUBLISHING_STATE, String(args.table));
+			if (!table) throw new Error('No such table.');
 			return said('Loaded.', { table, editable });
 		}),
 		tool('table_view_save', 'Save the canvas, a new name, or both.', { document: { type: 'object' }, name: { type: 'string' } }, [], async (args) => {
@@ -249,7 +295,8 @@ function viewTools(deps: SiteMcpDeps): McpTool[] {
 			const table = await readTable(bucket, String(args.table));
 			if (!bucket || !table) throw new Error('No such table.');
 			allowed(deps, 'update');
-			viewId(args.view);
+			// A view that was replaced, or left behind by a change made to the saved table, holds an older copy.
+			if (!(await canvas(table.id).viewHolds(viewId(args.view)))) throw new Error('This view of the table is out of date. Open the table again.');
 			const next: Table = { ...table };
 			if (args.name !== undefined) {
 				const name = cleanName(args.name);
@@ -336,7 +383,6 @@ export function siteMcpServer(deps: SiteMcpDeps): McpServerInfo {
 			name: tool.name, title, description: tool.description,
 			inputSchema: onTable ? { ...schema, properties: { table: TABLE_ARG, ...schema.properties }, required: ['table', ...(schema.required ?? [])] } : { ...schema },
 			annotations: reads ? { readOnlyHint: true } : { readOnlyHint: false, destructiveHint: false },
-			...(canvas ? { app: true } : {}),
 			async call(args) {
 				if (canvas && !reads) allowed(deps, 'update');
 				const { table, ...rest } = args;

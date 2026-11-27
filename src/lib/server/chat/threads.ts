@@ -104,6 +104,10 @@ export interface ChatThreadStub {
 	viewDone(view: string, reply: import('../../table-agent').TableOpReply): Promise<void>;
 	viewOpen(): Promise<boolean>;
 	viewOp(op: import('../../table-agent').TableOp): Promise<unknown>;
+	viewExpect(): Promise<void>;
+	viewReady(): Promise<boolean>;
+	viewHolds(view: string): Promise<boolean>;
+	viewRelease(): Promise<void>;
 }
 
 export function threadStub(env: { ChatThread?: DurableObjectNamespace }, id: string): ChatThreadStub | undefined {
