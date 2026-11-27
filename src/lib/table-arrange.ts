@@ -122,7 +122,7 @@ function spanning(ids: string[], edges: Edge[], rank: Map<string, number>, { roo
 		const queue = [...from];
 		while (queue.length) {
 			const id = queue.shift()!;
-			for (const other of [...next.get(id)!].sort(byRank)) {
+			for (const other of next.get(id)!.toSorted(byRank)) {
 				if (seen.has(other)) continue;
 				seen.add(other);
 				kids.get(id)!.push(other);
@@ -133,7 +133,7 @@ function spanning(ids: string[], edges: Edge[], rank: Map<string, number>, { roo
 	const roots: string[] = [];
 	const start = (id: string) => { roots.push(id); seen.add(id); };
 	if (root && ids.includes(root)) start(root);
-	if (directed) for (const id of [...ids].sort(byRank)) if (!seen.has(id) && !into.get(id)!.length) start(id);
+	if (directed) for (const id of ids.toSorted(byRank)) if (!seen.has(id) && !into.get(id)!.length) start(id);
 	grow(roots, directed ? out : both);
 	grow([...seen], both);
 	for (;;) {
@@ -200,7 +200,7 @@ function mindmapLayout(tree: Tree, sizes: Map<string, Size>, now: Map<string, Po
 	for (const root of tree.roots) {
 		const size = sizes.get(root)!;
 		// Branches already right of the root stay right, when that leaves the sides even enough.
-		const branches = [...tree.kids.get(root)!].sort((a, b) => Number(now.get(a)!.x < now.get(root)!.x) - Number(now.get(b)!.x < now.get(root)!.x));
+		const branches = tree.kids.get(root)!.toSorted((a, b) => Number(now.get(a)!.x < now.get(root)!.x) - Number(now.get(b)!.x < now.get(root)!.x));
 		const weight = (id: string): number => Math.max(sizes.get(id)!.h, tree.kids.get(id)!.reduce((sum, kid) => sum + weight(kid) + gap, -gap));
 		const total = branches.reduce((sum, id) => sum + weight(id), 0);
 		const right: string[] = [], left: string[] = [];
@@ -397,7 +397,7 @@ export function arrange(request: ArrangeRequest): ArrangeResult {
 	};
 
 	if (mode === 'pack') {
-		const sorted = [...boxes].sort((a, b) => upToGrid(b.h) - upToGrid(a.h) || upToGrid(b.w) - upToGrid(a.w) || a.y - b.y || a.x - b.x);
+		const sorted = boxes.toSorted((a, b) => upToGrid(b.h) - upToGrid(a.h) || upToGrid(b.w) - upToGrid(a.w) || a.y - b.y || a.x - b.x);
 		return done(shelved(sorted.map((box) => new Map([[box.id, { x: 0, y: 0 }]])), gap));
 	}
 
@@ -429,7 +429,7 @@ export function arrange(request: ArrangeRequest): ArrangeResult {
 	const direction = request.direction ?? 'down';
 	const sideways = direction === 'right' || direction === 'left';
 	const now = new Map(boxes.map((box) => [box.id, centre(box)]));
-	const order = (axis: 'x' | 'y') => new Map([...joined].sort((a, b) => centre(a)[axis] - centre(b)[axis] || centre(a)[axis === 'x' ? 'y' : 'x'] - centre(b)[axis === 'x' ? 'y' : 'x']).map((box, index) => [box.id, index]));
+	const order = (axis: 'x' | 'y') => new Map(joined.toSorted((a, b) => centre(a)[axis] - centre(b)[axis] || centre(a)[axis === 'x' ? 'y' : 'x'] - centre(b)[axis === 'x' ? 'y' : 'x']).map((box, index) => [box.id, index]));
 	let blocks: Map<string, Point>[];
 	if (mode === 'layered') blocks = [layeredLayout(joined, edges, sizes, direction, gap, rankGap)];
 	else if (mode === 'force') blocks = [forceLayout(joined, edges, sizes, gap, rankGap)];

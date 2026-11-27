@@ -156,7 +156,7 @@ export function rollupIndexPosts(posts: Post[]): Post[] {
  const result: Post[] = [];
  for (const group of groups.values()) {
   if (group.length === 1) { result.push(group[0]); continue; }
-  const ordered = [...group].sort((a,b) => Date.parse(b.date)-Date.parse(a.date));
+  const ordered = group.toSorted((a,b) => Date.parse(b.date)-Date.parse(a.date));
   const primary = ordered[0];
   const snapshots = ordered.flatMap(p => (p.socialSnapshots ?? []).filter(s => targetSnapshot(s,indexContentUrl(String(p.properties?.[p.type === 'like' ? 'like-of' : 'repost-of']?.[0]))!)));
   const snapshot = snapshots.find(s => s.preview?.image) ?? snapshots.find(s => s.preview) ?? snapshots[0];
@@ -220,9 +220,9 @@ function rollupThreadPosts(posts: Post[]): Post[] {
  posts.forEach((post, i) => { const id = root(i); const group = groups.get(id) ?? []; group.push(post); groups.set(id, group); });
  return [...groups.values()].map(group => {
   if (group.length === 1) return group[0];
-  const latest = [...group].sort((a,b) => Date.parse(b.date)-Date.parse(a.date))[0];
+  const latest = group.toSorted((a,b) => Date.parse(b.date)-Date.parse(a.date))[0];
   const published = (post: Post) => post.type === 'reply' ? Date.parse(post.date) : Date.parse(post.socialSnapshots?.[0]?.published ?? post.date);
-  const members = [...group].sort((a,b) => published(a)-published(b) || getPostPermalink(a).localeCompare(getPostPermalink(b)));
+  const members = group.toSorted((a,b) => published(a)-published(b) || getPostPermalink(a).localeCompare(getPostPermalink(b)));
   return {...latest,indexThreadPosts:members};
  });
 }

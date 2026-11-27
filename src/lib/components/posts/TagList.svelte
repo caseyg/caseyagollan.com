@@ -9,7 +9,7 @@
 	// A cloud: alphabetical, with the most used tags largest. Sizes follow the logarithm of the
 	// count, so one very common tag does not flatten all the others.
 	const STEPS = 5;
-	const sorted = $derived([...tags].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })));
+	const sorted = $derived(tags.toSorted((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })));
 	const most = $derived(Math.max(1, ...tags.map((tag) => tag.count)));
 	const step = (count: number) => (most === 1 ? 1 : 1 + Math.round(((STEPS - 1) * Math.log(count)) / Math.log(most)));
 </script>

@@ -24,7 +24,7 @@ const topLeft = (boxes: Box[]) => ({ x: Math.min(...boxes.map((box) => box.x)), 
  */
 export function gridLayout(boxes: Box[], columns: number, at?: { x: number; y: number }, gap = GRID): Placement[] {
 	if (!boxes.length) return [];
-	const sorted = [...boxes].sort(readingOrder);
+	const sorted = boxes.toSorted(readingOrder);
 	const cols = Math.max(1, Math.min(columns, sorted.length));
 	const origin = at ?? topLeft(sorted);
 	const widths = Array.from({ length: cols }, (_, col) => Math.max(...sorted.filter((_, index) => index % cols === col).map((box) => upToGrid(box.w))));
@@ -47,7 +47,7 @@ export const columnLayout = (boxes: Box[], at?: { x: number; y: number }, gap = 
  */
 export function columnsLayout(boxes: Box[], columns: number, at?: { x: number; y: number }, gap = GRID): Placement[] {
 	if (!boxes.length) return [];
-	const sorted = [...boxes].sort(readingOrder);
+	const sorted = boxes.toSorted(readingOrder);
 	const cols = Math.max(1, Math.min(columns, sorted.length));
 	const origin = at ?? topLeft(sorted);
 	const width = Math.max(...sorted.map((box) => upToGrid(box.w)));
@@ -77,7 +77,7 @@ export function tidyLayout(boxes: Box[], gap = GRID, keep?: string | Iterable<st
 	const kept = new Set(typeof keep === 'string' ? [keep] : keep ?? []);
 	const settled: Box[] = [];
 	const moved: Placement[] = [];
-	for (const box of [...boxes].sort((a, b) => Number(kept.has(b.id)) - Number(kept.has(a.id)) || readingOrder(a, b))) {
+	for (const box of boxes.toSorted((a, b) => Number(kept.has(b.id)) - Number(kept.has(a.id)) || readingOrder(a, b))) {
 		const next = { ...box };
 		for (let guard = 0; guard < boxes.length + 1; guard++) {
 			const hit = settled.filter((other) => overlapDepth(next, other, gap) > 0).sort((a, b) => b.y + b.h - (a.y + a.h))[0];

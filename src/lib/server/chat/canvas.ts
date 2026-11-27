@@ -20,7 +20,7 @@ export const tableOpTimeout = (op: string, hidden: boolean) => (hidden ? HIDDEN_
 
 /** Best first: pages in front before pages in the background, the latest used first within each. */
 export function canvasOrder<T>(pages: T[], of: (page: T) => CanvasPage): T[] {
-	return [...pages].sort((a, b) => {
+	return pages.toSorted((a, b) => {
 		const one = of(a), other = of(b);
 		return Number(!!one.hidden) - Number(!!other.hidden) || other.active - one.active;
 	});

@@ -58,7 +58,7 @@ export async function privateArena(env: ArenaEnv, waitUntil?: (promise: Promise<
 /** Every word of the query in the title or text; title matches first. An empty query lists them all, newest first. */
 export function searchArena(documents: ArenaDocument[], query: string, limit = LIMIT): ArenaDocument[] {
 	const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-	const newest = [...documents].sort((a, b) => b.date.localeCompare(a.date));
+	const newest = documents.toSorted((a, b) => b.date.localeCompare(a.date));
 	if (!words.length) return newest.slice(0, limit);
 	const scored = newest
 		.map((document) => {

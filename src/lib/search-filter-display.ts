@@ -24,7 +24,7 @@ export function updateFilterDisplay(pane: HTMLElement): void {
 			const display = authorLabel(value(label));
 			if (text && text.textContent !== display) text.textContent = display;
 		}
-		const sorted = [...labels].sort((a, b) => compareFilterValues(filter, value(a), value(b)));
+		const sorted = labels.toSorted((a, b) => compareFilterValues(filter, value(a), value(b)));
 		if (sorted.some((label, index) => label !== labels[index])) {
 			for (const label of sorted) options.appendChild(label);
 		}

@@ -35,4 +35,4 @@ export function cleanSources(value: unknown, max = 8): InsightSource[] {
 }
 
 export const insightKey = (topic: string) => `insight:${topic.toLowerCase().trim()}`;
-export const bioKey = (topics: string[]) => `bio:${[...topics].sort().join(',')}`;
+export const bioKey = (topics: string[]) => `bio:${topics.toSorted().join(',')}`;

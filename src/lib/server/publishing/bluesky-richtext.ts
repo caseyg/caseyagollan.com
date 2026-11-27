@@ -27,7 +27,7 @@ export function blueskyRichText(text: string, facets: unknown): { html: string; 
  const decoder = new TextDecoder('utf-8', {fatal:true});
  const links: string[] = [];
  let end = 0, html = '';
- if(Array.isArray(facets)) for(const facet of [...facets].sort((a,b)=>(a?.index?.byteStart ?? 0)-(b?.index?.byteStart ?? 0))) {
+ if(Array.isArray(facets)) for(const facet of facets.toSorted((a,b)=>(a?.index?.byteStart ?? 0)-(b?.index?.byteStart ?? 0))) {
   const start = facet?.index?.byteStart, stop = facet?.index?.byteEnd;
   if(!Number.isInteger(start) || !Number.isInteger(stop) || start < end || stop <= start || stop > bytes.length) continue;
   const feature = Array.isArray(facet.features) ? facet.features.find((f:any)=>[LINK,MENTION,TAG].includes(f?.$type)) : undefined;

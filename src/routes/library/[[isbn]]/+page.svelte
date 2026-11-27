@@ -212,8 +212,7 @@
 	const layoutTicks: Float32Array[] = [];
 	let layoutDone = false;
 	let layoutNodes: Node[] = [];
-	let resolveLayout: () => void = () => {};
-	const layoutFinished = new Promise<void>((resolve) => (resolveLayout = resolve));
+	const { promise: layoutFinished, resolve: resolveLayout } = Promise.withResolvers<void>();
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let savedForces: Record<string, any> | null = null;
 
@@ -2898,15 +2897,7 @@
 			nodes.sort((a, b) => (a.ddcCode || '').localeCompare(b.ddcCode || ''));
 
 			// Group books by top-level DDC class (first digit + "00")
-			const ddcGroups: Record<string, Node[]> = {};
-			nodes.forEach((node) => {
-				const ddcCode = node.ddcCode || '';
-				const topLevelClass = ddcCode.length > 0 ? ddcCode.charAt(0) + '00' : '000';
-				if (!ddcGroups[topLevelClass]) {
-					ddcGroups[topLevelClass] = [];
-				}
-				ddcGroups[topLevelClass].push(node);
-			});
+			const ddcGroups = Object.groupBy(nodes, (node) => (node.ddcCode ? node.ddcCode.charAt(0) + '00' : '000')) as Record<string, Node[]>;
 
 			// DDC class names matching actual graph data node IDs
 			const ddcClassNames = libraryDdcClasses;

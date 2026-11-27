@@ -770,7 +770,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			// How far each moved shape travels on the page; parents are worked out before what they hold.
 			const travel = new Map<TLShapeId, { x: number; y: number }>();
 			const depth = (move: { id: string }) => { const shape = shapes.get(move.id.replace(/^shape:/, '')); return shape ? editor.getShapeAncestors(shape).length : 0; };
-			const updates = [...op.moves].sort((a, b) => depth(a) - depth(b)).flatMap((move) => {
+			const updates = op.moves.toSorted((a, b) => depth(a) - depth(b)).flatMap((move) => {
 				const shape = shapes.get(move.id.replace(/^shape:/, ''));
 				if (!shape) return [];
 				const resizable = editor.isShapeOfType(shape, BLOCK_SHAPE) || shape.type === 'text';
