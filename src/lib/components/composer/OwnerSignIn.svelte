@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { browserSupportsWebAuthn } from '@simplewebauthn/browser';
-	import { issuerName, passkeyError, previewSignInHref, previewSignInIssuer, signInWithPasskey } from '$lib/passkey-login';
+	import { issuerName, passkeyError, passkeysSupported as supportsPasskeys, previewSignInHref, previewSignInIssuer, signInWithPasskey } from '$lib/passkey-login';
 	import { Button, Notice } from '$lib/components/ui';
 
 	/** `signInWith` is the site a branch preview signs in through; it is looked up when not given. */
@@ -15,7 +14,7 @@
 	const via = $derived(signInWith ?? issuer);
 	// Signing in here sets the owner hint; pages clear it themselves once they see the session has ended.
 	onMount(() => {
-		passkeysSupported = browserSupportsWebAuthn();
+		passkeysSupported = supportsPasskeys();
 		if (signInWith) { ready = true; return; }
 		void previewSignInIssuer().then((value) => { issuer = value; ready = true; });
 	});

@@ -4,9 +4,7 @@
 	import type { AuthOperations } from '$lib/server/indieauth/contracts';
 	import { replaceState } from '$app/navigation';
 	import { Button, Heading, Notice, Page, PageHeader, Row, RowList, Section, Tabs, type TabItem } from '$lib/components/ui';
-	import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
-	import type { PublicKeyCredentialCreationOptionsJSON } from '@simplewebauthn/browser';
-	import { issuerName, passkeyError, previewSignInHref, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
+	import { issuerName, createPasskey, passkeyError, passkeysSupported as supportsPasskeys, previewSignInHref, safeReturnTo, signInWithPasskey } from '$lib/passkey-login';
 	import { rememberOwner } from '$lib/owner';
 	import NewsletterSettings from '$lib/components/NewsletterSettings.svelte';
 	import BlueskySettings from '$lib/components/BlueskySettings.svelte';
@@ -111,7 +109,7 @@
 		} finally { busy = false; }
 	}
 	onMount(() => {
-		passkeysSupported = browserSupportsWebAuthn();
+		passkeysSupported = supportsPasskeys();
 		section = sectionFor(new URL(window.location.href)) ?? section;
 		void run(async () => {
 			try { await refresh(); } finally { ready = true; }
@@ -129,7 +127,7 @@
 			const authorization = session?.authenticated ? { csrf: session.csrf } : { setupToken };
 			{
 				const challenge = await api<{ id: string; options: PublicKeyCredentialCreationOptionsJSON }>('/auth/passkey/register/options', authorization);
-				const response = await startRegistration({ optionsJSON: challenge.options });
+				const response = await createPasskey(challenge.options);
 				await api('/auth/passkey/register/verify', { id: challenge.id, response, ...authorization });
 				await refresh(); notice = 'Passkey added.';
 			}

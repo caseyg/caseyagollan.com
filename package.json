@@ -64,7 +64,6 @@
 		"@ipld/dag-cbor": "10.0.2",
 		"@lexical/link": "0.40.0",
 		"@pagefind/component-ui": "1.6.0",
-		"@simplewebauthn/browser": "14.0.0",
 		"@simplewebauthn/server": "14.0.3",
 		"@ui-sdk/core": "^0.1.0-beta.1",
 		"@ui-sdk/svelte": "^0.1.0-beta.1",

@@ -1,7 +1,29 @@
 import { rememberOwner } from './owner';
-import { startAuthentication, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser';
 
 export { safeReturnTo } from './return-to';
+
+/**
+ * Whether this browser can use passkeys the way the site does: with the platform's own JSON
+ * methods, which every current browser has (Safari from 18.4). Without them the passkey buttons
+ * stay hidden, as they do in a browser with no passkeys at all.
+ */
+export function passkeysSupported(): boolean {
+ return typeof PublicKeyCredential !== 'undefined'
+  && typeof PublicKeyCredential.parseRequestOptionsFromJSON === 'function'
+  && typeof PublicKeyCredential.parseCreationOptionsFromJSON === 'function';
+}
+
+/** Asks for an existing passkey; the answer is ready to send to the server as JSON. */
+export async function getPasskey(options: PublicKeyCredentialRequestOptionsJSON) {
+ const credential = await navigator.credentials.get({ publicKey: PublicKeyCredential.parseRequestOptionsFromJSON(options) });
+ return (credential as PublicKeyCredential).toJSON();
+}
+
+/** Makes a new passkey; the answer is ready to send to the server as JSON. */
+export async function createPasskey(options: PublicKeyCredentialCreationOptionsJSON) {
+ const credential = await navigator.credentials.create({ publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(options) });
+ return (credential as PublicKeyCredential).toJSON();
+}
 
 export function passkeyError(cause: unknown): string {
  return cause instanceof Error && cause.name === 'NotAllowedError'
@@ -23,7 +45,7 @@ export async function signInWithPasskey(): Promise<void> {
   return response.json();
  }
  const challenge = await post<{ id: string; options: PublicKeyCredentialRequestOptionsJSON }>('/auth/passkey/login/options', {});
- const response = await startAuthentication({ optionsJSON: challenge.options });
+ const response = await getPasskey(challenge.options);
  await post('/auth/passkey/login/verify', { id: challenge.id, response });
  rememberOwner(true);
 }
