@@ -1,4 +1,8 @@
 export const AUTH_SCOPES = ['profile', 'read', 'create', 'update', 'delete', 'draft', 'media'] as const;
+/** The site's MCP server (`../mcp/site.ts`): the `resource` an MCP client names when it asks to sign in. */
+export const MCP_RESOURCE_PATH = '/mcp';
+/** What an MCP client can ask for, and what it is offered when it asks for nothing; Casey ticks which to grant. */
+export const MCP_SCOPES = ['read', 'draft', 'create', 'update'] as const;
 export const AUTH_TOKEN_NAME_MAX_LENGTH = 100;
 export function tokenName(value: unknown): string | undefined {
  if (value === undefined) return;
@@ -22,7 +26,7 @@ export interface IndieAuthEnvironment {
 export interface AuthorizationRequest { clientId: string; redirectUri: string; state?: string; scope: string[]; codeChallenge: string; clientName?: string }
 export interface SessionInfo { csrf: string; expiresAt: number }
 export interface TokenInfo { active: boolean; me?: string; client_id?: string; scope?: string; exp?: number; iat?: number }
-export interface TokenResponse { access_token: string; token_type: 'Bearer'; me: string; scope: string; expires_in: number }
+export interface TokenResponse { access_token: string; token_type: 'Bearer'; me: string; scope: string; expires_in: number; refresh_token?: string }
 export interface OwnerAuthorization { setupToken?: string; session?: string; csrf?: string }
 export interface AuthOperations {
  status: { input: Record<string, never>; output: { credentialCount: number; setupAvailable: boolean } };
@@ -37,6 +41,7 @@ export interface AuthOperations {
  request: { input: { id: string }; output: AuthorizationRequest | null };
  approveRequest: { input: { id: string; session: string; csrf: string; scope: string[] }; output: { code: string; redirectUri: string; state?: string } };
  exchangeCode: { input: { code: string; clientId: string; redirectUri: string; verifier: string }; output: TokenResponse };
+ refreshToken: { input: { token: string; clientId?: string }; output: TokenResponse };
  introspectToken: { input: { token: string }; output: TokenInfo };
  revokeToken: { input: { token: string; clientId?: string }; output: boolean };
  listTokens: { input: { session: string }; output: { id: string; clientId: string; name?: string; scope: string; createdAt: number; expiresAt: number }[] };

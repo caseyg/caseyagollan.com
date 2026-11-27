@@ -112,4 +112,27 @@ describe('native app callbacks', () => {
   expect(response.headers.has('location')).toBe(false);
   expect(calls.some(c => c.op === 'createRequest')).toBe(false);
  });
+ test('metadata tells MCP clients they can identify by a metadata document and renew tokens',async()=>{
+  const {handler}=fixture();const meta=await (await handler(new Request(origin+'/.well-known/oauth-authorization-server'))).json() as Record<string,unknown>;
+  expect(meta.client_id_metadata_document_supported).toBe(true);expect(meta.grant_types_supported).toEqual(['authorization_code','refresh_token']);expect(meta.token_endpoint_auth_methods_supported).toContain('none');
+ });
+ test('a client named by a JSON metadata document is accepted when it lists the callback',async()=>{
+  const client='https://claude.example/oauth/client.json',callback='https://app.claude.example/api/mcp/auth_callback';
+  const {handler,calls}=fixture({},async()=>Response.json({client_id:client,client_name:'Claude',redirect_uris:[callback],token_endpoint_auth_method:'none'}));
+  const query=new URLSearchParams({response_type:'code',client_id:client,redirect_uri:callback,state:'s',scope:'read draft',code_challenge:'A'.repeat(43),code_challenge_method:'S256',resource:origin+'/mcp'});
+  const response=await handler(new Request(origin+'/auth?'+query));
+  expect(response.status).toBe(303);expect(calls.find(c=>c.op==='createRequest')?.input).toMatchObject({clientId:client,redirectUri:callback,clientName:'Claude',scope:['read','draft']});
+  // With no scope asked for, an MCP client is offered the MCP server's scopes; any other client still gets none.
+  query.delete('scope');await handler(new Request(origin+'/auth?'+query));expect(calls.findLast(c=>c.op==='createRequest')?.input.scope).toEqual(['read','draft','create','update']);
+  query.delete('resource');await handler(new Request(origin+'/auth?'+query));expect(calls.findLast(c=>c.op==='createRequest')?.input.scope).toEqual([]);
+ });
+ test('the token endpoint renews with a refresh token',async()=>{
+  const {handler,calls}=fixture({refreshToken:{access_token:'new',refresh_token:'next',me:origin+'/',scope:'read',token_type:'Bearer',expires_in:300}});
+  const form=(body:string)=>handler(post('/auth/token',body,{'content-type':'application/x-www-form-urlencoded'}));
+  const response=await form('grant_type=refresh_token&refresh_token=old&client_id=https%3A%2F%2Fclaude.example%2Fclient.json&resource=https%3A%2F%2Fexample.com%2Fmcp');
+  expect(await response.json()).toMatchObject({access_token:'new',refresh_token:'next'});
+  expect(calls.find(c=>c.op==='refreshToken')?.input).toEqual({token:'old',clientId:'https://claude.example/client.json'});
+  expect((await form('grant_type=refresh_token')).status).toBe(400);
+  expect(await (await form('grant_type=password&username=a')).json()).toEqual({error:'unsupported_grant_type'});
+ });
 });
