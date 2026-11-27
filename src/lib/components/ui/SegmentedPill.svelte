@@ -7,6 +7,8 @@
 		href?: string;
 		/** An emoji shown before the label. */
 		icon?: string;
+		/** Show the emoji alone at every width, as Search does; the label becomes the accessible name and the hover hint. */
+		iconOnly?: boolean;
 		/** Marks the segment for the page being viewed. */
 		current?: boolean;
 		count?: number;
@@ -54,9 +56,10 @@
 	let { segments, size = 'sm', label, compact = false, tone = 'accent', attached = false, value = $bindable(), onValueChange }: Props = $props();
 
 	const classes = $derived(`segmented-pill segmented-pill--${size} segmented-pill--${tone} ${compact ? 'compact' : ''} ${compact === 'always' ? 'compact-always' : ''} ${attached ? 'attached' : ''}`);
-	const name = (segment: Segment) => segment.ariaLabel ?? (compact && segment.icon ? segment.label : undefined);
+	const alone = (segment: Segment) => Boolean(segment.iconOnly && segment.icon);
+	const name = (segment: Segment) => segment.ariaLabel ?? ((compact || alone(segment)) && segment.icon ? segment.label : undefined);
 	// Emoji alone need their label on hover.
-	const hint = (segment: Segment) => segment.title ?? (compact === 'always' && segment.icon ? segment.label : undefined);
+	const hint = (segment: Segment) => segment.title ?? ((compact === 'always' || alone(segment)) && segment.icon ? segment.label : undefined);
 </script>
 
 {#snippet content(segment: Segment)}
@@ -82,9 +85,9 @@
 					<SelectMenu variant="segment" current={segment.label} currentIcon={segment.icon} count={segment.count} options={segment.menu} active={segment.menuActive} badge={segment.menuBadge} align={segment.menuAlign} />
 				</span>
 			{:else if segment.onclick}
-				<Button class="segment" aria-label={name(segment)} title={hint(segment)} onclick={segment.onclick}>{@render content(segment)}</Button>
+				<Button class={alone(segment) ? 'segment segment--icon' : 'segment'} aria-label={name(segment)} title={hint(segment)} onclick={segment.onclick}>{@render content(segment)}</Button>
 			{:else}
-				<a href={segment.href} class="segment" class:current={segment.current} aria-current={segment.current ? 'page' : undefined} aria-label={name(segment)} title={hint(segment)}>{@render content(segment)}</a>
+				<a href={segment.href} class="segment" class:segment--icon={alone(segment)} class:current={segment.current} aria-current={segment.current ? 'page' : undefined} aria-label={name(segment)} title={hint(segment)}>{@render content(segment)}</a>
 			{/if}
 		{/each}
 	</span>
@@ -261,6 +264,22 @@
 	@media (prefers-reduced-motion: reduce) {
 		:global(.segmented-pill .indicator) {
 			transition: none;
+		}
+	}
+
+	/* A segment that is its emoji alone, at every width. On a phone it is sized like the emoji of a compact group. */
+	:global(.segmented-pill .segment--icon > .text),
+	:global(.segmented-pill .segment--icon > .count) {
+		display: none;
+	}
+
+	@media (max-width: 600px) {
+		:global(.segmented-pill .segment--icon) {
+			padding-inline: 0.625rem;
+		}
+
+		:global(.segmented-pill .segment--icon > .icon) {
+			font-size: var(--fs-lg);
 		}
 	}
 

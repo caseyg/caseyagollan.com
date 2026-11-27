@@ -19,3 +19,10 @@ export const Tables: Story = { args: { currentPage: 'tables' } };
 export const Condensed: Story = { args: { currentPage: 'wiki', condensed: true } };
 /** Condensed on a page outside the sections, the menu is simply called Menu. */
 export const CondensedElsewhere: Story = { args: { currentPage: undefined, condensed: true } };
+/**
+ * Signed in, the owner also has Chat and, right before Search, their account: an emoji alone,
+ * named "Account" for screen readers and on hover. Visitors never see it.
+ */
+export const Owner: Story = { args: { owner: true } };
+/** The account button stays beside Search when the sections fold into the menu. */
+export const OwnerCondensed: Story = { args: { currentPage: 'wiki', condensed: true, owner: true } };

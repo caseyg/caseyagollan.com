@@ -9,13 +9,16 @@
 	let {
 		currentPage,
 		onSearchResultClick,
-		condensed: forceCondensed = false
+		condensed: forceCondensed = false,
+		owner: knownOwner = false
 	}: {
 		/** The section being viewed; its segment is marked. Omit on pages outside all of them. */
 		currentPage?: Section;
 		onSearchResultClick?: (url: URL) => boolean;
 		/** Always show the condensed menu, as the nav does by itself when a page's trail needs the room. */
 		condensed?: boolean;
+		/** Show the owner's segments without asking the server, for a page that already knows. */
+		owner?: boolean;
 	} = $props();
 
 	let search: Search | undefined = $state();
@@ -23,10 +26,13 @@
 	let crowded = $state(false);
 	const condensed = $derived(forceCondensed || crowded);
 	// Owner-only sections (Chat, for now) appear once the owner's session is confirmed.
-	let owner = $state(false);
-	onMount(() => { ownerSignedIn().then((signedIn) => (owner = signedIn)); });
+	let signedIn = $state(false);
+	onMount(() => { ownerSignedIn().then((answer) => (signedIn = answer)); });
+	const owner = $derived(knownOwner || signedIn);
 	const sections = $derived(visibleSections(owner || currentPage === 'chat'));
-	const segments = $derived(sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })));
+	// The owner's account closes the places, an emoji alone like Search after it. It is not a section.
+	const account = $derived(owner ? [{ href: '/account', label: 'Account', icon: '👤', iconOnly: true }] : []);
+	const segments = $derived([...sections.map(({ id, ...section }) => ({ ...section, current: currentPage === id })), ...account]);
 
 	// Condensed, the sections fold into one menu that names the section being viewed.
 	const current = $derived(sections.find(({ id }) => id === currentPage));
@@ -38,7 +44,8 @@
 			menuAlign: 'end' as const,
 			menuActive: currentPage ?? '',
 			menu: sections.map(({ id, href, label, icon }) => ({ value: id, href, label, icon }))
-		}
+		},
+		...account
 	]);
 </script>
 
