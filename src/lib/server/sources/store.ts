@@ -30,6 +30,10 @@ const MANUAL = 'sync:manual';
 const FORCED = 'sync:forced';
 /** Seconds between rounds of a pass that has more to fetch and isn't being asked to wait. */
 const NEXT_AFTER = 1;
+/** What the round under way is doing, so a round that never finished (out of memory, most likely) says where it stopped. */
+const DOING = 'round:doing';
+/** Seconds between rounds that only read pages and work out likeness: unhurried, so memory is given back in between. */
+const ENRICH_AFTER = 4;
 
 export class SourceStore extends DurableObject<SourceStoreEnv> {
 	private readonly index: SourceIndex;
@@ -74,8 +78,9 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 		const raw = this.env.PUBLISHING_STATE as RawStore | undefined;
 		const reports: SyncReport[] = [];
 		for (const plugin of SOURCE_PLUGINS) {
+			this.index.setState(DOING, `sync:${plugin.id}`);
 			// One source's trouble is its own: the others still get their turn.
-			const report = await syncSource(plugin, { index: this.index, context, raw, everyMinutes: force ? 0 : 10, budgetMs: 12_000 }).catch((error): SyncReport => {
+			const report = await syncSource(plugin, { index: this.index, context, raw, everyMinutes: force ? 0 : 10, budgetMs: 12_000, maxSteps: 1 }).catch((error): SyncReport => {
 				console.error(JSON.stringify({ event: 'source_sync_failed', source: plugin.id, error: (error as Error)?.name, message: String((error as Error)?.message ?? '').slice(0, 160) }));
 				return { source: plugin.id, steps: 0, added: 0, changed: 0, removed: 0, done: false, failed: true };
 			});
@@ -83,14 +88,19 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 			// Counts only: a title or an address in a log would be Casey's private reading.
 			if (!report.skipped) console.log(JSON.stringify({ event: 'source_sync', ...report }));
 		}
-		const filled = await fillThin(this.index, (url) => readPageText(url)).catch(() => ({ read: 0, filled: 0 }));
-		const embedded = await embedPending(this.index, this.env).catch(() => ({ text: 0, images: 0, left: false }));
+		const fetching = reports.some((report) => !report.done && !report.failed && !report.busy);
+		// Pages and likeness wait until every source has what it can fetch for now: the copy itself comes first, and
+		// the two kinds of work never share the Worker's memory in one round.
+		this.index.setState(DOING, 'pages');
+		const filled = fetching ? { read: 0, filled: 0 } : await fillThin(this.index, (url) => readPageText(url)).catch(() => ({ read: 0, filled: 0 }));
+		this.index.setState(DOING, 'likeness');
+		const embedded = fetching ? { text: 0, images: 0, left: true } : await embedPending(this.index, this.env).catch(() => ({ text: 0, images: 0, left: false }));
 		if (filled.read || embedded.text || embedded.images) console.log(JSON.stringify({ event: 'source_enrich', pages: filled.read, filled: filled.filled, embedded: embedded.text, images: embedded.images }));
 		// Carry on at once while any source has more to fetch and isn't waiting on its service; otherwise when the shortest wait is over.
-		const fetching = reports.some((report) => !report.done && !report.failed && !report.busy);
 		const enriching = filled.read > 0 || embedded.left;
 		const waits = reports.filter((report) => !report.done).map((report) => report.busy ?? (report.failed ? 60 : 0)).filter((seconds) => seconds > 0);
-		if (fetching || enriching) await this.ctx.storage.setAlarm(Date.now() + NEXT_AFTER * 1000);
+		if (fetching) await this.ctx.storage.setAlarm(Date.now() + NEXT_AFTER * 1000);
+		else if (enriching) await this.ctx.storage.setAlarm(Date.now() + ENRICH_AFTER * 1000);
 		else if (waits.length) await this.ctx.storage.setAlarm(Date.now() + Math.max(Math.min(...waits), CONTINUE_AFTER) * 1000);
 		else this.index.setState(MANUAL, false);
 		return reports;
@@ -101,8 +111,11 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 		if (this.env.SOURCES_SYNC !== 'true' && !this.index.state<boolean>(MANUAL)) return;
 		const force = this.index.state<boolean>(FORCED) === true;
 		if (force) this.index.setState(FORCED, false);
+		const died = this.index.state<string>(DOING);
+		if (died) console.error(JSON.stringify({ event: 'source_round_died', during: died }));
 		try {
 			await this.round(force);
+			this.index.setState(DOING, '');
 		} catch (error) {
 			// Never the words of a document: the kind of error, and its opening.
 			console.error(JSON.stringify({ event: 'source_round_failed', error: (error as Error)?.name, message: String((error as Error)?.message ?? '').slice(0, 160) }));

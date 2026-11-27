@@ -12,6 +12,10 @@ The site keeps its own copy of what Casey saves elsewhere (Readwise and Reader, 
 - **Likeness** (`embed.ts`): each document's words, and its picture, are embedded with `@cf/google/embeddinggemma-2` on Workers AI (the `AI` binding). Text and pictures share one space, so words find pictures and a picture finds pictures like it. The vectors are stored in the index and compared there. Without the binding, everything else works.
 - **Access** (`access.ts`) is the one way the rest of the site reads the copy.
 
+## Memory
+
+The Durable Object shares the Worker's 128 MB with the site's own code, and running out resets it mid-step (this stalled the first live copy). So: Reader pages are 20 documents, and HTML over 150 KB is turned to text without being parsed; a step that never came back is tried again asking for less (`SyncState.cautious`), then given up; pages and likeness are worked on only when nothing is being fetched, one at a time, and each thin link or picture is marked as tried before it is read. A round that never finished is logged as `source_round_died` with what it was doing.
+
 ## Privacy
 
 Everything in the copy is private unless a plugin says otherwise (only Casey's own public Are.na blocks are public). The rules live in one place, `SourceIndex`, and `tests/sources-privacy.test.ts` holds them:

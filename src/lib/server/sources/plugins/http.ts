@@ -23,6 +23,13 @@ export const host = (url: string): string => { try { return new URL(url).hostnam
 export const flat = (value: unknown): string => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '');
 export const secret = (env: Record<string, unknown>, name: string): string | undefined => (typeof env[name] === 'string' && env[name] ? (env[name] as string) : undefined);
 
+/** A page's words without building its document: for HTML too large, or too risky, to parse whole. */
+export function plainText(html: string): string {
+	return html.replace(/<(script|style|svg|noscript)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<\/(p|div|li|h[1-6]|blockquote|tr|br)\s*>|<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ' ')
+		.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+		.replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 /** Whether a pass should list everything: the first one, and one a week after, which is how removals are noticed. */
 export function wantsFull(state: { since?: string; full?: string }, now: Date, days = 7): boolean {
 	return !state.since || !state.full || now.getTime() - Date.parse(state.full) > days * 86_400_000;

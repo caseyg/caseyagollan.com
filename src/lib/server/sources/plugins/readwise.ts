@@ -8,7 +8,7 @@
  * each, so after the first pass a sync is a handful of requests. Reader does not say what was
  * deleted, so a document deleted there stays here.
  */
-import { flat, getJson, host, iso, linksIn, secret, webUrl } from './http';
+import { flat, getJson, host, iso, linksIn, plainText, secret, webUrl } from './http';
 import type { LooseHighlight, SourceDocument, SourcePlugin, SourceRecord, SyncStep } from '../types';
 
 const API = 'https://readwise.io/api';
@@ -16,8 +16,15 @@ const API = 'https://readwise.io/api';
 const SHELVES: [string, string][] = [['new', 'Inbox'], ['later', 'Later'], ['shortlist', 'Shortlist'], ['archive', 'Archive']];
 /** After the shelves: highlights made in Reader, then the export of everything highlighted elsewhere. */
 const PASSES = [...SHELVES.map(([location]) => `shelf:${location}`), 'highlights', 'export'];
-/** Documents a page: each carries its whole HTML, so pages are kept small. */
-const PAGE = 50;
+/**
+ * Documents a page. Each carries its whole HTML, and the Worker's memory (128 MB, much of it taken by the
+ * site's own code) is shared with whatever else the page needs, so pages are kept small.
+ */
+const PAGE = 20;
+/** After a step that never finished: fewer at a time, and their words taken without building each page's document. */
+const CAUTIOUS_PAGE = 5;
+/** HTML longer than this is never parsed whole: a document that size can take more memory than the Worker has. */
+const PARSE_LIMIT = 150_000;
 
 interface Cursor { pass: number; page?: string; seen?: number }
 const LABELS = [...SHELVES.map(([, name]) => name), 'Highlights', 'Highlights from elsewhere'];
@@ -112,7 +119,7 @@ export const readwise: SourcePlugin = {
 			return { documents, highlights, removed, removedHighlights, ...next(data.nextPageCursor ? String(data.nextPageCursor) : null, (data.results ?? []).length, data.count) };
 		}
 
-		const params = new URLSearchParams({ limit: String(PAGE) });
+		const params = new URLSearchParams({ limit: String(!state.cautious ? PAGE : (state.tries ?? 1) > 1 ? 1 : CAUTIOUS_PAGE) });
 		if (pass === 'highlights') params.set('category', 'highlight');
 		else { params.set('location', pass.slice('shelf:'.length)); params.set('withHtmlContent', 'true'); }
 		if (state.since) params.set('updatedAfter', state.since);
@@ -126,7 +133,7 @@ export const readwise: SourcePlugin = {
 			}));
 			return { documents: [], highlights, ...next(data.nextPageCursor, records.length, data.count) };
 		}
-		const documents = records.filter((record) => !record.parent_id).map((record) => ({ document: readerDocument(record, context.markdown), raw: record }));
+		const documents = records.filter((record) => !record.parent_id).map((record) => ({ document: readerDocument(record, (html, base) => (state.cautious || html.length > PARSE_LIMIT ? plainText(html) : context.markdown(html, base))), raw: record }));
 		return { documents, ...next(data.nextPageCursor, records.length, data.count) };
 	}
 };

@@ -90,6 +90,28 @@ describe('syncing a source', () => {
 		expect(seen.map((state) => state.cursor)).toEqual([undefined, 1]);
 	});
 
+	test('a step that never came back is tried again asking for less, and given up in the end', async () => {
+		const index = memoryIndex(), seen: SyncState[] = [];
+		// As a run that died in the step leaves things: the try written down, nothing after it.
+		index.setState('sync:readwise', { tries: 1, started: '2026-11-27T11:00:00.000Z' });
+		await syncSource(paged([page(['a'])], seen), { index, context: context(() => new Response('')), everyMinutes: 0 });
+		expect(seen[0].cautious).toBe(true);
+		expect(index.state<{ tries?: number }>('sync:readwise')?.tries).toBe(0);
+		index.setState('sync:readwise', { tries: 4, cursor: 1 });
+		const report = await syncSource(paged([page(['a'], 1), page(['b'])], seen), { index, context: context(() => new Response('')), everyMinutes: 0 });
+		expect(report).toMatchObject({ failed: true, steps: 0 });
+		expect(seen).toHaveLength(1);
+	});
+
+	test('a thin link is marked as tried before its page is read, so a page that kills the run is not asked for again', async () => {
+		const index = memoryIndex();
+		index.upsert([document({ id: 'thin', source: 'raindrop', url: 'https://example.com/huge' })], '2026-11-27T12:00:00.000Z');
+		let during: number | undefined;
+		await fillThin(index, async () => { during = index.thin(5).length; throw new Error('died'); });
+		expect(during).toBe(0);
+		expect(index.thin(5)).toEqual([]);
+	});
+
 	test('thin links get their page’s text once', async () => {
 		const index = memoryIndex();
 		index.upsert([document({ id: 'thin', source: 'raindrop', url: 'https://example.com/page' }), document({ id: 'full', text: 'Plenty of words here already. '.repeat(40) })], '2026-11-27T12:00:00.000Z');

@@ -10,7 +10,8 @@ import { safePublicFetch, type PublicFetcher } from '../publishing/public-fetch'
 import { linksIn } from './plugins/http';
 import type { PageText } from './sync';
 
-const PAGE_BYTES = 3_000_000;
+/** Pages larger than this are left alone: parsing one whole can take more memory than the Worker has. */
+const PAGE_BYTES = 800_000;
 
 export async function readPageText(address: string, fetcher?: PublicFetcher): Promise<PageText | null> {
 	if (!/^https:\/\//i.test(address)) return null;
@@ -18,7 +19,9 @@ export async function readPageText(address: string, fetcher?: PublicFetcher): Pr
 	const response = await (fetcher ?? ((target, init) => safePublicFetch(target, init, fetch, PAGE_BYTES)))(address, { headers, redirect: 'follow', signal: AbortSignal.timeout(12_000) });
 	if (!response.ok || !/html|xml/i.test(response.headers.get('content-type') ?? '')) { await response.body?.cancel(); return null; }
 	const base = response.url || address;
-	const { document } = parseHTML(await response.text());
+	const html = await response.text();
+	if (html.length > PAGE_BYTES) return null;
+	const { document } = parseHTML(html);
 	const meta = (name: string) => document.querySelector(`meta[property="${name}"], meta[name="${name}"]`)?.getAttribute('content')?.trim() || undefined;
 	const article = new Defuddle(document as unknown as Document, { url: base }).parse();
 	const text = readableMarkdown(article.content, base);

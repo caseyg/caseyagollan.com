@@ -14,7 +14,7 @@ export const EMBED_MODEL = '@cf/google/embeddinggemma-2';
 /** Shorter vectors than the model's 768: a third of the storage for a small cost in quality. */
 export const EMBED_DIMENSIONS = 256;
 const TEXT_BATCH = 16;
-const IMAGE_BATCH = 4;
+const IMAGE_BATCH = 2;
 /** Characters of a document that are embedded: its title, summary, highlights and opening. */
 const TEXT_CHARS = 6000;
 
@@ -53,6 +53,8 @@ export async function embedPending(index: SourceIndex, env: EmbedEnv): Promise<{
 	let images = 0;
 	// One at a time: a picture that can't be fetched or read is marked and not tried again.
 	for (const document of pictured) {
+		// Marked before it is tried, like a thin link's page: a picture that takes the Worker down is not tried again.
+		index.embedded('image', [document.key], 'failed');
 		try {
 			const [vector] = await run(env, { messages: [[{ role: 'user', content: [{ type: 'image_url', image_url: { url: await picture(env, document.image!) } }] }]] });
 			index.saveVector(document.key, 'image', vector);
