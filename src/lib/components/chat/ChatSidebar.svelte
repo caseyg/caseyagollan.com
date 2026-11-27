@@ -52,9 +52,6 @@
 		{#if onsearch}
 			<button type="button" class="row" onclick={onsearch}><Icon name="search" size={16} /><span class="title">Search chats</span>{#if hint.text}<kbd aria-hidden="true">{hint.text}</kbd>{/if}</button>
 		{/if}
-		{#if archivedHref}
-			<a class="row" href={archivedHref} aria-current={archivedCurrent ? 'page' : undefined} onclick={onnavigate}><Icon name="archive" size={16} /><span class="title">Archived</span></a>
-		{/if}
 	</div>
 	{#if error}<div class="problem"><Notice tone="error">{error}</Notice></div>{/if}
 	<div class="list">
@@ -76,6 +73,12 @@
 			<p class="empty">No chats yet.</p>
 		{/each}
 	</div>
+	<!-- Held at the foot of the list, in the window's bottom left corner, away from New chat and Search. -->
+	{#if archivedHref}
+		<div class="actions foot">
+			<a class="row" href={archivedHref} aria-current={archivedCurrent ? 'page' : undefined} onclick={onnavigate}><Icon name="archive" size={16} /><span class="title">Archived</span></a>
+		</div>
+	{/if}
 </nav>
 
 <style>
@@ -98,7 +101,7 @@
 	.list {
 		flex: 1;
 		min-height: 0;
-		padding: 0 var(--space-2) var(--space-4);
+		padding: 0 var(--space-2) var(--space-2);
 		overflow-y: auto;
 		scrollbar-width: thin;
 	}
@@ -145,6 +148,14 @@
 
 	.actions .row[aria-current='page'] {
 		background: var(--surface-2);
+	}
+
+	.foot {
+		padding-bottom: var(--space-2);
+	}
+
+	.foot .row {
+		color: var(--text-secondary);
 	}
 
 	.problem {

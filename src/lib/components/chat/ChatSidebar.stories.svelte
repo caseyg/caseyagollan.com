@@ -20,7 +20,7 @@
 	{#snippet template(args)}<div style="width: 17rem; height: 28rem;"><ChatSidebar {...args} /></div>{/snippet}
 </Story>
 
-<!-- For Casey: Archived under Search, and a ⋯ on each chat (on hover, with the keyboard, or by right-click) with Archive and Delete. -->
+<!-- For Casey: Archived at the foot of the list, and a ⋯ on each chat (on hover, with the keyboard, or by right-click) with Archive and Delete. -->
 <Story name="With actions" args={{ onarchive: () => {}, ondelete: () => {}, archivedHref: '/chat/archived' }}>
 	{#snippet template(args)}<div style="width: 17rem; height: 28rem;"><ChatSidebar {...args} /></div>{/snippet}
 </Story>
