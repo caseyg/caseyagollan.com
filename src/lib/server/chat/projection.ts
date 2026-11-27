@@ -231,10 +231,12 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		return asked.length ? `Asked ${asked[0]}${asked.length > 1 ? ` and ${asked.length - 1} more` : ''}`.slice(0, 100) : 'Ran a script';
 	}
 	if (name === 'my_saves') {
-		const source = ({ arena: 'Are.na', raindrop: 'Raindrop', readwise: 'Readwise' } as Record<string, string>)[String(args.source ?? '').toLowerCase()] ?? 'saves';
+		const source = ({ arena: 'Are.na', raindrop: 'Raindrop', readwise: 'Readwise' } as Record<string, string>)[String(args.source ?? '').toLowerCase()] ?? 'your saves';
 		const place = typeof args.in === 'string' && args.in ? ` “${args.in.slice(0, 50)}”` : '';
-		if (args.item) return `Read one ${source} item`;
+		if (args.item) return 'Read one saved item';
+		if (args.like) return 'Looked for similar saves';
 		if (typeof args.query === 'string' && args.query) return `Searched ${source}${place} for “${args.query.slice(0, 40)}”`;
+		if (!place && (args.days || args.since || args.until)) return `Listed ${source} by date`;
 		return place ? `Read ${source}${place}` : `Listed ${source}`;
 	}
 	if (name === 'table_pull') {

@@ -48,4 +48,5 @@ static/pagefind/
 
 # Storybook Worker output (wrangler.storybook.jsonc)
 dist-storybook/
+.sources/
 .map-cache/

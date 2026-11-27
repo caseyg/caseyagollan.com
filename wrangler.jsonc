@@ -11,14 +11,22 @@
 			{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" },
 			{ "name": "ChatThread", "class_name": "ChatThread" },
 			// Live cursors and cursor chat, one object per page (src/lib/server/cursors/room.ts).
-			{ "name": "CURSORS", "class_name": "CursorRoom" }
+			{ "name": "CURSORS", "class_name": "CursorRoom" },
+			// The site's own copy of Casey's Readwise, Raindrop and Are.na, with full-text search (src/lib/server/sources/store.ts).
+			{ "name": "SOURCES", "class_name": "SourceStore" }
 		]
 	},
+	/**
+	 * Workers AI, for the multimodal embeddings behind "similar to this" in the source cache
+	 * (src/lib/server/sources/embed.ts). Without it everything else in the cache still works.
+	 */
+	"ai": { "binding": "AI" },
 	"migrations": [
 		{ "tag": "v1-indieauth", "new_sqlite_classes": ["IndieAuthStore"] },
 		/** /chat threads: one Agents SDK agent per thread (src/lib/server/chat/agent.ts). */
 		{ "tag": "v2-chat", "new_sqlite_classes": ["ChatThread"] },
-		{ "tag": "v3-cursors", "new_sqlite_classes": ["CursorRoom"] }
+		{ "tag": "v3-cursors", "new_sqlite_classes": ["CursorRoom"] },
+		{ "tag": "v4-sources", "new_sqlite_classes": ["SourceStore"] }
 	],
 	"compatibility_date": "2025-01-19",
 	"compatibility_flags": [
@@ -40,6 +48,8 @@
 		"PESOS_ENABLED": "true",
 		"PUBLISHING_DELIVERY_ENABLED": "false",
 		"WEBSUB_ENABLED": "true",
+		/** The source cache keeps itself in sync here; previews sync only when the owner asks (/account). */
+		"SOURCES_SYNC": "true",
 		"PUBLISHING_MEDIA_BASE_URL": "https://files.caseyagollan.com/",
 		"PUBLISHING_ME": "https://caseyagollan.com/",
 		"PUBLISHING_INTROSPECTION_ENDPOINT": "https://kit.caseyagollan.com/auth/introspect",
@@ -105,7 +115,8 @@
 	 * Publishing and syndication tokens must never be added to Previews Base.
 	 */
 	"previews": {
-		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }, { "name": "CURSORS", "class_name": "CursorRoom" }] },
+		"durable_objects": { "bindings": [{ "name": "AUTH_STORE", "class_name": "IndieAuthStore" }, { "name": "ChatThread", "class_name": "ChatThread" }, { "name": "CURSORS", "class_name": "CursorRoom" }, { "name": "SOURCES", "class_name": "SourceStore" }] },
+		"ai": { "binding": "AI" },
 		/** AUTH_ISSUER is production itself: a preview redeems sign-in codes through it, since fetching caseyagollan.com from this script never reaches it. */
 		"services": [{ "binding": "STORYBOOK", "service": "caseyagollan-storybook" }, { "binding": "AUTH_ISSUER", "service": "caseyagollan" }],
 		"vars": {

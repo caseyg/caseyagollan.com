@@ -96,6 +96,38 @@ export const SCENARIOS: Scenario[] = [
 		]
 	},
 	{
+		name: 'saves-topic',
+		ask: 'What have I saved about Signal and privacy?',
+		page: '/',
+		checks: [
+			{ name: 'asks the saves', pass: (seen) => used(seen, /^my_saves$/) >= 1 },
+			{ name: 'finds the Signal post', pass: (seen) => /signal/i.test(seen.answer) && /protecting your privacy|signal\.org/i.test(seen.answer) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 },
+			{ name: 'no errors', pass: (seen) => !seen.calls.some((call) => call.error) }
+		]
+	},
+	{
+		name: 'saves-week',
+		ask: 'What did I save to Readwise this week? Just the titles.',
+		page: '/',
+		checks: [
+			{ name: 'lists by date in one call', pass: (seen) => seen.calls.filter((call) => call.name === 'my_saves').length === 1 && seen.calls.length <= 2 },
+			{ name: 'names several', pass: (seen) => (seen.answer.match(/\n\s*(?:[-*]|\d+\.)\s+\S/g) ?? []).length >= 3 },
+			{ name: 'no errors', pass: (seen) => !seen.calls.some((call) => call.error) }
+		]
+	},
+	{
+		name: 'saves-read',
+		ask: 'I saved a Paul Ford piece about his father’s files. What format were the files in, according to it?',
+		page: '/',
+		checks: [
+			{ name: 'asks the saves', pass: (seen) => used(seen, /^my_saves$/) >= 1 },
+			{ name: 'answers from the text', pass: (seen) => /wordperfect|libreoffice/i.test(seen.answer) },
+			{ name: 'four calls or fewer', pass: (seen) => seen.calls.length <= 4 },
+			{ name: 'no errors', pass: (seen) => !seen.calls.some((call) => call.error) }
+		]
+	},
+	{
 		name: 'drafts',
 		ask: 'Do I have any drafts sitting around?',
 		page: '/',

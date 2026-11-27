@@ -560,7 +560,8 @@ describe('the chat’s tools', () => {
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
 		// 26,000 before skills; their three tools (Casey's runs only) are some 1,650 characters of schema. table_add's `frames` and `table`, and table_edit's `url`, are some 550 more. table_map, its prompt line and the no-table sentence are some 1,450.
-		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(29_700);
+		// my_saves over the site's own copy (days, since, until, kind, tag, like, limit) and table_add's `saved` are some 450 more.
+		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(30_200);
 		const skills = extension.tools!.filter((tool) => ['use_skill', 'skill_find', 'skill_add'].includes(tool.name));
 		expect(JSON.stringify(skills.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(1_700);
 	});
