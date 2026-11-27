@@ -175,6 +175,8 @@
 	}
 
 	function onkeydown(event: KeyboardEvent) {
+		// Enter that confirms a character being composed (Japanese, Chinese, Korean) is not the end of the message.
+		if (event.isComposing) return;
 		if (event.key === 'Enter') {
 			event.preventDefault();
 			stopChat();

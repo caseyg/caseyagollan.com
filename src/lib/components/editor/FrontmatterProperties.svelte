@@ -67,6 +67,8 @@
 	function removeValue(key: string, index: number) { properties[key] = properties[key].filter((_, i) => i !== index); }
 	function removeProperty(key: string) { const { [key]: _, ...rest } = properties; properties = rest; }
 	function listKeydown(event: KeyboardEvent, key: string) {
+		// Enter that confirms a character being composed is not the end of the value.
+		if (event.isComposing) return;
 		if (event.key === 'Enter' || (event.key === ',' && key === 'category')) { event.preventDefault(); addValue(key); }
 		else if (event.key === 'Backspace' && !drafts[key] && properties[key]?.length) removeValue(key, properties[key].length - 1);
 	}
@@ -183,8 +185,8 @@
 		</dl>
 		{#if adding}
 			<div class="new">
-				<input class="inline key" list="property-suggestions" bind:value={newKey} placeholder="property" aria-label="Property name" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown={event => { if (event.key === 'Enter') { event.preventDefault(); addProperty(); } else if (event.key === 'Escape') adding = false; }} />
-				<input class="inline" bind:value={newValue} placeholder="value" aria-label="Value" autocomplete="off" onkeydown={event => { if (event.key === 'Enter') { event.preventDefault(); addProperty(); } else if (event.key === 'Escape') adding = false; }} />
+				<input class="inline key" list="property-suggestions" bind:value={newKey} placeholder="property" aria-label="Property name" autocomplete="off" autocapitalize="off" spellcheck="false" onkeydown={event => { if (event.isComposing) return; if (event.key === 'Enter') { event.preventDefault(); addProperty(); } else if (event.key === 'Escape') adding = false; }} />
+				<input class="inline" bind:value={newValue} placeholder="value" aria-label="Value" autocomplete="off" onkeydown={event => { if (event.isComposing) return; if (event.key === 'Enter') { event.preventDefault(); addProperty(); } else if (event.key === 'Escape') adding = false; }} />
 				<button type="button" class="text-button" onclick={addProperty}>Add</button>
 				<datalist id="property-suggestions">{#each SUGGESTIONS.filter(key => !(key in properties)) as key (key)}<option value={key}></option>{/each}</datalist>
 			</div>
