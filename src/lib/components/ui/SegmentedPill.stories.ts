@@ -113,6 +113,18 @@ export const Compact: Story = {
 		]
 	}
 };
+/** `iconOnly` keeps one segment to its emoji at every width, as the account button before Search is. Its label names it for screen readers and on hover. */
+export const IconOnlySegment: Story = {
+	args: {
+		size: 'md',
+		label: 'Site',
+		segments: [
+			{ label: 'Home', href: '/', icon: '👋', current: true },
+			{ label: 'Posts', href: '/posts/', icon: '📡' },
+			{ label: 'Account', href: '/account', icon: '👤', iconOnly: true }
+		]
+	}
+};
 /** `compact: 'always'` shows emoji alone at every width, for a narrow panel such as the tables Add menu; hovering shows each label. */
 export const CompactAlways: Story = {
 	args: {
