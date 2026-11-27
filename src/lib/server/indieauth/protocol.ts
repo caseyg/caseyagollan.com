@@ -1,4 +1,4 @@
-import { AUTH_ERRORS, AUTH_SCOPES, authError, authSettings, authStore, tokenName, type AuthRPC, type IndieAuthEnvironment } from './contracts';
+import { AUTH_ERRORS, AUTH_SCOPES, MCP_RESOURCE_PATH, MCP_SCOPES, authError, authSettings, authStore, tokenName, type AuthRPC, type IndieAuthEnvironment } from './contracts';
 import { validateClient } from './clients';
 import { finishPreviewSignIn, startPreviewSignIn } from './preview';
 import { safePublicFetch, type PublicFetcher } from '../publishing/public-fetch';
@@ -47,11 +47,13 @@ export function createIndieAuthHandler(env: IndieAuthEnvironment, dependencies: 
  const allowed=request.method==='GET'?['/auth/session','/auth/tokens','/auth/credentials']:['/auth/logout'];
  if(!allowed.includes(url.pathname))return reply({error:'invalid_request'},404);
  }
- if(url.pathname==='/.well-known/oauth-authorization-server'&&request.method==='GET')return reply({issuer:settings.issuer,authorization_endpoint:origin+'/auth',token_endpoint:origin+'/auth/token',revocation_endpoint:origin+'/auth/revoke',introspection_endpoint:origin+'/auth/introspect',response_types_supported:['code'],grant_types_supported:['authorization_code'],code_challenge_methods_supported:['S256'],scopes_supported:AUTH_SCOPES,token_endpoint_auth_methods_supported:['none']});
+ if(url.pathname==='/.well-known/oauth-authorization-server'&&request.method==='GET')return reply({issuer:settings.issuer,authorization_endpoint:origin+'/auth',token_endpoint:origin+'/auth/token',revocation_endpoint:origin+'/auth/revoke',introspection_endpoint:origin+'/auth/introspect',response_types_supported:['code'],grant_types_supported:['authorization_code','refresh_token'],code_challenge_methods_supported:['S256'],scopes_supported:AUTH_SCOPES,token_endpoint_auth_methods_supported:['none'],client_id_metadata_document_supported:true});
  if(['/auth','/auth/authorize'].includes(url.pathname)&&request.method==='GET') {
  if(query.response_type!=='code'||query.code_challenge_method!=='S256'||!/^[A-Za-z0-9_-]{43}$/.test(query.code_challenge??''))authError('invalid_request');
  if(query.me){try{if(new URL(query.me).href!==settings.me)authError('invalid_request');}catch{authError('invalid_request');}}
- const clientId=scalar(query.client_id),redirectUri=scalar(query.redirect_uri),state=scalar(query.state,1024),scope=scopes(query.scope??'');
+ const clientId=scalar(query.client_id),redirectUri=scalar(query.redirect_uri),state=scalar(query.state,1024);
+ // An MCP client that names the site's MCP server and no scopes is offered that server's own.
+ const scope=scopes(query.scope??(query.resource===origin+MCP_RESOURCE_PATH?MCP_SCOPES.join(' '):''));
  // Read this Worker's public client pages through its asset binding; fetching our
  // own zone over the network can fail before reaching the static asset handler.
  const clientFetch: PublicFetcher = dependencies.publicFetch ?? ((value,init) => new URL(value).origin === origin && env.ASSETS ? env.ASSETS.fetch(new Request(value,init)) : safePublicFetch(value,init));
@@ -61,6 +63,7 @@ export function createIndieAuthHandler(env: IndieAuthEnvironment, dependencies: 
  const data=await body(request,false);
  if(url.pathname==='/auth/introspect') {const bearer=request.headers.get('authorization')?.match(/^Bearer (\S+)$/i)?.[1];if(!bearer||!env.AUTH_INTROSPECTION_TOKEN||!await equal(bearer,env.AUTH_INTROSPECTION_TOKEN))authError('invalid_token');return reply(await store.invoke('introspectToken',{token:scalar(data.token)}));}
  if(url.pathname==='/auth/revoke'||data.action==='revoke'){await store.invoke('revokeToken',{token:scalar(data.token),clientId:typeof data.client_id==='string'?scalar(data.client_id):undefined});return reply({});}
+ if(url.pathname==='/auth/token'&&data.grant_type==='refresh_token')return reply(await store.invoke('refreshToken',{token:scalar(data.refresh_token),clientId:typeof data.client_id==='string'?scalar(data.client_id):undefined}));
  if(url.pathname!=='/auth'&&data.grant_type!=='authorization_code')authError('unsupported_grant_type');
  const token=await store.invoke('exchangeCode',{code:scalar(data.code),clientId:scalar(data.client_id),redirectUri:scalar(data.redirect_uri),verifier:scalar(data.code_verifier,128)});
  if(url.pathname==='/auth'){await store.invoke('revokeToken',{token:token.access_token});return reply({me:token.me,scope:token.scope});}return reply(token);

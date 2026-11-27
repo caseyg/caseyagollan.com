@@ -510,6 +510,29 @@ export const SCENARIOS: Scenario[] = [
 			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
 		]
 	},
+	// Casey's ask of Claude's own whiteboard, which set the bar for this. Needs READWISE_ACCESS_TOKEN.
+	{
+		name: 'readwise-week-map',
+		ask: 'Make a canvas with everything I saved to readwise this week',
+		page: '/chat',
+		checks: [
+			{ name: 'one table_map call for Readwise, seven days', pass: (seen) => used(seen, /^table_map$/) === 1 && seen.calls.some((call) => call.name === 'table_map' && /readwise/i.test(call.args) && /"days":\s*7\b/.test(call.args)) },
+			{ name: 'doesn’t list, add or arrange by hand', pass: (seen) => !used(seen, /^(my_saves|table_add|table_arrange|table_connect)$/) },
+			{ name: 'a table is made, with cards joined by lines', pass: (seen) => seen.went.some((path) => /^\/tables\/evalnew001/.test(path)) && seen.items.filter((item) => item.url).length > 3 && seen.items.some((item) => item.type === 'arrow') },
+			{ name: 'nothing overlaps', pass: (seen) => !overlaps(seen.items) },
+			{ name: 'says what the map shows', pass: (seen) => seen.answer.length > 80 },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'saves-map-mixed',
+		ask: 'Map what I saved this week across Readwise and Raindrop, plus my Are.na channel Calm Technology Research.',
+		page: '/chat',
+		checks: [
+			{ name: 'one table_map call naming all three', pass: (seen) => used(seen, /^table_map$/) === 1 && seen.calls.some((call) => call.name === 'table_map' && /readwise/i.test(call.args) && /raindrop/i.test(call.args) && /arena/i.test(call.args) && /calm/i.test(call.args)) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
 	{
 		name: 'new-table',
 		ask: 'Make a new table called Calm tech and put my calm technology Are.na channels on it.',

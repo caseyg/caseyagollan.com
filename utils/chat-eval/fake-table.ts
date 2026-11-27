@@ -103,6 +103,12 @@ export function fakeTable(start: FakeItem[], selected: string[] = []) {
 				return { added: added.map((item) => item.id) };
 			}
 			case 'add_blocks': return changed({ added: addBlocks(op.blocks, op.at, op.columns ?? 4, op.sizes).map((item) => item.id) });
+			case 'add_map': {
+				const cards = (op.cards as { block: Block; x: number; y: number; w: number; h: number }[]).map((card) => { const item: FakeItem = { id: id(), type: card.block.kind, title: card.block.title, url: card.block.url, text: card.block.quote ?? card.block.excerpt, x: card.x, y: card.y + 200, w: card.w, h: card.h }; items.push(item); return item; });
+				let lines = 0;
+				for (const link of op.links as { from: number; to: number }[]) { if (cards[link.from] && cards[link.to]) { items.push({ id: id(), type: 'arrow', from: cards[link.from].id, to: cards[link.to].id, x: 0, y: 0, w: 1, h: 1 }); lines++; } }
+				return { cards: cards.map((item) => item.id), lines, replaced: false, at: { x: 0, y: 0 }, layout: 'no overlaps' };
+			}
 			case 'add_pdf_pages': {
 				const source = items.find((item) => item.id === op.block);
 				const from = Math.max(1, op.from ?? 1), last = Math.min(FAKE_PDF_PAGES, from + Math.min(12, op.count ?? 12) - 1);

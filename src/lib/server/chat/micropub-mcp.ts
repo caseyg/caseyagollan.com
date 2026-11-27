@@ -229,7 +229,7 @@ export async function handleMcpHttp(request: Request, call: MicropubCall): Promi
 	if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
 	if (request.method !== 'POST') return new Response('Use POST with a JSON-RPC message.', { status: 405, headers: { ...headers, allow: 'POST, OPTIONS' } });
 	if (!/^Bearer \S+$/i.test(request.headers.get('authorization') ?? '')) {
-		return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Send an IndieAuth access token for caseyagollan.com as a Bearer token.' } }, { status: 401, headers: { ...headers, 'www-authenticate': 'Bearer' } });
+		return Response.json({ jsonrpc: '2.0', id: null, error: { code: -32001, message: 'Send an IndieAuth access token for caseyagollan.com as a Bearer token.' } }, { status: 401, headers: { ...headers, 'access-control-expose-headers': 'WWW-Authenticate', 'www-authenticate': `Bearer resource_metadata="${new URL(request.url).origin}/.well-known/oauth-protected-resource/micropub/mcp"` } });
 	}
 	if (Number(request.headers.get('content-length')) > 256 * 1024) return new Response('Too large', { status: 413, headers });
 	let message: unknown;

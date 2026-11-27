@@ -9,9 +9,9 @@
  * Where each layout comes from is written up in docs/tables/layout-research.md.
  */
 import dagre from '@dagrejs/dagre';
-import { forceLink, forceManyBody, forceSimulation, forceX, forceY, type SimulationNodeDatum } from 'd3-force';
+import { graphLayout, separate } from './table-graph';
 import { TABLE_ARRANGEMENTS, type TableArrangement, type TableCluster, type TableDirection } from './table-agent';
-import { GRID, columnLayout, columnsLayout, gridLayout, onGrid, rowLayout, tidyLayout, upToGrid, type Box, type Placement } from './table-layout';
+import { GRID, columnLayout, columnsLayout, gridLayout, onGrid, rowLayout, upToGrid, type Box, type Placement } from './table-layout';
 
 /** An arrow tied to two items: `from` points at `to`. */
 export interface Edge { from: string; to: string }
@@ -277,33 +277,12 @@ function layeredLayout(boxes: Box[], edges: Edge[], sizes: Map<string, Size>, di
 }
 
 /**
- * Force-directed (d3-force, run to rest in one go): arrows are springs, every card pushes the
- * others away, cards can't share room, and each is held loosely to where it was, so the table
- * keeps its shape while joined things draw together.
+ * Force-directed (`graphLayout` in table-graph.ts): arrows are springs, every card pushes the
+ * others away, gravity holds the set together, and the clearest of several starts is kept. The
+ * first start is where the cards are now, so a table that already reads well keeps its shape.
  */
-function forceLayout(boxes: Box[], edges: Edge[], sizes: Map<string, Size>, gap: number, rankGap: number): Map<string, Point> {
-	type Node = SimulationNodeDatum & { id: string; w: number; h: number; x: number; y: number; homeX: number; homeY: number };
-	const nodes: Node[] = boxes.map((box) => { const at = centre(box), size = sizes.get(box.id)!; return { id: box.id, ...size, x: at.x, y: at.y, homeX: at.x, homeY: at.y }; });
-	const reach = (node: Node) => Math.max(node.w, node.h) / 2;
-	const collide = (alpha: number) => {
-		for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
-			const a = nodes[i], b = nodes[j];
-			const dx = (a.w + b.w) / 2 + gap - Math.abs(b.x - a.x), dy = (a.h + b.h) / 2 + gap - Math.abs(b.y - a.y);
-			if (dx <= 0 || dy <= 0) continue;
-			const strength = Math.max(0.4, alpha);
-			if (dx < dy) { const push = (dx / 2) * strength * (b.x >= a.x ? 1 : -1); a.x -= push; b.x += push; }
-			else { const push = (dy / 2) * strength * (b.y >= a.y ? 1 : -1); a.y -= push; b.y += push; }
-		}
-	};
-	const simulation = forceSimulation(nodes)
-		.force('link', forceLink<Node, { source: string | Node; target: string | Node }>(edges.map((edge) => ({ source: edge.from, target: edge.to }))).id((node) => node.id).distance((link) => reach(link.source as Node) + reach(link.target as Node) + rankGap).strength(0.35))
-		.force('charge', forceManyBody<Node>().strength(-2400).distanceMax(2400))
-		.force('x', forceX<Node>((node) => node.homeX).strength(0.03))
-		.force('y', forceY<Node>((node) => node.homeY).strength(0.03))
-		.force('collide', collide)
-		.stop();
-	for (let tick = 0; tick < 300; tick++) simulation.tick();
-	return new Map(nodes.map((node) => [node.id, { x: onGrid(node.x - node.w / 2), y: onGrid(node.y - node.h / 2) }]));
+function forceLayout(boxes: Box[], edges: Edge[], sizes: Map<string, Size>, gap: number): Map<string, Point> {
+	return graphLayout(boxes.map((box) => ({ ...box, ...sizes.get(box.id)! })), edges, { gap: Math.max(gap, GRID), keep: true }).spots;
 }
 
 /** Shelf packing: blocks in rows, each row as tall as its tallest, wrapped at about the width that makes the whole 4:3. */
@@ -321,32 +300,7 @@ function shelves(blocks: Size[], gapX: number, gapY = gapX, width?: number): Poi
 	});
 }
 
-/**
- * Pushes apart whatever is closer than `gap`, moving each pair the least it can (along the
- * axis they overlap less on), a few passes over; anything still stuck is pushed down. The
- * last word on every layout: after it, nothing overlaps.
- */
-export function separate(boxes: Box[], gap = GRID): Box[] {
-	const out = boxes.map((box) => ({ ...box }));
-	const close = (a: Box, b: Box) => ({ dx: Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) + gap, dy: Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) + gap });
-	let clear = false;
-	for (let pass = 0; pass < 80 && !clear; pass++) {
-		clear = true;
-		for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
-			const a = out[i], b = out[j];
-			const { dx, dy } = close(a, b);
-			if (dx <= 0 || dy <= 0) continue;
-			clear = false;
-			const along = dx <= dy ? 'x' : 'y', by = upToGrid(Math.min(dx, dy));
-			const first = centre(a)[along] <= centre(b)[along] ? a : b, second = first === a ? b : a;
-			const half = floorGrid(by / 2);
-			first[along] -= half;
-			second[along] += by - half;
-		}
-	}
-	if (!clear) for (const move of tidyLayout(out, gap)) Object.assign(out.find((box) => box.id === move.id)!, { x: move.x, y: move.y });
-	return out;
-}
+export { separate };
 
 /* Putting it together */
 
@@ -432,7 +386,7 @@ export function arrange(request: ArrangeRequest): ArrangeResult {
 	const order = (axis: 'x' | 'y') => new Map(joined.toSorted((a, b) => centre(a)[axis] - centre(b)[axis] || centre(a)[axis === 'x' ? 'y' : 'x'] - centre(b)[axis === 'x' ? 'y' : 'x']).map((box, index) => [box.id, index]));
 	let blocks: Map<string, Point>[];
 	if (mode === 'layered') blocks = [layeredLayout(joined, edges, sizes, direction, gap, rankGap)];
-	else if (mode === 'force') blocks = [forceLayout(joined, edges, sizes, gap, rankGap)];
+	else if (mode === 'force') blocks = [forceLayout(joined, edges, sizes, gap)];
 	else {
 		blocks = components(joined.map((box) => box.id), edges).map((set) => {
 			const within = edges.filter((edge) => set.includes(edge.from));

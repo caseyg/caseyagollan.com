@@ -54,7 +54,22 @@ type Database = {
       count: number;
     }
   >;
+  /**
+   * Refresh tokens, by hash: each renews one client's access (`tokenId` is the access token it
+   * came with) and is replaced every time it is used. Absent in state saved before they existed.
+   */
+  refresh?: Record<
+    string,
+    Expiring & {
+      clientId: string;
+      scope: string;
+      createdAt: number;
+      tokenId: string;
+    }
+  >;
 };
+/** How long a client that stays away can still renew its access without Casey approving it again. */
+const REFRESH_TTL = 90 * 86400000;
 export interface StateStorage {
   get<T>(key: string): Promise<T | undefined>;
   put(key: string, value: unknown): Promise<void>;
@@ -99,7 +114,7 @@ export const PREVIEW_CREDENTIAL = "indieauth-preview";
 /** What a preview never does: hold passkeys, take setup, or act as an IndieAuth server. */
 const PREVIEW_REFUSED = new Set<keyof AuthOperations>([
   "registrationOptions", "registrationVerify", "authenticationOptions", "authenticationVerify",
-  "createRequest", "approveRequest", "exchangeCode", "personalToken", "removeCredential",
+  "createRequest", "approveRequest", "exchangeCode", "refreshToken", "personalToken", "removeCredential",
 ]);
 export type WebAuthn = Pick<
   typeof import("@simplewebauthn/server"),
@@ -163,6 +178,7 @@ export class IndieAuthState {
       db.codes,
       db.tokens,
       db.rates,
+      (db.refresh ??= {}),
     ])
       for (const [id, item] of Object.entries(table))
         if (!Number.isFinite(item.expiresAt) || item.expiresAt <= this.now())
@@ -185,6 +201,7 @@ export class IndieAuthState {
       db.codes,
       db.tokens,
       db.rates,
+      (db.refresh ??= {}),
     ]) {
       for (const row of Object.values(table)) {
         if (Number.isFinite(row.expiresAt))
@@ -194,6 +211,10 @@ export class IndieAuthState {
     if (earliest === Infinity) await storage.deleteAlarm?.();
     else
       await storage.setAlarm?.(Math.max(this.now() + 1, Math.ceil(earliest)));
+  }
+  /** Ends the renewal that came with an access token. */
+  private dropRefresh(db: Database, tokenId: string) {
+    for (const [id, item] of Object.entries(db.refresh ?? {})) if (item.tokenId === tokenId) delete db.refresh![id];
   }
   private origin(origin: string) {
     if (origin !== new URL(this.settings.issuer).origin)
@@ -267,11 +288,19 @@ export class IndieAuthState {
     db.sessions[await hash(sessionToken)] = { csrf, expiresAt, credentialId };
     return { sessionToken, csrf, expiresAt };
   }
-  private async token(db: Database, clientId: string, scope: string[], name?: string) {
+  /** An access token and, with `renewable`, a refresh token that replaces both when used. */
+  private async token(db: Database, clientId: string, scope: string[], name?: string, renewable = false) {
     this.scopes(scope);
     this.capacity(db.tokens);
-    const access_token = random();
-    db.tokens[await hash(access_token)] = {
+    const access_token = random(), tokenId = await hash(access_token);
+    let refresh_token: string | undefined;
+    if (renewable) {
+      const refresh = (db.refresh ??= {});
+      this.capacity(refresh);
+      refresh_token = random();
+      refresh[await hash(refresh_token)] = { clientId, scope: scope.join(" "), createdAt: this.now(), expiresAt: this.now() + REFRESH_TTL, tokenId };
+    }
+    db.tokens[tokenId] = {
       clientId,
       ...(name ? { name } : {}),
       scope: scope.join(" "),
@@ -284,6 +313,7 @@ export class IndieAuthState {
       me: this.settings.me,
       scope: scope.join(" "),
       expires_in: this.settings.tokenTTL,
+      ...(refresh_token ? { refresh_token } : {}),
     };
   }
   private async dispatch(
@@ -487,7 +517,16 @@ export class IndieAuthState {
         )
           authError("invalid_grant");
         delete db.codes[id];
-        return this.token(db, code.clientId, code.scope);
+        return this.token(db, code.clientId, code.scope, undefined, true);
+      }
+      case "refreshToken": {
+        const refresh = (db.refresh ??= {}), id = await hash(a.token), item = refresh[id];
+        // A public client need not name itself here: the refresh token is what it holds.
+        if (!item || (a.clientId !== undefined && item.clientId !== a.clientId)) authError("invalid_grant");
+        // One use each: the old pair goes, so a copied refresh token stops working once either side renews.
+        delete refresh[id];
+        delete db.tokens[item.tokenId];
+        return this.token(db, item.clientId, item.scope.split(" ").filter(Boolean), undefined, true);
       }
       case "personalToken":
         await this.owner(db, a);
@@ -508,16 +547,30 @@ export class IndieAuthState {
       case "revokeToken": {
         const id = await hash(a.token),
           token = db.tokens[id];
-        if (token && (!a.clientId || token.clientId === a.clientId))
+        const refresh = (db.refresh ??= {});
+        if (token && (!a.clientId || token.clientId === a.clientId)) {
           delete db.tokens[id];
+          this.dropRefresh(db, id);
+        }
+        // RFC 7009: a client may hand back its refresh token instead.
+        const renewal = refresh[id];
+        if (renewal && (!a.clientId || renewal.clientId === a.clientId)) {
+          delete db.tokens[renewal.tokenId];
+          delete refresh[id];
+        }
         return true;
       }
-      case "listTokens":
+      case "listTokens": {
         await this.session(db, a.session);
-        return Object.entries(db.tokens).map(([id, t]) => ({ id, ...t }));
+        // A client whose access token ran out can still renew it: list that too, so Casey can end it.
+        const waiting = Object.entries(db.refresh ?? {}).filter(([, r]) => !db.tokens[r.tokenId]).map(([id, { tokenId, ...r }]) => ({ id, ...r }));
+        return [...Object.entries(db.tokens).map(([id, t]) => ({ id, ...t })), ...waiting];
+      }
       case "revokeTokenById":
         await this.owner(db, a);
         delete db.tokens[a.id];
+        this.dropRefresh(db, a.id);
+        delete db.refresh?.[a.id];
         return true;
       case "listCredentials":
         await this.session(db, a.session);

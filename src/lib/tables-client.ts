@@ -1,5 +1,6 @@
 import { ownerHint } from './owner';
 import { searchBlocks } from './table-sources';
+import { searchTableTexts, tableTexts, type TableSearchResult } from './table-search';
 import { tableWireframe } from './table-wireframe';
 import { byUpdated, cleanName, emptyTable, linkBlock, summarizeDocument, toSummary, validId, type Block, type Table, type TableSummary } from './tables';
 
@@ -99,8 +100,31 @@ export async function listDemoTables(): Promise<TableSummary[]> {
 	return Object.values(store).map(({ seed: _seed, ...table }) => toSummary(table)).sort(byUpdated);
 }
 
+/** The tables this session can see, for a page that wasn't given them. */
+export async function listTables(session: TablesSession): Promise<TableSummary[]> {
+	if (session.mode === 'demo') return listDemoTables();
+	if (session.tables) return session.tables;
+	try {
+		const response = await fetch('/api/tables');
+		return response.ok ? (((await response.json()) as { tables?: TableSummary[] }).tables ?? []) : [];
+	} catch {
+		return [];
+	}
+}
+
 export function readDemoTable(id: string): DemoTable | null {
 	return validId(id) ? (demoStore()[id] ?? null) : null;
+}
+
+/** The things on tables that hold the typed words: the site's tables, or this browser's in the demo. */
+export async function searchTables(mode: TablesMode, query: string, signal?: AbortSignal): Promise<TableSearchResult[]> {
+	if (mode === 'demo') {
+		const tables = Object.values(demoStore()).sort(byUpdated);
+		return searchTableTexts(tables.map((table) => ({ table, texts: tableTexts(table.document) })), query);
+	}
+	const response = await fetch(`/api/tables?search=${encodeURIComponent(query)}`, { credentials: 'same-origin', signal });
+	const data = (response.ok ? await response.json() : null) as { results?: TableSearchResult[] } | null;
+	return data?.results ?? [];
 }
 
 /** Creates a table and returns it. */

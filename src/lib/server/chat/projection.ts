@@ -245,6 +245,13 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 		const from = blocks.some((one) => /^(all|everything|the whole table)$/i.test(String(one).trim())) ? 'the whole table' : blocks.length ? count(blocks, 'block') : 'the selected blocks';
 		return `Context pull: ${what} from ${from}`;
 	}
+	if (name === 'table_map') {
+		const sources = (Array.isArray(args.sources) ? args.sources : []).map((one) => String(typeof one === 'string' ? one : (one as { source?: unknown } | null)?.source ?? '')).filter(Boolean);
+		const names: Record<string, string> = { readwise: 'Readwise', arena: 'Are.na', raindrop: 'Raindrop', site: 'this site', all: 'every source' };
+		const from = [...new Set(sources.map((source) => names[source] ?? source))].join(', ') || 'saves';
+		const when = args.days === 7 ? ' this week' : typeof args.days === 'number' ? `, last ${args.days} days` : '';
+		return `${Array.isArray(args.redo) && args.redo.length ? 'Reworked the map of' : 'Mapped'} ${from}${when}`;
+	}
 	if (name === 'table_render') {
 		const list = (value: unknown) => (Array.isArray(value) ? value : typeof value === 'string' ? [value] : []).filter((one) => typeof one === 'string' && one.trim());
 		const blocks = list(args.blocks), urls = list(args.urls);

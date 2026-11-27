@@ -127,7 +127,9 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 		const listing = /^https:\/\/api\.github\.com\/repos\/anthropics\/skills\/git\/trees\//.test(String(input));
 		return listing ? Response.json({ tree: ['frontend-design', 'doc-coauthoring', 'internal-comms', 'brand-guidelines'].map((name) => ({ path: `skills/${name}/SKILL.md`, type: 'blob' })) }) : fetch(input, init);
 	}) as typeof fetch;
-	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore } as never, renderFetch, skillsFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, sources: () => SOURCES, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
+	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore, INFERENCE_COOP_API_KEY: process.env.INFERENCE_COOP_API_KEY, CHAT_INFERENCE_URL: process.env.CHAT_INFERENCE_URL } as never,
+		// table_map keeps its stage files in the same stand-in; with nowhere to mirror pictures, its cards fall back to title tiles.
+		mapOverrides: { pictures: undefined }, renderFetch, skillsFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, sources: () => SOURCES, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));

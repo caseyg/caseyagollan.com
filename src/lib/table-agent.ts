@@ -45,6 +45,11 @@ export type TableColor = (typeof TABLE_COLORS)[number];
 /** An arrow between two items, bound to both so it follows them when they move. */
 export interface TableLink { from: string; to: string; label?: string; color?: TableColor; bend?: number; kind?: 'arc' | 'elbow'; dash?: 'draw' | 'solid' | 'dashed' | 'dotted'; both_ends?: boolean }
 
+/** A card of a map: its block, and its box relative to the map's corner. */
+export interface TableMapCard { block: Block; x: number; y: number; w: number; h: number }
+/** A tie of a map, between cards by their place in the list. */
+export interface TableMapLink { from: number; to: number; strong: boolean; label?: string }
+
 /** A pen stroke: points on the page (a line is two), or a loop drawn around an item. */
 export interface TableStroke { points?: TablePoint[]; around?: string; closed?: boolean; color?: TableColor; size?: 's' | 'm' | 'l' | 'xl' }
 
@@ -68,6 +73,13 @@ export type TableOp =
 	| { op: 'add_pdf_pages'; url: string; title?: string; from?: number; count?: number; block?: string }
 	/** A block's pictures and best passages, read from its page as the Add menu does, set down beside it. */
 	| ({ op: 'add_pieces'; block: string } & PieceChoice)
+	/**
+	 * A whole map in one change (`table_map`): cards at places worked out on the server, a heading and a
+	 * line saying how to read it above them, and the ties between cards drawn underneath, the backbone
+	 * (`strong`) plainly and likeness faintly. Everything it makes is marked with `key`; a map with the
+	 * same key already on the table is taken away first, so running a map again redraws it where it was.
+	 */
+	| { op: 'add_map'; key: string; title?: string; note?: string; cards: TableMapCard[]; links: TableMapLink[]; at?: TablePoint }
 	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number; color?: TableColor } & TablePlace)
 	/** Several notes at once, set out together from their measured sizes: a comparison's cells in one change. */
 	| ({ op: 'add_notes'; notes: TableNote[]; layout?: TableLayout; columns?: number } & TablePlace)
@@ -159,7 +171,7 @@ export function tableThreadId(tableId: string): string {
  * The tools only Casey's runs may use: every change, and `table_look`, which draws on Casey's
  * open page. Everything but `table_new` needs a table open beside the chat.
  */
-export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull', 'table_render', 'table_tag'] as const;
+export const TABLE_OWNER_TOOLS = ['table_new', 'table_add', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_look', 'table_pull', 'table_render', 'table_tag', 'table_map'] as const;
 
 /** The most items `tableListing` writes out; the rest are counted. */
 export const LISTING_MAX = 60;
@@ -226,7 +238,7 @@ export function itemsFromDocument(document: unknown): TableItem[] {
 }
 
 /** The words in a tldraw rich-text (ProseMirror) document. */
-function plainText(node: unknown): string {
+export function plainText(node: unknown): string {
 	if (!node || typeof node !== 'object') return '';
 	const { text, content, type } = node as { text?: unknown; content?: unknown[]; type?: string };
 	if (typeof text === 'string') return text;
