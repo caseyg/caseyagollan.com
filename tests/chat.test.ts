@@ -313,7 +313,7 @@ describe('Pi transcript as chat messages', () => {
 		const { costOf, priceOf, resetsOn } = require('../src/lib/server/chat/budget') as typeof import('../src/lib/server/chat/budget');
 		expect(costOf([answer('e1', [])])).toBeCloseTo((1000 * 0.11 + 200 * 0.44) / 1e6, 10);
 		expect(costOf([{ model: [{ role: 'assistant', usage: { cost: { total: 0.5 } } }] }])).toBe(0.5);
-		expect(priceOf('unknown').input).toBe(1.8);
+		expect(priceOf('unknown').input).toBe(4);
 		expect(resetsOn(Date.UTC(2026, 10, 18))).toBe('December 1');
 	});
 });

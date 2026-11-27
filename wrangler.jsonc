@@ -52,7 +52,11 @@
 		"PUBLISHING_MASTODON_INSTANCE": "https://social.coop",
 		"PUBLISHING_BLUESKY_SERVICE": "https://bsky.social",
 		"PUBLISHING_BLUESKY_IDENTIFIER": "caseyagollan.com",
-		/** The inference.coop model /chat answers with (key: the INFERENCE_COOP_API_KEY secret). */
+		/**
+		 * The model new /chat threads answer with. Providers and their models are listed in
+		 * src/lib/chat-models.ts; each is offered where its secret is set (INFERENCE_COOP_API_KEY,
+		 * ANTHROPIC_API_KEY, CEREBRAS_API_KEY), and Casey picks per chat in the composer's Model menu.
+		 */
 		"CHAT_MODEL": "glm-flash-green",
 		/** US dollars each /chat visitor may spend a month (Casey is not capped). */
 		"CHAT_MONTHLY_BUDGET": "3"

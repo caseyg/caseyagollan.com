@@ -39,6 +39,7 @@ import { isSkillTool, skillsSection, skillTools } from './skill-tools';
 import { renderTool } from './render-tool';
 import type { ScreenshotEnvironment } from '../screenshot';
 import { CODEMODE_TOOL, isMcpTool } from './mcp-tools';
+import { isAnthropicModel } from './provider';
 
 export interface ToolDeps {
 	env: PublishingEnvironment & SavesEnv & ScreenshotEnvironment & { ASSETS?: Pick<Fetcher, 'fetch'>; IMAGES?: ImagesBinding };
@@ -1226,9 +1227,14 @@ export function chatExtension(deps: ToolDeps): Extension {
 		hooks: [
 			hook(GenerationTask, {
 				async beforeProviderRequest(request, api, context) {
-					const sent = request.payload as { tools?: { function?: { name?: string }; name?: string }[]; tool_choice?: unknown; messages?: unknown[]; reasoning_effort?: unknown } | undefined;
+					const sent = request.payload as { model?: unknown; tools?: { function?: { name?: string }; name?: string }[]; tool_choice?: unknown; messages?: unknown[]; reasoning_effort?: unknown; thinking?: { type?: string }; output_config?: { effort?: string } } | undefined;
 					if (!sent || typeof sent !== 'object') return undefined;
-					const payload = { ...sent, reasoning_effort: sent.reasoning_effort ?? effort };
+					// Each provider is told how hard to think in its own words. Claude takes no `reasoning_effort`, and
+					// its larger models refuse `thinking: disabled`: they get adaptive thinking at the chat's effort.
+					const claude = isAnthropicModel(sent.model);
+					const payload = claude
+						? { ...sent, ...(!sent.thinking || sent.thinking.type === 'disabled' ? { thinking: { type: 'adaptive' }, output_config: { ...sent.output_config, effort: sent.output_config?.effort ?? effort } } : {}) }
+						: { ...sent, reasoning_effort: sent.reasoning_effort ?? effort };
 					if (!payload.tools?.length) return { payload };
 					// The run's last round: without tools the model must answer from what it has, instead of ending on “it took too many steps”.
 					const turns = (await api.snapshot(LiveDoc, api.conversationId, context).catch(() => undefined))?.run?.turns ?? 0;
@@ -1240,7 +1246,10 @@ export function chatExtension(deps: ToolDeps): Extension {
 						console.log(JSON.stringify({ event: 'chat_last_round', turns }));
 						const { tools: _tools, tool_choice: _choice, ...rest } = payload;
 						const messages = Array.isArray(payload.messages) ? [...payload.messages, { role: 'user', content: '(From the chat itself, not a person: you have used all your tool rounds for this answer. Answer now from what you have. Say plainly what you did and what, if anything, is left undone; don’t describe tools you would call next.)' }] : payload.messages;
-						return { payload: { ...rest, messages } };
+						// Claude refuses a transcript of tool calls without the tools that made them, so it keeps them and is told to
+						// call none. It gets no note either: a message that isn't in the transcript would change the history
+						// its next request repeats, which costs the prompt cache and can void its earlier thinking.
+						return { payload: claude ? { ...payload, tool_choice: { type: 'none' } } : { ...rest, messages } };
 					}
 					// Take Casey's tools out of any request whose run isn't Casey's alone, and the table's when no table is open.
 					const table = !!thread?.table();

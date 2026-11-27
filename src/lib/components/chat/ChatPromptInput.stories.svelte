@@ -1,7 +1,10 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import ChatPromptInput from './ChatPromptInput.svelte';
+	import { CHAT_PROVIDERS, modelOptions } from '$lib/chat-models';
 	import { owner, visitor } from './fixtures';
+
+	const models = { models: modelOptions(CHAT_PROVIDERS), current: 'inference-coop:glm-flash-green' };
 
 	const send = (text: string, { queue }: { queue: boolean }) => { console.log(queue ? 'Would queue' : 'Would send', text); return true; };
 	const skills = [
@@ -37,3 +40,8 @@
 <Story name="Slash command, mid-message" args={{ viewer: owner, compact: true, value: 'For this week, do a /li', skills }} />
 
 <Story name="Slash command, narrowed" args={{ viewer: owner, compact: true, value: '/li', skills }} />
+
+<!-- Casey's composer with the Model menu beside Send: the model answering this chat, and the others that could. -->
+<Story name="Model menu" args={{ viewer: owner, compact: true, value: 'What did I post about cooperatives?', models, onmodel: () => {} }} />
+
+<Story name="Model menu, phone" args={{ viewer: owner, compact: true, models: { ...models, current: 'anthropic:claude-sonnet-5-5' }, onmodel: () => {} }} parameters={{ viewport: { defaultViewport: 'mobile1' } }} />
