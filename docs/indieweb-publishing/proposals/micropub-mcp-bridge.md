@@ -62,6 +62,7 @@ What generalizes to any personal site:
 - **The page is a shell.** The resource is a few lines of HTML that load a script from the site, so the site's own components draw the view and a deploy updates it. The resource names every host it loads from (`_meta.ui.csp`), and the site lets other origins read only what is public anyway (the script, the search index, public posts' sources).
 - **One live view per thing.** Opening the same table again replaces the earlier view, which is told to stop saving, so two canvases never write over each other.
 - **Scopes still decide.** Reading a table needs `read`; changing one needs `update` and making one `create`, the scopes Micropub already defines. A connection without them gets a canvas to look at.
+- **Links out carry a pass.** The browser inside an MCP client often can't use the owner's passkey, so a link the server gives to something private (a draft table) carries a short-lived pass to that one thing. The browser that opens it trades the pass for a cookie scoped to that thing, with no more permission than the connection had. Only hashes of passes are stored.
 - **Clients that draw nothing lose nothing.** Tools that need the view are left out for a client that didn't declare the extension, so it never sees a tool it can't use.
 
 ## In-process use

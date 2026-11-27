@@ -17,6 +17,8 @@ export interface TableViewLink {
 	/** Waits for the next change asked of the table; resolves with none when nothing came. */
 	next(): Promise<ViewTurn>;
 	done(id: string, result: TableOpResult): Promise<void>;
+	/** A fresh address that opens the table on the site without signing in. */
+	link?(): Promise<string>;
 }
 
 /** Where a view shows: in the conversation, or over all of it. `toggle` is unset where the host offers no choice. */

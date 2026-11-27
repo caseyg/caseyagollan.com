@@ -19,6 +19,7 @@ import { chatExtension, type ThreadHooks, type ToolDeps } from '../chat/tools';
 import type { MicropubCall } from '../chat/micropub-mcp';
 import { MCP_RESOURCE_PATH, MCP_SCOPES } from '../indieauth/contracts';
 import { listTables, readTable, writeTable } from '../tables';
+import { passLink } from '../table-pass';
 import type { ChatThreadStub } from '../chat/threads';
 import { itemsFromDocument, tableListing, tableThreadId, type TableItem, type TableOp } from '../../table-agent';
 import { cleanName, emptyTable, summarizeDocument, validDocument, validId, type Table, type TableSummary } from '../../tables';
@@ -137,7 +138,7 @@ const chatTools = (deps: SiteMcpDeps, table?: TableSummary) => chatExtension({
 const tableList = (deps: SiteMcpDeps): McpTool => ({
 	name: 'table_list',
 	title: 'List tables',
-	description: 'Casey’s tables (canvases of posts, books, links and notes), newest first, drafts included: each one’s id, name, address, how many blocks it holds and when it changed. Read one with table_read.',
+	description: 'Casey’s tables (canvases of posts, books, links and notes), newest first, drafts included: each one’s id, name, address, how many blocks it holds and when it changed. Read one with table_read; for a link Casey can open without signing in, use table_link.',
 	inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'Only tables whose name has these words.' } } },
 	annotations: { readOnlyHint: true },
 	async call(args) {
@@ -159,6 +160,32 @@ const tableList = (deps: SiteMcpDeps): McpTool => ({
 function allowed(deps: SiteMcpDeps, scope: 'create' | 'update') {
 	if (!deps.scopes?.includes(scope)) throw new Error(`Casey didn’t give this connection permission to ${scope === 'create' ? 'make tables' : 'change tables'}. It can be reconnected with more permissions.`);
 }
+
+/**
+ * A table's address for Casey to open from the conversation: with a pass (`../table-pass`), so it
+ * opens without the passkey, which Claude's own browser can't use. The pass lets its holder change
+ * the table only where this connection may.
+ */
+async function tableLink(deps: SiteMcpDeps, id: string): Promise<string> {
+	const bucket = deps.env.PUBLISHING_STATE;
+	if (!bucket) return `${deps.origin}/tables/${id}`;
+	return passLink(bucket, deps.origin, id, !!deps.scopes?.includes('update'), (deps.now?.() ?? new Date()).getTime());
+}
+const LINK_NOTE = 'The link opens the table on the site without signing in, for half an hour; give it to Casey as it is, and get a new one with table_link after that.';
+
+/** A link to a table that opens without signing in, for clients that can't show the canvas and for opening the site beside it. */
+const tableLinkTool = (deps: SiteMcpDeps): McpTool => ({
+	name: 'table_link',
+	title: 'Link to a table',
+	description: 'A link Casey can open to see one of their tables on caseyagollan.com without signing in again, drafts included, and to change it there if this connection may. It works for half an hour and only for that table. Use it whenever Casey wants to open, see or edit a table in a browser; a table’s plain address asks for a passkey.',
+	inputSchema: { type: 'object', properties: { table: TABLE_ARG }, required: ['table'] },
+	annotations: { readOnlyHint: true },
+	async call(args) {
+		const table = pickTable(await listTables(deps.env.PUBLISHING_STATE), args.table);
+		const url = await tableLink(deps, table.id);
+		return said(`“${table.name}”: ${url}\n\n${LINK_NOTE}`, { table: { id: table.id, name: table.name, url } });
+	}
+});
 
 const said = (value: unknown, structured?: Record<string, unknown>) => ({ content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value) }], ...(structured ? { structuredContent: structured } : {}) });
 
@@ -182,9 +209,9 @@ const tableOpen = (deps: SiteMcpDeps): McpTool => ({
 		} else table = await readTable(bucket, pickTable(await listTables(bucket), args.table).id);
 		if (!table) throw new Error('That table couldn’t be read.');
 		const items = itemsFromDocument(table.document);
-		const url = `${deps.origin}/tables/${table.id}`;
+		const url = await tableLink(deps, table.id);
 		return said(
-			[`“${table.name}” (${table.id}${table.published === false ? ', a draft' : ''}) is open as a canvas here. Its address is ${url}.`, items.length ? tableListing(items as TableItem[], [], table.name) : 'It is empty.', 'Change it with the table_* tools, passing this table’s id.'].join('\n\n'),
+			[`“${table.name}” (${table.id}${table.published === false ? ', a draft' : ''}) is open as a canvas here. Its link is ${url} . ${LINK_NOTE}`, items.length ? tableListing(items as TableItem[], [], table.name) : 'It is empty.', 'Change it with the table_* tools, passing this table’s id.'].join('\n\n'),
 			{ table: { id: table.id, name: table.name, url, draft: table.published === false } }
 		);
 	}
@@ -237,6 +264,11 @@ function viewTools(deps: SiteMcpDeps): McpTool[] {
 			next.updated = (deps.now?.() ?? new Date()).toISOString();
 			await writeTable(bucket, next);
 			return said('Saved.', { saved: next.updated, name: next.name });
+		}),
+		tool('table_view_link', 'A fresh link that opens the table on the site without signing in.', {}, [], async (args) => {
+			if (!(await readTable(deps.env.PUBLISHING_STATE, String(args.table)))) throw new Error('No such table.');
+			viewId(args.view);
+			return said('ok', { url: await tableLink(deps, String(args.table)) });
 		}),
 		tool('table_view_next', 'Wait for the next change asked of this table.', { wait: { type: 'integer', minimum: 0, maximum: 20000 } }, [], async (args) =>
 			said('ok', { ...(await canvas(String(args.table)).viewNext(viewId(args.view), typeof args.wait === 'number' ? Math.min(Math.max(args.wait, 0), 20_000) : undefined)) })),
@@ -319,7 +351,7 @@ export function siteMcpServer(deps: SiteMcpDeps): McpServerInfo {
 	return {
 		name: 'caseyagollan', title: 'caseyagollan.com', version: '0.1.0',
 		instructions: 'Casey Gollan’s website, caseyagollan.com, used as Casey: posts (notes, articles, photos, replies, bookmarks, likes), the library’s books, wiki pages, saves on Are.na, Raindrop and Readwise, and tables (canvases of all of these). Find things with search_site and read them with fetch_page. Posts are Markdown; create drafts unless Casey asks to publish.',
-		tools: [...tools, tableList(deps), tableOpen(deps), ...viewTools(deps)],
+		tools: [...tools, tableList(deps), tableLinkTool(deps), tableOpen(deps), ...viewTools(deps)],
 		resources: [tableView(deps)]
 	};
 }

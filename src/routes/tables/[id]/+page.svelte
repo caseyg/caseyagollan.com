@@ -60,7 +60,7 @@
 	// Whoever can change the table reads its blocks' tags (posts, Raindrop, Readwise) and may edit them.
 	const taggedRefs = $derived([...new Set(view.taggable.map((block) => block.ref))].sort().join('\n'));
 	$effect(() => {
-		if (!editable || !session) return;
+		if (!editable || !session || session.mode === 'pass') return;
 		enableTags(session);
 		const refs = taggedRefs ? taggedRefs.split('\n') : [];
 		if (!refs.length) return;
@@ -192,7 +192,9 @@
 
 	onMount(() => {
 		void (async () => {
-			session = await tablesSession();
+			const found = await tablesSession();
+			// Opened from the Claude connector with a pass to change this table: it saves, but isn't the owner.
+			session = found.mode === 'visitor' && data.pass?.edit && data.pass.csrf ? { mode: 'pass', csrf: data.pass.csrf } : found;
 			void listTables(session).then((list) => (tables = list));
 			if (!data.table) {
 				const local = session.mode === 'demo' ? readDemoTable(id) : null;
@@ -354,7 +356,7 @@
 				{adding}
 				status={statusText}
 				{published}
-				onpublish={publish}
+				onpublish={session.mode === 'pass' ? undefined : publish}
 				details={view.details}
 				ondetails={(shown) => api?.setDetails(shown)}
 				ontool={(tool) => api?.setTool(tool)}
@@ -366,7 +368,7 @@
 					adding = !adding;
 					if (adding) tagging = null;
 				}}
-				tags={editable ? { open: !!tagging, count: stagedCount() } : undefined}
+				tags={editable && session.mode !== 'pass' ? { open: !!tagging, count: stagedCount() } : undefined}
 				ontags={() => {
 					tagging = tagging ? null : 'edit';
 					if (tagging) adding = false;

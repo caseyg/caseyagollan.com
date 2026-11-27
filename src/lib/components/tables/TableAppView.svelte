@@ -64,6 +64,12 @@
 		}
 	}
 
+	/** The table's own page: with a pass from the site where it gives one, so it opens without signing in. */
+	async function openOnSite() {
+		const url = (await link.link?.().catch(() => undefined)) ?? `${origin}/tables/${id}`;
+		window.open(url, '_blank', 'noopener');
+	}
+
 	const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 	/** Asks for the next change, makes it, reports back, and asks again, for as long as this view is the table's. */
@@ -145,7 +151,7 @@
 		<TableCanvas document={replaced ? (api?.document() ?? table.document) : table.document} editable={editable && !replaced} {onchange} onready={replaced ? undefined : onready} />
 	{/key}
 	<header class="bar">
-		<Button variant="secondary" size="sm" href="{origin}/tables/{id}" target="_blank" rel="noopener" title="Open this table on caseyagollan.com">{name || 'Untitled table'}</Button>
+		<Button variant="secondary" size="sm" onclick={openOnSite} title="Open this table on caseyagollan.com">{name || 'Untitled table'}</Button>
 		{#if display?.toggle}
 			<Button variant="icon" size="sm" icon={display.full ? 'floating' : 'fullscreen'} label={display.full ? 'Back to the conversation' : 'Full screen'} onclick={display.toggle} />
 		{/if}

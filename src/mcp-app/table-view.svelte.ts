@@ -36,7 +36,8 @@ async function call<T>(name: string, table: string, more: Record<string, unknown
 const linkFor = (table: string): TableViewLink => ({
 	save: (patch) => call<{ name: string }>('table_view_save', table, patch),
 	next: () => call<ViewTurn>('table_view_next', table),
-	done: async (id, result: TableOpResult) => void (await call('table_view_done', table, { id, ...result }))
+	done: async (id, result: TableOpResult) => void (await call('table_view_done', table, { id, ...result })),
+	link: async () => (await call<{ url: string }>('table_view_link', table)).url
 });
 
 let shown: { id: string; component: { flush(): Promise<void> } & Record<string, unknown>; props: { display: { full: boolean; toggle?: () => void } } } | undefined;
