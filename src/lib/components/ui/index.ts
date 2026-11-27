@@ -27,6 +27,7 @@ export { default as Pagination } from './Pagination.svelte';
 export { default as JsonView } from './JsonView.svelte';
 export { default as LinkPreviewCard } from './LinkPreviewCard.svelte';
 export { default as Popover } from './Popover.svelte';
+export { default as ProgressBar } from './ProgressBar.svelte';
 export { default as PullDown } from './PullDown.svelte';
 export { default as Prose } from './Prose.svelte';
 export { default as Row } from './Row.svelte';

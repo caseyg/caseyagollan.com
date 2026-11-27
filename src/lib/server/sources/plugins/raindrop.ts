@@ -64,9 +64,11 @@ export const raindrop: SourcePlugin = {
 		const params = new URLSearchParams({ perpage: String(PAGE), page: String(cursor.page), sort: '-created' });
 		// A day early: the filter compares days, and a bookmark listed twice is only written twice.
 		if (!cursor.full && state.since) params.set('search', `lastUpdate:>${new Date(Date.parse(state.since) - 86_400_000).toISOString().slice(0, 10)}`);
-		const data = await getJson<{ items?: RaindropRecord[] }>(context, 'Raindrop', `${API}/raindrops/0?${params}`, headers);
+		const data = await getJson<{ count?: number; items?: RaindropRecord[] }>(context, 'Raindrop', `${API}/raindrops/0?${params}`, headers);
 		const items = data.items ?? [];
 		const documents = items.flatMap((record) => { const document = raindropDocument(record, cursor.collections); return document ? [{ document, raw: record }] : []; });
-		return items.length === PAGE ? { documents, cursor: { ...cursor, page: cursor.page + 1 }, done: false } : { documents, done: true, complete: cursor.full };
+		const done = cursor.page * PAGE + items.length;
+		const progress = { label: 'Bookmarks', part: 0, parts: 1, done, ...(typeof data.count === 'number' ? { total: Math.max(data.count, done) } : {}) };
+		return items.length === PAGE ? { documents, cursor: { ...cursor, page: cursor.page + 1 }, done: false, progress } : { documents, done: true, complete: cursor.full };
 	}
 };
