@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { isOwner, ownerBucket, PRIVATE } from '$lib/server/tables-api';
 import { safePublicStream } from '$lib/server/publishing/public-fetch';
+import { PICTURE_HASH, pictureKey } from '$lib/server/maps/images';
 import { keepPdfPage, keptPdfPage, MAX_PAGE_BYTES, MAX_PDF_BYTES, pageNumber, pdfPageKey, renderAddress } from '$lib/server/table-render';
 
 export const prerender = false;
@@ -9,6 +10,7 @@ const refuse = (error: string, status: number) => Response.json({ error }, { sta
 
 /**
  * The pages of a PDF as pictures, for tables (`table_render`, `$lib/table-render`):
+ * - `?picture=<hash>` is a picture mirrored for a map's card.
  * - `?pdf=<address>&page=3` is the picture of page 3 once it has been kept, for anyone (a table is
  *   public); `&info` answers with its size and the PDF's page count instead of the picture.
  * - `?pdf=<address>` alone hands Casey's table page the PDF itself, to draw with pdf.js: other
@@ -16,6 +18,14 @@ const refuse = (error: string, status: number) => Response.json({ error }, { sta
  *   on caseyagollan.com only for the signed-in owner; previews allow the `?owner=demo` table.
  */
 export const GET: RequestHandler = async ({ url, request, platform }) => {
+	// A map's mirrored picture (`table_map`, `$lib/server/maps/images`), by the hash it was kept under: for anyone, like the table it is on.
+	const picture = url.searchParams.get('picture');
+	if (picture !== null) {
+		const stored = PICTURE_HASH.test(picture) ? await platform?.env?.SCREENSHOTS?.get(pictureKey(picture)) : null;
+		// One the look-over hasn't cleared (a person, or never checked) is not served, whatever a table says.
+		if (!stored || stored.customMetadata?.people !== 'ok') return refuse('No such picture.', 404);
+		return new Response(stored.body, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'public, max-age=2592000, immutable', 'x-content-type-options': 'nosniff' } });
+	}
 	const address = renderAddress(url.searchParams.get('pdf'));
 	if (!address) return refuse('That isn’t a public https address.', 400);
 	const bucket = platform?.env?.SCREENSHOTS;

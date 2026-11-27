@@ -520,7 +520,7 @@ describe('the chat’s tools', () => {
 	} } as unknown as Fetcher;
 	const out = async (tool: { execute: (...args: never[]) => unknown }, args: unknown) => ((await (tool.execute as (args: unknown, api: unknown, context: unknown) => Promise<{ output: { text: string }[] }>)(args, {}, {})).output[0].text);
 
-	async function setup(options: { ops?: unknown[]; table?: string; owner?: boolean; issues?: () => unknown; opens?: boolean; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown; savesFetch?: typeof fetch; pdf?: (op: { url: string; from?: number; count?: number }) => unknown; env?: Record<string, unknown>; renderFetch?: typeof fetch } = {}) {
+	async function setup(options: { ops?: unknown[]; table?: string; owner?: boolean; issues?: () => unknown; opens?: boolean; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown; savesFetch?: typeof fetch; pdf?: (op: { url: string; from?: number; count?: number }) => unknown; env?: Record<string, unknown>; renderFetch?: typeof fetch; mapOverrides?: Record<string, unknown> } = {}) {
 		const { chatExtension } = await import('../src/lib/server/chat/tools');
 		const went: string[] = [];
 		const ops = options.ops ?? [];
@@ -547,7 +547,7 @@ describe('the chat’s tools', () => {
 			// What Casey had selected when writing the message being answered.
 			selection: () => options.asked ?? []
 		};
-		const extension = chatExtension({ env: { ASSETS: assets, ...options.env } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, onlyOwner: options.owner === undefined ? undefined : () => options.owner!, savesFetch: options.savesFetch, renderFetch: options.renderFetch, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
+		const extension = chatExtension({ env: { ASSETS: assets, ...options.env } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, onlyOwner: options.owner === undefined ? undefined : () => options.owner!, savesFetch: options.savesFetch, renderFetch: options.renderFetch, mapOverrides: options.mapOverrides as never, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
 		const tool = (name: string) => extension.tools!.find((one) => one.name === name)!;
 		return { extension, tool, went, ops };
 	}
@@ -555,14 +555,40 @@ describe('the chat’s tools', () => {
 	test('there are few of them, each described briefly', async () => {
 		const { extension } = await setup({ micropub: async () => Response.json({}) });
 		const names = extension.tools!.map((tool) => tool.name);
-		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'use_skill', 'skill_find', 'skill_add', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_render', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_tag', 'table_look']);
+		expect(names).toEqual(['search_site', 'fetch_page', 'view_image', 'show_page', 'go_to', 'my_saves', 'use_skill', 'skill_find', 'skill_add', 'micropub_list_posts', 'micropub_get_post', 'micropub_create_post', 'micropub_update_post', 'table_new', 'table_read', 'table_add', 'table_pull', 'table_map', 'table_render', 'table_arrange', 'table_move', 'table_connect', 'table_group', 'table_edit', 'table_draw', 'table_select', 'table_tag', 'table_look']);
 		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
-		// 26,000 before skills; their three tools (Casey's runs only) are some 1,650 characters of schema. table_add's `frames` and `table`, and table_edit's `url`, are some 550 more.
-		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(28_200);
+		// 26,000 before skills; their three tools (Casey's runs only) are some 1,650 characters of schema. table_add's `frames` and `table`, and table_edit's `url`, are some 550 more. table_map, its prompt line and the no-table sentence are some 1,450.
+		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(29_700);
 		const skills = extension.tools!.filter((tool) => ['use_skill', 'skill_find', 'skill_add'].includes(tool.name));
 		expect(JSON.stringify(skills.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(1_700);
+	});
+
+	test('table_map builds a map of a week of saves and draws it in one change, making the table when none is open', async () => {
+		const ops: { op: string; key?: string; title?: string; note?: string; cards?: { block: { title: string; form?: string }; x: number; y: number; w: number; h: number }[]; links?: { from: number; to: number; strong: boolean }[] }[] = [];
+		const text = (words: string) => `<p>${words} The harbour keeps a ledger of every tide and every ferry that crossed it. Nobody remembers who first measured the water against the old stone steps.</p>`;
+		const documents = [
+			{ id: 'a1', title: 'Harbour ledgers', source_url: 'https://one.example/ledgers', category: 'article', location: 'new', saved_at: '2026-11-24T10:00:00Z', html_content: `${text('Ledgers.')}<p>See <a href="https://two.example/tides">the tide tables</a>.</p>` },
+			{ id: 'a2', title: 'Tide tables', source_url: 'https://two.example/tides', category: 'article', location: 'later', saved_at: '2026-11-23T10:00:00Z', html_content: text('Tides.') },
+			{ id: 'a3', title: 'Something else', source_url: 'https://three.example/else', category: 'article', location: 'later', saved_at: '2026-11-22T10:00:00Z', html_content: '<p>Orchards in the valley flower late when the spring is cold and wet. Growers watch the frost and light small fires between the rows.</p>' }
+		];
+		const savesFetch = (async () => Response.json({ results: documents, nextPageCursor: null })) as unknown as typeof fetch;
+		const { tool, went } = await setup({ ops, owner: true, savesFetch, env: { READWISE_ACCESS_TOKEN: 'test' }, mapOverrides: { pageFetch: async () => new Response('', { status: 404 }) } });
+		const said = JSON.parse(await out(tool('table_map'), { sources: [{ source: 'readwise' }], days: 7 }));
+		expect(went).toEqual(['/tables/new123']);
+		expect(ops.map((op) => op.op)).toEqual(['add_map']);
+		const drawn = ops[0];
+		expect(drawn.title).toBe('This week in Readwise');
+		expect(drawn.note).toContain('3 from Readwise');
+		expect(drawn.cards!.map((card) => card.block.title).sort()).toEqual(['Harbour ledgers', 'Something else', 'Tide tables']);
+		expect(drawn.cards!.every((card) => card.block.form === 'card' && Number.isFinite(card.x) && card.w > 0)).toBe(true);
+		expect(drawn.links!.some((link) => link.strong)).toBe(true);
+		expect(said).toMatchObject({ map: 'This week in Readwise', url: '/tables/new123', cards: 3, sources: { readwise: 3 }, title_tiles: 3 });
+		expect(said.lines.linked_or_cited).toBe(1);
+		// Everything saved to a source, ever, is refused before anything is fetched.
+		await expect(out(tool('table_map'), { sources: ['readwise'] })).rejects.toThrow('Give `days`');
+		await expect(out(tool('table_map'), { sources: [] })).rejects.toThrow('Give `sources`');
 	});
 
 	test('the prompt lists what is on the open table, as it stands at each step', async () => {
@@ -933,7 +959,7 @@ describe('the chat’s tools', () => {
 		const tools = extension.tools!.map((tool) => ({ type: 'function', function: { name: tool.name } }));
 		const sent = await before({ payload: { model: 'm', tools, messages: [{ role: 'user', content: 'hi' }] } }, { conversationId: 'c', snapshot: async () => ({ run: { turns: 1 } }), entries: async () => ({ items: [] }) }, {});
 		const offered = sent!.payload.tools!.map((tool) => tool.function.name).filter((name) => name.startsWith('table_'));
-		expect(offered).toEqual(['table_new', 'table_add']);
+		expect(offered).toEqual(['table_new', 'table_add', 'table_map']);
 		const said = await extension.sections!.find((section) => section.key === 'table')!.render({} as never, {} as never);
 		expect(said).toContain('table_add makes a new table');
 		expect(said).toContain('Never tell Casey a table tool is missing');
