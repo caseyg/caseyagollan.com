@@ -151,6 +151,22 @@
 				const ids = api.addBlocks(blocks, op.at, { columns: op.columns ?? Math.min(blocks.length, 3), page: !!op.at, select: true });
 				return { ok: true, result: { added: ids.map((shapeId) => shapeId.replace(/^shape:/, '')) } };
 			}
+			case 'relink': {
+				const { items } = (await api.perform({ op: 'read' })) as { items: TableItem[] };
+				const found = await Promise.all(op.links.map(async ({ id, url }) => {
+					const was = items.find((one) => one.id === id.replace(/^shape:/, ''));
+					const block = was?.url ? await linkedBlock(url, op.find?.[url], location.origin) : null;
+					if (!was || !block) return null;
+					// A page nothing more is known about keeps the card's own title and picture: only where it leads changes.
+					const bare = block.kind === 'link' && !block.excerpt && !block.image;
+					return { id: was.id, block: bare ? { ...block, title: was.title ?? block.title, ...(was.image ? { image: was.image } : {}) } : block };
+				}));
+				const blocks = found.filter((one): one is { id: string; block: Block } => !!one);
+				const skipped = op.links.filter((_, index) => !found[index]).map((link) => link.id);
+				if (!blocks.length) return { ok: false, error: 'None of those are blocks with a link.' };
+				const result = (await api.perform({ op: 'set_blocks', cards: blocks })) as { relinked: number; skipped?: string[] };
+				return { ok: true, result: { ...result, ...(skipped.length || result.skipped?.length ? { skipped: [...skipped, ...(result.skipped ?? [])] } : {}) } };
+			}
 			case 'add_pieces': {
 				const { items } = (await api.perform({ op: 'read' })) as { items: TableItem[] };
 				const item = items.find((one) => one.id === op.block.replace(/^shape:/, ''));

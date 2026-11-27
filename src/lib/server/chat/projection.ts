@@ -218,12 +218,13 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'go_to') return `Took you to ${String(args.path ?? '').slice(0, 80)}`;
 	if (name === 'create_table' || name === 'table_new') return `Made a table, “${String(args.name ?? '').slice(0, 60)}”`;
 	if (name === 'table_add') {
-		const items = Array.isArray(args.items) ? args.items as Record<string, unknown>[] : [];
+		const groups = (Array.isArray(args.frames) ? args.frames as { items?: unknown }[] : []).filter((group) => Array.isArray(group?.items));
+		const items = [...(Array.isArray(args.items) ? args.items as Record<string, unknown>[] : []), ...groups.flatMap((group) => group.items as Record<string, unknown>[])];
 		const notes = items.filter((item) => typeof item?.note === 'string' || typeof item?.text === 'string').length, links = items.filter((item) => typeof item?.url === 'string').length;
 		const searches = items.filter((item) => typeof item?.search === 'string').map((item) => `“${String(item.search).slice(0, 40)}”`);
 		const places = items.filter((item) => typeof item?.source === 'string' && typeof item?.in === 'string' && item.in).map((item) => `“${String(item.in).slice(0, 40)}”`);
 		const parts = [notes ? `${notes} note${notes === 1 ? '' : 's'}` : '', links ? `${links} link${links === 1 ? '' : 's'}` : '', searches.length && !places.length ? `results for ${searches.join(', ')}` : '', places.length ? `everything in ${places.join(', ')}` : ''].filter(Boolean);
-		return `Added ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'to the table'}`.slice(0, 120);
+		return `Added ${parts.join(', ').replace(/, ([^,]*)$/, ' and $1') || 'to the table'}${groups.length > 1 ? ` in ${groups.length} frames` : ''}`.slice(0, 120);
 	}
 	if (name === CODEMODE_TOOL) {
 		const asked = scriptCalls(String(args.code ?? ''), Object.fromEntries(MCP_SERVERS.map((server) => [server.id, server.name])));

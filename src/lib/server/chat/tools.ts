@@ -122,7 +122,15 @@ export const OWN_TOOL_GROUPS: { id: string; name: string; summary: string; has: 
 export const isOwnerTool = (name: string) => isMicropubTool(name) || WRITES.has(name) || name === SAVES_TOOL || name === CODEMODE_TOOL || isMcpTool(name) || isSkillTool(name);
 /** Tools that need a table open beside the chat: all of them but the one that makes a table. */
 export const isTableTool = (name: string) => name.startsWith('table_') && name !== 'table_new';
+/** The table tools that need a table open already. `table_new` and `table_add` make one, so they are offered without. */
+export const needsTable = (name: string) => isTableTool(name) && name !== 'table_add';
 const isTableRead = (name: string) => name === 'table_read' || name === 'table_look';
+
+/** How often one run is carried on after a reply was cut off at the length limit. */
+export const CUT_OFF_RETRIES = 1;
+const CUT_OFF_MARK = 'your last reply was cut off';
+/** What the model is told then, in place of ending the run on half a reply. */
+export const CUT_OFF_NOTE = `(From the chat itself, not a person: ${CUT_OFF_MARK} at the length one reply can be. A tool call it was in the middle of did not run: nothing was saved, posted or changed by it. Carry on now, more briefly: split a long tool call into smaller ones (a long post: a short draft first, then add to it), and keep your answer short. If it can’t be done in less, say so.)`;
 
 /** How many times a run may make the very same call (same tool, same arguments) before it's refused. */
 export const REPEAT_LIMIT = 2;
@@ -216,19 +224,22 @@ const TABLE_SECTION = [
 	'A table is open beside this chat: one of Casey’s canvases of blocks (posts, books, wiki pages, Are.na blocks, links), sticky notes, text, arrows and drawings. It is the table Casey has open now, or this chat’s own table when Casey has none open. The table_* tools act on it; Casey sees each change happen and can undo it. Say briefly what you changed. A table is a canvas, not rows and columns: never paste a Markdown table for Casey to copy instead of putting things on it.',
 	[
 		'Working on a table:',
-		'- Casey’s selection: a message written with things selected on the table says so, with their ids and titles. “These”, “this”, “them”, “the selected ones”, or an ask about particular things that doesn’t name them, mean just those: act on them alone, by their ids or with ["selected"] wherever a tool takes ids (`ids`, `remove`, an edit’s `id`, `around`, `below`, `blocks`). Don’t table_read to find them. To summarize, compare or quote them, table_read with ids ["selected"] gives just their words and urls in one call; fetch_page a url only if that isn’t enough. When Casey names other things or says the whole table, the selection doesn’t matter.',
+		'- Casey’s selection: a message written with things selected on the table says so, with their ids and titles. “These”, “this”, “them”, “the selected ones”, or an ask about particular things that doesn’t name them, mean just those: act on them alone, by their ids or with ["selected"] wherever a tool takes ids (`ids`, `remove`, an edit’s `id`, `around`, `below`, `blocks`). Don’t table_read to find them. To summarize, compare or quote them, table_read with ids ["selected"] gives just their words and urls in one call; fetch_page a url only if that isn’t enough. When Casey names other things or says the whole table, the selection doesn’t matter; nor when Casey corrects what you just did (“it’s using the wrong links”, “they overlap”): that is about everything you added.',
 		'- What is on the table is listed at the end of these instructions, current at every step, your own changes included: each item’s id, kind, first words and measured box (canvas units; x grows right, y grows down; the dot grid is 20). Work from that list; don’t table_read to find things or to check your work. The list clips words: table_read with `ids` gives those items’ whole text, for summarizing, comparing or quoting them. table_read with no ids is only for a list that says it was cut short.',
-		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Never add things one call at a time.',
+		'- table_add puts everything for one part of the table on it in one call: any mix of sticky notes (`note`, a few words to two sentences), text cards (`text`, for a paragraph), links (`url`) and search results (`search`), set out together by `layout`. A comparison or grid is one table_add: one note per cell, in reading order, with `columns` set to the number of columns. Clusters, categories or a board’s columns are one table_add with `frames`, a named frame each. Never add things one call at a time, or a frame at a time.',
 		'- table_pull (context pull) is for “pull in the images and quotes” from blocks already there: one block, several, Casey’s selection (leave out `blocks`), or the whole table (blocks ["all"]). One call reads each block’s source and adds its pictures and best passages beside it, each joined to it by a line. Don’t fetch_page the blocks or table_add the pieces yourself, and don’t read the table first: it finds blocks by id or by words from their titles.',
 		'- table_render is for “render this PDF’s pages”, “screenshot this page”, “full-page screenshot of <address>”: one call, on blocks, Casey’s selection or `urls`. Don’t fetch_page or table_add first.',
-		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
+		'- table_arrange fixes the layout of what is already there in one call: the whole table (no ids), Casey’s selection (ids ["selected"]), or what a frame holds (`inside`). It measures every item and follows the arrows, so nothing overlaps: never work out positions yourself; table_move is for one exact spot or size. “Clean up”, “fix the layout” is `auto`; “org chart”, “hierarchy” is `tree`; “mind map” is `mindmap`; “flow”, “process” is `layered`; “network”, “how these relate” is `force`; “around X” is `radial` with `root`; “group by theme” is `cluster` with `groups` you choose from the items’ words, or `by` kind. A force-directed graph of clusters is cards and arrows, not frames (`force` sees a frame as one box): a text card per cluster, table_connect it to each of its items, then `force`. The arrow layouts draw the arrows already there: with none, connect first. `tidy` only nudges overlaps apart.',
 		'- table_tag reads tags and stages tag changes for posts, Raindrop bookmarks and Readwise items on the table: “tag these as X”, “retag this frame”, “what are these tagged”. One call for all the blocks (no ids: every one; `inside`: a frame’s id or name). Changes are staged for Casey to review and save on the table: say “staged”, never “saved”. Never micropub_update_post for their tags.',
-		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
+		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, gives blocks a different link, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
 		'- Don’t guess sizes. Blocks are about 240×240 (books 180×300); sticky notes are 200 wide and grow taller with their text; text cards wrap at the width you give (320 to 480 reads well). Use `below` or `right_of` an id, rather than coordinates, to put new things beside what they belong with, and leave 80 to 120 units between sections.',
 		'- Each change reports `issues` only when something overlaps, is crammed, or an arrow runs through a card it doesn’t join (`crossings`). Fix those with one table_arrange (layout `tidy`, or `auto` when it is a real mess) before you answer. No `issues` means the layout is clean.',
 		'- After building or rearranging more than a few things, call table_look once: it shows you a picture of the table with each item numbered (red means it overlaps). Fix what looks wrong, then answer. Don’t look more than twice.'
 	].join('\n')
 ].join('\n\n');
+
+/** Casey's own runs with no table open: what a table is, and that asking for one is a single call. */
+const NO_TABLE_SECTION = 'Tables: none is open beside this chat. A table is one of Casey’s canvases of blocks, notes and arrows; “canvas”, “board”, “map”, “graph” or “cluster these” ask for one. table_add makes a new table and puts everything on it in the same call: `frames` for named groups set out as grids; for a force-directed graph of clusters, no frames but a text card per cluster among the items, then table_connect each card to its links and table_arrange `force`. table_new makes an empty one. The other table_* tools join your tool list as soon as a table is open: Never tell Casey a table tool is missing: call it.';
 
 /** How long the prompt waits for Casey's page to say what is on the table; past it, the model reads the table itself. */
 const TABLE_NOW_WAIT = 2_500;
@@ -266,8 +277,9 @@ const SAVES_SECTION = [
 const scriptsSection = (names: string) => [
 	`Scripts: ${names} ${/ and |,/.test(names) ? 'are' : 'is'} also connected directly. codemode runs one short script that calls ${/ and |,/.test(names) ? 'their' : 'its'} tools (listed under “codemode” below) and hands you only what the script returns.`,
 	'- Use it for what my_saves can’t do: searching the words inside Reader documents (my_saves only searches highlights), a service’s own search, a question that needs several calls, and changes (saving, tagging, connecting) when such tools are listed. For “everything in” one channel, collection, shelf or book, my_saves with `in` is still the one call.',
-	'- One script per question. Make every call it needs (Promise.all for calls that don’t depend on each other), then `return` only what you will use: title, url, date and a line of text for at most 30 items. Tool results are JSON text: `JSON.parse` them, and never return one whole.',
-	'- A tool that isn’t listed can be found in the same script: `await searchTools("words")`, then call it. If a script fails, fix it from the error and run it once more; don’t repeat it unchanged.'
+	'- One script per question. Make every call it needs (Promise.all for calls that don’t depend on each other), then `return` only what you will use: title, url, date and a line of text for at most 30 items. Tool results are JSON text: `JSON.parse` them, and never return one whole. Any field can be missing or null (`item.summary?.slice(0, 80) ?? ""`). For a link give the page’s own address, not the service’s reader page.',
+	'- Never fetch the same list twice: `store("docs", list)` what a later script will need, and `load("docs")` it there.',
+	'- A tool that isn’t listed can be found in the same script: `await searchTools("words")`, then call it. That search holds only these services’ tools. Your own tools (table_*, search_site, my_saves, micropub_*) are never in it and never missing because of it: call them directly, not from a script. If a script fails, fix it from the error and run it once more; don’t repeat it unchanged.'
 ].join('\n');
 
 /** How much of a my_saves list is the items' own words, shared out among them. */
@@ -614,6 +626,8 @@ export function chatExtension(deps: ToolDeps): Extension {
 	};
 
 	const repeats = new RepeatGuard();
+	/** Replies cut off at the length limit in the run under way. */
+	let cutOffs = 0;
 	const showPage: ToolRegistration = {
 		name: 'show_page',
 		description: 'Show a preview card of one page (its title and opening lines) in the chat, for everyone reading to open. It doesn’t move anyone’s browser.',
@@ -660,7 +674,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 
 	// ------------------------------------------------------------------ tables
 
-	const NO_TABLE = 'There’s no table open beside this chat. Ask Casey to open one, or make one with table_new.';
+	const NO_TABLE = 'There’s no table open beside this chat. table_add makes one and puts things on it in one call (table_new makes an empty one); then call this again.';
 	const run = async (op: TableOp) => {
 		if (!thread?.table()) throw new Error(NO_TABLE);
 		return await thread.tableOp(op) as Record<string, unknown>;
@@ -686,8 +700,13 @@ export function chatExtension(deps: ToolDeps): Extension {
 	 * What every change answers with: what it did, where the items it touched are now, and
 	 * anything wrong with the layout. Enough that the model never reads the table to see its own work.
 	 */
-	const report = async (done: Record<string, unknown>, ids: string[], issues?: unknown) => {
-		const table = await run({ op: 'read' }) as { items?: TableItem[]; issues?: unknown };
+	const report = async (done: Record<string, unknown>, ids: string[], issues?: unknown, settle = false) => {
+		let table = await run({ op: 'read' }) as { items?: TableItem[]; issues?: unknown };
+		// `settle`: what was just set down may sit on a neighbour (a frame is wider than what it holds). Push apart once, here.
+		if (settle && issues === undefined && troubled(table.issues)) {
+			issues = (await run({ op: 'tidy' })).issues;
+			table = await run({ op: 'read' }) as { items?: TableItem[]; issues?: unknown };
+		}
 		const wanted = new Set(ids);
 		const items = (table.items ?? []).filter((item) => wanted.has(item.id)).map(brief);
 		const found = (issues ?? table.issues) as { overlaps?: unknown[]; crowded?: unknown[]; crossings?: unknown[] } | undefined;
@@ -702,6 +721,8 @@ export function chatExtension(deps: ToolDeps): Extension {
 	};
 	/** The most blocks one context pull reads; each may add seven cards. */
 	const PULL_MAX = 12;
+	/** The most named groups one table_add sets out. */
+	const FRAMES_MAX = 16;
 	const LAYOUTS = TABLE_LAYOUTS.filter((layout) => layout !== 'pack');
 
 	/** What tells one block from another on a table: its address, and for a passage taken from a page, its opening words. */
@@ -753,15 +774,36 @@ export function chatExtension(deps: ToolDeps): Extension {
 		return sections;
 	};
 
-	const tableTools: ToolRegistration[] = thread ? [
+	/**
+	 * One change to the table at a time. A model asks for several in the same round (a table_add per
+	 * cluster), and each looks for open space before the last has landed, so they pile up.
+	 */
+	let turn: Promise<unknown> = Promise.resolve();
+	const inTurn = (tool: ToolRegistration): ToolRegistration => ({
+		...tool,
+		execute: ((...given: unknown[]) => {
+			const mine = turn.then(() => (tool.execute as (...all: unknown[]) => unknown)(...given));
+			turn = mine.catch(() => undefined);
+			return mine;
+		}) as ToolRegistration['execute']
+	});
+
+	/** A new draft table, opened in Casey's browser. `open` is false when the page didn't show it in time. */
+	const makeTable = async (name: string) => {
+		const table = await thread!.createTable(name.trim().slice(0, 120));
+		const opened = await open(table.url).catch((error) => ({ path: table.url, table: `Made, but not opened: ${String((error as Error).message ?? error)} Give Casey the link.` }));
+		const said = 'table' in opened ? opened.table : undefined;
+		return { url: table.url, table: said, open: !!said?.startsWith('Open beside') };
+	};
+
+	const tableTools: ToolRegistration[] = thread ? ([
 		{
 			name: 'table_new',
 			description: 'Make a new, empty draft table for Casey and open it in Casey’s browser, ready for the other table_* tools. One call: don’t go_to it afterwards.',
 			parameters: { type: 'object', properties: { name: { type: 'string', maxLength: 120 } }, required: ['name'] },
 			async execute(args) {
-				const table = await thread.createTable(String((args as { name?: string }).name ?? '').slice(0, 120));
-				const opened = await open(table.url).catch((error) => ({ path: table.url, table: `Made, but not opened: ${String((error as Error).message ?? error)} Give Casey the link.` }));
-				return json({ name: (args as { name?: string }).name, url: table.url, draft: true, ...('table' in opened ? { table: opened.table } : {}), on_table: 0 });
+				const made = await makeTable(String((args as { name?: string }).name ?? ''));
+				return json({ name: (args as { name?: string }).name, url: made.url, draft: true, ...(made.table ? { table: made.table } : {}), on_table: 0, ...(made.open ? { next: 'Every table_* tool is in your tool list from now on: fill it with table_add.' } : {}) });
 			}
 		},
 		{
@@ -786,7 +828,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_add',
-			description: 'Put things on the table, as many as you like in one call, set out together so nothing overlaps: sticky notes, text cards, links, search results, and whole Are.na channels, Raindrop collections or Readwise shelves and books ({source, in}: every item in it, in its own frame named after it).',
+			description: 'Put things on the table, as many as you like in one call, set out together so nothing overlaps: sticky notes, text cards, links, search results, and whole Are.na channels, Raindrop collections or Readwise shelves and books ({source, in}: every item in it, in its own frame named after it). `frames` adds several named groups at once. With no table open, it makes one.',
 			parameters: {
 				type: 'object',
 				properties: {
@@ -809,65 +851,108 @@ export function chatExtension(deps: ToolDeps): Extension {
 							}
 						}
 					},
+					frames: {
+						type: 'array', maxItems: FRAMES_MAX,
+						description: 'Named groups (clusters, categories) in one call: each {name, items} becomes its own frame, in rows. `items` as above.',
+						items: { type: 'object', properties: { name: { type: 'string', maxLength: 120 }, items: { type: 'array', maxItems: 40, items: { type: 'object' } } }, required: ['name', 'items'] }
+					},
 					layout: { type: 'string', enum: LAYOUTS, description: 'grid (rows and columns line up; the default), columns (masonry, for notes of different lengths), row, or column.' },
 					columns: { type: 'integer', minimum: 1, maximum: 12, description: 'Columns for grid and columns: for a comparison, the number of things compared.' },
 					frame: { type: 'string', maxLength: 120, description: 'Put the new items in a frame with this name.' },
+					table: { type: 'string', maxLength: 120, description: 'A new table’s name, when none is open.' },
 					...PLACE
-				},
-				required: ['items']
+				}
 			},
 			async execute(args) {
 				const input = args as Record<string, unknown>;
-				const items = list(input.items, 40);
-				if (!items.length) throw new Error('Give `items`: a list such as [{"note": "…"}, {"url": "…"}, {"search": "…"}].');
-				const spot = place(input);
-				const layout = LAYOUTS.find((one) => one === input.layout);
-				const columns = Number(input.columns) || undefined;
-				const notes: TableNote[] = [], urls: string[] = [];
-				const pulls: { source: SaveSource; in: string; query?: string; limit: number }[] = [];
-				const added: string[] = [], said: string[] = [];
-				let kinds = 0;
 				// Models fill in every property of an item, often with empty strings: an item is its first one with words in it.
 				const said_ = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : undefined;
-				for (const item of items) {
-					const from = sourceOf(item.source), within = said_(item.in);
-					// A whole place, or what matches in it. All of Readwise by words goes the same way; Are.na and Raindrop by words alone are the table's own search.
-					if (from && (within || (from === 'readwise' && said_(item.search)))) { pulls.push({ source: from, in: within ?? '', query: said_(item.search)?.slice(0, 200), limit: Math.min(100, Math.max(1, Number(item.limit) || 100)) }); continue; }
-					if (from && from !== 'readwise' && said_(item.search) && !said_(item.url)) item.filter = from;
-					const url = said_(item.url), search = url ? undefined : said_(item.search), card = said_(item.text), sticky = said_(item.note);
-					// This site's pages go as full addresses: a bare path isn't a link to Casey's page.
-					if (url) { const path = sitePath(url, deps.origin()); urls.push(path ? new URL(path, deps.origin()).href : url); }
-					else if (search) {
-						const result = await run({ op: 'add_from_search', query: search.slice(0, 200), filter: item.filter as never, limit: Math.min(12, Number(item.limit) || 6), columns });
-						const got = idsOf(result.added);
-						added.push(...got);
+				const items = list(input.items, 40);
+				const groups = list(input.frames, FRAMES_MAX).map((group) => ({ name: (said_(group.name) ?? 'Group').slice(0, 120), items: list(group.items, 40) })).filter((group) => group.items.length);
+				if (!items.length && !groups.length) throw new Error('Give `items`: a list such as [{"note": "…"}, {"url": "…"}, {"search": "…"}], or `frames`: [{"name": "…", "items": […]}].');
+				// No table yet: make one, so “put these on a canvas” is this one call.
+				let made: Awaited<ReturnType<typeof makeTable>> | undefined;
+				if (!thread.table()) {
+					made = await makeTable(said_(input.table) ?? said_(input.frame) ?? (groups.length === 1 ? groups[0].name : 'Untitled table'));
+					if (!made.open || !thread.table()) throw new Error(`A new draft table was made at ${made.url}, but it hasn’t opened in Casey’s browser, so nothing is on it yet. Give Casey the link, and add to it once Casey says it is open.`);
+				}
+				const layout = LAYOUTS.find((one) => one === input.layout);
+
+				/** One set of items, set out together, in a frame when it is named. */
+				const addSet = async (set: Record<string, unknown>[], options: { spot: TablePlace; columns?: number; frame?: string }) => {
+					const { spot, columns } = options;
+					const notes: TableNote[] = [], urls: string[] = [];
+					const pulls: { source: SaveSource; in: string; query?: string; limit: number }[] = [];
+					const added: string[] = [], said: string[] = [];
+					let kinds = 0;
+					for (const item of set) {
+						const from = sourceOf(item.source), within = said_(item.in);
+						// A whole place, or what matches in it. All of Readwise by words goes the same way; Are.na and Raindrop by words alone are the table's own search.
+						if (from && (within || (from === 'readwise' && said_(item.search)))) { pulls.push({ source: from, in: within ?? '', query: said_(item.search)?.slice(0, 200), limit: Math.min(100, Math.max(1, Number(item.limit) || 100)) }); continue; }
+						if (from && from !== 'readwise' && said_(item.search) && !said_(item.url)) item.filter = from;
+						const url = said_(item.url), search = url ? undefined : said_(item.search), card = said_(item.text), sticky = said_(item.note);
+						// This site's pages go as full addresses: a bare path isn't a link to Casey's page.
+						if (url) { const path = sitePath(url, deps.origin()); urls.push(path ? new URL(path, deps.origin()).href : url); }
+						else if (search) {
+							const result = await run({ op: 'add_from_search', query: search.slice(0, 200), filter: item.filter as never, limit: Math.min(12, Number(item.limit) || 6), columns });
+							const got = idsOf(result.added);
+							added.push(...got);
+							kinds++;
+							said.push(got.length ? `“${search}”: ${got.length} added` : `“${search}”: nothing new matched`);
+						} else if (card || sticky) notes.push({ text: (card ?? sticky)!, style: card ? 'text' : 'note', w: card ? Number(item.w) || undefined : undefined, color: color(item.color) });
+						// An item with no words holds a cell of the grid open: the corner of a comparison with headings on both sides.
+						else notes.push({ text: '', blank: true });
+					}
+					if (urls.length) { added.push(...idsOf((await run({ op: 'add_links', urls: urls.slice(0, 40), find: await findHints(urls.slice(0, 40)), columns })).added)); kinds++; }
+					let issues: unknown;
+					const cells = notes.filter((note) => !note.blank);
+					if (cells.length) {
+						// Notes alone are made and set out in one change on Casey's page; mixed with blocks, everything is arranged together below.
+						const result = await run({ op: 'add_notes', notes: kinds ? cells : notes, layout, columns, ...(kinds ? {} : spot) });
+						added.push(...idsOf(result.added));
+						issues = result.issues;
 						kinds++;
-						said.push(got.length ? `“${search}”: ${got.length} added` : `“${search}”: nothing new matched`);
-					} else if (card || sticky) notes.push({ text: (card ?? sticky)!, style: card ? 'text' : 'note', w: card ? Number(item.w) || undefined : undefined, color: color(item.color) });
-					// An item with no words holds a cell of the grid open: the corner of a comparison with headings on both sides.
-					else notes.push({ text: '', blank: true });
+					}
+					if (added.length && (kinds > 1 || (!cells.length && (layout || placed(spot))))) {
+						issues = (await run({ op: 'arrange', layout: layout ?? 'grid', ids: added, columns: columns ?? Math.min(added.length, 4), ...spot })).issues;
+					}
+					// Set down on something that was already there: push apart once, here, rather than ask the model to.
+					if (troubled(issues)) issues = (await run({ op: 'tidy' })).issues;
+					const frame = added.length && options.frame ? idsOf((await run({ op: 'frame', name: options.frame.slice(0, 120), ids: added })).added)[0] : undefined;
+					const sections = pulls.length ? await pull(pulls, added.length ? {} : spot) : [];
+					return { added, said, frame, sections, issues, asked: pulls.length };
+				};
+
+				const sets: (Awaited<ReturnType<typeof addSet>> & { name?: string })[] = [];
+				if (items.length) sets.push(await addSet(items, { spot: place(input), columns: Number(input.columns) || undefined, frame: said_(input.frame) }));
+				// The groups go in rows, each frame beside the last, measured as it lands.
+				const perRow = Math.ceil(Math.sqrt(groups.length));
+				let next: TablePlace | undefined = sets.length ? {} : place(input), rowLeft: number | undefined, rowBottom = -Infinity, inRow = 0;
+				for (const group of groups) {
+					const columns = Number(input.columns) || Math.max(2, Math.min(8, Math.ceil(Math.sqrt(group.items.length * 1.4))));
+					const set = await addSet(group.items, { spot: next ?? {}, columns, frame: group.name });
+					sets.push({ ...set, name: group.name });
+					const box = set.frame ? ((await run({ op: 'read' }) as { items?: TableItem[] }).items ?? []).find((item) => item.id === set.frame) : undefined;
+					if (!box) { next = {}; continue; }
+					rowLeft ??= box.x;
+					rowBottom = Math.max(rowBottom, box.y + box.h);
+					next = ++inRow % perRow ? { at: { x: box.x + box.w + SECTION_GAP + FRAME_PAD, y: box.y + FRAME_PAD } } : { at: { x: rowLeft + FRAME_PAD, y: rowBottom + SECTION_GAP + FRAME_PAD } };
+					if (inRow % perRow === 0) rowBottom = -Infinity;
 				}
-				if (urls.length) { added.push(...idsOf((await run({ op: 'add_links', urls: urls.slice(0, 24), find: await findHints(urls.slice(0, 24)), columns })).added)); kinds++; }
-				let issues: unknown;
-				const cells = notes.filter((note) => !note.blank);
-				if (cells.length) {
-					// Notes alone are made and set out in one change on Casey's page; mixed with blocks, everything is arranged together below.
-					const result = await run({ op: 'add_notes', notes: kinds ? cells : notes, layout, columns, ...(kinds ? {} : spot) });
-					added.push(...idsOf(result.added));
-					issues = result.issues;
-					kinds++;
-				}
-				if (!added.length && !said.length && !pulls.length) throw new Error('Nothing was added: each item needs words in exactly one of note, text, url or search, such as {"note": "Micropub"}, or a source with in, such as {"source": "arena", "in": "Calm Technology Research"}.');
-				if (!added.length && !pulls.length) return json({ added: 0, searches: said });
-				if (added.length && (kinds > 1 || (!cells.length && (layout || placed(spot))))) {
-					issues = (await run({ op: 'arrange', layout: layout ?? 'grid', ids: added, columns: columns ?? Math.min(added.length, 4), ...spot })).issues;
-				}
-				// Set down on something that was already there: push apart once, here, rather than ask the model to.
-				if (troubled(issues)) issues = (await run({ op: 'tidy' })).issues;
-				const frame = added.length && typeof input.frame === 'string' && input.frame.trim() ? await run({ op: 'frame', name: input.frame.slice(0, 120), ids: added }) : undefined;
-				const sections = pulls.length ? await pull(pulls, added.length ? {} : spot) : [];
+				const added = sets.flatMap((set) => set.added), said = sets.flatMap((set) => set.said), sections = sets.flatMap((set) => set.sections);
+				if (!added.length && !said.length && !sets.some((set) => set.asked)) throw new Error('Nothing was added: each item needs words in exactly one of note, text, url or search, such as {"note": "Micropub"}, or a source with in, such as {"source": "arena", "in": "Calm Technology Research"}.');
+				const tableMade = made ? { table: made.url, table_made: 'A new draft table, open beside the chat now.' } : {};
+				if (!added.length && !sections.length) return json({ added: 0, ...tableMade, searches: said });
+				const framed = sets.filter((set) => set.frame);
+				const issues = sets.length === 1 && !framed.length && !sections.length ? sets[0].issues : undefined;
 				const total = added.length + sections.reduce((sum, section) => sum + (Number(section.added) || 0), 0);
-				return report({ added: total, ...(said.length ? { searches: said } : {}), ...(frame ? { frame: idsOf(frame.added)[0] } : {}), ...(sections.length ? { sections } : {}) }, [...added, ...sections.map((section) => section.frame).filter((id): id is string => typeof id === 'string')], frame || sections.length ? undefined : issues);
+				const named = framed.filter((set) => set.name);
+				return report({
+					added: total, ...tableMade, ...(said.length ? { searches: said } : {}),
+					...(framed.length && !named.length ? { frame: framed[0].frame } : {}),
+					...(named.length ? { frames: named.map((set) => ({ name: set.name, frame: set.frame, added: set.added.length })) } : {}),
+					...(sections.length ? { sections } : {})
+				}, named.length > 1 ? framed.map((set) => set.frame!) : [...added, ...sections.map((section) => section.frame).filter((id): id is string => typeof id === 'string')], issues, framed.length > 0);
 			}
 		},
 		{
@@ -981,7 +1066,12 @@ export function chatExtension(deps: ToolDeps): Extension {
 				if (layout === 'tidy') { const result = await run({ op: 'tidy', ids }); done.moved = result.moved; issues = result.issues; }
 				else if (layout) {
 					const groups: TableCluster[] = list(input.groups, 12).map((group) => ({ ...(typeof group.name === 'string' && group.name.trim() ? { name: group.name.trim().slice(0, 60) } : {}), ids: pick(group.ids) })).filter((group) => group.ids.length);
-					const result = await run({
+					// Groups that table_add already put in frames of their own are not framed again inside new ones: the frames are set out instead.
+					const held = layout === 'cluster' && groups.length ? ((await run({ op: 'read' }) as { items?: TableItem[] }).items ?? []) : [];
+					const frameOf = (group: TableCluster) => { const parents = new Set(group.ids.map((id) => held.find((item) => item.id === id)?.parent)); const only = parents.size === 1 ? [...parents][0] : undefined; return only && held.find((item) => item.id === only)?.type === 'frame' ? only : undefined; };
+					const frames = held.length ? groups.map(frameOf) : [];
+					const framed = frames.length > 0 && frames.every(Boolean) ? [...new Set(frames as string[])] : undefined;
+					const result = framed ? { ...await run({ op: 'arrange', layout: 'grid', ids: framed, ...place(input) }), note: 'Those groups are frames already, so they were set out side by side, not framed again.' } : await run({
 						op: 'arrange', layout, ids, ...(ordered ? { ordered } : {}), inside: one(input.inside), columns: Number(input.columns) || undefined, gap: typeof input.gap === 'number' ? input.gap : undefined,
 						direction: TABLE_DIRECTIONS.find((way) => way === input.direction), root: one(input.root), ...(groups.length ? { groups } : {}),
 						by: input.by === 'kind' || input.by === 'color' || input.by === 'connected' ? input.by : undefined, ...(input.frame === false ? { frame: false } : {}),
@@ -1041,11 +1131,11 @@ export function chatExtension(deps: ToolDeps): Extension {
 		},
 		{
 			name: 'table_edit',
-			description: 'Change things already on the table, all in one call: `edits` sets the words or colour of notes, text cards, arrow labels and frame names (blocks show their page and can’t be reworded); `remove` takes items off; `rename` renames the table.',
+			description: 'Change things already on the table, all in one call: `edits` sets the words or colour of notes, text cards, arrow labels and frame names (blocks show their page and can’t be reworded), or a block’s link (`url`); `remove` takes items off; `rename` renames the table.',
 			parameters: {
 				type: 'object',
 				properties: {
-					edits: { type: 'array', maxItems: 50, items: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' }, color: COLOR }, required: ['id'] } },
+					edits: { type: 'array', maxItems: 100, items: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' }, color: COLOR, url: { type: 'string', description: 'A block’s new link.' } }, required: ['id'] } },
 					remove: { ...IDS, description: 'Ids of items to take off the table.' },
 					rename: { type: 'string', maxLength: 120, description: 'A new name for the table.' }
 				}
@@ -1053,13 +1143,21 @@ export function chatExtension(deps: ToolDeps): Extension {
 			async execute(args) {
 				const input = args as Record<string, unknown>;
 				// An edit of `"selected"` is the same edit to each selected item: “make these red”.
-				const edits = list(input.edits, 50).filter((edit) => typeof edit.id === 'string').flatMap((edit) => pick([edit.id]).map((id) => ({ id, text: typeof edit.text === 'string' ? edit.text : undefined, color: color(edit.color) }))).slice(0, 100);
+				const asked = list(input.edits, 100).filter((edit) => typeof edit.id === 'string').flatMap((edit) => pick([edit.id]).map((id) => ({ id, text: typeof edit.text === 'string' ? edit.text : undefined, color: color(edit.color), url: typeof edit.url === 'string' && edit.url.trim() ? edit.url.trim() : undefined }))).slice(0, 100);
+				const edits = asked.filter((edit) => edit.text !== undefined || edit.color).map(({ id, text, color }) => ({ id, text, color }));
+				// This site's pages go as full addresses, as when they are added.
+				const links = asked.filter((edit) => edit.url).map((edit) => { const path = sitePath(edit.url!, deps.origin()); return { id: edit.id, url: path ? new URL(path, deps.origin()).href : edit.url! }; });
 				const remove = pick(input.remove);
 				const name = typeof input.rename === 'string' ? input.rename.trim().slice(0, 120) : '';
-				if (!edits.length && !remove.length && !name) throw new Error('Give `edits`, `remove` or `rename`.');
+				if (!edits.length && !links.length && !remove.length && !name) throw new Error('Give `edits`, `remove` or `rename`.');
 				const done: Record<string, unknown> = {};
 				let issues: unknown;
 				if (edits.length) { const result = await run({ op: 'edit', edits }); done.edited = result.edited; issues = result.issues; }
+				if (links.length) {
+					const result = await run({ op: 'relink', links, find: await findHints(links.map((link) => link.url)) });
+					done.relinked = result.relinked;
+					if (idsOf(result.skipped).length) done.not_relinked = { ids: idsOf(result.skipped), note: 'Not blocks, or not links: only a block’s link can change.' };
+				}
 				if (remove.length) done.removed = (await run({ op: 'remove', ids: remove })).removed;
 				if (name) done.name = (await run({ op: 'rename', name })).name;
 				// Rewording a note changes its height: say where the edited ones are now.
@@ -1105,7 +1203,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 				return { output: [{ type: 'text' as const, text: `The table, ${look.width}×${look.height}px, each item numbered at its top-left corner (key below). ${notes}` }, ...(image ? [{ type: 'image' as const, ...image }] : [])] };
 			}
 		}
-	] : [];
+	] as ToolRegistration[]).map(inTurn) : [];
 
 	const nameOf = (tool: { function?: { name?: string }; name?: string }) => tool.function?.name ?? tool.name ?? '';
 	return {
@@ -1118,7 +1216,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 			// Casey's skills by name and a line each; a skill's own words are read only when it is used (`skill-tools.ts`).
 			{ key: 'skills', render: () => deps.onlyOwner?.() && !deps.off?.('use_skill') ? skillsSection(deps.env.PUBLISHING_STATE) : undefined, tag: false },
 			...(thread ? [
-				{ key: 'table', render: () => thread.table() ? TABLE_SECTION : undefined, tag: false },
+				{ key: 'table', render: () => thread.table() ? TABLE_SECTION : deps.onlyOwner?.() ? NO_TABLE_SECTION : undefined, tag: false },
 				// Last, since it changes with every step and everything above it stays the same.
 				{ key: 'table-now', render: () => thread.table() ? tableNow(thread) : undefined, tag: false }
 			] : [])
@@ -1135,6 +1233,9 @@ export function chatExtension(deps: ToolDeps): Extension {
 					// The run's last round: without tools the model must answer from what it has, instead of ending on “it took too many steps”.
 					const turns = (await api.snapshot(LiveDoc, api.conversationId, context).catch(() => undefined))?.run?.turns ?? 0;
 					if (turns === 0) repeats.reset();
+					// A new run, not the one carrying on after a cut-off reply (which starts its count of rounds over).
+					const last = Array.isArray(payload.messages) ? payload.messages.at(-1) as { role?: string; content?: unknown } | undefined : undefined;
+					if (turns === 0 && !(last?.role === 'user' && JSON.stringify(last.content ?? '').includes(CUT_OFF_MARK))) cutOffs = 0;
 					if (turns >= maxTurns - 1) {
 						console.log(JSON.stringify({ event: 'chat_last_round', turns }));
 						const { tools: _tools, tool_choice: _choice, ...rest } = payload;
@@ -1144,18 +1245,29 @@ export function chatExtension(deps: ToolDeps): Extension {
 					// Take Casey's tools out of any request whose run isn't Casey's alone, and the table's when no table is open.
 					const table = !!thread?.table();
 					const owner = payload.tools.some((tool) => isOwnerTool(nameOf(tool))) && (deps.onlyOwner?.() || await ownerRun(api, context));
-					const tools = payload.tools.filter((tool) => (owner || !isOwnerTool(nameOf(tool))) && (table || !isTableTool(nameOf(tool))) && !deps.off?.(nameOf(tool)));
+					const tools = payload.tools.filter((tool) => (owner || !isOwnerTool(nameOf(tool))) && (table || !needsTable(nameOf(tool))) && !deps.off?.(nameOf(tool)));
 					if (tools.length === payload.tools.length) return { payload };
 					console.log(JSON.stringify({ event: 'chat_tools_withheld', owner, table, offered: tools.length, withheld: payload.tools.length - tools.length }));
 					return { payload: { ...payload, tools: tools.length ? tools : undefined, ...(tools.length ? {} : { tool_choice: undefined }) } };
 				},
-				afterRun() { repeats.reset(); deps.onRunEnd?.(); return undefined; }
+				/**
+				 * A reply that ran into the length limit ends the run as if it were finished: its unfinished
+				 * tool call never runs, and Casey gets a blank answer. Say so to the model and let it carry
+				 * on, once per run.
+				 */
+				onYield(answer) {
+					if ((answer as { stopReason?: string }).stopReason !== 'length' || cutOffs >= CUT_OFF_RETRIES) return undefined;
+					cutOffs++;
+					console.log(JSON.stringify({ event: 'chat_cut_off', retry: cutOffs }));
+					return { continue: CUT_OFF_NOTE };
+				},
+				afterRun() { repeats.reset(); cutOffs = 0; deps.onRunEnd?.(); return undefined; }
 			}),
 			// And refuse a call the model makes anyway.
 			hook(ToolTask, {
 				async beforeTool(call, api, context) {
 					if (deps.off?.(call.name)) return { block: 'Casey turned this tool off for this chat. Do without it, or say that it is off.' };
-					if (isTableTool(call.name) && !thread?.table()) return { block: NO_TABLE };
+					if (needsTable(call.name) && !thread?.table()) return { block: NO_TABLE };
 					const repeated = repeats.check(call.name, call.arguments);
 					if (repeated) return { block: repeated };
 					if (!isOwnerTool(call.name)) return undefined;

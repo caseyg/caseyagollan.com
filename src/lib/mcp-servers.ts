@@ -23,7 +23,7 @@ export const MCP_SERVERS: McpServer[] = [
 	{
 		id: 'readwise', name: 'Readwise', url: 'https://mcp2.readwise.io/mcp',
 		summary: 'Search the full text of everything in Reader, and read highlights and documents.',
-		guide: 'Casey’s Readwise: Reader documents (articles, PDFs, newsletters, with their full text) and highlights. The only way to search the words inside Reader documents.'
+		guide: 'Casey’s Readwise: Reader documents (articles, PDFs, newsletters, with their full text) and highlights. The only way to search the words inside Reader documents. A document’s `source_url` is the page itself: use it wherever you give or add a link. Its `url` only opens it in Reader.'
 	},
 	{
 		id: 'arena', name: 'Are.na', url: 'https://mcp.are.na/mcp', tokenSecret: 'ARENA_PAT',

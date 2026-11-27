@@ -105,6 +105,11 @@ export function budgeted(extension: Extension): Extension {
 			execute: async (args, api, context) => {
 				const started = Date.now();
 				const code = typeof (args as { code?: unknown })?.code === 'string' ? (args as { code: string }).code : '';
+				const own = ownToolIn(code);
+				if (own) {
+					console.log(JSON.stringify({ event: 'chat_script', own, codeChars: code.length, refused: true }));
+					throw new Error(`${own} is one of your own tools, not a script’s: it is in your tool list (a table tool once a table is open; table_add and table_new always). Call it directly, and never say it is missing.`);
+				}
 				const note = (extra: Record<string, unknown>) => console.log(JSON.stringify({ event: 'chat_script', calls: scriptCalls(code).slice(0, 12), finds: /\b(searchTools|describeTool|describeNamespace)\s*\(/.test(code), codeChars: code.length, ms: Date.now() - started, ...extra }));
 				try {
 					const result = await tool.execute(args as never, api, context);
@@ -118,6 +123,18 @@ export function budgeted(extension: Extension): Extension {
 			}
 		})
 	};
+}
+
+/**
+ * The chat's own tool a script reaches for (`tools.table_add(…)`, `describeTool("table_add")`,
+ * `searchTools("table add")`), if any. Scripts hold only the servers' tools, so such a script
+ * can only fail or come back empty, and the model has taken that to mean the tool doesn't exist.
+ */
+export function ownToolIn(code: string): string | undefined {
+	const called = /\btools\s*(?:\.\s*|\[\s*["'`])(table_[a-z]+|search_site|fetch_page|view_image|show_page|go_to|my_saves|use_skill|skill_find|skill_add|micropub_[a-z_]+)\b/.exec(code)?.[1];
+	if (called) return called;
+	const sought = /\b(?:searchTools|describeTool|describeNamespace)\s*\(\s*["'`]([^"'`]*)/.exec(code)?.[1] ?? '';
+	return /\b(table|tables|canvas|micropub)\b|table_|micropub_/i.test(sought) ? 'A table or posting tool' : undefined;
 }
 
 /** The `tools.mcp__…` calls a script makes, as readers see them: “Readwise: reader search documents”. */

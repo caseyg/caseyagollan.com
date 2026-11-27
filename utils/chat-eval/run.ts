@@ -9,7 +9,7 @@
  */
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { chatSelection, sayPrefix } from '../../src/lib/chat';
-import { chatExtension } from '../../src/lib/server/chat/tools';
+import { chatExtension, needsTable } from '../../src/lib/server/chat/tools';
 import { callMicropubTool, MICROPUB_TOOLS, type MicropubCall } from '../../src/lib/server/chat/micropub-mcp';
 import { invokedSkills, saveSkill } from '../../src/lib/server/chat/skills';
 import { fakeTable } from './fake-table';
@@ -122,7 +122,7 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));
-	const plain = () => [...(extension.tools as unknown as Tool[]), ...extra].filter((tool) => tableId || !tool.name.startsWith('table_') || tool.name === 'table_new');
+	const plain = () => [...(extension.tools as unknown as Tool[]), ...extra].filter((tool) => tableId || !needsTable(tool.name));
 	const offered = () => (process.env.CHAT_EVAL_VARIANT ?? '').split(',').includes('code') ? codeMode(plain()) : plain();
 	const system = async () => (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
 	// The same line the thread writes before each message: who, where, and what is selected on the table.

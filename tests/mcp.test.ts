@@ -7,7 +7,7 @@ import { createCodemodeExtension } from '@earendil-works/pi-durable/codemode';
 import { MCP_SERVERS, mcpServer } from '../src/lib/mcp-servers';
 import { challengeReason, McpAuthError, McpSession, readsOnly, replyFrom } from '../src/lib/server/mcp/client';
 import { bearer, connections, disconnect, finishConnect, markBroken, mcpDeps, setWrites, startConnect, usableServers, McpConnectError } from '../src/lib/server/mcp/connections';
-import { budgeted, withOutputBudget, mcpExtension, mcpNamespaces, mcpToolName, mcpTools, parametersOf, scriptCalls, sectionsWhen, serverNames } from '../src/lib/server/chat/mcp-tools';
+import { budgeted, ownToolIn, withOutputBudget, mcpExtension, mcpNamespaces, mcpToolName, mcpTools, parametersOf, scriptCalls, sectionsWhen, serverNames } from '../src/lib/server/chat/mcp-tools';
 import { isPrivateTool, projectMessages, SAY_KIND, toolLabel } from '../src/lib/server/chat/projection';
 import { chatExtension, isOwnerTool } from '../src/lib/server/chat/tools';
 import { sha256 } from '../src/lib/server/publishing/dpop';
@@ -266,6 +266,22 @@ describe('MCP tools in the chat', () => {
 	test('every script gets the chat’s output budget unless it sets its own', () => {
 		expect(withOutputBudget('return 1')).toBe('// @options: {"max_output_tokens": 4000}\nreturn 1');
 		expect(withOutputBudget('// @options: {"timeout_ms": 5000}\nreturn 1')).toBe('// @options: {"timeout_ms": 5000}\nreturn 1');
+	});
+
+	test('a script that reaches for one of the chat’s own tools is refused with where to find it', async () => {
+		expect(ownToolIn('return await tools.table_add({ items: [] })')).toBe('table_add');
+		expect(ownToolIn('return await describeTool("table_add")')).toBe('A table or posting tool');
+		expect(ownToolIn('return await searchTools("add blocks to table canvas")')).toBe('A table or posting tool');
+		// Scripts that only use the servers, or read a field with such a name, go ahead.
+		expect(ownToolIn('const found = JSON.parse(await tools.mcp__readwise__reader_list_documents({})); return found.results.map((doc) => doc.table_of_contents);')).toBeUndefined();
+		expect(ownToolIn('return await searchTools("list documents")')).toBeUndefined();
+		let ran = 0;
+		const scripts = budgeted({ name: 'codemode', tools: [{ name: 'codemode', description: '', parameters: {}, execute: async () => { ran++; return { output: [] }; } }] });
+		const codemode = scripts.tools![0].execute as (args: unknown, api: unknown, context: unknown) => Promise<unknown>;
+		await expect(codemode({ code: 'return await searchTools("table add")' }, {}, {})).rejects.toThrow(/one of your own tools.*Call it directly/);
+		expect(ran).toBe(0);
+		await codemode({ code: 'return 1' }, {}, {});
+		expect(ran).toBe(1);
 	});
 
 	test('a section can be shown to Casey only', async () => {
