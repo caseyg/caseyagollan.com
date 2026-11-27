@@ -21,7 +21,7 @@ const post = { kind: 'post' as const, url: '/2026/11/01/hello/', title: 'Hello',
 describe('a table changed where it is saved', () => {
 	test('is written for the tldraw the canvas runs', () => {
 		const now = schema.serialize() as { schemaVersion: number; sequences: Record<string, number> };
-		expect({ ...SCHEMA.sequences, 'com.tldraw.shape.site-block': 0 }).toEqual({ ...now.sequences, 'com.tldraw.shape.site-block': 0 });
+		expect({ ...SCHEMA.sequences, 'com.tldraw.shape.site-block': 0 } as Record<string, number>).toEqual({ ...now.sequences, 'com.tldraw.shape.site-block': 0 });
 		for (const [kind, version] of Object.entries(MADE_FOR)) expect([kind, (SCHEMA.sequences as Record<string, number>)[kind]]).toEqual([kind, version]);
 	});
 
