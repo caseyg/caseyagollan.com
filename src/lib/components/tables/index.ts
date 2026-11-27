@@ -4,6 +4,7 @@ export { default as ArenaBlock } from './ArenaBlock.svelte';
 export { default as BlockCard } from './BlockCard.svelte';
 export { default as SocialBlock } from './SocialBlock.svelte';
 export { default as BlockPicker } from './BlockPicker.svelte';
+export { default as TableAppView } from './TableAppView.svelte';
 export { default as TableCanvas, BLOCK_DRAG_TYPE } from './TableCanvas.svelte';
 export { default as TableCard } from './TableCard.svelte';
 export { default as TableGrid } from './TableGrid.svelte';

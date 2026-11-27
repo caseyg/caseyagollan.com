@@ -13,6 +13,15 @@ export const TLDRAW_LICENSE_KEY =
  */
 export const TLDRAW_PREVIEW_LICENSE_KEY: string = typeof __TLDRAW_PREVIEW_LICENSE_KEY__ === 'string' ? __TLDRAW_PREVIEW_LICENSE_KEY__ : '';
 
+/**
+ * A third key, for the table view Claude shows (`src/mcp-app/`): Claude serves it from
+ * `<hash>.claudemcpcontent.com` (the hash is of `https://caseyagollan.com/mcp`), which the site's
+ * licence doesn't cover. Empty until tldraw issues one for that host; until then the canvas there
+ * hides after a few seconds, as on any unlicensed host.
+ */
+export const TLDRAW_CLAUDE_LICENSE_KEY: string = '';
+const claudeHost = (hostname: string) => hostname.toLowerCase().endsWith('.claudemcpcontent.com');
+
 /** Hosts the site's licence covers, plus loopback hosts, where tldraw needs none. */
 function siteHost(hostname: string): boolean {
 	const host = hostname.toLowerCase();
@@ -27,10 +36,12 @@ function expired(key: string, now: Date): boolean {
 
 /** The key to hand tldraw on this host: the site's own wherever it applies, the preview key elsewhere. */
 export function tldrawLicenseKey(hostname: string, previewKey = TLDRAW_PREVIEW_LICENSE_KEY): string {
+	if (claudeHost(hostname) && TLDRAW_CLAUDE_LICENSE_KEY) return TLDRAW_CLAUDE_LICENSE_KEY;
 	return siteHost(hostname) || !previewKey ? TLDRAW_LICENSE_KEY : previewKey;
 }
 
 /** Whether the canvas stays up on this host. */
 export function tldrawLicensed(hostname: string, previewKey = TLDRAW_PREVIEW_LICENSE_KEY, now = new Date()): boolean {
+	if (claudeHost(hostname)) return !!TLDRAW_CLAUDE_LICENSE_KEY && !expired(TLDRAW_CLAUDE_LICENSE_KEY, now);
 	return siteHost(hostname) || (!!previewKey && !expired(previewKey, now));
 }

@@ -9,7 +9,8 @@
 	import { listTables, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import { hashItem } from '$lib/table-search';
-	import { linkedBlock, searchBlocks, withOwnerSources } from '$lib/table-sources';
+	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
+	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
 	import { pagePieces, pickPieces } from '$lib/table-pieces';
 	import { PDF_PAGES_AT_ONCE, pdfName, pdfPageBlock, pdfPageSrc, pdfPages, renderSize, type PdfStore, type RenderedPage } from '$lib/table-render';
 	import { wikiHref } from '$lib/wiki/links';
@@ -140,36 +141,9 @@
 	async function tableOp(event: TableOpEvent): Promise<TableOpResult> {
 		if (!api || !editable) return { ok: false, error: 'The table isn’t ready to edit yet.' };
 		const { type: _type, id: _id, ...op } = event;
+		// Search results, links and relinking are found the same way in the table view inside Claude.
+		if (isLookupOp(op)) return lookupOp(op, { api, placed: () => view.placed, search: ownerSearch, origin: location.origin });
 		switch (op.op) {
-			case 'add_from_search': {
-				const placed = new Set(view.placed);
-				const found = ((await ownerSearch(op.query, op.filter ?? 'all')) ?? []).filter((block) => !placed.has(blockKey(block))).slice(0, op.limit ?? 6);
-				if (!found.length) return { ok: true, result: { added: [], note: 'Nothing new matched.' } };
-				const ids = api.addBlocks(found, op.at, { columns: op.columns ?? Math.min(found.length, 3), page: !!op.at, select: true });
-				return { ok: true, result: { added: ids.map((shapeId, index) => ({ id: shapeId.replace(/^shape:/, ''), title: found[index]?.title, url: found[index]?.url })) } };
-			}
-			case 'add_links': {
-				const blocks = (await Promise.all(op.urls.map((url) => linkedBlock(url, op.find?.[url], location.origin)))).filter((block): block is Block => !!block);
-				if (!blocks.length) return { ok: false, error: 'None of those were links.' };
-				const ids = api.addBlocks(blocks, op.at, { columns: op.columns ?? Math.min(blocks.length, 3), page: !!op.at, select: true });
-				return { ok: true, result: { added: ids.map((shapeId) => shapeId.replace(/^shape:/, '')) } };
-			}
-			case 'relink': {
-				const { items } = (await api.perform({ op: 'read' })) as { items: TableItem[] };
-				const found = await Promise.all(op.links.map(async ({ id, url }) => {
-					const was = items.find((one) => one.id === id.replace(/^shape:/, ''));
-					const block = was?.url ? await linkedBlock(url, op.find?.[url], location.origin) : null;
-					if (!was || !block) return null;
-					// A page nothing more is known about keeps the card's own title and picture: only where it leads changes.
-					const bare = block.kind === 'link' && !block.excerpt && !block.image;
-					return { id: was.id, block: bare ? { ...block, title: was.title ?? block.title, ...(was.image ? { image: was.image } : {}) } : block };
-				}));
-				const blocks = found.filter((one): one is { id: string; block: Block } => !!one);
-				const skipped = op.links.filter((_, index) => !found[index]).map((link) => link.id);
-				if (!blocks.length) return { ok: false, error: 'None of those are blocks with a link.' };
-				const result = (await api.perform({ op: 'set_blocks', cards: blocks })) as { relinked: number; skipped?: string[] };
-				return { ok: true, result: { ...result, ...(skipped.length || result.skipped?.length ? { skipped: [...skipped, ...(result.skipped ?? [])] } : {}) } };
-			}
 			case 'add_pieces': {
 				const { items } = (await api.perform({ op: 'read' })) as { items: TableItem[] };
 				const item = items.find((one) => one.id === op.block.replace(/^shape:/, ''));

@@ -17,3 +17,13 @@
   Permissions-Policy: camera=(), microphone=(), payment=(), usb=(), geolocation=(self)
   X-Frame-Options: SAMEORIGIN
   Content-Security-Policy: base-uri 'self'; object-src 'none'; frame-ancestors 'self'
+
+# The table view Claude shows (an MCP App) runs in Claude's sandbox, at an address that isn't the
+# site's, and loads its script, the search index and each post's source from here. All of it is
+# public already; this lets a page elsewhere read it, without cookies.
+/mcp-app/*
+  Access-Control-Allow-Origin: *
+/pagefind/*
+  Access-Control-Allow-Origin: *
+/:year/:month/:day/:slug/source.json
+  Access-Control-Allow-Origin: *

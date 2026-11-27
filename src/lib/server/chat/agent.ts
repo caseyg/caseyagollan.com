@@ -21,6 +21,7 @@ import { createCodemodeExtension } from '@earendil-works/pi-durable/codemode';
 import { createInlineCodemodeSandbox } from '@earendil-works/pi-codemode/cloudflare';
 import { CHAT_MAX_MESSAGE, chatAuthor, chatPage, chatSayId, chatSelection, chatTitle, sayPrefix, SELECTION_LISTED, threadTitle, type ChatAuthor, type ChatClientEvent, type ChatPage, type ChatMessage, type ChatServerEvent, type ChatSnapshot, type ChatThreadSummary, type ChatViewer } from '../../chat';
 import { canvasOrder, tableOpTimeout, unansweredTable } from './canvas';
+import { RemoteCanvas, type ViewTurn } from './remote-canvas';
 import { publishingConfig } from '../publishing/config';
 import type { PublishingEnvironment } from '../publishing/config';
 import { randomToken } from '../publishing/dpop';
@@ -443,6 +444,20 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		if (reply.ok) waiting.resolve(reply.result);
 		else waiting.reject(new Error(String(reply.error).slice(0, 300)));
 	}
+
+	// ------------------------------------------------------------------ the table view inside Claude
+
+	/**
+	 * This thread's table open as a canvas inside Claude (an MCP App, `remote-canvas.ts`). It can't
+	 * hold a socket here, so it asks for its changes. Only `/mcp` calls these, behind its token.
+	 */
+	private remote = new RemoteCanvas();
+
+	async viewAttach(view: string): Promise<void> { this.remote.attach(view); }
+	async viewNext(view: string, wait?: number): Promise<ViewTurn> { return this.remote.next(view, wait); }
+	async viewDone(view: string, reply: TableOpReply): Promise<void> { this.remote.done(view, reply); }
+	async viewOpen(): Promise<boolean> { return this.remote.open(); }
+	async viewOp(op: TableOp): Promise<unknown> { return this.remote.perform(op); }
 
 	/**
 	 * A table's thread, made the first time its page asks: named for the table, at the id

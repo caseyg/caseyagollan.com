@@ -52,6 +52,18 @@ An IndieAuth server that does these three things can be signed in to by a generi
 
 `/mcp` (2026-11-27) is a second server on the same transport, for the site rather than for Micropub: search, reading pages, the owner's saves and tables, and the four posting tools as the chat has them (the one-line-per-post list, one post's Markdown source, create, update). Its tools are the chat's own registrations, not copies. It needs a token with `read`; posting tools call Micropub with the caller's own token, so `create`, `draft` and `update` decide what a client may write, as for any Micropub client. `/micropub/mcp` stays as specified above for clients that want Micropub alone.
 
+### A view of the site inside the client (MCP Apps)
+
+Some MCP clients draw a page a server provides beside a tool's result (the MCP Apps extension, `io.modelcontextprotocol/ui`). This site uses it for tables, its canvases of posts and notes: `table_open` names a `ui://` resource, and the client shows the table as a live canvas the person can use while the other `table_*` tools change it.
+
+What generalizes to any personal site:
+
+- **The view has no session.** It runs in the client's sandbox at an address that isn't the site's, without cookies. Everything it does goes through tool calls its host relays with the same token the connection was approved with: load, save, and a long poll for the next change. Those tools are marked `visibility: ["app"]`, so a model is never offered them.
+- **The page is a shell.** The resource is a few lines of HTML that load a script from the site, so the site's own components draw the view and a deploy updates it. The resource names every host it loads from (`_meta.ui.csp`), and the site lets other origins read only what is public anyway (the script, the search index, public posts' sources).
+- **One live view per thing.** Opening the same table again replaces the earlier view, which is told to stop saving, so two canvases never write over each other.
+- **Scopes still decide.** Reading a table needs `read`; changing one needs `update` and making one `create`, the scopes Micropub already defines. A connection without them gets a canvas to look at.
+- **Clients that draw nothing lose nothing.** Tools that need the view are left out for a client that didn't declare the extension, so it never sees a tool it can't use.
+
 ## In-process use
 
 The site's `/chat` agent uses the same server in process, through a small MCP client that sends the same JSON-RPC messages. It is offered only when every message the agent is answering came from the site owner's own passkey session; the Worker checks that on each turn. The agent then holds a single-use token accepted only by that call's Micropub handler (`ownerMicropub`), with `create update draft` scopes.
