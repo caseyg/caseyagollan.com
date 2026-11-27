@@ -238,7 +238,7 @@ export function itemsFromDocument(document: unknown): TableItem[] {
 }
 
 /** The words in a tldraw rich-text (ProseMirror) document. */
-function plainText(node: unknown): string {
+export function plainText(node: unknown): string {
 	if (!node || typeof node !== 'object') return '';
 	const { text, content, type } = node as { text?: unknown; content?: unknown[]; type?: string };
 	if (typeof text === 'string') return text;

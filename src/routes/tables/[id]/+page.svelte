@@ -5,12 +5,15 @@
 	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
 	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
-	import { readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
+	import { page } from '$app/state';
+	import { listTables, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
+	import { useTablesCommands } from '$lib/tables-commands.svelte';
+	import { hashItem } from '$lib/table-search';
 	import { linkedBlock, searchBlocks, withOwnerSources } from '$lib/table-sources';
 	import { pagePieces, pickPieces } from '$lib/table-pieces';
 	import { PDF_PAGES_AT_ONCE, pdfName, pdfPageBlock, pdfPageSrc, pdfPages, renderSize, type PdfStore, type RenderedPage } from '$lib/table-render';
 	import { wikiHref } from '$lib/wiki/links';
-	import { blockKey, isBlockKind, type Block } from '$lib/tables';
+	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
@@ -216,6 +219,7 @@
 	onMount(() => {
 		void (async () => {
 			session = await tablesSession();
+			void listTables(session).then((list) => (tables = list));
 			if (!data.table) {
 				const local = session.mode === 'demo' ? readDemoTable(id) : null;
 				if (!local) {
@@ -238,6 +242,14 @@
 			// Leaving for another page (or another table): save what's waiting now.
 			if (pending !== undefined) void flush();
 		};
+	});
+
+	// ⌘K lists the other tables and finds words on any of them; a result's link names the thing to show.
+	let tables = $state<TableSummary[]>([]);
+	useTablesCommands(() => ({ tables, mode: session?.mode ?? 'visitor', currentId: id }));
+	$effect(() => {
+		const item = hashItem(page.url.hash);
+		if (item && api) void api.perform({ op: 'select', ids: [item] });
 	});
 
 	function onready(ready: TableApi) {

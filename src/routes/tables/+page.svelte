@@ -6,6 +6,7 @@
 	import { TableGrid, TABLES_CRUMB } from '$lib/components/tables';
 	import { Button, Notice, Page, PageHeader } from '$lib/components/ui';
 	import { createTable, listDemoTables, tableHref, tablesSession, thumbnailUrl, type TablesSession } from '$lib/tables-client';
+	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import type { TableSummary } from '$lib/tables';
 
 	let { data }: { data: PageData } = $props();
@@ -35,6 +36,8 @@
 			creating = false;
 		}
 	}
+
+	useTablesCommands(() => ({ tables, mode: session.mode, onNew: editable ? newTable : undefined }));
 </script>
 
 <svelte:head>
