@@ -34,8 +34,23 @@ Delete and undelete are left out on purpose: an agent reading untrusted pages sh
 ## Transport
 
 - `POST /micropub/mcp` with one JSON-RPC message (or a batch), `Authorization: Bearer <IndieAuth token>`, `Content-Type: application/json`. Answers are JSON (Streamable HTTP without SSE). Notifications get `202 Accepted`. No session id is issued.
-- Without a Bearer token the server answers `401` with `WWW-Authenticate: Bearer`.
+- Without a Bearer token the server answers `401` with `WWW-Authenticate: Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource/micropub/mcp"` (see Signing in from an MCP client).
 - Methods: `initialize` (protocol version `2025-06-18`), `ping`, `tools/list`, `tools/call`.
+
+## Signing in from an MCP client
+
+Added 2026-11-27, so that an MCP client such as Claude can be pointed at the server's address and sign in by itself, with no pasted token. MCP's authorization is OAuth 2.1 with discovery; an IndieAuth server is nearly that already. What it took:
+
+- **Protected resource metadata** (RFC 9728) at `/.well-known/oauth-protected-resource/<path of the MCP server>`: `resource` (the server's exact URL), `authorization_servers` (the IndieAuth issuer), `scopes_supported`, `bearer_methods_supported: ["header"]`. The `401` names it in `WWW-Authenticate`.
+- **Client ID Metadata Documents.** IndieAuth clients are already identified by a URL, and this server already accepted a JSON document there (`client_id`, `client_name`, `redirect_uris`). Authorization server metadata now says so with `client_id_metadata_document_supported: true`, which is what MCP clients look for before they fall back to dynamic client registration (which this server does not offer). `token_endpoint_auth_methods_supported` stays `["none"]`.
+- **Refresh tokens.** A code exchanged at the token endpoint now also returns a `refresh_token` (IndieAuth allows it). `grant_type=refresh_token` returns a new access token and a new refresh token and ends the old pair; a refresh token works once and lasts 90 days unused. Revoking the access token (RFC 7009, or from the owner's token list) ends its refresh token, and the reverse. Personal tokens made on the account page have none. `grant_types_supported` lists `refresh_token`.
+- **Scopes.** The owner still ticks which scopes to grant on the consent page. A client that names an MCP server in the `resource` parameter (RFC 8707) and asks for no scopes is offered that server's `scopes_supported`. Tokens are not bound to one resource: both MCP servers and Micropub belong to the same owner and check scopes themselves.
+
+An IndieAuth server that does these three things can be signed in to by a generic MCP client. Nothing changes for existing IndieAuth clients except that they are handed a refresh token they may ignore.
+
+## The whole site as an MCP server
+
+`/mcp` (2026-11-27) is a second server on the same transport, for the site rather than for Micropub: search, reading pages, the owner's saves and tables, and the four posting tools as the chat has them (the one-line-per-post list, one post's Markdown source, create, update). Its tools are the chat's own registrations, not copies. It needs a token with `read`; posting tools call Micropub with the caller's own token, so `create`, `draft` and `update` decide what a client may write, as for any Micropub client. `/micropub/mcp` stays as specified above for clients that want Micropub alone.
 
 ## In-process use
 
@@ -51,8 +66,8 @@ It leaves out `micropub_config`. The server at `/micropub/mcp` is unchanged; a `
 ## Open questions
 
 - Should `q=config` advertise the MCP endpoint (for example `"mcp": "https://example.com/micropub/mcp"`) so MCP-capable clients can find it from the Micropub endpoint?
-- MCP's own authorization spec is OAuth 2.1 with protected-resource metadata. An IndieAuth server is already OAuth 2.0 with PKCE; publishing `/.well-known/oauth-protected-resource` for `/micropub/mcp` would let generic MCP clients sign in without a pasted token.
+- Tokens are not audience-bound. Should a token issued for `resource=…/mcp` be refused at `/micropub`, or is one owner's scopes enough?
 - A media tool (`micropub_upload`) needs a way to pass files that MCP doesn't settle yet.
 - Should `micropub_list_posts` return summaries by default, with full sources on request? Agents rarely want twenty posts' sources, and their context is the scarce thing.
 
-Code: `src/lib/server/chat/micropub-mcp.ts`, route `src/routes/micropub/mcp/+server.ts`, tests in `tests/chat.test.ts`.
+Code: `src/lib/server/chat/micropub-mcp.ts`, route `src/routes/micropub/mcp/+server.ts`, tests in `tests/chat.test.ts`. The site server: `src/lib/server/mcp/server.ts` and `site.ts`, routes `src/routes/mcp/+server.ts` and `src/routes/.well-known/oauth-protected-resource/`, tests in `tests/site-mcp.test.ts`; refresh tokens in `src/lib/server/indieauth/state.ts`.

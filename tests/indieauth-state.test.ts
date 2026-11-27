@@ -615,3 +615,33 @@ test("alarms follow earliest expiration and stop after final expiring row is cle
   await state.alarm();
   expect(storage.alarmAt).toBeNull();
 });
+test("a code's token comes with a refresh token that renews it once, and revoking either ends both", async () => {
+  const { state, owner, advance } = await enrolled();
+  const verifier = "A".repeat(43);
+  const request = { clientId: "https://claude.example/client.json", redirectUri: "https://claude.example/callback", scope: ["read", "draft"], codeChallenge: await hash(verifier) };
+  const grant = async () => {
+    const { id } = await state.invoke("createRequest", request);
+    const { code } = await state.invoke("approveRequest", { id, session: owner.sessionToken, csrf: owner.csrf, scope: ["read"] });
+    return state.invoke("exchangeCode", { code, clientId: request.clientId, redirectUri: request.redirectUri, verifier });
+  };
+  const first = await grant();
+  expect(first.refresh_token).toBeString();
+  // Another client can't use it; the client itself can, with or without naming itself.
+  await expect(state.invoke("refreshToken", { token: first.refresh_token!, clientId: "https://evil.example/" })).rejects.toThrow("invalid_grant");
+  const second = await state.invoke("refreshToken", { token: first.refresh_token!, clientId: request.clientId });
+  expect(second.scope).toBe("read");
+  expect(second.refresh_token).not.toBe(first.refresh_token);
+  expect((await state.invoke("introspectToken", { token: first.access_token })).active).toBe(false);
+  expect((await state.invoke("introspectToken", { token: second.access_token })).active).toBe(true);
+  await expect(state.invoke("refreshToken", { token: first.refresh_token! })).rejects.toThrow("invalid_grant");
+  // A personal token has no refresh token.
+  expect("refresh_token" in (await state.invoke("personalToken", { session: owner.sessionToken, csrf: owner.csrf, scope: ["read"] }))).toBe(false);
+  // After the access token runs out, the renewal still works.
+  advance(settings.tokenTTL * 1000 + 1);
+  expect((await state.invoke("introspectToken", { token: second.access_token })).active).toBe(false);
+  const third = await state.invoke("refreshToken", { token: second.refresh_token! });
+  expect((await state.invoke("introspectToken", { token: third.access_token })).active).toBe(true);
+  // Handing back the access token ends the renewal too.
+  await state.invoke("revokeToken", { token: third.access_token });
+  await expect(state.invoke("refreshToken", { token: third.refresh_token! })).rejects.toThrow("invalid_grant");
+});
