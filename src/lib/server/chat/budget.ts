@@ -1,21 +1,17 @@
 /**
  * What each person's chat costs, by calendar month (UTC), and the cap on it.
  *
- * Every answer's model usage is priced (`MODEL_PRICES`, inference.coop's own rates) and
+ * Every answer's model usage is priced (the registry in `chat-models.ts`, each provider's own rates) and
  * charged to the people whose messages it answered, split evenly. Spend is kept per person
  * per month in `PUBLISHING_STATE` at `chat/spend/<YYYY-MM>/<hashed person id>.json`, so it
  * counts across every thread. Casey's own messages are not capped.
  */
+import { modelPrice } from '../../chat-models';
+
 export const DEFAULT_MONTHLY_BUDGET = 3;
 
-/** US dollars per million tokens, from inference.coop's model list. Unknown models use the dearest. */
-export const MODEL_PRICES: Record<string, { input: number; output: number }> = {
-	'glm-flash-green': { input: 0.11, output: 0.44 },
-	'greenpt/glm-5.3-flash': { input: 0.11, output: 0.44 },
-	'greenpt/glm-5.3': { input: 1.1, output: 4.4 },
-	'glm-tee': { input: 1.8, output: 5.75 }
-};
-export const priceOf = (model: string) => MODEL_PRICES[model] ?? { input: 1.8, output: 5.75 };
+/** US dollars per million tokens, from the model registry. Unknown models use the dearest. */
+export const priceOf = (model: string) => modelPrice(model);
 
 export const monthOf = (at: number) => new Date(at).toISOString().slice(0, 7);
 

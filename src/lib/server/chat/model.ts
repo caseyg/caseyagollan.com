@@ -6,8 +6,7 @@
  */
 
 export const INFERENCE_BASE_URL = 'https://gateway.inference.coop/v1';
-/** Fast, takes tools, and runs on renewable power; `CHAT_MODEL` picks another. */
-export const DEFAULT_CHAT_MODEL = 'glm-flash-green';
+export { DEFAULT_CHAT_MODEL } from '../../chat-models';
 
 export interface ModelToolCall { id: string; type: 'function'; function: { name: string; arguments: string } }
 export type ModelMessage =

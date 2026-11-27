@@ -52,6 +52,8 @@ export class LiveThread {
 	tools = $state<string[]>([]);
 	/** Casey's Tools menu: the groups of tools in this chat and what is off. Null for anyone else. */
 	choices = $state<import('./chat-tool-groups').ChatToolChoices | null>(null);
+	/** Casey's Model menu: the models this chat could answer with and the one it does. Null for anyone else, or with only one. */
+	models = $state<import('./chat-models').ChatModelChoices | null>(null);
 	status = $state<LiveStatus>('connecting');
 	error = $state('');
 	/** The chat was deleted while this page had it open. */
@@ -203,6 +205,12 @@ export class LiveThread {
 		this.#send({ type: 'chat:tools-off', off });
 	}
 
+	/** Answer with another model from here on; shown at once, and the thread answers with what it kept. */
+	setModel(model: string) {
+		if (this.models) this.models = { ...this.models, current: model };
+		this.#send({ type: 'chat:model', model });
+	}
+
 	#send(event: ChatClientEvent) {
 		if (this.#socket?.readyState === WebSocket.OPEN) this.#socket.send(JSON.stringify(event));
 	}
@@ -308,6 +316,7 @@ export class LiveThread {
 			}
 			case 'chat:abilities': this.tools = event.tools; break;
 			case 'chat:choices': this.choices = { groups: event.groups, off: event.off }; break;
+			case 'chat:models': this.models = { models: event.models, current: event.current }; break;
 		}
 	}
 }

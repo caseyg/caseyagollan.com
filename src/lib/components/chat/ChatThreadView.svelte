@@ -76,7 +76,7 @@
 			<!-- Nothing left to reply to. -->
 		{:else if viewer}
 			<!-- Over the socket when it's open; otherwise the form posts, where the page takes one. -->
-			<ChatPromptInput {viewer} bind:value={text} onsend={posts && live.status !== 'live' ? undefined : send} returnTo={href ?? CHAT_CRUMB.href} tools={live.tools} choices={live.choices} onchoices={(off) => live.setOff(off)} label="Reply" compact />
+			<ChatPromptInput {viewer} bind:value={text} onsend={posts && live.status !== 'live' ? undefined : send} returnTo={href ?? CHAT_CRUMB.href} tools={live.tools} choices={live.choices} onchoices={(off) => live.setOff(off)} models={live.models} onmodel={(model) => live.setModel(model)} label="Reply" compact />
 		{:else}
 			<ChatSignIn returnTo={href ?? CHAT_CRUMB.href} error={signinError} open={!!signinError} />
 		{/if}

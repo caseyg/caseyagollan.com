@@ -214,6 +214,8 @@
 			tools={live?.tools ?? []}
 			choices={live?.choices ?? null}
 			onchoices={(off) => live?.setOff(off)}
+			models={live?.models ?? null}
+			onmodel={(model) => live?.setModel(model)}
 			onsend={send}
 			bind:text={draft}
 			returnTo={page.url.pathname}

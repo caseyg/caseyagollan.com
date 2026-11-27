@@ -35,7 +35,11 @@ declare global {
 				INFERENCE_COOP_API_KEY: string;
 				/** /chat threads, one Agents SDK agent each (`src/lib/server/chat/agent.ts`). */
 				ChatThread?: DurableObjectNamespace;
-				/** The inference.coop model /chat answers with. */
+				/** Claude for /chat, straight from Anthropic; its models join the composer's Model menu when set. */
+				ANTHROPIC_API_KEY?: string;
+				/** Cerebras's very fast models for /chat; they join the Model menu when set. */
+				CEREBRAS_API_KEY?: string;
+				/** The model new /chat threads answer with: any id in `src/lib/chat-models.ts`, or another inference.coop model. */
 				CHAT_MODEL?: string;
 				CHAT_REASONING_EFFORT?: string;
 				CHAT_MONTHLY_BUDGET?: string;

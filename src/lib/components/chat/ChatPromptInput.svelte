@@ -6,6 +6,8 @@
 	import { matchSkills, type SkillSummary } from '$lib/chat-skills';
 	import { enabledSkills } from '$lib/chat-skills-client';
 	import type { ChatToolChoices } from '$lib/chat-tool-groups';
+	import type { ChatModelChoices } from '$lib/chat-models';
+	import ChatModelMenu from './ChatModelMenu.svelte';
 	import ChatToolsMenu from './ChatToolsMenu.svelte';
 
 	interface Props {
@@ -33,6 +35,9 @@
 		/** Casey's Tools menu: the groups of tools in this chat and what is off. Left out, there is no menu. */
 		choices?: ChatToolChoices | null;
 		onchoices?: (off: string[]) => void;
+		/** Casey's Model menu: the models this chat could answer with and the one it does. Left out, there is no menu. */
+		models?: ChatModelChoices | null;
+		onmodel?: (model: string) => void;
 		/** One box and a send button, nothing else: no picture, no “Writing as”, no tools line. */
 		compact?: boolean;
 		/** The box's accessible name when it shows no placeholder. */
@@ -44,7 +49,7 @@
 		skills?: SkillSummary[];
 	}
 
-	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false, choices = null, onchoices, skills }: Props = $props();
+	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false, choices = null, onchoices, models = null, onmodel, skills }: Props = $props();
 
 	let sending = $state(false);
 	const tooLong = $derived(value.length > CHAT_MAX_MESSAGE);
@@ -125,6 +130,7 @@
 			</TriggerMenuContent>
 		</TriggerMenu>
 		{#if compact && tooLong}<span class="limit">{value.length} / {CHAT_MAX_MESSAGE}</span>{/if}
+		{#if models && onmodel && viewer.owner && (compact || !open)}<ChatModelMenu {models} onchange={onmodel} />{/if}
 		{#if !open || compact}<Button class="send" variant={compact ? 'primary' : 'icon'} size="sm" icon={sendIcon} label={sendLabel} aria-label={sendLabel} type="submit" disabled={!ready} />{/if}
 	</div>
 	{#if open && !compact}
@@ -134,6 +140,7 @@
 				{#if toolText}<span class="tools">· The assistant can {toolText}</span>{/if}
 			</span>
 			{#if tooLong}<span class="limit">{value.length} / {CHAT_MAX_MESSAGE}</span>{/if}
+			{#if models && onmodel && viewer.owner}<ChatModelMenu {models} onchange={onmodel} />{/if}
 			{#if !viewer.owner}
 				<Button variant="quiet" size="sm" type="submit" formaction="/chat/logout" formnovalidate name="return" value={returnTo}>Sign out</Button>
 			{/if}

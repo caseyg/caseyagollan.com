@@ -29,3 +29,20 @@
 </Story>
 
 <Story name="Second choice in effect" args={{ value: 'floating' }} />
+
+<!-- With `text` the button reads as the choice in effect. Choices can carry a second line and sit under headings. -->
+<Story
+	name="Text button with groups"
+	parameters={{ docs: { story: { height: '360px' } } }}
+	args={{
+		label: 'Paper',
+		text: true,
+		value: 'a4',
+		choices: [
+			{ value: 'a4', label: 'A4 paper', short: 'A4', detail: '210 × 297 mm', group: 'International' },
+			{ value: 'a5', label: 'A5', detail: '148 × 210 mm', group: 'International' },
+			{ value: 'letter', label: 'Letter', detail: '8.5 × 11 in', group: 'North America' },
+			{ value: 'legal', label: 'Legal', detail: '8.5 × 14 in', group: 'North America' }
+		]
+	}}
+/>

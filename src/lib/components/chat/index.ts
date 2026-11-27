@@ -13,6 +13,7 @@ export { default as ChatSidebarToggle } from './ChatSidebarToggle.svelte';
 export { default as ChatOverlay, type ChatOverlayMode } from './ChatOverlay.svelte';
 export { default as ChatPane } from './ChatPane.svelte';
 export { default as ChatThreadView } from './ChatThreadView.svelte';
+export { default as ChatModelMenu } from './ChatModelMenu.svelte';
 export { default as ChatModeMenu, type ChatPlace } from './ChatModeMenu.svelte';
 export { default as ChatToolsMenu } from './ChatToolsMenu.svelte';
 export { default as ChatActionsMenu } from './ChatActionsMenu.svelte';

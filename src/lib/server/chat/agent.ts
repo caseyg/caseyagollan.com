@@ -36,6 +36,7 @@ import { budgeted, MCP_EXTENSION, mcpExtension, mcpNamespaces, mcpToolName, sect
 import { McpAuthError, McpError, type McpSession, type McpToolResult } from '../mcp/client';
 import { markBroken, mcpDeps, sessionFor, usableServers, type McpEnv, type UsableServer } from '../mcp/connections';
 import type { McpServer } from '../../mcp-servers';
+import { cleanModelKey, type ChatModelChoices } from '../../chat-models';
 import { cleanOff, groupKey, mcpGroupId, toolKey, toolWords, type ChatToolChoices, type ChatToolGroup } from '../../chat-tool-groups';
 import { OWN_TOOL_GROUPS } from './tools';
 import { itemsFromDocument, tableThreadId, type TableCancelEvent, type TableOp, type TableOpReply } from '../../table-agent';
@@ -44,6 +45,10 @@ import { readTable, writeTable } from '../tables';
 
 export interface ChatAgentEnv extends PublishingEnvironment, McpEnv {
 	INFERENCE_COOP_API_KEY?: string;
+	/** Claude, straight from Anthropic; offered in the Model menu when set. */
+	ANTHROPIC_API_KEY?: string;
+	/** Cerebras's very fast models; offered in the Model menu when set. */
+	CEREBRAS_API_KEY?: string;
 	CHAT_MODEL?: string;
 	/** How hard the model thinks before each step: low (the default), medium or high. */
 	CHAT_REASONING_EFFORT?: string;
@@ -97,7 +102,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 
 	readonly harness = new PiHarness({
 		harness: ({ storage, context, onWake }) => {
-			const { models } = chatModels(this.env);
+			const { models } = this.catalog;
 			const chat = chatExtension({ env: this.env, origin: () => this.origin(), onRunEnd: () => this.runEnded(), onlyOwner: () => this.onlyOwner(), thread: this.hooks(), maxTurns: MAX_TURNS, reasoningEffort: this.env.CHAT_REASONING_EFFORT, waitUntil: (promise) => this.ctx.waitUntil(promise), mcp: () => serverNames(this.servers), off: (name) => this.toolOff(name) });
 			this.ownTools = (chat.tools ?? []).map((tool) => tool.name);
 			this.registry.install(chat);
@@ -111,7 +116,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 				settings: { afterFailedRun: 'continue', retry: { maxRetries: 2 }, compaction: COMPACTION, steeringMode: 'all' }
 			}, context);
 		},
-		defaults: { model: chatModels(this.env).model, maxTurns: MAX_TURNS }
+		defaults: { model: chatModels(this.env).model, thinkingLevel: 'low', maxTurns: MAX_TURNS }
 	});
 
 	private ready = false;
@@ -192,6 +197,54 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 			const state = connection.state;
 			if (state?.viewer?.owner && Date.now() - state.at < OWNER_CONNECTION_TTL) connection.send(event);
 		}
+	}
+
+	// ------------------------------------------------------------------ The model this chat answers with
+
+	/** Built once per object: the providers with a key here, the default model, and the menu's options. */
+	private catalog = chatModels(this.env);
+	/** The model Pi's session was last told to use, so it is told only when the choice changes. */
+	private modelApplied?: string;
+
+	/** The Model menu: every model that can answer here and the one this chat uses. Casey's alone. */
+	private modelChoices(): ChatModelChoices {
+		return { models: this.catalog.options, current: cleanModelKey(this.meta('model'), this.catalog.options) ?? this.catalog.defaultKey };
+	}
+
+	private sendModels(only?: Connection<ConnectionState>) {
+		const choices = this.modelChoices();
+		// Nothing to choose between: no menu.
+		if (choices.models.length < 2) return;
+		const event = JSON.stringify({ type: 'chat:models', ...choices } satisfies ChatServerEvent);
+		for (const connection of only ? [only] : this.getConnections<ConnectionState>()) {
+			const state = connection.state;
+			if (state?.viewer?.owner && Date.now() - state.at < OWNER_CONNECTION_TTL) connection.send(event);
+		}
+	}
+
+	/** Casey picked a model for this chat: kept with the thread, and used from the next answer on. */
+	private async setModel(value: unknown) {
+		const key = cleanModelKey(value, this.catalog.options);
+		if (!key) return;
+		this.setMeta('model', key);
+		console.log(JSON.stringify({ event: 'chat_model_set', model: key }));
+		// A thread nobody has written in has no session to tell yet; `say` tells it before the first answer.
+		await this.applyModel().catch(() => undefined);
+		this.sendModels();
+	}
+
+	/**
+	 * Tells Pi's session which model the thread chose, when that isn't what it was last told. A choice
+	 * whose provider can no longer answer here (its key was removed) goes back to the default.
+	 */
+	private async applyModel() {
+		const chosen = this.meta('model');
+		if (!chosen) return;
+		const key = cleanModelKey(chosen, this.catalog.options) ?? this.catalog.defaultKey;
+		if (this.modelApplied === key) return;
+		const model = this.catalog.resolve(key) ?? this.catalog.model;
+		await this.harness.session().setModel(model);
+		this.modelApplied = key;
 	}
 
 	private setOff(value: unknown) {
@@ -583,6 +636,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		this.sql`INSERT INTO chat_said (id, author_id, author, created_at) VALUES (${id}, ${author.id}, ${JSON.stringify(author)}, ${at})`;
 		await this.syncMcp().catch(() => undefined);
 		await this.follow();
+		await this.applyModel().catch((error) => console.warn(JSON.stringify({ event: 'chat_model_apply_failed', detail: String(error).slice(0, 200) })));
 		this.setMeta('selection', JSON.stringify(selection?.items.map((item) => item.id) ?? []));
 		await this.harness.submit(`${sayPrefix(who, this.origin(), page, selection)}\n\n${text}${skill ? `\n\n${skill.text}` : ''}`, { operationId: id, whenBusy: options.queue === true ? 'followUp' : 'steer', entry: { kind: SAY_KIND, data: data as never } }).catch((error) => {
 			this.sql`DELETE FROM chat_said WHERE id = ${id}`;
@@ -723,6 +777,7 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		connection.send(JSON.stringify({ type: 'chat:snapshot', snapshot, viewer, tools: this.toolNames(!!viewer?.owner) } satisfies ChatServerEvent));
 		if (viewer?.owner) {
 			this.sendChoices(connection);
+			this.sendModels(connection);
 			// The connected services, once they are known.
 			if (Date.now() - this.mcpAt >= MCP_FRESH) this.ctx.waitUntil(this.syncMcp().then(() => this.sendChoices(connection)).catch(() => undefined));
 		}
@@ -757,6 +812,11 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 		// Casey turned a group of tools, or one tool, on or off for this chat.
 		if (event?.type === 'chat:tools-off') {
 			if (viewer?.owner) this.setOff(event.off);
+			return;
+		}
+		// Casey picked the model this chat answers with.
+		if (event?.type === 'chat:model') {
+			if (viewer?.owner) await this.setModel(event.model);
 			return;
 		}
 		if (event?.type === 'table:result') {

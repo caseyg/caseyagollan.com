@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ChatMessage } from '$lib/chat';
 	import { messageParts, PROVIDER_LABELS } from '$lib/chat';
+	import { modelName } from '$lib/chat-models';
 	import { Avatar, Chip, Icon } from '$lib/components/ui';
 	import ChatSelection from './ChatSelection.svelte';
 	import ChatSteps from './ChatSteps.svelte';
@@ -40,7 +41,7 @@
 		{#if !compact}<header>
 			{#if message.role === 'assistant'}
 				<span class="name">Assistant</span>
-				{#if message.model}<span class="meta">{message.model}</span>{/if}
+				{#if message.model}<span class="meta" title={message.model}>{modelName(message.model)}</span>{/if}
 			{:else if author}
 				{#if author.url}<a class="name" href={author.url} rel="nofollow ugc">{author.name}</a>{:else}<span class="name">{author.name}</span>{/if}
 				<span class="meta">{author.via === 'owner' ? 'site owner' : `via ${PROVIDER_LABELS[author.via]}`}</span>
