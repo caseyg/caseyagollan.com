@@ -53,16 +53,12 @@ export async function renderKind(address: string, fetcher: typeof fetch = fetch)
 	let url: URL;
 	try { url = new URL(address); } catch { return 'page'; }
 	if (PDF_NAME.test(url.pathname)) return 'pdf';
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), 8000);
 	try {
-		const response = await safePublicStream(address, { headers: { accept: 'text/html,application/pdf;q=0.9,*/*;q=0.5', range: 'bytes=0-1023' }, signal: controller.signal }, fetcher, MAX_PDF_BYTES);
+		const response = await safePublicStream(address, { headers: { accept: 'text/html,application/pdf;q=0.9,*/*;q=0.5', range: 'bytes=0-1023' }, signal: AbortSignal.timeout(8000) }, fetcher, MAX_PDF_BYTES);
 		const type = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
 		await response.body?.cancel().catch(() => {});
 		return type === 'application/pdf' ? 'pdf' : 'page';
 	} catch {
 		return 'page';
-	} finally {
-		clearTimeout(timer);
 	}
 }

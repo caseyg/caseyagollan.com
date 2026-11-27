@@ -83,7 +83,7 @@
 			position: sticky;
 			top: calc(var(--sticky-top, 0px) + var(--space-6));
 			align-self: start;
-			max-height: calc(100vh - var(--sticky-top, 0px) - var(--space-7));
+			max-height: calc(100dvh - var(--sticky-top, 0px) - var(--space-7));
 			margin-top: 0;
 			padding-top: 0;
 			overflow-y: auto;

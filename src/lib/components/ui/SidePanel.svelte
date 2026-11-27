@@ -77,7 +77,7 @@
 		top: auto;
 		right: calc(var(--nav-inset) + var(--space-3) + env(safe-area-inset-right));
 		bottom: calc(var(--nav-inset) + var(--space-3) + env(safe-area-inset-bottom));
-		height: min(var(--side-panel-height, 38rem), calc(100vh - var(--nav-lane) - 2 * var(--nav-inset) - 2 * var(--space-3)));
+		height: min(var(--side-panel-height, 38rem), calc(100dvh - var(--nav-lane) - 2 * var(--nav-inset) - 2 * var(--space-3)));
 		border-color: var(--border);
 		border-radius: var(--radius-lg);
 		background: color-mix(in srgb, var(--bg-primary) 92%, transparent);

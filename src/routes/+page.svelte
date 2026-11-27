@@ -468,10 +468,7 @@
                     const { createTelescopicTextFromBulletedList } =
                         window.telescopicText || window;
                     // Clear any SSR fallback content
-                    textContainer.innerHTML = "";
-                    const node =
-                        createTelescopicTextFromBulletedList(telescopicContent);
-                    textContainer.appendChild(node);
+                    textContainer.replaceChildren(createTelescopicTextFromBulletedList(telescopicContent));
                 } catch (error) {
                     console.error(
                         "Failed to initialize telescopic text:",

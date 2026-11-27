@@ -1,7 +1,7 @@
 /** A shelf is ordered by its baseline, since cover heights vary within a row. */
 export function orderShelfBooks<T extends { id: string; x?: number; y?: number; height?: number }>(books: readonly T[]): T[] {
 	const baseline = (book: T) => Math.round(((book.y || 0) - (book.height || 0) / 2) * 100);
-	return [...books].sort((a, b) => baseline(b) - baseline(a) || (a.x || 0) - (b.x || 0) || a.id.localeCompare(b.id));
+	return books.toSorted((a, b) => baseline(b) - baseline(a) || (a.x || 0) - (b.x || 0) || a.id.localeCompare(b.id));
 }
 
 export function coverflowPosition(start: number, deltaX: number, stride: number, count: number): number {

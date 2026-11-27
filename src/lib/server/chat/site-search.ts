@@ -132,7 +132,7 @@ export function findDocuments(documents: AgentSearchDocument[], options: FindOpt
 		for (const doc of pool) by_type[doc.y] = (by_type[doc.y] ?? 0) + 1;
 		total = pool.length;
 		const own = (doc: AgentSearchDocument) => OWN_TYPES.includes(doc.y) ? 0 : 1;
-		const newest = [...pool].sort((a, b) => (types?.length === 1 ? 0 : own(a) - own(b)) || (b.d ?? '').localeCompare(a.d ?? ''));
+		const newest = pool.toSorted((a, b) => (types?.length === 1 ? 0 : own(a) - own(b)) || (b.d ?? '').localeCompare(a.d ?? ''));
 		results = newest.slice(0, limit).map((doc) => item(doc, cut(doc.x, OWN_TYPES.includes(doc.y) ? OWN_TEXT : OTHER_TEXT)));
 	}
 	const notes: string[] = [];

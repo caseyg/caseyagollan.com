@@ -252,7 +252,7 @@ export interface ReplyNode<T extends StoredMention = StoredMention> {
  */
 export function threadReplies<T extends StoredMention>(replies: T[]): ReplyNode<T>[] {
 	const nodes = new Map<string, ReplyNode<T>>();
-	const sorted = [...replies].sort(byTime);
+	const sorted = replies.toSorted(byTime);
 	for (const reply of sorted) nodes.set(replyKey(reply.url), { reply, replies: [] });
 	const top: ReplyNode<T>[] = [];
 	for (const reply of sorted) {
@@ -270,7 +270,7 @@ function contains<T extends StoredMention>(node: ReplyNode<T>, target: ReplyNode
 
 export function groupMentions<T extends StoredMention>(mentions: T[]): MentionGroups<T> {
 	const groups: MentionGroups<T> = { likes: [], reposts: [], replies: [], links: [] };
-	for (const mention of [...mentions].sort(byTime)) {
+	for (const mention of mentions.toSorted(byTime)) {
 		if (mention.kind === 'like') groups.likes.push(mention);
 		else if (mention.kind === 'repost') groups.reposts.push(mention);
 		else if (mention.kind === 'reply' || mention.html || mention.text) groups.replies.push(mention);
