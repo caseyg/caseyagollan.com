@@ -1,15 +1,23 @@
 import type { RequestHandler } from './$types';
 import { cleanName, emptyTable, MAX_TABLES } from '$lib/tables';
-import { listPublishedTables, listTables, writeTable } from '$lib/server/tables';
+import { listPublishedTables, listTables, searchTables, writeTable } from '$lib/server/tables';
 import { ownerBucket, PRIVATE } from '$lib/server/tables-api';
 import { editorSession } from '$lib/server/publishing/syndication-editor';
 
 export const prerender = false;
 
-/** Everyone gets the published tables; the owner gets drafts too, and a CSRF token to change tables. */
-export const GET: RequestHandler = async ({ request, platform }) => {
+/**
+ * Everyone gets the published tables; the owner gets drafts too, and a CSRF token to change tables.
+ * `?search=` finds the things on those tables that hold the words.
+ */
+export const GET: RequestHandler = async ({ request, platform, url }) => {
 	const env = platform?.env;
 	const session = await editorSession(request, env ?? {}).catch(() => null);
+	const search = url.searchParams.get('search')?.trim().slice(0, 100);
+	if (search !== undefined) {
+		const results = search.length < 2 ? [] : await searchTables(env?.PUBLISHING_STATE, search, !!session);
+		return Response.json({ results }, { headers: session ? PRIVATE : { 'cache-control': 'public, max-age=60' } });
+	}
 	const tables = session ? await listTables(env?.PUBLISHING_STATE) : await listPublishedTables(env?.PUBLISHING_STATE);
 	return Response.json(
 		{ tables, owner: !!session && !!env?.PUBLISHING_STATE, ...(session ? { csrf: session.csrf } : {}) },
