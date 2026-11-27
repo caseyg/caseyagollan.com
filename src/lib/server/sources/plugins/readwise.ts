@@ -19,7 +19,8 @@ const PASSES = [...SHELVES.map(([location]) => `shelf:${location}`), 'highlights
 /** Documents a page: each carries its whole HTML, so pages are kept small. */
 const PAGE = 50;
 
-interface Cursor { pass: number; page?: string }
+interface Cursor { pass: number; page?: string; seen?: number }
+const LABELS = [...SHELVES.map(([, name]) => name), 'Highlights', 'Highlights from elsewhere'];
 
 export interface ReaderRecord {
 	id: string; url?: string; source_url?: string | null; title?: string | null; author?: string | null; source?: string | null; category?: string; location?: string | null;
@@ -83,14 +84,17 @@ export const readwise: SourcePlugin = {
 		const headers = { authorization: `Token ${secret(context.env, 'READWISE_ACCESS_TOKEN')}` };
 		const cursor = (state.cursor as Cursor | undefined) ?? { pass: 0 };
 		const pass = PASSES[cursor.pass];
-		const next = (page: string | null | undefined): Pick<SyncStep, 'cursor' | 'done'> =>
-			page ? { cursor: { pass: cursor.pass, page }, done: false } : cursor.pass + 1 < PASSES.length ? { cursor: { pass: cursor.pass + 1 }, done: false } : { done: true };
+		const next = (page: string | null | undefined, got = 0, total?: number | null): Pick<SyncStep, 'cursor' | 'done' | 'progress'> => {
+			const seen = (cursor.seen ?? 0) + got;
+			const progress = { label: LABELS[cursor.pass], part: cursor.pass, parts: PASSES.length, done: seen, ...(typeof total === 'number' ? { total: Math.max(total, seen) } : {}) };
+			return page ? { cursor: { pass: cursor.pass, page, seen }, done: false, progress } : cursor.pass + 1 < PASSES.length ? { cursor: { pass: cursor.pass + 1 }, done: false, progress: { ...progress, total: seen } } : { done: true };
+		};
 
 		if (pass === 'export') {
 			const params = new URLSearchParams();
 			if (state.since) params.set('updatedAfter', state.since);
 			if (cursor.page) params.set('pageCursor', cursor.page);
-			const data = await getJson<{ results?: ExportBook[]; nextPageCursor?: string | number | null }>(context, 'Readwise', `${API}/v2/export/?${params}`, headers);
+			const data = await getJson<{ count?: number | null; results?: ExportBook[]; nextPageCursor?: string | number | null }>(context, 'Readwise', `${API}/v2/export/?${params}`, headers);
 			// Whatever was highlighted in Reader is already here as a Reader document with its highlights.
 			const books = (data.results ?? []).filter((book) => book.source !== 'reader');
 			const documents: SourceRecord[] = [], highlights: LooseHighlight[] = [], removed: string[] = [], removedHighlights: string[] = [];
@@ -105,7 +109,7 @@ export const readwise: SourcePlugin = {
 					});
 				}
 			}
-			return { documents, highlights, removed, removedHighlights, ...next(data.nextPageCursor ? String(data.nextPageCursor) : null) };
+			return { documents, highlights, removed, removedHighlights, ...next(data.nextPageCursor ? String(data.nextPageCursor) : null, (data.results ?? []).length, data.count) };
 		}
 
 		const params = new URLSearchParams({ limit: String(PAGE) });
@@ -113,16 +117,16 @@ export const readwise: SourcePlugin = {
 		else { params.set('location', pass.slice('shelf:'.length)); params.set('withHtmlContent', 'true'); }
 		if (state.since) params.set('updatedAfter', state.since);
 		if (cursor.page) params.set('pageCursor', cursor.page);
-		const data = await getJson<{ results?: ReaderRecord[]; nextPageCursor?: string | null }>(context, 'Readwise', `${API}/v3/list/?${params}`, headers);
+		const data = await getJson<{ count?: number | null; results?: ReaderRecord[]; nextPageCursor?: string | null }>(context, 'Readwise', `${API}/v3/list/?${params}`, headers);
 		const records = data.results ?? [];
 		if (pass === 'highlights') {
 			const highlights = records.filter((record) => record.parent_id && flat(record.content)).map((record): LooseHighlight => ({
 				id: record.id, parent: record.parent_id!, text: String(record.content).trim(), ...(flat(record.notes) ? { note: flat(record.notes) } : {}),
 				created: iso(record.created_at), tags: tagNames(record.tags), raw: record
 			}));
-			return { documents: [], highlights, ...next(data.nextPageCursor) };
+			return { documents: [], highlights, ...next(data.nextPageCursor, records.length, data.count) };
 		}
 		const documents = records.filter((record) => !record.parent_id).map((record) => ({ document: readerDocument(record, context.markdown), raw: record }));
-		return { documents, ...next(data.nextPageCursor) };
+		return { documents, ...next(data.nextPageCursor, records.length, data.count) };
 	}
 };

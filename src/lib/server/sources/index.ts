@@ -85,7 +85,7 @@ export interface StoredDocument extends SourceHit {
 	allHighlights: SourceHighlight[];
 }
 
-export interface SourceStats { source: string; documents: number; private: number; highlights: number; withText: number; newest?: string; synced?: string }
+export interface SourceStats { source: string; documents: number; private: number; highlights: number; withText: number; embedded: number; newest?: string; synced?: string }
 
 interface Row {
 	rowid: number; key: string; source: string; id: string; kind: string; title: string; url: string; open_url: string | null; summary: string | null;
@@ -444,9 +444,9 @@ export class SourceIndex {
 
 	stats(): SourceStats[] {
 		const highlights = new Map(this.sql.all<{ source: string; count: number }>('SELECT source, count(*) AS count FROM highlights GROUP BY source').map((row) => [row.source, row.count]));
-		return this.sql.all<{ source: string; documents: number; private: number; own: number; withText: number; newest: string | null; synced: string | null }>(
-			`SELECT source, count(*) AS documents, sum(private) AS private, sum(json_array_length(own_highlights)) AS own, sum(length > 0) AS withText, max(created) AS newest, max(synced_at) AS synced FROM docs GROUP BY source ORDER BY source`
-		).map((row) => ({ source: row.source, documents: row.documents, private: row.private, highlights: row.own + (highlights.get(row.source) ?? 0), withText: row.withText, ...(row.newest ? { newest: row.newest } : {}), ...(row.synced ? { synced: row.synced } : {}) }));
+		return this.sql.all<{ source: string; documents: number; private: number; own: number; withText: number; embedded: number; newest: string | null; synced: string | null }>(
+			`SELECT source, count(*) AS documents, sum(private) AS private, sum(json_array_length(own_highlights)) AS own, sum(length > 0) AS withText, sum(embedded IS NOT NULL) AS embedded, max(created) AS newest, max(synced_at) AS synced FROM docs GROUP BY source ORDER BY source`
+		).map((row) => ({ source: row.source, documents: row.documents, private: row.private, highlights: row.own + (highlights.get(row.source) ?? 0), withText: row.withText, embedded: row.embedded, ...(row.newest ? { newest: row.newest } : {}), ...(row.synced ? { synced: row.synced } : {}) }));
 	}
 
 	// ------------------------------------------------------------ state

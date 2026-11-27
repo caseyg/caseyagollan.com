@@ -57,12 +57,37 @@ describe('syncing a source', () => {
 		const index = memoryIndex();
 		const busy: SourcePlugin = { ...paged([]), sync: async () => { throw new SourceBusy('readwise', 42); } };
 		expect(await syncSource(busy, { index, context: context(() => new Response('')) })).toMatchObject({ busy: 42, done: false, steps: 0 });
+		// Until the wait is over the service isn't asked again, however often the sync comes round.
+		let asked = 0;
+		const counted: SourcePlugin = { ...paged([]), sync: async () => { asked++; return page(['a']); } };
+		expect(await syncSource(counted, { index, context: context(() => new Response('')) })).toMatchObject({ done: false, steps: 0 });
+		expect(asked).toBe(0);
+		expect(syncStatus(index, [busy], {})[0].waiting).toBeDefined();
 		const broken: SourcePlugin = { ...paged([]), sync: async () => { throw new Error('secret words from the service'); } };
-		const report = await syncSource(broken, { index, context: context(() => new Response('')), everyMinutes: 0 });
+		const report = await syncSource(broken, { index: memoryIndex(), context: context(() => new Response('')), everyMinutes: 0 });
 		expect(report).toMatchObject({ failed: true, steps: 0 });
 		expect(JSON.stringify(report)).not.toContain('secret');
 		const off: SourcePlugin = { ...paged([]), configured: () => false };
 		expect(await syncSource(off, { index, context: context(() => new Response('')) })).toMatchObject({ skipped: 'not-configured' });
+	});
+
+	test('how far a pass has got is kept for the settings page, and cleared when it ends', async () => {
+		const index = memoryIndex();
+		const plugin = paged([page(['a'], 1, { progress: { label: 'Archive', part: 1, parts: 4, done: 50, total: 200 } }), page(['b'])]);
+		await syncSource(plugin, { index, context: context(() => new Response('')), maxSteps: 1 });
+		expect(syncStatus(index, [plugin], {})[0]).toMatchObject({ syncing: true, progress: { label: 'Archive', fraction: 0.313, done: 50, total: 200 } });
+		await syncSource(plugin, { index, context: context(() => new Response('')), maxSteps: 1 });
+		const after = syncStatus(index, [plugin], {})[0];
+		expect(after.syncing).toBe(false);
+		expect(after.progress).toBeUndefined();
+	});
+
+	test('storage that refuses the whole records does not hold the pass at the same page', async () => {
+		const index = memoryIndex(), seen: SyncState[] = [];
+		const plugin = paged([page(['a'], 1), page(['b'])], seen);
+		const report = await syncSource(plugin, { index, context: context(() => new Response('')), raw: { put: async () => { throw new Error('storage is down'); } } });
+		expect(report).toMatchObject({ steps: 2, added: 2, done: true, rawFailed: 2 });
+		expect(seen.map((state) => state.cursor)).toEqual([undefined, 1]);
 	});
 
 	test('thin links get their page’s text once', async () => {

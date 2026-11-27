@@ -17,6 +17,12 @@ export interface SourceStatus {
 	syncing: boolean;
 	/** A first whole pass has finished. */
 	everything: boolean;
+	/** Documents whose likeness has been worked out. */
+	embedded?: number;
+	/** How far the pass under way has got: the part being copied, and the whole pass as a fraction from 0 to 1. */
+	progress?: { label: string; fraction: number; done?: number; total?: number };
+	/** The service asked the sync to wait until this ISO time (a rate limit). */
+	waiting?: string;
 }
 
 export interface SourcesState { available: boolean; sources: SourceStatus[]; error?: string }

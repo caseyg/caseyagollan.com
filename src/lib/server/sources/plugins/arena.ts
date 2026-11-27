@@ -18,8 +18,8 @@ const API = 'https://api.are.na/v3';
 const PAGE = 100;
 
 interface Channel { slug: string; title: string }
-interface Cursor { phase: 'items' | 'channels'; page: number; full: boolean; channels: Channel[]; ids: string[] }
-type Page = { data?: ArenaRecord[]; meta?: { has_more_pages?: boolean } };
+interface Cursor { phase: 'items' | 'channels'; page: number; full: boolean; channels: Channel[]; ids: string[]; of?: number }
+type Page = { data?: ArenaRecord[]; meta?: { has_more_pages?: boolean; total_count?: number; total_pages?: number } };
 export type ArenaRecord = ArenaItem & { content?: { markdown?: string | null; plain?: string | null } | null; description?: { markdown?: string | null; plain?: string | null } | null; attachment?: { filename?: string | null; url?: string | null; content_type?: string | null } | null };
 
 const channelUrl = (item: ArenaItem) => `https://www.are.na/${item.owner?.slug ?? ARENA_USER}/${item.slug ?? item.id}`;
@@ -66,8 +66,10 @@ export const arena: SourcePlugin = {
 			const documents: SourceRecord[] = fresh.filter((item) => available(item) && isOwn(item)).map((item) => ({ document: arenaSourceDocument(item), raw: item, keepPlaces: true }));
 			const channels = [...cursor.channels, ...fresh.filter((item) => item.type === 'Channel' && item.slug && item.owner?.slug === ARENA_USER && available(item)).map((item) => ({ slug: item.slug!, title: item.title?.trim() || item.slug! }))];
 			const more = !!meta?.has_more_pages && data.length > 0 && fresh.length === data.length;
-			if (more) return { documents, cursor: { ...cursor, page: cursor.page + 1, channels }, done: false };
-			return channels.length ? { documents, cursor: { ...cursor, phase: 'channels', page: 1, channels, ids: [] }, done: false } : { documents, done: true, complete: cursor.full };
+			const pages = typeof meta?.total_pages === 'number' ? meta.total_pages : typeof meta?.total_count === 'number' ? Math.ceil(meta.total_count / PAGE) : undefined;
+			const progress = { label: 'Blocks and channels', part: 0, parts: 2, done: cursor.page, ...(pages ? { total: Math.max(pages, cursor.page) } : {}) };
+			if (more) return { documents, cursor: { ...cursor, page: cursor.page + 1, channels }, done: false, progress };
+			return channels.length ? { documents, cursor: { ...cursor, phase: 'channels', page: 1, channels, ids: [], of: channels.length }, done: false, progress: { ...progress, total: cursor.page } } : { documents, done: true, complete: cursor.full };
 		}
 
 		const [channel, ...rest] = cursor.channels;
@@ -75,8 +77,10 @@ export const arena: SourcePlugin = {
 		const blocks = data.filter((item) => item.type !== 'Channel' && available(item));
 		const documents: SourceRecord[] = blocks.map((item) => ({ document: arenaSourceDocument(item), raw: item, keepPlaces: true }));
 		const ids = [...cursor.ids, ...blocks.map((item) => String(item.id))];
-		if (meta?.has_more_pages && data.length) return { documents, cursor: { ...cursor, page: cursor.page + 1, ids }, done: false };
+		const of = cursor.of ?? cursor.channels.length;
+		const progress = { label: 'Inside channels', part: 1, parts: 2, done: of - cursor.channels.length, total: of };
+		if (meta?.has_more_pages && data.length) return { documents, cursor: { ...cursor, page: cursor.page + 1, ids }, done: false, progress };
 		const places = [{ place: channel.title, ids }];
-		return rest.length ? { documents, places, cursor: { ...cursor, page: 1, channels: rest, ids: [] }, done: false } : { documents, places, done: true, complete: cursor.full };
+		return rest.length ? { documents, places, cursor: { ...cursor, page: 1, channels: rest, ids: [] }, done: false, progress: { ...progress, done: progress.done + 1 } } : { documents, places, done: true, complete: cursor.full };
 	}
 };

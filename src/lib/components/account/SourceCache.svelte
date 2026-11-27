@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button, Notice, Row, RowList, Section } from '$lib/components/ui';
+	import { Button, Notice, ProgressBar, Row, RowList, Section } from '$lib/components/ui';
 	import type { SourcesState, SourceStatus } from '$lib/source-status';
 
 	interface Props {
@@ -25,11 +25,14 @@
 		return { available: body.available ?? false, sources: body.sources ?? [], ...(response?.ok ? {} : { error: body.error ?? 'That didn’t go through. Try again in a moment.' }) };
 	}
 
-	/** While a pass is under way, look again every few seconds so the counts climb. */
+	/** How often the page looks again while a pass is under way, so the bars and counts move. */
+	const WATCH_MS = 2000;
+
+	/** While a pass is under way, look again every couple of seconds. */
 	function watch() {
 		clearTimeout(timer);
 		if (!info?.sources.some((source) => source.syncing)) return;
-		timer = setTimeout(async () => { const next = await (load ? load() : request()); if (!next.error) info = next; watch(); }, 6000);
+		timer = setTimeout(async () => { const next = await (load ? load() : request()); if (!next.error) info = next; watch(); }, WATCH_MS);
 	}
 
 	onMount(() => {
@@ -52,10 +55,19 @@
 
 	function detail(source: SourceStatus): string {
 		if (!source.configured) return `Not connected: ${source.name}’s access token isn’t saved with the site.`;
-		if (!source.documents && !source.syncing) return 'Nothing copied yet.';
+		if (!source.documents) return source.syncing ? '' : 'Nothing copied yet.';
 		const parts = [count(source.documents, 'item'), source.highlights ? count(source.highlights, 'highlight') : '', source.withText ? `${source.withText.toLocaleString()} with their text` : ''].filter(Boolean);
-		const state = source.syncing ? (source.everything ? 'Catching up now.' : 'First copy under way.') : source.synced ? `Up to date as of ${when(source.synced)}.` : '';
+		const state = source.syncing ? '' : source.synced ? `Up to date as of ${when(source.synced)}.` : '';
 		return `${parts.join(', ')}. ${state}`.trim();
+	}
+
+	/** The line under a bar: what is being copied, how far, and whether the service asked for a pause. */
+	function doing(source: SourceStatus): string {
+		const progress = source.progress;
+		const part = progress ? `${progress.label}${progress.total ? `: ${(progress.done ?? 0).toLocaleString()} of ${progress.total.toLocaleString()}` : ''}` : source.everything ? 'Catching up' : 'Starting';
+		const percent = progress ? ` · ${Math.round(progress.fraction * 100)}%` : '';
+		const waiting = source.waiting ? ` · ${source.name} asked for a short pause` : '';
+		return `${part}${percent}${waiting}`;
 	}
 </script>
 
@@ -71,7 +83,14 @@
 	{:else}
 		<RowList label="Sources">
 			{#each info.sources as source (source.source)}
-				<Row title={`${source.icon} ${source.name}`} detail={detail(source)} aria-busy={source.syncing} />
+				<Row title={`${source.icon} ${source.name}`} detail={detail(source)} aria-busy={source.syncing}>
+					{#if source.syncing && source.configured}
+						<span class="progress">
+							<ProgressBar value={source.progress?.fraction} waiting={!!source.waiting} label={`Copying ${source.name}`} />
+							<span class="doing" aria-live="polite">{doing(source)}</span>
+						</span>
+					{/if}
+				</Row>
 			{/each}
 		</RowList>
 		<div class="foot">
@@ -89,6 +108,14 @@
 		gap: var(--space-2);
 		margin-top: var(--space-2);
 	}
+	.progress {
+		display: grid;
+		inline-size: 26rem;
+		max-inline-size: 100%;
+		gap: var(--space-1);
+		margin-top: var(--space-1);
+	}
+
 	.hint {
 		color: var(--text-muted);
 		font-size: var(--fs-sm);

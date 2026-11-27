@@ -103,6 +103,18 @@ export interface SyncStep {
 	done: boolean;
 	/** With `done`: this pass listed everything the source holds, so anything it didn't list is gone. */
 	complete?: boolean;
+	/** How far the pass has got, for the owner's settings. */
+	progress?: SyncProgress;
+}
+
+/** A pass is `parts` parts long (Reader's shelves, then its highlights…); this step was in part `part` (from 0), `done` of `total` through it. */
+export interface SyncProgress {
+	/** What is being copied now, in a word or two: “Archive”, “Channels”. */
+	label: string;
+	part: number;
+	parts: number;
+	done?: number;
+	total?: number;
 }
 
 export interface SyncContext {
