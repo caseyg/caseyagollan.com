@@ -69,7 +69,7 @@ export interface TableApi {
 	 */
 	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
-	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'rename' | 'tag' }>): Promise<unknown>;
+	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'relink' | 'rename' | 'tag' }>): Promise<unknown>;
 	setTool(tool: TableTool): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
@@ -737,6 +737,20 @@ function edit(editor: Editor, edits: Extract<TableOp, { op: 'edit' }>['edits']) 
 	return { edited: updates.length };
 }
 
+/** Blocks drawn again as other blocks, where they stand: the same card with a different link. Size and tag ref stay. */
+function setBlocks(editor: Editor, blocks: Extract<TableOp, { op: 'set_blocks' }>['cards']) {
+	const skipped: string[] = [];
+	const updates = blocks.flatMap(({ id, block }) => {
+		const shape = shapeOf(editor, id);
+		if (!shape || !editor.isShapeOfType(shape, BLOCK_SHAPE)) { skipped.push(id); return []; }
+		const current = shape as SiteBlockShape;
+		const { w: _w, h: _h, hideMeta: _hideMeta, ...props } = blockProps({ ...block, ref: block.ref ?? (current.props.ref || undefined) });
+		return [{ id: current.id, type: BLOCK_SHAPE, props, meta: fitsToPost(block) ? { ...current.meta, fit: true } : current.meta } as TLShapePartial];
+	});
+	editor.updateShapes(updates);
+	return { relinked: updates.length, ...(skipped.length ? { skipped } : {}) };
+}
+
 async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0], api: TableApi): Promise<unknown> {
 	switch (op.op) {
 		case 'read': {
@@ -832,6 +846,9 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			}
 			return { ungrouped: shapes.length };
 		}
+		case 'set_blocks':
+			editor.markHistoryStoppingPoint('relink');
+			return changed(editor, setBlocks(editor, op.cards));
 		case 'edit':
 			editor.markHistoryStoppingPoint('edit');
 			return changed(editor, edit(editor, op.edits));

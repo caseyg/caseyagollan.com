@@ -77,6 +77,9 @@ export type TableOp =
 	| { op: 'group'; ids: string[] }
 	| { op: 'ungroup'; ids: string[] }
 	| { op: 'edit'; edits: { id: string; text?: string; color?: TableColor }[] }
+	/** Give blocks a different link, where they stand: the table page finds what each address is, then `set_blocks` redraws them. */
+	| { op: 'relink'; links: { id: string; url: string }[]; find?: Record<string, string[]> }
+	| { op: 'set_blocks'; cards: { id: string; block: Block }[] }
 	| { op: 'move'; moves: ({ id: string } & Partial<TablePoint> & { w?: number; h?: number })[] }
 	/**
 	 * Sets out what is there. `ids`: just those (a frame alone means what it holds), in that order when

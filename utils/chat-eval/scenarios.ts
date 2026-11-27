@@ -483,9 +483,43 @@ export const SCENARIOS: Scenario[] = [
 		ask: 'Make a new table called Calm tech and put my calm technology Are.na channels on it.',
 		page: '/tables',
 		checks: [
-			{ name: 'makes the table', pass: (seen) => used(seen, /^(create_table|table_new)$/) === 1 },
+			{ name: 'makes one table and opens it', pass: (seen) => seen.went.filter((path) => /^\/tables\/evalnew001/.test(path)).length === 1 },
 			{ name: 'puts blocks on it', pass: (seen) => seen.calls.some((call) => /^table_add/.test(call.name) && !call.error) },
 			{ name: 'four calls or fewer', pass: (seen) => seen.calls.length <= 4 }
+		]
+	},
+	// From chat c6fvr38kce: “onto a canvas, clustered” with no table open took five messages, three of them “the tool isn’t available”.
+	{
+		name: 'canvas-clusters',
+		ask: 'Put these on a canvas, clustered by theme in a force-directed graph. Technology: https://signal.org/blog/the-ecosystem-is-moving/ , https://www.wired.com/story/data-centers-water/ , https://1password.com/blog/passkeys . Art: https://www.fieldbuilding.org/the-art-of-field-building , https://cooper.hykucommons.org/ , https://www.artforum.com/columns/technologies-of-power/ . Politics: https://www.propublica.org/article/h1b-visa-rules , https://kalshi.com/blog/election-markets , https://www.brookings.edu/articles/civic-participation-and-ai/',
+		page: '/chat',
+		checks: [
+			{ name: 'a table is made and opened', pass: (seen) => seen.went.some((path) => /^\/tables\/evalnew001/.test(path)) },
+			{ name: 'all nine links are on it', pass: (seen) => seen.items.filter((item) => item.url).length === 9 },
+			{ name: 'each theme is named on it, as a frame or a card', pass: (seen) => ['Technology', 'Art', 'Politics'].every((name) => seen.items.some((item) => !item.url && new RegExp(name, 'i').test(item.text ?? ''))) },
+			{ name: 'every link belongs to a cluster: in a frame, or joined by an arrow', pass: (seen) => seen.items.filter((item) => item.url).every((item) => item.parent || seen.items.some((arrow) => arrow.type === 'arrow' && (arrow.from === item.id || arrow.to === item.id))) },
+			{ name: 'nothing overlaps, frames included', pass: (seen) => !overlaps(seen.items) && !overlaps(seen.items.filter((item) => item.type === 'frame').map((item) => ({ ...item, type: 'box' }))) },
+			{ name: 'never says a tool is missing', pass: (seen) => !/(isn|not|aren)(’|')?t? available|don(’|')t have (a|the) tool|missing tool|no tool/i.test(seen.answer) },
+			{ name: 'six calls or fewer', pass: (seen) => seen.calls.length <= 6 }
+		]
+	},
+	// The same chat: blocks were added with their Reader addresses, and nothing could change a block’s link.
+	{
+		name: 'relink-blocks',
+		ask: 'These are using Readwise URLs but they should use the source URLs. The Art of Field Building is https://www.fieldbuilding.org/the-art-of-field-building and the Cooper Union one is https://cooper.hykucommons.org/',
+		page: '/tables/evaltable1',
+		pageTitle: 'Reader saves this week',
+		table: [
+			{ id: 'r1', type: 'link', title: 'The ART OF FIELD BUILDING', url: 'https://read.readwise.io/read/01m8aaaaaaaaaaaaaaaaaaaaaa', x: 0, y: 0, w: 240, h: 240 },
+			{ id: 'r2', type: 'link', title: 'WHY THE HISTORY OF THE COOPER UNION MATTERS', url: 'https://read.readwise.io/read/01m8bbbbbbbbbbbbbbbbbbbbbb', x: 300, y: 0, w: 240, h: 240 },
+			{ id: 'n9', type: 'note', text: 'Art & institutions', x: 0, y: 300, w: 200, h: 200 }
+		],
+		selected: ['r1'],
+		checks: [
+			{ name: 'both blocks get their source link, not just the selected one', pass: (seen) => at(seen, 'r1')?.url === 'https://www.fieldbuilding.org/the-art-of-field-building' && /^https:\/\/cooper\.hykucommons\.org\/?$/.test(at(seen, 'r2')?.url ?? '') },
+			{ name: 'they stay where they were', pass: (seen) => at(seen, 'r1')?.x === 0 && at(seen, 'r2')?.x === 300 },
+			{ name: 'nothing removed or added', pass: (seen) => seen.items.length === 3 },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
 		]
 	},
 	// Skills: the assistant picks one by its description, a slash command brings one along, and adding one only ever makes a review card.

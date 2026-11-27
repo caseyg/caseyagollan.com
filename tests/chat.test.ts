@@ -520,20 +520,20 @@ describe('the chat’s tools', () => {
 	} } as unknown as Fetcher;
 	const out = async (tool: { execute: (...args: never[]) => unknown }, args: unknown) => ((await (tool.execute as (args: unknown, api: unknown, context: unknown) => Promise<{ output: { text: string }[] }>)(args, {}, {})).output[0].text);
 
-	async function setup(options: { ops?: unknown[]; table?: string; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown; savesFetch?: typeof fetch; pdf?: (op: { url: string; from?: number; count?: number }) => unknown; env?: Record<string, unknown>; renderFetch?: typeof fetch } = {}) {
+	async function setup(options: { ops?: unknown[]; table?: string; owner?: boolean; issues?: () => unknown; opens?: boolean; micropub?: MicropubCall; items?: () => unknown[]; selected?: string[]; asked?: string[]; pieces?: (op: { block: string }) => unknown; savesFetch?: typeof fetch; pdf?: (op: { url: string; from?: number; count?: number }) => unknown; env?: Record<string, unknown>; renderFetch?: typeof fetch } = {}) {
 		const { chatExtension } = await import('../src/lib/server/chat/tools');
 		const went: string[] = [];
 		const ops = options.ops ?? [];
-		let made = 0;
+		let made = 0, frames = 0, current = options.table;
 		const thread = {
-			table: () => options.table,
+			table: () => current,
 			tableOp: async (op: { op: string; notes?: unknown[]; urls?: string[]; ids?: string[]; blocks?: unknown[] }) => {
 				ops.push(op);
-				if (op.op === 'read') return { items: options.items?.() ?? [], selected: options.selected ?? [] };
+				if (op.op === 'read') return { items: options.items?.() ?? [], selected: options.selected ?? [], issues: options.issues?.() };
 				if (op.op === 'add_notes') return { added: op.notes!.map(() => `n${++made}`), layout: 'no overlaps' };
 				if (op.op === 'add_links') return { added: op.urls!.map(() => `b${++made}`) };
 				if (op.op === 'add_from_search') return { added: [{ id: `b${++made}`, title: 'Found', url: '/x' }] };
-				if (op.op === 'frame') return { added: ['f1'], holds: op.ids };
+				if (op.op === 'frame') return { added: [`f${++frames}`], holds: op.ids };
 				if (op.op === 'add_pieces') return options.pieces?.(op as never) ?? { added: [] };
 				if (op.op === 'add_pdf_pages') return options.pdf?.(op as never) ?? { added: [] };
 				if (op.op === 'add_blocks') return { added: op.blocks!.map(() => `k${++made}`) };
@@ -542,12 +542,12 @@ describe('the chat’s tools', () => {
 			readTable: async () => ({ items: options.items?.() ?? [] }),
 			createTable: async () => ({ id: 'new123', url: '/tables/new123' }),
 			navigate: async (path: string) => { went.push(path); return true; },
-			tableOpened: async () => true,
+			tableOpened: async (id: string) => { if (options.opens === false) return false; current = id; return true; },
 			page: () => ({ path: '/2026/11/17/writing-again/' }),
 			// What Casey had selected when writing the message being answered.
 			selection: () => options.asked ?? []
 		};
-		const extension = chatExtension({ env: { ASSETS: assets, ...options.env } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, savesFetch: options.savesFetch, renderFetch: options.renderFetch, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
+		const extension = chatExtension({ env: { ASSETS: assets, ...options.env } as never, origin: () => 'https://caseyagollan.com/', thread, micropub: options.micropub, onlyOwner: options.owner === undefined ? undefined : () => options.owner!, savesFetch: options.savesFetch, renderFetch: options.renderFetch, now: () => new Date('2026-11-25T20:00:00Z'), maxTurns: 8 });
 		const tool = (name: string) => extension.tools!.find((one) => one.name === name)!;
 		return { extension, tool, went, ops };
 	}
@@ -559,8 +559,8 @@ describe('the chat’s tools', () => {
 		for (const tool of extension.tools!) expect(tool.description.length).toBeLessThan(700);
 		// The whole of what the model is sent before a word is said: the prompt and every tool's schema.
 		const prompt = (await Promise.all(extension.sections!.map((section) => section.render({} as never, {} as never)))).filter(Boolean).join('\n\n');
-		// 26,000 before skills; their three tools (Casey's runs only) are some 1,650 characters of schema.
-		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(27_600);
+		// 26,000 before skills; their three tools (Casey's runs only) are some 1,650 characters of schema. table_add's `frames` and `table`, and table_edit's `url`, are some 550 more.
+		expect(prompt.length + JSON.stringify(extension.tools!.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(28_200);
 		const skills = extension.tools!.filter((tool) => ['use_skill', 'skill_find', 'skill_add'].includes(tool.name));
 		expect(JSON.stringify(skills.map(({ name, description, parameters }) => ({ name, description, parameters }))).length).toBeLessThan(1_700);
 	});
@@ -908,6 +908,92 @@ describe('the chat’s tools', () => {
 		expect(isOwnerTool('table_new')).toBe(true);
 		expect(isOwnerTool('table_read')).toBe(false);
 		expect(extension.tools!.filter((one) => one.name.startsWith('table_') && one.name !== 'table_read').every((one) => isOwnerTool(one.name))).toBe(true);
+	});
+
+	test('with no table open, table_add makes one and fills it in the same call', async () => {
+		const ops: { op: string }[] = [];
+		const { tool, went } = await setup({ ops });
+		const done = JSON.parse(await out(tool('table_add'), { table: 'Reader saves this week', items: [{ url: 'https://example.com/a' }, { url: 'https://example.com/b' }] }));
+		expect(went).toEqual(['/tables/new123']);
+		expect(ops.map((op) => op.op)).toEqual(['add_links', 'read']);
+		expect(done).toMatchObject({ added: 2, table: '/tables/new123' });
+		// A table that never opens is said plainly, with its link, rather than as a missing tool.
+		const shut = await setup({ opens: false });
+		await expect(out(shut.tool('table_add'), { items: [{ note: 'One' }] })).rejects.toThrow(/made at \/tables\/new123, but it hasn’t opened/);
+	});
+
+	test('table_add and table_new are offered with no table open; the tools that need one are not, and the prompt says how to get one', async () => {
+		const { needsTable, isTableTool } = await import('../src/lib/server/chat/tools');
+		expect(['table_new', 'table_add'].some(needsTable)).toBe(false);
+		expect(['table_arrange', 'table_edit', 'table_read'].every(needsTable)).toBe(true);
+		expect(isTableTool('table_add')).toBe(true);
+		const { extension } = await setup({ owner: true });
+		const hooks = extension.hooks as unknown as { handlers: { beforeProviderRequest?: (request: unknown, api: unknown, context: unknown) => Promise<{ payload: { tools?: { function: { name: string } }[] } } | undefined> } }[];
+		const before = hooks.find((hook) => hook.handlers.beforeProviderRequest)!.handlers.beforeProviderRequest!;
+		const tools = extension.tools!.map((tool) => ({ type: 'function', function: { name: tool.name } }));
+		const sent = await before({ payload: { model: 'm', tools, messages: [{ role: 'user', content: 'hi' }] } }, { conversationId: 'c', snapshot: async () => ({ run: { turns: 1 } }), entries: async () => ({ items: [] }) }, {});
+		const offered = sent!.payload.tools!.map((tool) => tool.function.name).filter((name) => name.startsWith('table_'));
+		expect(offered).toEqual(['table_new', 'table_add']);
+		const said = await extension.sections!.find((section) => section.key === 'table')!.render({} as never, {} as never);
+		expect(said).toContain('table_add makes a new table');
+		expect(said).toContain('Never tell Casey a table tool is missing');
+		// A visitor can't make tables, so isn't told about them.
+		const visitor = await setup({ owner: false });
+		expect(await visitor.extension.sections!.find((section) => section.key === 'table')!.render({} as never, {} as never)).toBeUndefined();
+	});
+
+	test('`frames` sets out several named groups in one call, each beside the last, and pushes apart what overlaps', async () => {
+		const ops: { op: string; name?: string; at?: { x: number; y: number }; ids?: string[] }[] = [];
+		const boxes = () => ops.filter((op) => op.op === 'frame').map((op, index) => ({ id: `f${index + 1}`, type: 'frame', text: op.name, x: index * 1000, y: 0, w: 600, h: 400 }));
+		let overlapping = true;
+		const { tool } = await setup({ table: 'abc123', ops, items: boxes, issues: () => overlapping ? { overlaps: [['f1', 'f2']] } : undefined });
+		const groups = ['Technology', 'Art', 'Politics'].map((name) => ({ name, items: [{ url: `https://example.com/${name}/1` }, { url: `https://example.com/${name}/2` }] }));
+		const run = out(tool('table_add'), { frames: groups });
+		// Tidying clears the overlap the frames reported.
+		const done = JSON.parse(await run.then((text) => { overlapping = false; return text; }));
+		expect(ops.filter((op) => op.op === 'frame').map((op) => op.name)).toEqual(['Technology', 'Art', 'Politics']);
+		// The second group is set out to the right of the first frame as measured, not in the same open spot.
+		const arranged = ops.filter((op) => op.op === 'arrange');
+		expect(arranged).toHaveLength(2);
+		expect(arranged[0].at).toEqual({ x: 0 + 600 + 120 + 40, y: 40 });
+		// Three groups are two to a row: the third starts a new row under the first.
+		expect(arranged[1].at).toEqual({ x: 40, y: 400 + 120 + 40 });
+		expect(ops.some((op) => op.op === 'tidy')).toBe(true);
+		expect(done).toMatchObject({ added: 6, frames: [{ name: 'Technology', frame: 'f1', added: 2 }, { name: 'Art', frame: 'f2', added: 2 }, { name: 'Politics', frame: 'f3', added: 2 }] });
+	});
+
+	test('table changes asked for in the same round happen one at a time', async () => {
+		const ops: { op: string; name?: string }[] = [];
+		const { tool } = await setup({ table: 'abc123', ops });
+		await Promise.all(['A', 'B', 'C'].map((frame) => out(tool('table_add'), { items: [{ url: `https://example.com/${frame}` }], frame })));
+		// Each call's links, frame and report finish before the next call starts.
+		expect(ops.map((op) => op.op)).toEqual(['add_links', 'frame', 'read', 'add_links', 'frame', 'read', 'add_links', 'frame', 'read']);
+		expect(ops.filter((op) => op.op === 'frame').map((op) => op.name)).toEqual(['A', 'B', 'C']);
+	});
+
+	test('table_edit gives blocks a different link, where they stand', async () => {
+		const ops: { op: string; links?: unknown[]; edits?: unknown[] }[] = [];
+		const { tool } = await setup({ table: 'abc123', ops });
+		await out(tool('table_edit'), { edits: [{ id: 'b1', url: 'https://www.fieldbuilding.org/the-art-of-field-building' }, { id: 'b2', url: '/2026/11/17/writing-again/' }, { id: 'n1', text: 'Reworded' }] });
+		expect(ops[0]).toMatchObject({ op: 'edit', edits: [{ id: 'n1', text: 'Reworded' }] });
+		expect(ops[1]).toMatchObject({ op: 'relink', links: [{ id: 'b1', url: 'https://www.fieldbuilding.org/the-art-of-field-building' }, { id: 'b2', url: 'https://caseyagollan.com/2026/11/17/writing-again/' }] });
+	});
+
+	test('a reply cut off at the length limit carries on once, told that its tool call never ran', async () => {
+		const { CUT_OFF_NOTE } = await import('../src/lib/server/chat/tools');
+		const { extension } = await setup();
+		const hooks = extension.hooks as unknown as { handlers: { onYield?: (answer: unknown, api: unknown, context: unknown) => { continue: string } | undefined; afterRun?: () => unknown; beforeProviderRequest?: (request: unknown, api: unknown, context: unknown) => Promise<unknown> } }[];
+		const generation = hooks.find((hook) => hook.handlers.onYield)!.handlers;
+		expect(generation.onYield!({ stopReason: 'stop' }, {}, {})).toBeUndefined();
+		expect(generation.onYield!({ stopReason: 'length' }, {}, {})).toEqual({ continue: CUT_OFF_NOTE });
+		expect(CUT_OFF_NOTE).toContain('did not run');
+		// The run that carries on starts its rounds over, and is still the same run: no second go.
+		const api = { conversationId: 'c', snapshot: async () => ({ run: { turns: 0 } }), entries: async () => ({ items: [] }) };
+		await generation.beforeProviderRequest!({ payload: { model: 'm', tools: [{ function: { name: 'search_site' } }], messages: [{ role: 'user', content: 'do that' }, { role: 'user', content: CUT_OFF_NOTE }] } }, api, {});
+		expect(generation.onYield!({ stopReason: 'length' }, {}, {})).toBeUndefined();
+		// A new message from Casey starts the count again.
+		await generation.beforeProviderRequest!({ payload: { model: 'm', tools: [{ function: { name: 'search_site' } }], messages: [{ role: 'user', content: 'try making the table' }] } }, api, {});
+		expect(generation.onYield!({ stopReason: 'length' }, {}, {})).toEqual({ continue: CUT_OFF_NOTE });
 	});
 
 	test('the last round of a run is asked without tools, so it ends in an answer', async () => {
