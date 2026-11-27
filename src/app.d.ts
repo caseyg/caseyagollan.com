@@ -20,6 +20,10 @@ declare global {
 		interface PageState {
 			/** Wiki pages open as panes beside the one being read; see `WikiStack`. */
 			wikiStack?: string[];
+			/** /chat is showing a chat that was just started there and is still being made. */
+			chatStarting?: boolean;
+			/** That chat's thread, once it has one: the address is the thread's, the page still /chat's. */
+			chatThread?: string;
 		}
 		interface Platform {
 			env?: PublishingEnvironment & RateLimitEnvironment & {

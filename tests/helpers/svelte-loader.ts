@@ -20,6 +20,11 @@ plugin({
 			contents: compileModule(readFileSync(path, 'utf8'), { filename: path, generate: 'client' }).js.code,
 			loader: 'js'
 		}));
+		// Rune modules written in TypeScript, such as the chat's `LiveThread`: types off first, then the runes.
+		build.onLoad({ filter: /\.svelte\.ts$/ }, ({ path }) => ({
+			contents: compileModule(new Bun.Transpiler({ loader: 'ts' }).transformSync(readFileSync(path, 'utf8')), { filename: path, generate: 'client' }).js.code,
+			loader: 'js'
+		}));
 	}
 });
 
