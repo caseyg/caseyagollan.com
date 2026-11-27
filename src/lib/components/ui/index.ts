@@ -19,6 +19,7 @@ export type { FloatingCorner } from './FloatingButton.svelte';
 export { default as Heading } from './Heading.svelte';
 export { default as InlineForm } from './InlineForm.svelte';
 export { default as Icon } from './Icon.svelte';
+export { default as MenuChevron } from './MenuChevron.svelte';
 export { default as Notice } from './Notice.svelte';
 export { default as MasonryGrid } from './MasonryGrid.svelte';
 export { default as Page } from './Page.svelte';

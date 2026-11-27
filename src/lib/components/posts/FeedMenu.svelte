@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Icon, Popover, SubscribePanel, takeSubscribeStatus, type SubscribeOutcome, type SubscribeStatus } from '$lib/components/ui';
+	import { Icon, MenuChevron, Popover, SubscribePanel, takeSubscribeStatus, type SubscribeOutcome, type SubscribeStatus } from '$lib/components/ui';
 	import { SITE_FEEDS, type SiteFeed } from '$lib/feeds';
 
 	interface Props {
@@ -34,7 +34,7 @@
 	(SubscribePanel). On a phone it shows the feed icon alone.
 -->
 <Popover label="{label} to {scope ?? 'posts'}" align="start" bind:open triggerClass="feed-menu-trigger" panelClass="feed-menu">
-	{#snippet trigger()}<Icon name="rss" size={16} /><span class="label">{label}</span><span class="arrow" aria-hidden="true">▾</span>{/snippet}
+	{#snippet trigger()}<Icon name="rss" size={16} /><span class="label">{label}</span><MenuChevron />{/snippet}
 	<SubscribePanel {feeds} {scope} {email} {submit} {initial} />
 </Popover>
 
@@ -43,7 +43,8 @@
 	:global(.popover-trigger.feed-menu-trigger) {
 		box-sizing: border-box;
 		height: var(--nav-height);
-		padding: 0 var(--space-2) 0 var(--space-3);
+		--menu-chevron-divider: var(--border);
+		padding: 0 0 0 var(--space-3);
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
 		background: var(--bg-primary);
@@ -56,15 +57,6 @@
 		background: color-mix(in srgb, white 15%, var(--bg-primary));
 	}
 
-	.arrow {
-		font-size: var(--fs-sm);
-		transition: transform var(--duration) var(--ease);
-	}
-
-	:global(.feed-menu-trigger[data-open]) .arrow {
-		transform: rotate(180deg);
-	}
-
 	:global(.feed-menu) {
 		width: min(22rem, calc(100vw - 2rem));
 	}
@@ -75,14 +67,8 @@
 		}
 
 		.label,
-		.arrow {
+		:global(.feed-menu-trigger .menu-chevron) {
 			display: none;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.arrow {
-			transition: none;
 		}
 	}
 </style>
