@@ -3,6 +3,7 @@
 	import { fetchSourcePost, isSitePostLink, isSocialPiece, isSourcePost, sourceView, type SourceView } from '$lib/table-post-source';
 	import ArenaBlock from './ArenaBlock.svelte';
 	import SocialBlock from './SocialBlock.svelte';
+	import SourceCard from './SourceCard.svelte';
 
 	interface Props {
 		block: Block;
@@ -60,6 +61,8 @@
 
 {#if native && (view || isSocialPiece(block))}
 	<SocialBlock {block} {view} {details} />
+{:else if native && block.form === 'card'}
+	<SourceCard {block} {details} />
 {:else if native && block.kind === 'arena'}
 	<ArenaBlock {block} {details} />
 {:else}
