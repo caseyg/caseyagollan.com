@@ -87,6 +87,7 @@
 	import { Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem, MenuTrigger } from '@ui-sdk/svelte/menu';
 	import Count from './Count.svelte';
 	import Icon from './Icon.svelte';
+	import MenuChevron from './MenuChevron.svelte';
 
 	interface Props {
 		/** Label of the selected option, shown on the trigger. */
@@ -193,7 +194,7 @@
 		</span>
 		{#if badge}<span class="badge">{badge}</span>{/if}
 		{#if count !== undefined}<span class="count"><Count value={count} label="{count} posts" /></span>{/if}
-		<span class="arrow" aria-hidden="true">▾</span>
+		<MenuChevron split={variant !== 'quiet'} />
 	</MenuTrigger>
 	<MenuContent class="select-menu select-menu--{variant} {columns === 2 ? 'select-menu--columns' : ''}" side="bottom" {align} sideOffset={4} collisionPadding={4}>
 		{#each groups as group, i (group.label ?? i)}
@@ -226,7 +227,9 @@
 	}
 
 	:global(.select-menu-trigger--title) {
-		padding: var(--space-2) var(--space-4);
+		--menu-chevron-bleed: var(--space-2);
+		padding: var(--space-2) 0 var(--space-2) var(--space-4);
+		overflow: clip;
 		border-radius: var(--radius-sm);
 		background: var(--accent);
 		font-size: var(--fs-lg);
@@ -243,6 +246,8 @@
 	:global(.select-menu-trigger--segment) {
 		height: 100%;
 		padding: var(--segment-padding, var(--space-1) var(--space-3));
+		/* The chevron's own segment ends the trigger. */
+		padding-inline-end: 0;
 		border-radius: 0;
 		background: none;
 		font-size: inherit;
@@ -300,7 +305,7 @@
 			white-space: nowrap;
 		}
 
-		:global(.segmented-pill.compact > .segment--menu:first-child) .current.has-icon ~ .arrow {
+		:global(.segmented-pill.compact > .segment--menu:first-child) .current.has-icon ~ :global(.menu-chevron) {
 			display: none;
 		}
 
@@ -356,15 +361,6 @@
 		color: var(--bg-primary);
 	}
 
-	.arrow {
-		font-size: var(--fs-sm);
-		transition: transform var(--duration) var(--ease);
-	}
-
-	:global([data-open]) > .arrow {
-		transform: rotate(180deg);
-	}
-
 	/* A compact pill shows emoji alone on a phone; a label with no emoji stays, kept short. */
 	@media (max-width: 600px) {
 		:global(.segmented-pill.compact) .current.has-icon .text,
@@ -378,10 +374,6 @@
 
 		:global(.segmented-pill.compact) .text {
 			max-width: 26vw;
-		}
-
-		:global(.segmented-pill.compact) .arrow {
-			font-size: var(--fs-xs);
 		}
 	}
 
