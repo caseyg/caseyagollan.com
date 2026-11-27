@@ -14,6 +14,7 @@
 	import { wikiHref } from '$lib/wiki/links';
 	import LinkPreviewCard, { faviconUrl, type LinkPreviewImage } from '$lib/components/ui/LinkPreviewCard.svelte';
 	import { cue } from '$lib/sound.svelte';
+	import { HoverCard, HoverCardContent, createHoverCardController } from '@ui-sdk/svelte/hover-card';
 
 	let {
 		onTopicClick,
@@ -91,8 +92,6 @@
 		| { mode: 'tap'; node: Node; anchor: Element };
 	let preview = $state.raw<Preview | null>(null);
 	let previewImage = $state<LinkPreviewImage>('loading');
-	let previewCard = $state<HTMLAnchorElement>();
-	let previewPosition = $state<{ left: number; top: number } | null>(null);
 	let hasShownPulse = false;
 	let coachmarkTimeout: ReturnType<typeof setTimeout> | null = null;
 	let coachmarkCycleCount = 0;
@@ -258,63 +257,18 @@
 		return window.matchMedia('(hover: none)').matches;
 	}
 
-	// Place the card beside the pointer (hover) or the node (tap), kept inside the viewport.
+	// The card is the site's hover card: it keeps itself inside the viewport and, held open by a tap,
+	// closes on Escape or a press anywhere else. Its anchor is read as the card is placed, so it
+	// follows the pointer (hover) or the node (tap).
+	const previewCard = createHoverCardController();
+	const previewAnchor = {
+		getBoundingClientRect: () => (preview?.mode === 'tap' ? preview.anchor.getBoundingClientRect() : new DOMRect(preview?.x ?? 0, preview?.y ?? 0, 0, 0))
+	};
+	const shownPreview = $derived(preview?.node.url ? `${preview.mode}:${preview.node.id}` : null);
 	$effect(() => {
-		const current = preview;
-		const card = previewCard;
-		void previewImage;
-		if (!current || !card) {
-			previewPosition = null;
-			return;
-		}
-		const gutter = 16;
-		const gap = 12;
-		const { innerWidth: vw, innerHeight: vh } = window;
-		const w = card.offsetWidth;
-		const h = card.offsetHeight;
-		let left: number;
-		let top: number;
-		if (current.mode === 'hover') {
-			left = current.x + gap + w > vw - gutter ? current.x - gap - w : current.x + gap;
-			top = current.y + gap + h > vh - gutter ? current.y - gap - h : current.y + gap;
-		} else {
-			const r = current.anchor.getBoundingClientRect();
-			left = r.left + r.width / 2 - w / 2;
-			top = r.bottom + gap + h <= vh - gutter ? r.bottom + gap : r.top - gap - h;
-		}
-		previewPosition = {
-			left: Math.max(gutter, Math.min(left, vw - w - gutter)),
-			top: Math.max(gutter, Math.min(top, vh - h - gutter))
-		};
+		if (shownPreview) void previewCard.open({ anchor: previewAnchor });
+		else previewCard.close();
 	});
-
-	// A held-open card closes on a press anywhere else, on scroll, or on Escape.
-	$effect(() => {
-		if (preview?.mode !== 'tap') return;
-		const { anchor } = preview;
-		const onPointerDown = (event: PointerEvent) => {
-			const target = event.target as globalThis.Node;
-			if (previewCard?.contains(target) || anchor.contains(target)) return;
-			preview = null;
-		};
-		const close = () => (preview = null);
-		const onKey = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') close();
-		};
-		document.addEventListener('pointerdown', onPointerDown, true);
-		window.addEventListener('scroll', close, { passive: true });
-		window.addEventListener('keydown', onKey);
-		return () => {
-			document.removeEventListener('pointerdown', onPointerDown, true);
-			window.removeEventListener('scroll', close);
-			window.removeEventListener('keydown', onKey);
-		};
-	});
-
-	function portal(element: HTMLElement) {
-		document.body.appendChild(element);
-		return { destroy: () => element.remove() };
-	}
 
 	// Build dynamic nodes and links from insights data
 	function buildDynamicGraph() {
@@ -1037,26 +991,29 @@
 
 <div bind:this={graphContainer} class="skills-graph"></div>
 
-{#if preview?.node.url}
-	<div
-		class="graph-link-preview"
-		use:portal
-		style:left="{previewPosition?.left ?? 0}px"
-		style:top="{previewPosition?.top ?? 0}px"
-		style:visibility={previewPosition ? 'visible' : 'hidden'}
-	>
-		<LinkPreviewCard
-			bind:element={previewCard}
-			href={preview.node.url}
-			localHref={wikiHref(preview.node.url) ?? undefined}
-			title={preview.node.title || undefined}
-			excerpt={preview.node.cited_text || undefined}
-			image={previewImage}
-			interactive={preview.mode === 'tap'}
-			onopen={() => (preview = null)}
-		/>
-	</div>
-{/if}
+<!-- A press on the held node is that node's second tap, which opens the page; it is not a press outside. -->
+<HoverCard
+	controller={previewCard}
+	onOpenChange={(open, details) => {
+		if (open) return;
+		if (preview?.mode === 'tap' && details.reason === 'outside-press' && preview.anchor.contains(details.event?.target as globalThis.Node)) details.cancel();
+		else preview = null;
+	}}
+>
+	<HoverCardContent class="graph-link-preview" side="bottom" align={preview?.mode === 'tap' ? 'center' : 'start'} sideOffset={12} alignOffset={preview?.mode === 'tap' ? 0 : 12} collisionPadding={16}>
+		{#if preview?.node.url}
+			<LinkPreviewCard
+				href={preview.node.url}
+				localHref={wikiHref(preview.node.url) ?? undefined}
+				title={preview.node.title || undefined}
+				excerpt={preview.node.cited_text || undefined}
+				image={previewImage}
+				interactive={preview.mode === 'tap'}
+				onopen={() => (preview = null)}
+			/>
+		{/if}
+	</HoverCardContent>
+</HoverCard>
 
 <style>
 	.skills-graph {
@@ -1195,20 +1152,30 @@
 		fill: blue !important;
 	}
 
-	/* Above the page, outside the graph's own stacking. */
-	.graph-link-preview {
-		position: fixed;
-		z-index: var(--z-nav);
-		animation: preview-in 150ms var(--ease-out);
+	/* Following a mouse, the card can't be reached, so it must not catch the pointer either. */
+	:global(.graph-link-preview) {
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		overflow: visible;
+		transform-origin: var(--transform-origin);
+		transition: opacity 150ms var(--ease-out), scale 150ms var(--ease-out);
 	}
 
-	@keyframes preview-in {
-		from { opacity: 0; scale: 0.97; }
+	:global(.graph-link-preview:not(:has(.interactive))) {
+		pointer-events: none;
+	}
+
+	:global(.graph-link-preview[data-starting-style]),
+	:global(.graph-link-preview[data-ending-style]) {
+		opacity: 0;
+		scale: 0.97;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.graph-link-preview {
-			animation: none;
+		:global(.graph-link-preview) {
+			transition: none;
 		}
 	}
 
