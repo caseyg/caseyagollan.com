@@ -27,3 +27,6 @@
 
 <!-- Only when Casey asked: a Micropub step, with no contents shown. -->
 <Story name="Saved a draft (owner)" args={{ message: draft }} />
+
+<!-- A message that invoked skills, anywhere in it: each is named on a chip above what was said. -->
+<Story name="Invoked a skill" args={{ own: true, message: { ...question, content: 'For this week, leaving out the likes: /link-roundup then /weekly-review', skills: ['link-roundup', 'weekly-review'] } }} />

@@ -45,6 +45,10 @@ export interface ChatToolUse {
 	response?: string;
 	/** Why it didn't work. */
 	error?: string;
+	/** A skill the assistant put in front of Casey to review (`skill_add`); the card fetches the rest as Casey. */
+	skill?: import('./chat-skills').SkillReviewRef;
+	/** Several skills put up at once, from a repository or a plugin marketplace: one card, each added by itself. */
+	skillSet?: { skills: import('./chat-skills').SkillReviewRef[]; from?: string; total?: number; notes?: string[] };
 }
 
 /** A reply in the order it happened: stretches of text, and the steps taken between them. */
@@ -127,6 +131,8 @@ export interface ChatMessage {
 	createdAt: number;
 	/** For `user`: what they had selected on the table when they wrote it. */
 	selection?: ChatSelection;
+	/** For `user`: the skills the message invoked with `/name`, somewhere in its text. */
+	skills?: string[];
 }
 
 export interface ChatThreadSummary {

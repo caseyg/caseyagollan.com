@@ -11,6 +11,7 @@ import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { chatSelection, sayPrefix } from '../../src/lib/chat';
 import { chatExtension } from '../../src/lib/server/chat/tools';
 import { callMicropubTool, MICROPUB_TOOLS, type MicropubCall } from '../../src/lib/server/chat/micropub-mcp';
+import { invokedSkills, saveSkill } from '../../src/lib/server/chat/skills';
 import { fakeTable } from './fake-table';
 import { SCENARIOS, type Scenario } from './scenarios';
 
@@ -108,7 +109,16 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 		// What Casey had selected when asking, as the thread remembers it from the message.
 		selection: () => scenario.selected ?? []
 	};
-	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER } as never, renderFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
+	// Casey's skills, kept in memory for the run: the built-in ones, plus any the scenario starts with.
+	const kept = new Map<string, string>();
+	const skillStore = { get: async (key: string) => kept.has(key) ? { json: async () => JSON.parse(kept.get(key)!) } : null, put: async (key: string, value: string) => { kept.set(key, value); }, delete: async (key: string) => { kept.delete(key); } } as unknown as R2Bucket;
+	for (const skill of scenario.skills ?? []) await saveSkill(skillStore, skill);
+	// GitHub's tree API refuses the sandbox this runs in, so a repository's listing is stood in for; the skills themselves are read live.
+	const skillsFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+		const listing = /^https:\/\/api\.github\.com\/repos\/anthropics\/skills\/git\/trees\//.test(String(input));
+		return listing ? Response.json({ tree: ['frontend-design', 'doc-coauthoring', 'internal-comms', 'brand-guidelines'].map((name) => ({ path: `skills/${name}/SKILL.md`, type: 'blob' })) }) : fetch(input, init);
+	}) as typeof fetch;
+	const extension = chatExtension({ env: { ASSETS: assets, ...SAVES, ...RENDER, PUBLISHING_STATE: skillStore } as never, renderFetch, skillsFetch, origin: () => ORIGIN, onlyOwner: () => true, thread: thread as never, micropub, now: () => NOW, reasoningEffort: process.env.CHAT_REASONING_EFFORT } as never);
 	// Before the redesign the extension took no Micropub stand-in: offer the bridge's own tools the way the Worker does.
 	const names = new Set(extension.tools!.map((tool) => tool.name));
 	const extra: Tool[] = [...names].some((name) => name.startsWith('micropub_')) ? [] : MICROPUB_TOOLS.map((tool) => ({ name: tool.name, description: tool.description, parameters: tool.inputSchema, async execute(args: unknown) { const result = await callMicropubTool(micropub, tool.name, args as Record<string, unknown>); return { output: result.content }; } }));
@@ -118,7 +128,9 @@ async function run(scenario: Scenario, micropub: MicropubCall): Promise<Outcome>
 	// The same line the thread writes before each message: who, where, and what is selected on the table.
 	const selection = scenario.table && scenario.selected?.length ? chatSelection(scenario.table.filter((item) => scenario.selected!.includes(item.id)).map((item) => ({ id: item.id, type: item.type, title: item.title ?? item.text }))) : null;
 	const prefix = sayPrefix('Casey Gollan (Casey, the site’s owner)', ORIGIN, scenario.page ? { path: scenario.page, title: scenario.pageTitle, ...(scenario.table ? { table: 'evaltable1' } : {}) } : null, selection);
-	const messages: Record<string, unknown>[] = [{ role: 'system', content: await system() }, { role: 'user', content: `${prefix}\n\n${scenario.ask}` }];
+	// A message with /name in it carries that skill's instructions, as the thread sends it.
+	const invoked = await invokedSkills(skillStore, scenario.ask);
+	const messages: Record<string, unknown>[] = [{ role: 'system', content: await system() }, { role: 'user', content: `${prefix}\n\n${scenario.ask}${invoked ? `\n\n${invoked.text}` : ''}` }];
 	const outcome: Outcome = { scenario: scenario.name, status: 'answered', rounds: 0, calls: [], tokensIn: 0, tokensOut: 0, peakTokens: 0, seconds: 0, answer: '', checks: [] };
 	const hooks = extension.hooks as unknown as { task: string; handlers: { beforeTool?: (call: { name: string; arguments: unknown }, api: unknown, context: unknown) => Promise<{ block?: string } | undefined>; beforeProviderRequest?: (request: { payload: unknown; model: unknown }, api: unknown, context: unknown) => Promise<{ payload: unknown } | undefined> } }[];
 	const started = Date.now();

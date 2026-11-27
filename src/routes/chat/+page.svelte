@@ -8,7 +8,7 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	// svelte-ignore state_referenced_locally
-	let text = $state(form?.text || takeDraft());
+	let text = $state(form?.text || takeDraft() || data.ask);
 
 	/** Out of full screen: back to the page Casey came from, with a new chat beside or over it. */
 	const place = (choice: ChatPlace) => { if (choice !== 'fullscreen') void goto(leaveFullScreen(choice, undefined, text)); };

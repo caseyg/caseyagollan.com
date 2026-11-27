@@ -2,7 +2,7 @@
 import type { FakeItem } from './fake-table';
 
 interface Seen { answer: string; calls: { name: string; args: string; error?: boolean }[]; went: string[]; items: FakeItem[] }
-export interface Scenario { name: string; ask: string; page?: string; pageTitle?: string; table?: FakeItem[]; selected?: string[]; checks: { name: string; pass(seen: Seen): unknown }[] }
+export interface Scenario { name: string; ask: string; page?: string; pageTitle?: string; table?: FakeItem[]; selected?: string[]; /** Skills Casey has besides the built-in ones. */ skills?: { name: string; description: string; instructions: string }[]; checks: { name: string; pass(seen: Seen): unknown }[] }
 
 const used = (seen: Seen, name: RegExp) => seen.calls.filter((call) => name.test(call.name)).length;
 
@@ -486,6 +486,84 @@ export const SCENARIOS: Scenario[] = [
 			{ name: 'makes the table', pass: (seen) => used(seen, /^(create_table|table_new)$/) === 1 },
 			{ name: 'puts blocks on it', pass: (seen) => seen.calls.some((call) => /^table_add/.test(call.name) && !call.error) },
 			{ name: 'four calls or fewer', pass: (seen) => seen.calls.length <= 4 }
+		]
+	},
+	// Skills: the assistant picks one by its description, a slash command brings one along, and adding one only ever makes a review card.
+	{
+		name: 'skill-auto',
+		ask: 'Do a link roundup for this week.',
+		skills: [{ name: 'link-roundup', description: 'Write a link roundup from recent bookmarks and likes. Use whenever Casey asks for a roundup, a links post, or “what I’ve been reading”.', instructions: '# Link roundup\n\n1. One search_site call with `days: 7` and no query finds the week’s posts.\n2. Pick the bookmarks and likes, and group them under two or three themes.\n3. Answer with the roundup itself in Markdown: a `##` heading per theme and a line per link saying why it was worth saving. End with the exact line `Roundup by the link-roundup skill.`\n4. Don’t save anything unless Casey asks.' }],
+		checks: [
+			{ name: 'reads the skill first', pass: (seen) => seen.calls[0]?.name === 'use_skill' && /link-roundup/.test(seen.calls[0].args) },
+			{ name: 'follows it', pass: (seen) => /Roundup by the link-roundup skill/i.test(seen.answer) && used(seen, /^search_site$/) >= 1 },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'skill-slash',
+		ask: '/link-roundup for this week',
+		skills: [{ name: 'link-roundup', description: 'Write a link roundup from recent bookmarks and likes. Use whenever Casey asks for a roundup, a links post, or “what I’ve been reading”.', instructions: '# Link roundup\n\n1. One search_site call with `days: 7` and no query finds the week’s posts.\n2. Pick the bookmarks and likes, and group them under two or three themes.\n3. Answer with the roundup itself in Markdown: a `##` heading per theme and a line per link saying why it was worth saving. End with the exact line `Roundup by the link-roundup skill.`\n4. Don’t save anything unless Casey asks.' }],
+		checks: [
+			{ name: 'doesn’t load the skill again', pass: (seen) => !used(seen, /^use_skill$/) },
+			{ name: 'follows it', pass: (seen) => /Roundup by the link-roundup skill/i.test(seen.answer) && used(seen, /^search_site$/) >= 1 },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'skill-slash-mid',
+		ask: 'For this week, leaving out the likes, do a /link-roundup please',
+		skills: [{ name: 'link-roundup', description: 'Write a link roundup from recent bookmarks and likes. Use whenever Casey asks for a roundup, a links post, or “what I’ve been reading”.', instructions: '# Link roundup\n\n1. One search_site call with `days: 7` and no query finds the week’s posts.\n2. Pick the bookmarks and likes, and group them under two or three themes.\n3. Answer with the roundup itself in Markdown: a `##` heading per theme and a line per link saying why it was worth saving. End with the exact line `Roundup by the link-roundup skill.`\n4. Don’t save anything unless Casey asks.' }],
+		checks: [
+			{ name: 'doesn’t load the skill again', pass: (seen) => !used(seen, /^use_skill$/) },
+			{ name: 'follows it', pass: (seen) => /Roundup by the link-roundup skill/i.test(seen.answer) && used(seen, /^search_site$/) >= 1 },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'skill-install-repo',
+		ask: 'Install the skills from the anthropics/skills repo.',
+		checks: [
+			{ name: 'asks for the whole repository in one call', pass: (seen) => seen.calls.filter((call) => call.name === 'skill_add').length === 1 && seen.calls.some((call) => call.name === 'skill_add' && /anthropics\/skills"/.test(call.args)) },
+			{ name: 'says Casey chooses on the card, not that they are installed', pass: (seen) => /card|tick|choose|pick|review/i.test(seen.answer) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'skill-not-needed',
+		ask: 'What did I post about Micropub?',
+		skills: [{ name: 'link-roundup', description: 'Write a link roundup from recent bookmarks and likes. Use whenever Casey asks for a roundup, a links post, or “what I’ve been reading”.', instructions: '# Link roundup\n\n1. One search_site call with `days: 7` and no query finds the week’s posts.\n2. Pick the bookmarks and likes, and group them under two or three themes.\n3. Answer with the roundup itself in Markdown: a `##` heading per theme and a line per link saying why it was worth saving. End with the exact line `Roundup by the link-roundup skill.`\n4. Don’t save anything unless Casey asks.' }],
+		checks: [
+			{ name: 'no skill for an ordinary question', pass: (seen) => !used(seen, /^(use_skill|skill_)/) },
+			{ name: 'searches', pass: (seen) => used(seen, /^search_site$/) >= 1 }
+		]
+	},
+	{
+		name: 'skill-create',
+		ask: '/skill-creator Make a skill for a weekly review: list what I posted in the last 7 days by type, point out anything still in drafts, and suggest one thing to write next. Just draft it, no questions.',
+		checks: [
+			{ name: 'puts a draft up for review', pass: (seen) => seen.calls.some((call) => call.name === 'skill_add' && !call.error && !/"source"/.test(call.args)) },
+			{ name: 'doesn’t claim it is installed', pass: (seen) => !/\b(is|has been|i(’|')ve|now) (installed|added|saved)\b/i.test(seen.answer) || /press|card|review/i.test(seen.answer) },
+			{ name: 'says how to use it', pass: (seen) => /\/[a-z0-9-]+/.test(seen.answer) },
+			{ name: 'two calls or fewer', pass: (seen) => seen.calls.length <= 2 }
+		]
+	},
+	{
+		name: 'skill-find',
+		ask: 'Is there a skill for writing changelogs?',
+		checks: [
+			{ name: 'searches skills.sh', pass: (seen) => seen.calls.some((call) => call.name === 'skill_find' && !call.error) },
+			{ name: 'names what it found with a skills.sh link', pass: (seen) => /skills\.sh\//.test(seen.answer) },
+			{ name: 'adds nothing unasked', pass: (seen) => !used(seen, /^skill_add$/) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
+		]
+	},
+	{
+		name: 'skill-install',
+		ask: 'Install the frontend-design skill from anthropics/skills.',
+		checks: [
+			{ name: 'offers it from its source', pass: (seen) => seen.calls.some((call) => call.name === 'skill_add' && !call.error && /anthropics\/skills/.test(call.args) && /frontend-design/.test(call.args)) },
+			{ name: 'says Casey adds it from the card, not that it is installed', pass: (seen) => /card|press|review|add it/i.test(seen.answer) },
+			{ name: 'three calls or fewer', pass: (seen) => seen.calls.length <= 3 }
 		]
 	}
 ];

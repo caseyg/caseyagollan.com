@@ -6,6 +6,7 @@
  *
  * Pure, so it is shared by the page's first render and the live socket, and tested alone.
  */
+import type { SkillReviewRef } from '../../chat-skills';
 import type { ChatAuthor, ChatMessage, ChatSelection, ChatToolUse } from '../../chat';
 import { MCP_SERVERS } from '../../mcp-servers';
 import { CODEMODE_TOOL, isMcpTool, scriptCalls } from './mcp-tools';
@@ -24,6 +25,8 @@ export interface SayData {
 	text: string;
 	/** What Casey had selected on the table (the first few described), shown beside the message. */
 	selection?: ChatSelection;
+	/** The skills the message invoked with `/name`; their instructions went to the model with it. */
+	skills?: string[];
 }
 
 /** The parts of pi's records this reads, loosely typed so tests can build them by hand. */
@@ -83,7 +86,7 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 			lastSay = entry.data.id;
 			const said = typeof entry.data.text === 'string' ? entry.data.text : message && 'content' in message ? textOf(message.content as Text[] | string) : '';
 			const selection = entry.data.selection;
-			messages.push({ id: entry.data.id, role: 'user', content: said, author: entry.data.author, status: 'done', createdAt: entry.data.at, ...(selection?.count ? { selection } : {}) });
+			messages.push({ id: entry.data.id, role: 'user', content: said, author: entry.data.author, status: 'done', createdAt: entry.data.at, ...(selection?.count ? { selection } : {}), ...saidSkills(entry.data) });
 		} else if (message?.role === 'assistant') {
 			const assistant = message as Assistant;
 			const target = open(assistant.timestamp ?? now, assistant.model);
@@ -113,6 +116,12 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 			if (!result.isError && (result.toolName === 'table_look' || result.toolName === 'view_image')) {
 				const picture = pictureFrom(result.toolName, call.args, result.content);
 				if (picture) call.use.picture = picture;
+			}
+			if (!result.isError && result.toolName === 'skill_add') {
+				const skill = skillFrom(textOf(result.content));
+				if (skill) { call.use.skill = skill; call.use.label = `Offered the skill “${skill.name}”`; }
+				const set = skill ? undefined : skillSetFrom(textOf(result.content));
+				if (set) { call.use.skillSet = set; call.use.label = `Offered ${set.skills.length} skills${set.from ? ` from ${set.from}` : ''}`; }
 			}
 			if (!result.isError && result.toolName === 'show_page') {
 				const peek = peekFrom(textOf(result.content));
@@ -153,7 +162,7 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 	for (const item of [...waiting.filter((item) => item.mode === 'steer'), ...waiting.filter((item) => item.mode !== 'steer')]) {
 		const data = item.entry.data;
 		if (messages.some((message) => message.id === data.id)) continue;
-		messages.push({ id: data.id, role: 'user', content: typeof data.text === 'string' ? data.text : '', author: data.author, status: 'done', createdAt: data.at, ...(data.selection?.count ? { selection: data.selection } : {}) });
+		messages.push({ id: data.id, role: 'user', content: typeof data.text === 'string' ? data.text : '', author: data.author, status: 'done', createdAt: data.at, ...(data.selection?.count ? { selection: data.selection } : {}), ...saidSkills(data) });
 	}
 	return messages;
 }
@@ -162,8 +171,8 @@ export function projectMessages(entries: readonly Entry[], live: Live = {}, now 
 export const RESPONSE_SHOWN = 3000;
 const clip = (text: string, most: number) => text.length > most ? `${text.slice(0, most).trimEnd()}…` : text;
 
-/** Tools that read or write what only Casey may see (drafts, private saves, anything a script read with Casey's sign-ins): their results stay out of the chat. */
-export const isPrivateTool = (name: string) => name.startsWith('micropub_') || name === 'my_saves' || name === CODEMODE_TOOL || isMcpTool(name);
+/** Tools that read or write what only Casey may see (drafts, private saves, the words of Casey's skills, anything a script read with Casey's sign-ins): their results stay out of the chat. */
+export const isPrivateTool = (name: string) => name.startsWith('micropub_') || name === 'my_saves' || name === 'use_skill' || name === 'skill_add' || name === CODEMODE_TOOL || isMcpTool(name);
 /** The Micropub arguments that say what was done without saying what was written. */
 const MICROPUB_SHOWN = new Set(['url', 'post_status', 'type', 'drafts_only', 'limit', 'action']);
 
@@ -175,6 +184,8 @@ export function requestOf(name: string, args: Record<string, unknown>): NonNulla
 	const rows: NonNullable<ChatToolUse['request']> = [];
 	for (const [key, value] of Object.entries(args)) {
 		if (value === undefined || value === null || value === '') continue;
+		// A drafted skill's words are for Casey's review card, not for every reader of the thread.
+		if (name === 'skill_add' && key === 'instructions') continue;
 		if (name.startsWith('micropub_') && !MICROPUB_SHOWN.has(key)) continue;
 		const words = key.replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim().toLowerCase();
 		if (!words) continue;
@@ -200,6 +211,9 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'micropub_list_posts') return args.drafts_only ? 'Looked for drafts' : 'Looked through recent posts';
 	if (name === 'micropub_get_post') return 'Opened a post';
 	if (name === 'micropub_config') return 'Checked the Micropub setup';
+	if (name === 'use_skill') return `${args.file ? 'Read a file of' : 'Used'} the skill “${String(args.name ?? '').replace(/^\//, '').slice(0, 64)}”`;
+	if (name === 'skill_find') return `Searched skills.sh for “${String(args.query ?? '').slice(0, 60)}”`;
+	if (name === 'skill_add') return typeof args.source === 'string' && args.source ? `Fetched a skill from ${args.source.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70)}` : `Drafted the skill “${String(args.name ?? '').slice(0, 64)}”`;
 	if (name === 'show_page') return `Opened a preview of ${String(args.url ?? '').replace(/^https?:\/\//, '').slice(0, 80)}`;
 	if (name === 'go_to') return `Took you to ${String(args.path ?? '').slice(0, 80)}`;
 	if (name === 'create_table' || name === 'table_new') return `Made a table, “${String(args.name ?? '').slice(0, 60)}”`;
@@ -295,6 +309,39 @@ export function peekFrom(output: string): ChatToolUse['peek'] | undefined {
 		const { url, title, excerpt } = JSON.parse(output) as { url?: unknown; title?: unknown; excerpt?: unknown };
 		if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return undefined;
 		return { url, title: typeof title === 'string' && title ? title.slice(0, 200) : url, ...(typeof excerpt === 'string' && excerpt ? { excerpt: excerpt.slice(0, 240) } : {}) };
+	} catch { return undefined; }
+}
+
+/** The skills a said message invoked, as the chat message carries them. */
+function saidSkills(data: { skills?: unknown }): { skills?: string[] } {
+	const names = Array.isArray(data.skills) ? data.skills.filter((name): name is string => typeof name === 'string').slice(0, 5) : [];
+	return names.length ? { skills: names } : {};
+}
+
+/** The skill `skill_add` put up for review: what its card shows before Casey's browser fetches the rest. */
+const reviewRef = (review: Record<string, unknown> | undefined): SkillReviewRef | undefined => {
+	if (!review || typeof review.id !== 'string' || !/^[a-z0-9]{12}$/.test(review.id) || typeof review.name !== 'string') return undefined;
+	const origin = review.origin === 'installed' ? 'installed' : 'custom';
+	return { id: review.id, name: review.name.slice(0, 64), description: typeof review.description === 'string' ? review.description.slice(0, 320) : '', origin, ...(typeof review.source === 'string' && /^https:\/\//.test(review.source) ? { source: review.source.slice(0, 300) } : {}), ...(review.replaces === true ? { replaces: true } : {}) };
+};
+
+export function skillFrom(output: string): ChatToolUse['skill'] | undefined {
+	try { return reviewRef((JSON.parse(output) as { review?: Record<string, unknown> }).review); } catch { return undefined; }
+}
+
+/** The skills `skill_add` put up together, from a repository or a plugin marketplace. */
+export function skillSetFrom(output: string): ChatToolUse['skillSet'] | undefined {
+	try {
+		const { reviews, from, total, notes } = JSON.parse(output) as { reviews?: unknown; from?: unknown; total?: unknown; notes?: unknown };
+		if (!Array.isArray(reviews)) return undefined;
+		const skills = reviews.slice(0, 24).map((review) => reviewRef(review as Record<string, unknown>)).filter((ref): ref is SkillReviewRef => !!ref);
+		if (!skills.length) return undefined;
+		return {
+			skills,
+			...(typeof from === 'string' && /^[\w.-]+\/[\w.-]+$/.test(from) ? { from } : {}),
+			...(typeof total === 'number' && total > skills.length ? { total: Math.round(total) } : {}),
+			...(Array.isArray(notes) ? { notes: notes.filter((note): note is string => typeof note === 'string').slice(0, 6).map((note) => note.slice(0, 400)) } : {})
+		};
 	} catch { return undefined; }
 }
 
