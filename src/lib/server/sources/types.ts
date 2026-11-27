@@ -85,6 +85,10 @@ export interface SyncState {
 	since?: string;
 	/** ISO time the last pass that listed everything started. */
 	full?: string;
+	/** The last try at this step never finished (the Worker ran out of memory or time): ask for less, and do less with it. */
+	cautious?: boolean;
+	/** How many tries at this step never finished. */
+	tries?: number;
 }
 
 /** One bounded piece of a sync: a page or a few, never the whole source. */

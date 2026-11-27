@@ -51,6 +51,8 @@ interface Kept extends SyncState {
 	failures?: number;
 	/** How far the pass under way has got. */
 	progress?: SyncProgress;
+	/** Tries at the step under way that never came back: a run that dies part way leaves this above zero. */
+	tries?: number;
 	/** The service asked the sync to wait until this ISO time. */
 	waiting?: string;
 }
@@ -88,10 +90,16 @@ export async function syncSource(plugin: SourcePlugin, deps: SyncDeps): Promise<
 	};
 	while (report.steps < (deps.maxSteps ?? 4) && Date.now() < until) {
 		let step;
+		// Written down before the step, so a run that dies in it (out of memory, out of time) is seen by the next one.
+		const tries = state.tries ?? 0;
+		if (tries >= 4) { state.tries = 0; failed(); break; }
+		state.tries = tries + 1;
+		index.setState(syncKey(plugin.id), state);
 		try {
-			step = await plugin.sync(context, { cursor: state.cursor, since: state.since, full: state.full });
+			step = await plugin.sync(context, { cursor: state.cursor, since: state.since, full: state.full, ...(tries > 0 ? { cautious: true, tries } : {}) });
 			delete state.waiting;
 		} catch (error) {
+			state.tries = 0;
 			if (error instanceof SourceBusy) { report.busy = error.retryAfter; state.waiting = new Date(Date.now() + error.retryAfter * 1000).toISOString(); }
 			else failed();
 			break;
@@ -112,6 +120,7 @@ export async function syncSource(plugin: SourcePlugin, deps: SyncDeps): Promise<
 		}
 		report.steps++;
 		state.failures = 0;
+		state.tries = 0;
 		if (step.done) {
 			if (step.complete) { report.removed += index.removeUnseen(plugin.id, state.started!).length; state.full = state.started; }
 			state.since = state.started;
@@ -146,14 +155,15 @@ export interface PageText { text: string; links?: string[]; image?: string }
  * Reads the pages of links that came with few words of their own (a Raindrop bookmark, an Are.na
  * link block) and keeps their text. Each is tried once; a page that can't be read stays thin.
  */
-export async function fillThin(index: SourceIndex, read: (url: string) => Promise<PageText | null>, limit = 6): Promise<{ read: number; filled: number }> {
+export async function fillThin(index: SourceIndex, read: (url: string) => Promise<PageText | null>, limit = 2): Promise<{ read: number; filled: number }> {
 	const thin = index.thin(limit);
 	let filled = 0;
-	await Promise.all(thin.map(async ({ key, url }) => {
+	// One at a time, and marked as tried before it is read: a page big enough to take the Worker down is then never asked for twice.
+	for (const { key, url } of thin) {
+		index.fill(key, null);
 		const page = await read(url).catch(() => null);
-		index.fill(key, page);
-		if (page?.text) filled++;
-	}));
+		if (page?.text) { index.fill(key, page); filled++; }
+	}
 	return { read: thin.length, filled };
 }
 
