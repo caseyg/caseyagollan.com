@@ -3,6 +3,7 @@ import { authSettings, authStore, withPreviewOrigin } from '$lib/server/indieaut
 import { publishingConfig } from '$lib/server/publishing/config';
 import { createMicropubHandler } from '$lib/server/publishing/micropub';
 import { handleSiteMcp, siteMcpServer } from '$lib/server/mcp/site';
+import { threadStub } from '$lib/server/chat/threads';
 
 export const prerender = false;
 
@@ -20,10 +21,17 @@ const handle: RequestHandler = ({ request, platform, url }) => {
 	return handleSiteMcp(request, {
 		origin,
 		introspect: store ? (token) => store.invoke('introspectToken', { token }) : undefined,
-		server: (token) => {
+		server: (token, scopes) => {
 			const micropub = createMicropubHandler(publishingConfig(env));
 			return siteMcpServer({
-				env: env!, origin,
+				env: env!, origin, scopes,
+				// A table's canvas inside Claude is reached through that table's own chat thread.
+				thread: (id) => threadStub(env!, id),
+				// Which files the build wrote for the table view; they are served from /mcp-app/.
+				viewAssets: async () => {
+					const response = await env!.ASSETS?.fetch(new URL('/mcp-app/manifest.json', url));
+					return response?.ok ? ((await response.json()) as { js: string; css?: string }) : null;
+				},
 				// Micropub as the caller: its handler checks the token's scopes, as for any client.
 				micropub: (query, init = {}) => micropub(new Request(new URL(`/micropub${query}`, url), { ...init, headers: { ...Object.fromEntries(new Headers(init.headers)), authorization: `Bearer ${token}` } }))
 			});

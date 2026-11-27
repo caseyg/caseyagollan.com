@@ -98,6 +98,12 @@ export interface ChatThreadStub {
 	remove(): Promise<boolean>;
 	/** A table's thread, made on first ask; null when the thread id isn't that table's. */
 	openTable(tableId: string, origin: string, name: string): Promise<import('../../chat').ChatSnapshot | null>;
+	/** The table's canvas inside Claude (`remote-canvas.ts`): a view opens, asks for its next change, reports on one; `/mcp` asks whether one is open and for a change. */
+	viewAttach(view: string): Promise<void>;
+	viewNext(view: string, wait?: number): Promise<import('./remote-canvas').ViewTurn>;
+	viewDone(view: string, reply: import('../../table-agent').TableOpReply): Promise<void>;
+	viewOpen(): Promise<boolean>;
+	viewOp(op: import('../../table-agent').TableOp): Promise<unknown>;
 }
 
 export function threadStub(env: { ChatThread?: DurableObjectNamespace }, id: string): ChatThreadStub | undefined {
