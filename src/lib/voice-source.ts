@@ -10,7 +10,7 @@
  *
  * `listen` tries them in order and settles on the first that starts.
  */
-import { VOICE_LISTEN_PATH, VOICE_PAUSE_MS, sttEvents, type VoiceEvent } from './voice-notes';
+import { VOICE_LISTEN_PATH, VOICE_PAUSE_MS, VOICE_REFINE_PATH, sttEvents, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 
 export interface VoiceListener {
 	onevent(event: VoiceEvent): void;
@@ -192,4 +192,29 @@ export async function listen(sources: VoiceSource[], listener: VoiceListener): P
 		}
 	}
 	throw failure instanceof VoiceError ? failure : new VoiceError('Listening couldn’t be started.');
+}
+
+/**
+ * Asks the site's model about a finished passage (`POST /api/tables/voice`: corrected, and for a
+ * table placed). `csrf` is the owner's session token, however the page comes by it. Resolves
+ * `null` where no model is set up; throws when one couldn't be asked.
+ */
+export function voiceRefiner(csrf: () => string | Promise<string>, path = VOICE_REFINE_PATH) {
+	return async (request: VoiceRefineRequest): Promise<VoiceRefineAnswer | null> => {
+		const response = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': await csrf() }, body: JSON.stringify(request) });
+		if (response.status === 503) return null;
+		if (!response.ok) throw new Error(`Voice refine answered ${response.status}`);
+		return (await response.json()) as VoiceRefineAnswer;
+	};
+}
+
+/** The signed-in owner's session token, asked for once, for pages that don't already hold it. */
+let token: Promise<string> | undefined;
+export function ownerCsrf(): Promise<string> {
+	token ??= fetch('/auth/session', { credentials: 'same-origin', cache: 'no-store' })
+		.then(async (response) => (response.ok ? ((await response.json()) as { csrf?: string }).csrf ?? '' : ''))
+		.catch(() => '');
+	// A miss (signed out, offline) is asked again next time.
+	void token.then((found) => { if (!found) token = undefined; });
+	return token;
 }
