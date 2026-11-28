@@ -25,4 +25,20 @@ export interface SourceStatus {
 	waiting?: string;
 }
 
+/** How far reading the words in stored pictures has got, as `/api/sources?pictures` tells the owner's settings. */
+export interface PictureReading {
+	/** Pictures in the copy, each address once. */
+	total: number;
+	read: number;
+	withWords: number;
+	/** Pictures that couldn't be fetched or read. */
+	failed: number;
+	/** How many more the owner asked to have read; above 0 while a pass is under way. */
+	asked: number;
+	/** What the reading has used, as the model counts it. */
+	usage: { pictures: number; input: number; output: number };
+	/** The latest read, newest first, to judge the reading by. */
+	recent: { url: string; text: string; at: string; failed: boolean }[];
+}
+
 export interface SourcesState { available: boolean; sources: SourceStatus[]; error?: string }

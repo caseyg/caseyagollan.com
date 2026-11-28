@@ -11,6 +11,7 @@
 	import MastodonSettings from '$lib/components/MastodonSettings.svelte';
 	import McpConnections from '$lib/components/account/McpConnections.svelte';
 	import SourceCache from '$lib/components/account/SourceCache.svelte';
+	import PictureText from '$lib/components/account/PictureText.svelte';
 	import AccountSignIn from '$lib/components/account/AccountSignIn.svelte';
 	import ConsentRequest from '$lib/components/account/ConsentRequest.svelte';
 	import Passkeys from '$lib/components/account/Passkeys.svelte';
@@ -33,7 +34,7 @@
 		{ value: 'security', label: 'Security' }
 	];
 	/** Addresses inside a group that open it: where sign-in callbacks and old links land. */
-	const ANCHORS: Record<string, string> = { bluesky: 'connections', mastodon: 'connections', 'connections-chat': 'connections', sources: 'connections', passkeys: 'security', tokens: 'security' };
+	const ANCHORS: Record<string, string> = { bluesky: 'connections', mastodon: 'connections', 'connections-chat': 'connections', sources: 'connections', pictures: 'connections', passkeys: 'security', tokens: 'security' };
 	function sectionFor(url: URL): string | undefined {
 		const anchor = url.hash.slice(1);
 		if (SECTIONS.some((section) => section.value === anchor)) return anchor;
@@ -220,6 +221,7 @@
 					<MastodonSettings csrf={owner.csrf} result={page.url.searchParams.get('mastodon')} message={page.url.searchParams.get('message')} />
 					<McpConnections csrf={owner.csrf} result={page.url.searchParams.get('mcp')} server={page.url.searchParams.get('server')} message={page.url.searchParams.get('message')} />
 					<div id="sources"><SourceCache csrf={owner.csrf} /></div>
+					<div id="pictures"><PictureText csrf={owner.csrf} /></div>
 				{:else if value === 'newsletter'}
 					<NewsletterSettings csrf={owner.csrf} />
 				{:else if value === 'security'}

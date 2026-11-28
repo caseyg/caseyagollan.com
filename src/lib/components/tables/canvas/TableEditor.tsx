@@ -15,6 +15,7 @@ import {
 	toRichText,
 	type Editor,
 	type TLArrowShape,
+	type TLAssetId,
 	type TLEditorSnapshot,
 	type TLShape,
 	type TLBindingUpdate,
@@ -27,6 +28,7 @@ import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, type Block } from '$lib/tables';
 import { linkedBlock, richerBlock } from '$lib/table-sources';
 import type { ChatSelectionItem } from '$lib/chat';
+import type { LikeThing } from '$lib/table-feed';
 import { TABLE_PICTURE_MAX_SIDE } from '$lib/table-post';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableMapCard, type TableMapLink, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { AUTO_LAYOUT, autoLayoutOf, layoutOp } from '$lib/table-menus';
@@ -98,6 +100,11 @@ export interface TableApi {
 	setAutoLayout(layout: string | null): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
+	/**
+	 * Everything selected, to find the like of: blocks as they are, stickies, text boxes, shapes and
+	 * areas by their words, pictures set down from this device by their address.
+	 */
+	selectedThings(): LikeThing[];
 	/** Clears the selection. */
 	deselect(): void;
 	undo(): void;
@@ -240,6 +247,7 @@ function apiFor(editor: Editor): TableApi {
 			const { [AUTO_LAYOUT]: _was, ...meta } = editor.getDocumentSettings().meta;
 			editor.updateDocumentSettings({ meta: layout ? { ...meta, [AUTO_LAYOUT]: layout } : meta });
 		},
+		selectedThings: () => editor.getSelectedShapes().flatMap((shape) => likeThing(editor, shape) ?? []),
 		deselect: () => editor.selectNone(),
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
@@ -324,6 +332,20 @@ function itemOf(editor: Editor, shape: TLShape): TableItem {
 /** Words written by the chat or a voice note, as a document: a line that begins `#` is a heading (`markdownRich`). */
 const written = (text: string) => (/^\s*#{1,6}(\s|$)/m.test(text) ? (markdownRich(text) as unknown as ReturnType<typeof toRichText>) : toRichText(text));
 const hasHeading = (rich: unknown) => !!(rich as RichDoc | undefined)?.content?.some((node) => node.type === 'heading');
+
+/** A selected shape as something to find the like of; nothing for a shape with no words or picture (an arrow, a drawing). */
+function likeThing(editor: Editor, shape: TLShape): LikeThing | undefined {
+	if (editor.isShapeOfType(shape, BLOCK_SHAPE)) return { block: blockOf((shape as SiteBlockShape).props) };
+	if (shape.type === 'image') {
+		const assetId = (shape.props as { assetId?: string | null }).assetId;
+		const src = assetId ? (editor.getAsset(assetId as TLAssetId)?.props as { src?: string | null } | undefined)?.src : undefined;
+		// Only a picture with an address of its own; one still held in the page as data has none to read it from.
+		return src && /^(https?:\/\/|\/)/.test(src) ? { picture: src } : undefined;
+	}
+	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
+	const words = (shape.type === 'frame' ? (shape.props as { name: string }).name : rich ? renderPlaintextFromRichText(editor, rich) : '').trim();
+	return words && shape.type !== 'arrow' ? { words } : undefined;
+}
 
 /** A selected shape as the chat is told of it: enough to name it, not its whole text. */
 function selectionItem(editor: Editor, shape: TLShape): ChatSelectionItem {

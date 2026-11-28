@@ -8,6 +8,7 @@ import { isOwnerTool } from '../src/lib/server/chat/tools';
 import { isPrivateTool } from '../src/lib/server/chat/projection';
 import { localBackend, sourceBackend, sourceBlock, sourcesFor } from '../src/lib/server/sources/access';
 import { GET, POST } from '../src/routes/api/sources/+server';
+import { POST as ALIKE } from '../src/routes/api/sources/alike/+server';
 import { rawKey } from '../src/lib/server/sources/sync';
 import { document, memoryIndex } from './helpers/sources';
 
@@ -78,8 +79,8 @@ describe('the source cache is for the owner', () => {
 	test('the only endpoint refuses anyone who isn’t signed in as the owner, before touching the cache', async () => {
 		let touched = 0;
 		const env = { SOURCES: { idFromName: () => { touched++; return 'id'; }, get: () => { touched++; return {}; } } };
-		const event = (method: string, path: string) => ({ request: new Request(`https://caseyagollan.com${path}`, { method }), url: new URL(`https://caseyagollan.com${path}`), platform: { env } }) as never;
-		for (const response of [await GET(event('GET', '/api/sources')), await GET(event('GET', '/api/sources?q=kettles')), await GET(event('GET', '/api/sources?since=2026-11-01T00:00:00Z')), await GET(event('GET', '/api/sources?like=arena:1&words=kettle')), await POST(event('POST', '/api/sources'))]) {
+		const event = (method: string, path: string, body?: string) => ({ request: new Request(`https://caseyagollan.com${path}`, { method, body }), url: new URL(`https://caseyagollan.com${path}`), platform: { env } }) as never;
+		for (const response of [await GET(event('GET', '/api/sources')), await GET(event('GET', '/api/sources?q=kettles')), await GET(event('GET', '/api/sources?since=2026-11-01T00:00:00Z')), await ALIKE(event('POST', '/api/sources/alike', JSON.stringify({ seeds: [{ url: 'arena:1', words: 'kettle' }] }))), await POST(event('POST', '/api/sources'))]) {
 			expect(response.status).toBe(401);
 			expect(response.headers.get('cache-control')).toContain('no-store');
 			expect(await response.text()).not.toContain('kettle');
@@ -95,8 +96,8 @@ describe('the source cache is for the owner', () => {
 			const source = await readFile(file, 'utf8');
 			if (/server\/sources\/|private\/sources\/|env\.SOURCES|platform\?\.env\?\.SOURCES/.test(source)) reaching.push(file);
 		}
-		// The owner-only endpoint, and the two local tools (a sync for trying things out, the chat replay). Adding to this list needs the same care.
-		expect(reaching.sort()).toEqual(['src/routes/api/sources/+server.ts', 'utils/chat-eval/run.ts', 'utils/sources/try.ts'].sort());
+		// The owner-only endpoint and its likeness question, and the two local tools (a sync for trying things out, the chat replay). Adding to this list needs the same care.
+		expect(reaching.sort()).toEqual(['src/routes/api/sources/+server.ts', 'src/routes/api/sources/alike/+server.ts', 'utils/chat-eval/run.ts', 'utils/sources/try.ts'].sort());
 		// Raw records sit under `private/`, which nothing serves.
 		expect(rawKey('readwise', '01abc')).toBe('private/sources/readwise/01abc.json');
 		expect(rawKey('arena', '../../tables/x')).not.toContain('..');

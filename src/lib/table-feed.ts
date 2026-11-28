@@ -149,16 +149,69 @@ export function recentFeed({ saves = false, fetcher = fetch as Fetcher }: { save
 }
 
 /**
- * Saved things like a block, by the vectors the site's copy keeps (`/api/sources?like=`), for the
- * signed-in owner: a picture finds what looks like it, anything else what reads like it.
+ * One thing selected on a table, to find the like of: a block, the words of a sticky, text box,
+ * shape or area, or a picture set down from this device.
  */
-export async function similarBlocks(block: Block, limit = 24, fetcher: Fetcher = fetch, origin = globalThis.location?.origin): Promise<Block[]> {
-	const params = new URLSearchParams({ like: block.url.startsWith('/') && origin ? new URL(block.url, origin).href : block.url, limit: String(limit) });
-	const words = [block.title, block.excerpt].filter(Boolean).join('. ').slice(0, 500);
-	if (words) params.set('words', words);
-	if (isPicture(block)) params.set('picture', block.image!.startsWith('/') && origin ? new URL(block.image!, origin).href : block.image!);
+export interface LikeThing {
+	block?: Block;
+	words?: string;
+	/** A picture's address, for a picture that isn't a block. */
+	picture?: string;
+}
+
+/** One thing as the server is asked about it (`/api/sources/alike`). */
+export interface LikeSeed {
+	/** A block's address, which may be a document in the site's copy. */
+	url?: string;
+	/** Its words: a sticky's text, or a block's title and excerpt. */
+	words?: string;
+	/** Its picture's address, when it is a picture before anything else. */
+	picture?: string;
+}
+
+/** As many things as one question compares against, and as many characters of each one's words. */
+export const LIKE_SEEDS_MAX = 12;
+export const LIKE_WORDS_MAX = 2000;
+
+/** What tells one selected thing from another. */
+export const likeKey = (thing: LikeThing) => (thing.block ? `block ${thing.block.url} ${thing.block.image ?? ''} ${thing.block.excerpt ?? ''}` : thing.picture ? `picture ${thing.picture}` : `words ${thing.words ?? ''}`);
+/** A short name for a selected thing: a block's title, or a sticky's first words. */
+export function likeTitle(thing: LikeThing): string {
+	const words = (thing.block ? thing.block.title || thing.block.excerpt || '' : thing.words ?? '').replace(/\s+/g, ' ').trim();
+	return words.length > 60 ? `${words.slice(0, 59).trimEnd()}…` : words || (thing.picture || (thing.block && isPicture(thing.block)) ? 'this picture' : 'this');
+}
+/** Whether likeness for a thing goes by how it looks. */
+export const likeLooks = (thing: LikeThing) => (thing.block ? isPicture(thing.block) : !!thing.picture);
+
+/** Selected things as the server is asked about them, with addresses made whole. */
+export function likeSeeds(things: LikeThing[], origin = globalThis.location?.origin): LikeSeed[] {
+	const whole = (address: string) => (address.startsWith('/') && origin ? new URL(address, origin).href : address);
+	const seen = new Set<string>();
+	return things
+		.filter((thing) => !seen.has(likeKey(thing)) && !!seen.add(likeKey(thing)))
+		.map((thing): LikeSeed => {
+			if (thing.block) {
+				const words = [thing.block.title, thing.block.excerpt].filter(Boolean).join('. ').slice(0, LIKE_WORDS_MAX);
+				return { url: whole(thing.block.url), ...(words ? { words } : {}), ...(isPicture(thing.block) ? { picture: whole(thing.block.image!) } : {}) };
+			}
+			const words = thing.words?.trim().slice(0, LIKE_WORDS_MAX);
+			return { ...(words ? { words } : {}), ...(thing.picture ? { picture: whole(thing.picture) } : {}) };
+		})
+		.filter((seed) => seed.url || seed.words || seed.picture)
+		.slice(0, LIKE_SEEDS_MAX);
+}
+
+/**
+ * Saved things like what is selected on a table, by the vectors the site's copy keeps
+ * (`/api/sources/alike`), for the signed-in owner: a picture finds what looks like it and what
+ * reads like the words in it, anything else what reads like it. With several things selected,
+ * what is near more of them comes first.
+ */
+export async function similarBlocks(things: LikeThing[], limit = 24, fetcher: Fetcher = fetch, origin = globalThis.location?.origin): Promise<Block[]> {
+	const seeds = likeSeeds(things, origin);
+	if (!seeds.length) return [];
 	try {
-		const response = await fetcher(`/api/sources?${params}`, { credentials: 'same-origin' });
+		const response = await fetcher('/api/sources/alike', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ seeds, limit }) });
 		if (!response.ok) return [];
 		return ((await response.json()) as { blocks?: Block[] }).blocks ?? [];
 	} catch {
