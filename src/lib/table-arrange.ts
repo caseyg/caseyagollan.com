@@ -18,7 +18,7 @@ export interface Edge { from: string; to: string }
 export type Direction = TableDirection;
 export type Arrangement = TableArrangement;
 export const ARRANGEMENTS = TABLE_ARRANGEMENTS;
-const GRAPH = new Set<Arrangement>(['tree', 'mindmap', 'radial', 'layered', 'force']);
+const GRAPH = new Set<Arrangement>(['tree', 'outline', 'mindmap', 'radial', 'layered', 'force']);
 export const usesArrows = (mode: Arrangement) => GRAPH.has(mode);
 
 export type Cluster = TableCluster;
@@ -193,6 +193,44 @@ function forestLayout(tree: Tree, sizes: Map<string, Size>, direction: Direction
 	};
 	let start = 0;
 	for (const root of tree.roots) { put(root, start, 0); start += span.get(root)! + rootGap; }
+	return spots;
+}
+
+/** How far a branch of an outline stands from its parent: room for the line between them to curve. */
+const OUTLINE_REACH = GRID * 3;
+
+/**
+ * An outline, as MindNode draws a mind map to one side: a tree growing to the right, set close.
+ * Each branch stands just beside its own parent, not in a column with its whole generation, so
+ * short words keep their branches near; siblings stack with no more room between them than
+ * their own size leaves (one line of text under the next), and a parent sits level with the
+ * middle of its branches.
+ */
+function outlineLayout(tree: Tree, sizes: Map<string, Size>, gap: number): Map<string, Point> {
+	const span = new Map<string, number>();
+	// Lines of text carry their own leading; anything taller (a card, a paragraph) gets the usual gap.
+	const between = (a: string, b: string) => (Math.max(sizes.get(a)!.h, sizes.get(b)!.h) <= GRID * 2 && !tree.kids.get(a)!.length && !tree.kids.get(b)!.length ? 0 : gap);
+	const stacked = (ids: string[]) => ids.reduce((sum, id, index) => sum + span.get(id)! + (index ? between(ids[index - 1], id) : 0), 0);
+	const measure = (id: string): number => {
+		const below = tree.kids.get(id)!;
+		below.forEach(measure);
+		span.set(id, Math.max(sizes.get(id)!.h, stacked(below)));
+		return span.get(id)!;
+	};
+	tree.roots.forEach(measure);
+	const spots = new Map<string, Point>();
+	const put = (id: string, x: number, top: number) => {
+		const size = sizes.get(id)!, below = tree.kids.get(id)!;
+		spots.set(id, { x, y: top + floorGrid((span.get(id)! - size.h) / 2) });
+		let next = top + floorGrid((span.get(id)! - stacked(below)) / 2);
+		below.forEach((kid, index) => {
+			if (index) next += between(below[index - 1], kid);
+			put(kid, x + size.w + OUTLINE_REACH, next);
+			next += span.get(kid)!;
+		});
+	};
+	let top = 0;
+	for (const root of tree.roots) { put(root, 0, top); top += span.get(root)! + gap * 2; }
 	return spots;
 }
 
@@ -400,6 +438,7 @@ export function arrange(request: ArrangeRequest): ArrangeResult {
 	else {
 		blocks = components(joined.map((box) => box.id), edges).map((set) => {
 			const within = edges.filter((edge) => set.includes(edge.from));
+			if (mode === 'outline') return outlineLayout(spanning(set, within, order('y'), { root: request.root, directed: true }), sizes, gap);
 			if (mode === 'tree') return forestLayout(spanning(set, within, order(sideways ? 'y' : 'x'), { root: request.root, directed: true }), sizes, direction, gap, rankGap);
 			const tree = spanning(set, within, order('y'), { root: request.root, directed: false });
 			return mode === 'mindmap' ? mindmapLayout(tree, sizes, now, gap, rankGap) : radialLayout(tree, sizes, gap * 2, rankGap);
@@ -415,7 +454,8 @@ export function arrange(request: ArrangeRequest): ArrangeResult {
 	const average = rest.reduce((sum, box) => sum + upToGrid(box.w) + gap, 0) / Math.max(1, rest.length);
 	const others = rest.length ? gridLayout(rest, Math.max(1, Math.min(rest.length, Math.max(wide(rest.length), Math.floor((width + gap) / average)))), { x: origin.x, y: bottom + rankGap }, gap) : [];
 	// Rounding to the grid, a ring or a spring can leave two cards a hair too close: the last pass settles it.
-	const settled = separate([...titles, ...main, ...others].map((spot) => ({ ...spot, ...sized(spot.id) })), gap);
+	// An outline's lines of text stand closer than the gap on purpose: only what truly overlaps is moved.
+	const settled = separate([...titles, ...main, ...others].map((spot) => ({ ...spot, ...sized(spot.id) })), mode === 'outline' ? 0 : gap);
 	const corner = { x: Math.min(...settled.map((box) => box.x)), y: Math.min(...settled.map((box) => box.y)) };
 	return done(settled.map((box) => ({ id: box.id, x: box.x - corner.x + origin.x, y: box.y - corner.y + origin.y })), rest.length ? { note: note ?? `${rest.length} ${rest.length === 1 ? 'item isn’t' : 'items aren’t'} joined to anything by an arrow: set in a grid below.` } : {});
 }
@@ -448,9 +488,20 @@ const hits = (a: Box, b: Box, room = 0) => a.x < b.x + b.w + room && a.x + a.w +
  * - each label slides along its arrow to a place clear of the cards and of the labels already set.
  * Pure: the canvas and the server's changes to a saved table both draw from it.
  */
-export function routeArrows(boxes: Box[], links: ArrowLink[], options: { elbow?: boolean } = {}): ArrowRoute[] {
+export function routeArrows(boxes: Box[], links: ArrowLink[], options: { elbow?: boolean; outline?: boolean } = {}): ArrowRoute[] {
 	const byId = new Map(boxes.map((box) => [box.id, box]));
 	const live = links.filter((link) => byId.has(link.from) && byId.has(link.to) && link.from !== link.to);
+	// An outline's lines all leave the middle of a parent's right edge and meet the middle of a
+	// branch's left edge, curving more the further up or down the branch stands.
+	if (options.outline) {
+		return live.map((link) => {
+			const from = byId.get(link.from)!, to = byId.get(link.to)!;
+			const dx = to.x - (from.x + from.w), dy = centre(to).y - centre(from).y;
+			const forward = dx >= 0;
+			const bend = forward ? Math.sign(dy) * Math.min(Math.abs(dy) * 0.18, Math.hypot(dx, dy) * 0.18) : 0;
+			return { id: link.id, bend: Math.round(bend), start: forward ? { x: 1, y: 0.5 } : { x: 0.5, y: 0.5 }, end: forward ? { x: 0, y: 0.5 } : { x: 0.5, y: 0.5 }, startPrecise: forward, endPrecise: forward, labelPosition: 0.5 };
+		});
+	}
 	const sideOf = (box: Box, other: Box): Side => {
 		const dx = centre(other).x - centre(box).x, dy = centre(other).y - centre(box).y;
 		return Math.abs(dx) / Math.max(1, box.w + other.w) > Math.abs(dy) / Math.max(1, box.h + other.h) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'bottom' : 'top';

@@ -21,13 +21,13 @@ export const TABLE_LAYOUTS: readonly TableLayout[] = ['grid', 'columns', 'row', 
 /**
  * Every way `arrange` sets out what is already there (`src/lib/table-arrange.ts`). `auto` picks
  * from what is there: a tree or layers when arrows join things, else a grid (masonry columns
- * when heights differ). `tree`: an org chart, parents over children. `mindmap`: one item in
+ * when heights differ). `tree`: an org chart, parents over children. `outline`: the same tree set close, growing to the right, each branch beside its parent (as MindNode draws one). `mindmap`: one item in
  * the middle, branches to both sides. `radial`: one in the middle, the rest in rings.
  * `layered`: a flow in ranks, for arrows that merge or loop. `force`: joined things pulled
  * together, staying near where they were. `cluster`: named groups, each a small grid.
  */
-export type TableArrangement = TableLayout | 'auto' | 'tree' | 'mindmap' | 'radial' | 'layered' | 'force' | 'cluster';
-export const TABLE_ARRANGEMENTS: readonly TableArrangement[] = ['auto', 'grid', 'columns', 'row', 'column', 'pack', 'tree', 'mindmap', 'radial', 'layered', 'force', 'cluster'];
+export type TableArrangement = TableLayout | 'auto' | 'tree' | 'outline' | 'mindmap' | 'radial' | 'layered' | 'force' | 'cluster';
+export const TABLE_ARRANGEMENTS: readonly TableArrangement[] = ['auto', 'grid', 'columns', 'row', 'column', 'pack', 'tree', 'outline', 'mindmap', 'radial', 'layered', 'force', 'cluster'];
 /** Which way a tree or flow grows. */
 export type TableDirection = 'down' | 'right' | 'up' | 'left';
 export const TABLE_DIRECTIONS: readonly TableDirection[] = ['down', 'right', 'up', 'left'];

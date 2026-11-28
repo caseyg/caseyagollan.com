@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ARRANGEMENTS, arrange, chooseArrangement, clustersBy, components, isForest, separate, type Edge } from '../src/lib/table-arrange';
+import { ARRANGEMENTS, arrange, chooseArrangement, clustersBy, components, isForest, routeArrows, separate, type Edge } from '../src/lib/table-arrange';
 import { arrowCrossings, layoutIssues, type Box, type Placement } from '../src/lib/table-layout';
 
 const apply = (boxes: Box[], placements: Placement[]) => boxes.map((box) => ({ ...box, ...placements.find((place) => place.id === box.id) }));
@@ -58,6 +58,41 @@ describe('table arrange', () => {
 		// Rooted at a leaf, the arrows are followed backwards from it.
 		const rooted = apply(boxes, arrange({ mode: 'tree', boxes, edges: orgEdges, root: 'n4' }).placements);
 		expect(Math.min(...rooted.map((box) => box.y))).toBe(at(rooted, 'n4').y);
+	});
+
+	test('outline: branches stand to the right of their own parent, in order, lines of text set close', () => {
+		// One-line text blocks of different lengths, standing in reading order top to bottom.
+		const words = [220, 60, 140, 100, 180, 80, 120, 90];
+		const boxes: Box[] = words.map((w, index) => ({ id: `n${index}`, x: 0, y: index * 100, w, h: 32 }));
+		const result = arrange({ mode: 'outline', boxes, edges: orgEdges });
+		const after = apply(boxes, result.placements);
+		const at = (id: string) => after.find((box) => box.id === id)!;
+		expect(result.mode).toBe('outline');
+		expect(after.every((box) => box.x % 20 === 0 && box.y % 20 === 0)).toBe(true);
+		for (let a = 0; a < after.length; a++) for (let b = a + 1; b < after.length; b++) expect(after[a].x < after[b].x + after[b].w && after[b].x < after[a].x + after[a].w && after[a].y < after[b].y + after[b].h && after[b].y < after[a].y + after[a].h).toBe(false);
+		// Each branch starts the same short way from its own parent's edge, however long the parent's siblings are.
+		for (const { from, to } of orgEdges) expect(at(to).x - (at(from).x + Math.ceil(at(from).w / 20) * 20)).toBe(60);
+		// Siblings keep their order, and leaves that are lines of text have no more than a line between them.
+		const kids = (id: string) => orgEdges.filter((edge) => edge.from === id).map((edge) => at(edge.to));
+		for (const parent of new Set(orgEdges.map((edge) => edge.from))) {
+			const below = kids(parent);
+			for (let index = 1; index < below.length; index++) expect(below[index].y).toBeGreaterThan(below[index - 1].y);
+		}
+		const leaves = after.filter((box) => !orgEdges.some((edge) => edge.from === box.id)).sort((a, b) => a.y - b.y);
+		expect(leaves[leaves.length - 1].y + 40 - leaves[0].y).toBeLessThanOrEqual(leaves.length * 40 + 3 * 20);
+		// Far tighter than the tree of the same things.
+		const tree = apply(boxes, arrange({ mode: 'tree', boxes, edges: orgEdges, direction: 'right' }).placements);
+		const tall = (set: Box[]) => Math.max(...set.map((box) => box.y + box.h)) - Math.min(...set.map((box) => box.y));
+		expect(tall(after)).toBeLessThan(tall(tree));
+	});
+
+	test('outline: lines leave the middle of a parent’s right edge and curve toward where the branch stands', () => {
+		const boxes: Box[] = [{ id: 'a', x: 0, y: 100, w: 100, h: 40 }, { id: 'up', x: 160, y: 0, w: 80, h: 40 }, { id: 'level', x: 160, y: 100, w: 80, h: 40 }, { id: 'down', x: 160, y: 200, w: 80, h: 40 }];
+		const [up, level, down] = routeArrows(boxes, ['up', 'level', 'down'].map((to) => ({ id: to, from: 'a', to })), { outline: true });
+		for (const route of [up, level, down]) expect([route.start, route.end, route.startPrecise, route.endPrecise]).toEqual([{ x: 1, y: 0.5 }, { x: 0, y: 0.5 }, true, true]);
+		expect(level.bend).toBe(0);
+		expect(up.bend).toBeLessThan(0);
+		expect(down.bend).toBe(-up.bend);
 	});
 
 	test('mind map: the best-connected card in the middle, branches on both sides', () => {

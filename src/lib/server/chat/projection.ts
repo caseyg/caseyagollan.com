@@ -278,7 +278,7 @@ export function toolLabel(name: string, args: Record<string, unknown>): string {
 	if (name === 'table_arrange' && (args.layout === 'tidy' || !args.layout)) return args.layout === 'tidy' ? `Tidied ${args.ids ? count(args.ids, 'item') : 'the table'}` : `${args.align ? 'Lined up' : 'Spaced out'} ${count(args.ids, 'item')}`;
 	if (name === 'table_arrange') {
 		const what = args.inside ? 'a frame' : args.ids ? count(args.ids, 'item') : 'the table';
-		const how: Record<string, string> = { pack: 'packed together', columns: 'in columns', row: 'in a row', column: 'in a column', tree: 'as a tree', mindmap: 'as a mind map', radial: 'in rings', layered: 'as a flow', force: 'as a network', cluster: 'into groups', auto: '' };
+		const how: Record<string, string> = { pack: 'packed together', columns: 'in columns', row: 'in a row', column: 'in a column', tree: 'as a tree', outline: 'as a compact outline', mindmap: 'as a mind map', radial: 'in rings', layered: 'as a flow', force: 'as a network', cluster: 'into groups', auto: '' };
 		return args.layout === 'auto' ? `Tidied up ${what}` : `Arranged ${what} ${how[String(args.layout)] ?? 'in a grid'}`;
 	}
 	if (name === 'table_remove') return `Removed ${count(args.ids, 'item')}`;
