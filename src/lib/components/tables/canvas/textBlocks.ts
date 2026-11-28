@@ -7,12 +7,15 @@
  *   is still a new line);
  * - `voiceCanvas` is what a voice note writes with: a block whose words change as they are
  *   heard, corrected afterwards, and, when asked, joined by an arrow to the block it follows and
- *   set out with its neighbours as a tree.
+ *   set out with its neighbours as a tree;
+ * - `addMarkdownTree` sets pasted or dropped Markdown down as an outline: a block per heading and
+ *   list item, an arrow from each to what it sits under, set out as a tree.
  */
 import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEditingShapeWithRichText, toRichText, type Editor, type TLArrowShape, type TLEventInfo, type TLShape, type TLShapeId, type TLTextShape } from 'tldraw';
 import { BLOCK_SHAPE } from '$lib/tables';
 import type { TableOp } from '$lib/table-agent';
 import { GRID, freeSpot, onGrid, upToGrid, type Box } from '$lib/table-layout';
+import { markdownTree } from '$lib/markdown-tree';
 import { VOICE_BLOCK_WIDTH, mergeRich, resolveRefs, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
 
 /** What a voice note asks of the canvas. Ids are the short ones the chat uses, without `shape:`. */
@@ -50,6 +53,44 @@ export interface TextBlockDeps {
 	/** Moves down whatever the shape lies on. */
 	pushAside(editor: Editor, id: TLShapeId): void;
 	perform(op: VoiceOp | Extract<TableOp, { op: 'read' }>): Promise<unknown>;
+}
+
+/** How wide a block of Markdown is: a few words size themselves, a line wraps, long text gets room to read. */
+const MARKDOWN_WIDTH = { line: 280, text: VOICE_BLOCK_WIDTH, long: 480 };
+
+/**
+ * Markdown set down as a tree (`$lib/markdown-tree`): headings and list items are text blocks, an
+ * arrow runs to each from the heading or item it sits under, and the tree layout sets them out
+ * from `at` (a place on the page; without one, where there is room in view). One undo takes it
+ * all away. Returns the ids of the blocks made.
+ */
+export async function addMarkdownTree(editor: Editor, deps: Pick<TextBlockDeps, 'openSpot' | 'perform'>, markdown: string, at?: { x: number; y: number }): Promise<string[]> {
+	const tree = markdownTree(markdown);
+	if (!tree.nodes.length) return [];
+	const ids = new Map(tree.nodes.map((node) => [node.id, createShapeId()]));
+	const start = at ? { x: onGrid(at.x), y: onGrid(at.y) } : deps.openSpot(editor, { w: MARKDOWN_WIDTH.long, h: GRID * 12 });
+	const mark = editor.markHistoryStoppingPoint('markdown tree');
+	editor.run(() => {
+		// The tree layout keeps siblings in the order their middles stand, left to right, so they start out
+		// in a row in reading order, further apart than any of them is wide.
+		for (const [index, node] of tree.nodes.entries()) {
+			const short_ = node.text.length <= 32 && !node.text.includes('\n');
+			const w = node.kind === 'text' ? (node.text.length > 600 ? MARKDOWN_WIDTH.long : MARKDOWN_WIDTH.text) : node.kind === 'heading' ? MARKDOWN_WIDTH.text : MARKDOWN_WIDTH.line;
+			editor.createShape<TLTextShape>({ id: ids.get(node.id)!, type: 'text', x: start.x + index * MARKDOWN_WIDTH.long * 1.5, y: start.y, props: { richText: node.rich as unknown as TLTextShape['props']['richText'], ...(short_ ? { autoSize: true } : { autoSize: false, w }) } });
+		}
+	});
+	const made = [...ids.values()].map(short);
+	if (tree.links.length) {
+		await deps.perform({ op: 'connect', links: tree.links.map((link) => ({ from: short(ids.get(link.from)!), to: short(ids.get(link.to)!) })) });
+		await deps.perform({ op: 'arrange', layout: 'tree', direction: 'down', ids: made, ordered: true, at: start });
+	} else if (made.length > 1) await deps.perform({ op: 'arrange', layout: 'column', ids: made, ordered: true, at: start });
+	// Blocks, arrows and layout are one change to undo.
+	editor.squashToMark(mark);
+	const alive = [...ids.values()].filter((id) => editor.getShape(id));
+	editor.setCurrentTool('select');
+	editor.select(...alive);
+	revealAll(editor, alive);
+	return made;
 }
 
 const GAP = GRID;

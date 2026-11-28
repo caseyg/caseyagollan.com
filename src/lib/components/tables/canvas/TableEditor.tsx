@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import {
+	defaultHandleExternalTextContent,
 	DefaultColorStyle,
 	DefaultFontStyle,
 	GeoShapeGeoStyle,
@@ -33,7 +34,8 @@ import { arrange, clustersBy, labelIssues, routeArrows, usesArrows, type Arrange
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { tagRef } from '$lib/tag-edits';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
-import { installTextBlocks, voiceCanvas, type VoiceCanvas } from './textBlocks';
+import { addMarkdownTree, installTextBlocks, voiceCanvas, type VoiceCanvas } from './textBlocks';
+import { isMarkdownFile, looksLikeMarkdown } from '$lib/markdown-tree';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
 export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser' | 'frame' | 'geo' | 'line' | 'highlight' | 'laser';
@@ -86,6 +88,8 @@ export interface TableApi {
 	setTool(tool: TableTool, geo?: string): void;
 	/** Sets pictures or videos from this device down in the middle of the view. */
 	addMedia(files: File[]): Promise<void>;
+	/** Sets Markdown down as a tree of text blocks (`addMarkdownTree`), at a place on the page or where there is room. Resolves with the blocks' ids. */
+	addMarkdown(markdown: string, at?: { x: number; y: number }): Promise<string[]>;
 	/**
 	 * Auto layout: keeps the whole table in this layout (a Layout menu value), laying it out again
 	 * each time something is added; null turns it off. Saved with the table, in its document's meta.
@@ -215,6 +219,9 @@ function apiFor(editor: Editor): TableApi {
 		setTool(tool, geo) {
 			if (tool === 'geo' && geo) editor.setStyleForNextShapes(GeoShapeGeoStyle, geo as TLGeoShapeGeoStyle);
 			editor.setCurrentTool(tool);
+		},
+		addMarkdown(markdown, at) {
+			return addMarkdownTree(editor, { openSpot, perform: (op) => api.perform(op) }, markdown, at);
 		},
 		async addMedia(files) {
 			if (!files.length) return;
@@ -1138,6 +1145,25 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 
 			const stop = editor.store.listen(() => onChange?.(getSnapshot(editor.store).document), { scope: 'document', source: 'user' });
 			const api = apiFor(editor);
+			// Pasted or dropped Markdown, as text or as .md files, becomes a tree: a block per heading and
+			// list item, arrows from each to what it sits under. Other text and files go tldraw's own way.
+			// (tldraw keeps its handlers on the editor but leaves them out of its types.)
+			const theirs = (editor as unknown as { externalContentHandlers: { files?: ((content: { type: 'files'; files: File[]; point?: { x: number; y: number } }) => unknown) | null } }).externalContentHandlers.files;
+			editor.registerExternalContentHandler('text', async (content) => {
+				if (looksLikeMarkdown(content.text)) await api.addMarkdown(content.text, content.point);
+				else await defaultHandleExternalTextContent(editor, content);
+			});
+			editor.registerExternalContentHandler('files', async (content) => {
+				const written = content.files.filter(isMarkdownFile), rest = content.files.filter((file) => !isMarkdownFile(file));
+				let at = content.point;
+				for (const file of written) {
+					const made = await api.addMarkdown(await file.text(), at);
+					// The next file's tree goes to the right of this one.
+					const bounds = made.length ? editor.getShapesPageBounds(made.map((id) => `shape:${id}` as TLShapeId)) : undefined;
+					if (bounds) at = { x: bounds.maxX + GRID * 4, y: bounds.y };
+				}
+				if (rest.length) await theirs?.({ ...content, files: rest });
+			});
 			const stopLayout = editable ? keepLaidOut(editor, api) : () => {};
 			onReady?.(api);
 			// Read-only once the page has set anything out, so a seeded table can still be shown to visitors.
