@@ -13,7 +13,7 @@ import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEdit
 import { BLOCK_SHAPE } from '$lib/tables';
 import type { TableOp } from '$lib/table-agent';
 import { GRID, freeSpot, onGrid, upToGrid, type Box } from '$lib/table-layout';
-import { VOICE_BLOCK_WIDTH, mergeRich, trimRich, type RichDoc } from '$lib/voice-notes';
+import { VOICE_BLOCK_WIDTH, mergeRich, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
 
 /** What a voice note asks of the canvas. Ids are the short ones the chat uses, without `shape:`. */
 export interface VoiceCanvas {
@@ -30,6 +30,10 @@ export interface VoiceCanvas {
 	 * grew onto moves down.
 	 */
 	settle(id: string, how: { follows?: string | null; arrange: boolean; session: string[] }): Promise<void>;
+	/** What is on the table and what is selected, for a spoken command to act on. */
+	read(): Promise<{ items: VoiceItem[]; selected: string[] }>;
+	/** Carries out a spoken command, an operation at a time as the chat's are; resolves with those that were done. */
+	run(ops: VoiceOp[]): Promise<VoiceOp[]>;
 }
 
 /** What these need of the table's editor module, which owns layout and the chat's operations. */
@@ -37,7 +41,7 @@ export interface TextBlockDeps {
 	openSpot(editor: Editor, size: { w: number; h: number }): { x: number; y: number };
 	/** Moves down whatever the shape lies on. */
 	pushAside(editor: Editor, id: TLShapeId): void;
-	perform(op: Extract<TableOp, { op: 'connect' | 'arrange' }>): Promise<unknown>;
+	perform(op: VoiceOp | Extract<TableOp, { op: 'read' }>): Promise<unknown>;
 }
 
 const GAP = GRID;
@@ -172,6 +176,17 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 				moveTo(editor, shape, freeSpot(boxes(editor, [shape.id]), size, { x: onGrid(beside.maxX + GAP * 4), y: onGrid(beside.y) }));
 			} else deps.pushAside(editor, shape.id);
 			reveal(editor, shape.id);
+		},
+		async read() {
+			const table = (await deps.perform({ op: 'read' })) as { items?: (VoiceItem & { title?: string })[]; selected?: string[] } | undefined;
+			return { items: (table?.items ?? []).filter((item) => !['draw', 'line', 'highlight'].includes(item.type)).map(({ id, type, title, text, x, y, w, h, from, to, parent }) => ({ id, type, ...(title || text ? { text: title || text } : {}), x, y, w, h, ...(from ? { from } : {}), ...(to ? { to } : {}), ...(parent ? { parent } : {}) })), selected: table?.selected ?? [] };
+		},
+		async run(ops) {
+			const done: VoiceOp[] = [];
+			for (const op of ops) {
+				try { await deps.perform(op); done.push(op); } catch (error) { console.error('Voice command failed:', op.op, error); }
+			}
+			return done;
 		}
 	};
 }

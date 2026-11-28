@@ -5,7 +5,7 @@
 	import VoiceControl, { type VoiceView } from './VoiceControl.svelte';
 
 	const { Story } = defineMeta({ title: 'Tables/VoiceControl', component: VoiceControl, tags: ['!autodocs'] });
-	const off: VoiceView = { status: 'off', correct: true, arrange: false };
+	const off: VoiceView = { status: 'off', correct: true, arrange: false, commands: true };
 </script>
 
 <script lang="ts">
@@ -19,10 +19,10 @@
 	<div class="stage"><Toolbar aria-label="Table"><VoiceControl voice={view} {open} /></Toolbar></div>
 {/snippet}
 
-<!-- Press the microphone to switch listening on and off; the chevron opens the two choices. -->
+<!-- Press the microphone to switch listening on and off; the chevron opens the choices. -->
 <Story asChild name="Off">
 	<div class="stage">
-		<Toolbar aria-label="Table"><VoiceControl {voice} ontoggle={toggle} oncorrect={(on) => (voice.correct = on)} onarrange={(on) => (voice.arrange = on)} /></Toolbar>
+		<Toolbar aria-label="Table"><VoiceControl {voice} ontoggle={toggle} oncorrect={(on) => (voice.correct = on)} onarrange={(on) => (voice.arrange = on)} oncommands={(on) => (voice.commands = on)} /></Toolbar>
 	</div>
 </Story>
 
@@ -32,13 +32,16 @@
 <!-- Listening: the button turns the site's blue and its ring follows how loud the microphone is. -->
 <Story asChild name="Listening">{@render control({ ...off, status: 'listening', level: 0.7 })}</Story>
 
-<!-- The two things that can happen to a finished block, and how blocks combine and split. -->
+<!-- What can happen to a finished block, and how blocks combine and split. -->
 <Story asChild name="Options">{@render control({ ...off, arrange: true }, true)}</Story>
+
+<!-- A spoken command was carried out: what it did shows over the microphone for a few seconds. -->
+<Story asChild name="Command done">{@render control({ ...off, status: 'listening', level: 0.2, did: { text: 'Drew 1 arrow' } })}</Story>
 
 <!-- A reason listening stopped opens the options by itself. -->
 <Story asChild name="Microphone blocked">{@render control({ ...off, notice: 'The microphone is blocked for this site. Allow it in the browser’s site settings.' })}</Story>
 
 <style>
-	.stage { display: flex; justify-content: center; min-height: 20rem; padding-top: var(--space-4); }
+	.stage { display: flex; justify-content: center; min-height: 20rem; padding-top: var(--space-7); }
 	.stage :global([data-slot='toolbar']) { display: flex; align-items: center; height: max-content; }
 </style>

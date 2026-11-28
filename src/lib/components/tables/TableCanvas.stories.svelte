@@ -6,7 +6,7 @@
 	import { layoutOp } from '$lib/table-menus';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { scriptedRefine, scriptedSource } from '$lib/storybook/voice';
+	import { COMMANDS, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCanvas', component: TableCanvas, tags: ['!autodocs'] });
 	const sample = Object.values(blocks);
@@ -25,6 +25,8 @@
 
 	// A voice note that "hears" a script, corrected and placed by a stand-in for the model.
 	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource()], refine: scriptedRefine });
+	// The same, with requests among the thoughts: an arrow, an edit, a shape and a colour, asked for aloud.
+	const commanding = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(COMMANDS)], refine: scriptedRefine });
 	function onvoiceready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
@@ -74,8 +76,27 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange }}
-				onvoice={voice.toggle} onvoicecorrect={(on) => (voice.correct = on)} onvoicearrange={(on) => (voice.arrange = on)}
+				voice={{ status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did }}
+				onvoice={voice.toggle} onvoicecorrect={(on) => (voice.correct = on)} onvoicearrange={(on) => (voice.arrange = on)} onvoicecommands={(on) => (voice.commands = on)}
+			/>
+		</div>
+	</div>
+</Story>
+
+<!--
+	Spoken commands: among the thoughts, "connect these two blocks with an arrow", "turn one two three into
+	numbers", "draw a circle next to that" and "make the first one blue" are carried out, not written down.
+	What each did shows over the microphone; undo takes it back.
+-->
+<Story asChild name="Voice commands">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onvoiceready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did }}
+				onvoice={commanding.toggle} onvoicecorrect={(on) => (commanding.correct = on)} onvoicearrange={(on) => (commanding.arrange = on)} onvoicecommands={(on) => (commanding.commands = on)}
 			/>
 		</div>
 	</div>

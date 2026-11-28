@@ -943,6 +943,15 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 			const bounds = editor.getShapePageBounds(id)!;
 			return { added: [{ id: id.replace(/^shape:/, ''), x: Math.round(bounds.x), y: Math.round(bounds.y), w: Math.round(bounds.w), h: Math.round(bounds.h) }], ...report };
 		}
+		case 'add_shape': {
+			const id = createShapeId();
+			const side = (value: number | undefined) => Math.max(40, Math.min(1200, onGrid(value ?? 200)));
+			editor.markHistoryStoppingPoint('add shape');
+			editor.createShape({ id, type: 'geo', x: 0, y: 0, props: { geo: op.shape as TLGeoShapeGeoStyle, w: side(op.w), h: side(op.h ?? op.w), ...(op.text ? { richText: toRichText(op.text.slice(0, 400)) } : {}), ...(op.color ? { color: op.color } : {}) } });
+			placeNew(editor, id, op);
+			const bounds = editor.getShapePageBounds(id)!;
+			return changed(editor, { added: [{ id: short(id), x: Math.round(bounds.x), y: Math.round(bounds.y), w: Math.round(bounds.w), h: Math.round(bounds.h) }] });
+		}
 		case 'add_notes': {
 			const ids = addNotes(editor, op);
 			return changed(editor, { added: ids.map((id) => short(id)) });

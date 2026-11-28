@@ -77,15 +77,16 @@
 		posting?: boolean;
 		/**
 		 * With `onvoice`, the owner gets the voice note: a microphone that writes what is said onto the
-		 * table as text blocks, and its two choices (`onvoicecorrect`, `onvoicearrange`).
+		 * table as text blocks, and its choices (`onvoicecorrect`, `onvoicearrange`, `onvoicecommands`).
 		 */
 		voice?: VoiceView;
 		onvoice?: () => void;
 		onvoicecorrect?: (on: boolean) => void;
 		onvoicearrange?: (on: boolean) => void;
+		onvoicecommands?: (on: boolean) => void;
 	}
 
-	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false, voice, onvoice, onvoicecorrect, onvoicearrange }: Props = $props();
+	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false, voice, onvoice, onvoicecorrect, onvoicearrange, onvoicecommands }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -133,7 +134,7 @@
 		{/if}
 		{#if voice && onvoice}
 			<span class="divider" aria-hidden="true"></span>
-			<VoiceControl {voice} ontoggle={onvoice} oncorrect={onvoicecorrect} onarrange={onvoicearrange} />
+			<VoiceControl {voice} ontoggle={onvoice} oncorrect={onvoicecorrect} onarrange={onvoicearrange} oncommands={onvoicecommands} />
 		{/if}
 		<span class="divider" aria-hidden="true"></span>
 		<Button variant="icon" icon="undo" label="Undo" disabled={!canUndo} onclick={onundo} />
