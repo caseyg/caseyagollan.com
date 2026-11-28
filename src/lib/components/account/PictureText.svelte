@@ -9,8 +9,8 @@
 		/** Dollars per million tokens the model costs, for the estimate. */
 		price?: { input: number; output: number };
 		/** Stand-ins for the requests, for stories. */
-		load?: () => Promise<PictureReading | null>;
-		read?: (count: number) => Promise<PictureReading | null>;
+		load?: () => Promise<PictureReading | 'updating' | null>;
+		read?: (count: number) => Promise<PictureReading | 'updating' | null>;
 	}
 
 	let { csrf, price = { input: 0.3, output: 1 }, load, read }: Props = $props();
@@ -20,11 +20,13 @@
 	const TRIAL = 20;
 	let info = $state<PictureReading | null>(null);
 	let checked = $state(false);
+	// The copy is still on the version before a deploy, for a few minutes after one.
+	let updating = $state(false);
 	let busy = $state(false);
 	let failed = $state('');
 	let timer: ReturnType<typeof setTimeout> | undefined;
 
-	async function request(count?: number): Promise<PictureReading | null> {
+	async function request(count?: number): Promise<PictureReading | 'updating' | null> {
 		const asking = count !== undefined;
 		const response = await fetch(asking ? ENDPOINT : `${ENDPOINT}?pictures`, {
 			method: asking ? 'POST' : 'GET',
@@ -32,8 +34,9 @@
 			cache: 'no-store',
 			...(asking ? { headers: { 'x-csrf-token': csrf ?? '', 'content-type': 'application/json' }, body: JSON.stringify({ read: count }) } : {})
 		}).catch(() => null);
-		if (!response?.ok) return null;
-		return ((await response.json().catch(() => ({}))) as { pictures?: PictureReading }).pictures ?? null;
+		const body = ((await response?.json().catch(() => ({}))) ?? {}) as { pictures?: PictureReading; updating?: boolean };
+		if (body.updating) return 'updating';
+		return response?.ok ? body.pictures ?? null : null;
 	}
 
 	/** While pictures are being read, look again every couple of seconds. */
@@ -41,14 +44,16 @@
 		clearTimeout(timer);
 		if (!info?.asked) return;
 		timer = setTimeout(async () => {
-			info = (await (load ? load() : request())) ?? info;
+			const next = await (load ? load() : request());
+			if (next && next !== 'updating') info = next;
 			watch();
 		}, 2000);
 	}
 
 	onMount(() => {
 		void (load ? load() : request()).then((loaded) => {
-			info = loaded;
+			updating = loaded === 'updating';
+			info = loaded === 'updating' ? null : loaded;
 			checked = true;
 			watch();
 		});
@@ -60,7 +65,8 @@
 		failed = '';
 		const next = await (read ? read(count) : request(count));
 		busy = false;
-		if (next) info = next;
+		if (next === 'updating') failed = 'The copy is still switching to the site’s latest version. Try again in a few minutes.';
+		else if (next) info = next;
 		else failed = 'That didn’t go through. Try again in a moment.';
 		watch();
 	}
@@ -81,10 +87,13 @@
 	{#if failed}<Notice tone="error">{failed}</Notice>{/if}
 	{#if !checked}
 		<p class="hint">Checking…</p>
+	{:else if updating}
+		<Notice>The copy is still switching to the site’s latest version, which takes a few minutes after an update. Reload this page then.</Notice>
 	{:else if !info}
 		<Notice>The copy needs the site’s Worker, which isn’t running here.</Notice>
 	{:else}
 		<p class="count" aria-live="polite">{counts}</p>
+		{#if info.error && !info.asked}<Notice tone="error">The last reading stopped because the model didn’t answer: {info.error}</Notice>{/if}
 		{#if info.asked > 0}
 			<span class="progress">
 				<ProgressBar value={info.total ? (info.read + info.failed) / info.total : undefined} label="Reading pictures" />

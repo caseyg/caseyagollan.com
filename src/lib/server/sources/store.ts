@@ -33,6 +33,8 @@ const FORCED = 'sync:forced';
 const READ_BUDGET = 'read:budget';
 /** As long as one round spends reading pictures. */
 const READ_MS = 15_000;
+/** Why the last pass over the pictures stopped by itself, for the owner's settings. */
+const READ_ERROR = 'read:error';
 /** Seconds between rounds of a pass that has more to fetch and isn't being asked to wait. */
 const NEXT_AFTER = 1;
 /** What the round under way is doing, so a round that never finished (out of memory, most likely) says where it stopped. */
@@ -69,13 +71,14 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 	 */
 	async readPictures(count: number): Promise<PictureReading> {
 		this.index.setState(READ_BUDGET, Math.max(0, Math.floor(count)));
+		if (count > 0) this.index.setState(READ_ERROR, '');
 		if (count > 0) await this.ctx.storage.setAlarm(Date.now() + 100);
 		return this.pictures();
 	}
 
 	/** How far reading the words in pictures has got, what it has cost in tokens, and the latest read. */
 	pictures(): PictureReading {
-		return { ...this.index.pictureCounts(), asked: this.index.state<number>(READ_BUDGET) ?? 0, usage: this.index.state<ReadUsage>(READ_USAGE) ?? { pictures: 0, input: 0, output: 0 }, recent: this.index.recentImageText(20) };
+		return { ...this.index.pictureCounts(), asked: this.index.state<number>(READ_BUDGET) ?? 0, usage: this.index.state<ReadUsage>(READ_USAGE) ?? { pictures: 0, input: 0, output: 0 }, recent: this.index.recentImageText(20), ...(this.index.state<string>(READ_ERROR) ? { error: this.index.state<string>(READ_ERROR) } : {}) };
 	}
 
 	/**
@@ -137,8 +140,9 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 		const began = Date.now();
 		let read = 0, failed = 0;
 		while (budget > 0 && Date.now() - began < READ_MS) {
-			const batch = Math.min(budget, READ_BATCH);
-			const result = await readPending(this.index, this.env, batch).catch(() => ({ read: 0, failed: 0, left: false }));
+			// One picture first: if the model isn't answering, that is found out on one and not on ten at once.
+			const batch = Math.min(budget, read ? READ_BATCH : 1);
+			const result: Awaited<ReturnType<typeof readPending>> = await readPending(this.index, this.env, batch).catch((error) => ({ read: 0, failed: 1, left: false, error: String((error as Error)?.message ?? error).slice(0, 240) }));
 			read += result.read;
 			failed += result.failed;
 			budget = result.left ? budget - batch : 0;
@@ -146,7 +150,13 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 			if ((this.index.state<number>(READ_BUDGET) ?? 0) <= 0) budget = 0;
 			this.index.setState(READ_BUDGET, budget);
 			// Nothing came back at all: the model isn't answering, so stop rather than mark every picture.
-			if (!result.read && result.failed) { this.index.forgetFailedPictures(); this.index.setState(READ_BUDGET, 0); budget = 0; }
+			if (!result.read && result.failed) {
+				this.index.forgetFailedPictures();
+				this.index.setState(READ_BUDGET, 0);
+				this.index.setState(READ_ERROR, result.error ?? 'The model didn’t answer.');
+				console.error(JSON.stringify({ event: 'source_pictures_failed', message: result.error }));
+				budget = 0;
+			}
 		}
 		if (read || failed) console.log(JSON.stringify({ event: 'source_pictures_read', read, failed, left: budget }));
 		return budget > 0;

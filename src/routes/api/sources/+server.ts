@@ -39,7 +39,11 @@ export const GET: RequestHandler = async ({ request, url, platform }) => {
 		const result = await sources.search({ since, until: isoTime(url.searchParams.get('until')), source: url.searchParams.get('source') || undefined, limit, offset });
 		return Response.json({ total: result.total, items: result.hits.map(feedItem).filter((item) => item !== null) }, { headers: PRIVATE });
 	}
-	if (url.searchParams.has('pictures')) return Response.json({ available: true, pictures: await backend.pictures() }, { headers: PRIVATE });
+	if (url.searchParams.has('pictures')) {
+		// For a few minutes after a deploy the copy still runs the version before, which may not know this question.
+		const pictures = await Promise.resolve(backend.pictures()).catch(() => null);
+		return Response.json(pictures ? { available: true, pictures } : { available: true, updating: true }, { status: pictures ? 200 : 503, headers: PRIVATE });
+	}
 	if (query === null) return Response.json({ available: true, sources: await backend.status() }, { headers: PRIVATE });
 	const sources = sourcesFor(backend, { owner: true })!;
 	const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 24, 1), 60);
@@ -55,7 +59,8 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	if (!backend) return Response.json({ error: 'The source cache isn’t set up here.' }, { status: 503, headers: PRIVATE });
 	const asked = request.headers.get('content-type')?.includes('json') ? ((await request.json().catch(() => null)) as { read?: unknown } | null) : null;
 	if (typeof asked?.read === 'number' && Number.isFinite(asked.read)) {
-		return Response.json({ available: true, pictures: await backend.readPictures(Math.min(Math.max(Math.floor(asked.read), 0), 100_000)) }, { headers: PRIVATE });
+		const pictures = await backend.readPictures(Math.min(Math.max(Math.floor(asked.read), 0), 100_000)).catch(() => null);
+		return Response.json(pictures ? { available: true, pictures } : { available: true, updating: true }, { status: pictures ? 200 : 503, headers: PRIVATE });
 	}
 	const wait = (platform as { ctx?: ExecutionContext } | undefined)?.ctx;
 	const sync = backend.tick({ force: true }).catch(() => []);
