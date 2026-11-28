@@ -359,13 +359,17 @@ describe('the listening socket', () => {
 	test('known words go to the model as key terms, and it is asked again without them if it refuses', async () => {
 		const withTerms = new Request('https://caseyagollan.com/api/tables/voice/listen?rate=16000&term=Otso&term=caseyagollan.com&term=otso', { headers: { upgrade: 'websocket', origin: 'https://caseyagollan.com' } });
 		const calls: unknown[][] = [];
-		expect(await voiceListen(withTerms, { AI: ai(calls) }, async () => true)).toBe(opened);
+		// Off unless asked for: the speech model closed its socket when given them.
+		const plain: unknown[][] = [];
+		expect(await voiceListen(withTerms, { AI: ai(plain) }, async () => true)).toBe(opened);
+		expect((plain[0][1] as { keyterm?: unknown }).keyterm).toBeUndefined();
+		expect(await voiceListen(withTerms, { AI: ai(calls), VOICE_KEYTERMS: 'on' }, async () => true)).toBe(opened);
 		expect((calls[0][1] as { keyterm: string[] }).keyterm).toEqual(['Otso', 'caseyagollan.com']);
 		const fussy: unknown[][] = [];
 		const refuses = { run: async (...args: unknown[]) => { fussy.push(args); if ((args[1] as { keyterm?: unknown }).keyterm) throw new Error('unknown parameter'); return opened; } };
 		const errors = console.error;
 		console.error = () => {};
-		try { expect(await voiceListen(withTerms, { AI: refuses }, async () => true)).toBe(opened); } finally { console.error = errors; }
+		try { expect(await voiceListen(withTerms, { AI: refuses, VOICE_KEYTERMS: 'on' }, async () => true)).toBe(opened); } finally { console.error = errors; }
 		expect(fussy.length).toBe(2);
 		expect((fussy[1][1] as { keyterm?: unknown }).keyterm).toBeUndefined();
 	});

@@ -19,6 +19,8 @@ export interface VoiceEnv extends ChatModelEnv {
 	VOICE_MODEL?: string;
 	/** The model that corrects and places blocks, as the Model menu names it (`anthropic:claude-haiku-5-5`); the chat's own otherwise. */
 	VOICE_TEXT_MODEL?: string;
+	/** `on` sends the known words to the speech model as key terms. Off by default: Flux closed the socket when given them. */
+	VOICE_KEYTERMS?: string;
 }
 
 const refuse = (status: number, message: string) => new Response(message, { status, headers: { 'cache-control': 'no-store' } });
@@ -54,8 +56,9 @@ export async function voiceListen(request: Request, env: VoiceEnv, owner: () => 
 	const asked = Number(new URL(request.url).searchParams.get('rate'));
 	const rate = Number.isFinite(asked) && asked >= 8000 && asked <= 48000 ? Math.round(asked) : 16000;
 	const model = env.VOICE_MODEL || VOICE_MODEL;
-	// Known words are the model's key terms. Should it refuse them, it is asked again without: hearing comes before spelling.
-	const terms = cleanWords(new URL(request.url).searchParams.getAll('term')).slice(0, VOICE_TERMS_MAX);
+	// Known words could be the model's key terms, but Flux on Workers AI opened and then closed the socket at the first words when
+	// given `keyterm` (Casey's preview, 2026-11-28), so they are sent only where `VOICE_KEYTERMS` says to try again. The text model gets them either way.
+	const terms = env.VOICE_KEYTERMS === 'on' ? cleanWords(new URL(request.url).searchParams.getAll('term')).slice(0, VOICE_TERMS_MAX) : [];
 	const open = async (input: Record<string, string | string[]>) => {
 		const answer = await env.AI!.run(model, input, { websocket: true });
 		return answer instanceof Response && answer.status < 400 ? answer : undefined;
