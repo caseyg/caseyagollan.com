@@ -21,7 +21,7 @@
 	import { blockKey, KIND_LABEL } from '$lib/tables';
 	import Button from '../ui/Button.svelte';
 	import BlockCard from './BlockCard.svelte';
-	import { BLOCK_DRAG_TYPE } from './TableCanvas.svelte';
+	import { BLOCK_DRAG_TYPE, BLOCK_LINK_TYPE } from './TableCanvas.svelte';
 
 	interface Props {
 		groups: BlockGroup[];
@@ -35,10 +35,12 @@
 		naming?: 'title' | 'kind';
 		/** The keys (`blockKey`) of the selected lines. */
 		selected?: string[];
+		/** Ids of things on the table that blocks dragged from this list are linked from where they land. */
+		link?: string[];
 		class?: string;
 	}
 
-	let { groups, onadd, empty, busy = false, naming = 'title', selected = $bindable([]), class: className = '' }: Props = $props();
+	let { groups, onadd, empty, busy = false, naming = 'title', selected = $bindable([]), link, class: className = '' }: Props = $props();
 
 	// Every line that can still be added, top to bottom: the order a range and a drag keep.
 	const open = $derived(groups.flatMap((group) => group.rows).filter((row) => !row.placed));
@@ -76,6 +78,7 @@
 		// A selected line takes the whole selection with it, in the list's order.
 		const blocks = chosen.has(blockKey(row.block)) && picked.length > 1 ? picked : [row.block];
 		transfer.setData(BLOCK_DRAG_TYPE, JSON.stringify(blocks.length === 1 ? blocks[0] : blocks));
+		if (link?.length) transfer.setData(BLOCK_LINK_TYPE, JSON.stringify(link));
 		transfer.setData('text/uri-list', blocks.map((block) => new URL(block.url, location.origin).href).join('\r\n'));
 		transfer.effectAllowed = 'copy';
 		if (blocks.length > 1 && badge) transfer.setDragImage(badge, 16, 16);

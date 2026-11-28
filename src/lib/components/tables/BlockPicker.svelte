@@ -37,6 +37,10 @@
 		 * boxes by their words. Left out, it is `source` alone.
 		 */
 		like?: LikeThing[];
+		/** The ids on the table of what `like` lists. Things added from Similar are linked from them: `onaddlinked`, or a drag. */
+		linkFrom?: string[];
+		/** Adds blocks found as like the selection, to be linked from it. Left out, they are added like any others. */
+		onaddlinked?: (blocks: Block[]) => void;
 		/** Saved things like what is selected. With it, the picker also offers what is like the selection. */
 		similar?: (things: LikeThing[]) => Promise<Block[]>;
 		/** Kept open as a sidebar down the right of the page instead of a menu. */
@@ -50,7 +54,7 @@
 		filter?: SourceFilter;
 	}
 
-	let { search, onadd, onclose, placed = [], source, like, pieces, owner = false, recent, similar, pinned = false, onpin, tab = $bindable(), query = $bindable(''), filter = $bindable('all') }: Props = $props();
+	let { search, onadd, onclose, placed = [], source, like, linkFrom, onaddlinked, pieces, owner = false, recent, similar, pinned = false, onpin, tab = $bindable(), query = $bindable(''), filter = $bindable('all') }: Props = $props();
 
 	const onTable = $derived(new Set(placed));
 	let found = $state<Block[]>([]);
@@ -171,12 +175,12 @@
 	{:else if showing === 'similar' && thingsKey}
 		<p class="hint">
 			{#if things.length === 1}
-				Saved things that {likeLooks(things[0]) ? 'look' : 'read'} like <strong>{likeTitle(things[0])}</strong>, nearest first.
+				Saved things that {likeLooks(things[0]) ? 'look' : 'read'} like <strong>{likeTitle(things[0])}</strong>, nearest first. Added ones are linked to it.
 			{:else}
-				Saved things like <strong>{things.length > LIKE_SEEDS_MAX ? `the first ${LIKE_SEEDS_MAX} of the ${things.length} things selected` : `the ${things.length} things selected`}</strong>. What is like more of them comes first.
+				Saved things like <strong>{things.length > LIKE_SEEDS_MAX ? `the first ${LIKE_SEEDS_MAX} of the ${things.length} things selected` : `the ${things.length} things selected`}</strong>. What is like more of them comes first. Added ones are linked to an area around them.
 			{/if}
 		</p>
-		<BlockList groups={[{ rows: (alike ?? []).map((block) => ({ block, placed: onTable.has(blockKey(block)) })) }]} {onadd} busy={alike === null} empty={things.length === 1 ? 'Nothing saved is like it.' : 'Nothing saved is like them.'} />
+		<BlockList groups={[{ rows: (alike ?? []).map((block) => ({ block, placed: onTable.has(blockKey(block)) })) }]} onadd={onaddlinked ?? onadd} link={linkFrom} busy={alike === null} empty={things.length === 1 ? 'Nothing saved is like it.' : 'Nothing saved is like them.'} />
 		{#if alike === null}<p class="hint">Looking…</p>{/if}
 	{:else if showing === 'recent' && recent}
 		<BlockFeed load={recent} {onadd} {placed} />

@@ -75,6 +75,8 @@
 	let source = $state<Block>();
 	// Everything selected when Add was pressed: what Similar finds the like of.
 	let like = $state<LikeThing[]>([]);
+	// Their ids on the table: what blocks added from Similar are linked from.
+	let likeIds = $state<string[]>([]);
 	/** The tag panel: off, editing the selection's tags, or reviewing what is staged before it is saved. */
 	let tagging = $state<'edit' | 'review' | null>(null);
 	let renaming = $state(false);
@@ -385,6 +387,7 @@
 		const turned = pinned && adding && selected.length > 0 && selected.map(likeKey).join('\n') !== like.map(likeKey).join('\n');
 		source = view.selected;
 		like = selected;
+		likeIds = api?.selectedIds() ?? [];
 		if (turned) return;
 		showAdding(!adding);
 		if (adding && !pinned) tagging = null;
@@ -548,6 +551,8 @@
 					placed={view.placed}
 					{source}
 					{like}
+					linkFrom={likeIds}
+					onaddlinked={(blocks) => api?.addBlocks(blocks, undefined, { near: source, linkFrom: likeIds, ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) })}
 					pieces={(block) => pagePieces(block, wikiHref)}
 					{recent}
 					similar={session.mode === 'owner' ? similarBlocks : undefined}
