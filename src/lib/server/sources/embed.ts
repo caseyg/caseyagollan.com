@@ -73,13 +73,40 @@ export const READ_PRICE = { input: 0.3, output: 1 };
 
 const tokens = (from: unknown, ...names: string[]) => { for (const name of names) { const value = (from as Record<string, unknown> | undefined)?.[name]; if (typeof value === 'number') return value; } return 0; };
 
+/** Where a model may put its words, nearest first: Moondream's own names, Workers AI's usual ones, and the OpenAI shape. */
+const SAID_IN = ['answer', 'response', 'caption', 'output_text', 'text', 'content', 'result', 'output', 'message', 'choices', 'data'];
+
+/** The words in whatever the model sent back, however it wrapped them; undefined when there are none. */
+export function saidIn(answer: unknown, depth = 0): string | undefined {
+	if (typeof answer === 'string') return answer;
+	if (!answer || typeof answer !== 'object' || depth > 4) return undefined;
+	if (Array.isArray(answer)) { for (const one of answer) { const said = saidIn(one, depth + 1); if (said !== undefined) return said; } return undefined; }
+	for (const key of SAID_IN) {
+		const said = saidIn((answer as Record<string, unknown>)[key], depth + 1);
+		if (said !== undefined) return said;
+	}
+	return undefined;
+}
+
+/** How an answer was laid out, without what it says: its keys and their kinds, two levels down. */
+export function shapeOf(answer: unknown, depth = 0): string {
+	if (answer === null) return 'null';
+	if (Array.isArray(answer)) return `[${answer.length ? shapeOf(answer[0], depth + 1) : ''}]`;
+	if (typeof answer !== 'object') return typeof answer;
+	const name = (answer as object).constructor?.name;
+	if (name && name !== 'Object') return name;
+	if (depth > 1) return 'object';
+	return `{${Object.entries(answer as Record<string, unknown>).slice(0, 12).map(([key, value]) => `${key}: ${key === 'finish_reason' && typeof value === 'string' ? JSON.stringify(value.slice(0, 30)) : shapeOf(value, depth + 1)}`).join(', ')}}`.slice(0, 200);
+}
+
 async function read(env: EmbedEnv, data: string, index?: SourceIndex): Promise<string> {
-	const answer = (await env.AI!.run(env.SOURCES_READ_MODEL || READ_MODEL, { task: 'query', image: data, question: READ_PROMPT, reasoning: false, temperature: 0, max_tokens: 1500 } as never)) as { answer?: string | null; response?: string | null; metrics?: unknown; usage?: unknown } | string;
-	const said = typeof answer === 'string' ? answer : answer?.answer ?? answer?.response;
-	if (typeof said !== 'string') throw new Error('The vision model sent no answer.');
-	if (index && typeof answer !== 'string') {
+	const answer = (await env.AI!.run(env.SOURCES_READ_MODEL || READ_MODEL, { task: 'query', image: data, question: READ_PROMPT, reasoning: false, temperature: 0, max_tokens: 1500 } as never)) as { metrics?: unknown; usage?: unknown; result?: { metrics?: unknown; usage?: unknown } } | string;
+	const said = saidIn(answer);
+	// Not the answer itself, which may be a private picture's words: only how it was laid out, to mend the reading by.
+	if (said === undefined) throw new Error(`The vision model sent no answer. It sent ${shapeOf(answer)}`);
+	if (index && answer && typeof answer === 'object') {
 		// However the model names its counts; none at all still counts the picture.
-		const counts = answer.usage ?? answer.metrics, had = index.state<ReadUsage>(READ_USAGE) ?? { pictures: 0, input: 0, output: 0 };
+		const counts = answer.usage ?? answer.metrics ?? answer.result?.usage ?? answer.result?.metrics, had = index.state<ReadUsage>(READ_USAGE) ?? { pictures: 0, input: 0, output: 0 };
 		index.setState(READ_USAGE, { pictures: had.pictures + 1, input: had.input + tokens(counts, 'input_tokens', 'prompt_tokens'), output: had.output + tokens(counts, 'output_tokens', 'completion_tokens') });
 	}
 	return readWords(said);

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { EMBED_DIMENSIONS, EMBED_MODEL, READ_MODEL, READ_USAGE, alike, embedPending, imageWords, readPending, readWords, similar } from '../src/lib/server/sources/embed';
+import { EMBED_DIMENSIONS, EMBED_MODEL, READ_MODEL, READ_USAGE, alike, embedPending, imageWords, readPending, readWords, saidIn, shapeOf, similar } from '../src/lib/server/sources/embed';
 import { document, memoryIndex } from './helpers/sources';
 
 /** A stand-in for the embedding model: one direction for tea, one for boats, so likeness can be told. */
@@ -51,6 +51,15 @@ describe('likeness between saved things', () => {
 	}
 	// Pictures are "fetched" as their own address, so the stand-in model can tell them apart.
 	const see = async (url: string) => url;
+
+	test('the model’s words are found however it wraps them, and a missing answer says only its shape', () => {
+		expect(saidIn({ answer: 'TEA', finish_reason: 'stop' })).toBe('TEA');
+		expect(saidIn({ result: { answer: 'TEA' } })).toBe('TEA');
+		expect(saidIn({ response: 'TEA' })).toBe('TEA');
+		expect(saidIn({ choices: [{ message: { content: 'TEA' } }] })).toBe('TEA');
+		expect(saidIn({ answer: null, finish_reason: 'stop', metrics: { input_tokens: 3 } })).toBeUndefined();
+		expect(shapeOf({ answer: null, finish_reason: 'stop', metrics: { input_tokens: 3 }, reasoning: { text: 'secret' } })).toBe('{answer: null, finish_reason: "stop", metrics: {input_tokens: number}, reasoning: {text: string}}');
+	});
 
 	test('what the model says is kept as the words alone', () => {
 		expect(readWords('NONE')).toBe('');
