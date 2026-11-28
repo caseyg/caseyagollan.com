@@ -94,6 +94,7 @@
 		'layout-row': '<rect x="2" y="8" width="5" height="8" rx="1"/><rect x="9.5" y="8" width="5" height="8" rx="1"/><rect x="17" y="8" width="5" height="8" rx="1"/>',
 		'layout-column': '<rect x="8" y="2" width="8" height="5" rx="1"/><rect x="8" y="9.5" width="8" height="5" rx="1"/><rect x="8" y="17" width="8" height="5" rx="1"/>',
 		'layout-tree': '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4"/><path d="M6 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/>',
+		'layout-outline': '<rect x="2" y="9.5" width="6" height="5" rx="1"/><path d="M14 4h8"/><path d="M14 12h8"/><path d="M14 20h8"/><path d="M8 12h6"/><path d="M14 4c-3.5 0-2.5 8-6 8"/><path d="M14 20c-3.5 0-2.5-8-6-8"/>',
 		'layout-mindmap': '<rect x="9" y="9.5" width="6" height="5" rx="1"/><rect x="2" y="3" width="5" height="4" rx="1"/><rect x="2" y="17" width="5" height="4" rx="1"/><rect x="17" y="3" width="5" height="4" rx="1"/><rect x="17" y="17" width="5" height="4" rx="1"/><path d="M9.5 9.5 7 7"/><path d="M9.5 14.5 7 17"/><path d="M14.5 9.5 17 7"/><path d="M14.5 14.5 17 17"/>',
 		'layout-radial': '<circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="10"/>',
 		'layout-flow': '<rect x="2" y="8" width="6" height="8" rx="1"/><rect x="16" y="8" width="6" height="8" rx="1"/><path d="M8 12h8"/><path d="m13 9 3 3-3 3"/>',

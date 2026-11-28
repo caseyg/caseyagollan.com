@@ -1172,7 +1172,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 			parameters: {
 				type: 'object',
 				properties: {
-					layout: { type: 'string', enum: [...TABLE_ARRANGEMENTS, 'tidy'], description: 'auto: the best fit for what is there (“clean this up”). grid; columns (masonry); row; column; pack (tightest); tidy (only push overlaps apart). From the arrows: tree (org chart), mindmap (one idea in the middle, branches both sides), radial (rings around the middle), layered (a flow, where arrows merge or loop), force (a network). cluster: named groups, each in its own frame.' },
+					layout: { type: 'string', enum: [...TABLE_ARRANGEMENTS, 'tidy'], description: 'auto: the best fit for what is there (“clean this up”). grid; columns (masonry); row; column; pack (tightest); tidy (only push overlaps apart). From the arrows: tree (org chart), outline (a compact tree growing right), mindmap (one idea in the middle, branches both sides), radial (rings around the middle), layered (a flow, where arrows merge or loop), force (a network). cluster: named groups, each in its own frame.' },
 					ids: { ...IDS, description: 'Only these, set out in the order you give them; ["selected"] for Casey’s selection. Leave out for the whole table (a frame moves as one with what it holds).' },
 					inside: { type: 'string', description: 'A frame’s id or name: arrange what it holds, and refit it.' },
 					direction: { type: 'string', enum: [...TABLE_DIRECTIONS], description: 'Which way a tree or flow grows; down if left out.' },
@@ -1198,7 +1198,7 @@ export function chatExtension(deps: ToolDeps): Extension {
 				const ordered = !!ids && strings(input.ids, 100).every((id) => !SELECTED.test(id.trim()));
 				const align = TABLE_ALIGNS.find((one) => one === input.align), distribute = input.distribute === 'horizontal' || input.distribute === 'vertical' ? input.distribute : undefined;
 				// Models reach for the words they know: masonry is columns, org chart a tree, flow layered.
-				const ALIASES: Record<string, string> = { masonry: 'columns', org: 'tree', orgchart: 'tree', hierarchy: 'tree', flow: 'layered', flowchart: 'layered', dag: 'layered', network: 'force', graph: 'force', 'mind map': 'mindmap', 'mind-map': 'mindmap', circle: 'radial', group: 'cluster', clusters: 'cluster' };
+				const ALIASES: Record<string, string> = { masonry: 'columns', org: 'tree', orgchart: 'tree', hierarchy: 'tree', mindnode: 'outline', compact: 'outline', flow: 'layered', flowchart: 'layered', dag: 'layered', network: 'force', graph: 'force', 'mind map': 'mindmap', 'mind-map': 'mindmap', circle: 'radial', group: 'cluster', clusters: 'cluster' };
 				const asked = typeof input.layout === 'string' ? input.layout.trim().toLowerCase() : undefined;
 				const wanted = asked && (ALIASES[asked] ?? asked);
 				const layout = wanted === 'tidy' ? 'tidy' : TABLE_ARRANGEMENTS.find((one) => one === wanted) ?? (input.groups || input.by ? 'cluster' : undefined);

@@ -28,6 +28,7 @@ export const TABLE_LAYOUTS: TableMenuItem[] = [
 	{ value: 'row', icon: 'layout-row', label: 'One row', group: 'Rows and columns' },
 	{ value: 'column', icon: 'layout-column', label: 'One column', group: 'Rows and columns' },
 	{ value: 'tree', icon: 'layout-tree', label: 'Tree', detail: 'Top down', group: 'Following the arrows' },
+	{ value: 'outline', icon: 'layout-outline', label: 'Outline', detail: 'Compact, left to right', group: 'Following the arrows' },
 	{ value: 'mindmap', icon: 'layout-mindmap', label: 'Mind map', detail: 'Out to both sides', group: 'Following the arrows' },
 	{ value: 'radial', icon: 'layout-radial', label: 'Radial', detail: 'In rings', group: 'Following the arrows' },
 	{ value: 'layered', icon: 'layout-flow', label: 'Flow', detail: 'Left to right', group: 'Following the arrows' },

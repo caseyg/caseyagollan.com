@@ -183,3 +183,14 @@ table runs the same `arrange`, so the replays test the real geometry.
   the others.
 - **A toolbar menu.** The layouts are reachable only through the chat. The engine is pure, so
   an Arrange menu on the table's toolbar could call it directly.
+
+## Outline (added after)
+
+Casey asked for a more concise layout than the top-down tree, "more like MindNode". `outline` is
+that: a tree growing to the right in which each branch stands a fixed short way from its own
+parent's edge (not in a column with its whole generation, as `tree` with `direction: right`
+does), siblings that are single lines of text stack with no gap but their own leading, and a
+parent sits level with the middle of its branches. Its arrows all leave the middle of the
+parent's right edge and meet the middle of the branch's left edge, curved in proportion to how
+far up or down the branch stands (`routeArrows` with `outline`). tldraw's arrows are arcs, so
+the curve is a single bow, not MindNode's S. Pasted Markdown is set out this way.

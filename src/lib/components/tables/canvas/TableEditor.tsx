@@ -574,7 +574,7 @@ function arrangement(editor: Editor, shapes: TLShape[], op: Extract<TableOp, { o
 	const restyle = op.arrows === 'straight' || op.arrows === 'elbow' || (op.arrows !== 'keep' && usesArrows(result.mode));
 	const going = new Map(placements.map((spot) => [spot.id, spot]));
 	const landed = boxesOf(editor, shapes).map((box) => ({ ...box, ...going.get(box.id) }));
-	const arrows = restyle ? routed(editor, landed, links, op.arrows === 'elbow') : { shapes: [], bindings: [] };
+	const arrows = restyle ? routed(editor, landed, links, op.arrows === 'elbow', result.mode === 'outline' && op.arrows !== 'straight') : { shapes: [], bindings: [] };
 	return { result, placements, arrows, gap };
 }
 
@@ -583,8 +583,8 @@ function arrangement(editor: Editor, shapes: TLShape[], op: Extract<TableOp, { o
  * curve and label place, and where its ends meet their cards, as changes to make in one go. An
  * end tied to something inside a box (an item in a frame) keeps its place.
  */
-function routed(editor: Editor, landed: Box[], links: { arrow: TLArrowShape; from: string; to: string }[], elbow = false) {
-	const routes = new Map(routeArrows(landed, links.map(({ arrow, from, to }) => ({ id: arrow.id, from, to, label: renderPlaintextFromRichText(editor, arrow.props.richText) })), { elbow }).map((route) => [route.id, route]));
+function routed(editor: Editor, landed: Box[], links: { arrow: TLArrowShape; from: string; to: string }[], elbow = false, outline = false) {
+	const routes = new Map(routeArrows(landed, links.map(({ arrow, from, to }) => ({ id: arrow.id, from, to, label: renderPlaintextFromRichText(editor, arrow.props.richText) })), { elbow, outline }).map((route) => [route.id, route]));
 	const shapes: TLShapePartial[] = [], bindings: TLBindingUpdate[] = [];
 	for (const { arrow, from, to } of links) {
 		const route = routes.get(arrow.id);
