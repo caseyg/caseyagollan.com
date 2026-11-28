@@ -702,7 +702,7 @@ async function arrangeOp(editor: Editor, op: Extract<TableOp, { op: 'arrange' }>
 		} else if (result.groups) done.groups = result.groups.map((group) => ({ ...(group.name ? { name: group.name } : {}), holds: group.ids.length }));
 	}
 	const report = await changed(editor, { arranged: count, as: result.mode, ...done, ...(result.note ? { note: result.note } : {}) });
-	if (!named.length && !holding) editor.zoomToFit({ animation: { duration: 220 } });
+	if (!named.length && !holding && op.zoom !== false) editor.zoomToFit({ animation: { duration: 220 } });
 	return report;
 }
 
