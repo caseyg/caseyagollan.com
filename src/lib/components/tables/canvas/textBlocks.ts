@@ -108,7 +108,7 @@ const plain = (editor: Editor, shape: TLShape) => {
  * Brings a shape into view if any of it lies outside: the view moves only as far as that takes,
  * so what was said before stays on screen. The table's toolbar floats over the bottom of the view.
  */
-function reveal(editor: Editor, id: TLShapeId) {
+export function reveal(editor: Editor, id: TLShapeId) {
 	const bounds = editor.getShapePageBounds(id);
 	if (!bounds) return;
 	const view = editor.getViewportPageBounds(), zoom = editor.getZoomLevel();

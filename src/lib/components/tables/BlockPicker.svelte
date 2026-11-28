@@ -37,6 +37,10 @@
 		 * boxes by their words. Left out, it is `source` alone.
 		 */
 		like?: LikeThing[];
+		/** The ids on the table of what `like` lists. Things added from Similar are linked from them: `onaddlinked`, or a drag. */
+		linkFrom?: string[];
+		/** Adds blocks found as like the selection, to be linked from it. Left out, they are added like any others. */
+		onaddlinked?: (blocks: Block[]) => void;
 		/** Saved things like what is selected. With it, the picker also offers what is like the selection. */
 		similar?: (things: LikeThing[]) => Promise<Block[]>;
 		/** Kept open as a sidebar down the right of the page instead of a menu. */
@@ -45,12 +49,21 @@
 		onpin?: (pinned: boolean) => void;
 		/** The list showing. It starts on Recent in the sidebar and on Search in the menu. */
 		tab?: Tab;
+		/** The list to open on when the selection has both pieces and likes; left out, its pieces. */
+		prefer?: 'page' | 'similar';
+		/**
+		 * Told the lines that can be added from the list showing, top to bottom, and whether more are on
+		 * their way: what a spoken "add the second one" counts along. The Recent feed isn't counted.
+		 */
+		onlisted?: (blocks: Block[], busy: boolean) => void;
+		/** Numbers the lines that can be added, for adding by voice ("add the second one"). */
+		numbered?: boolean;
 		/** Starting query and filter, for stories. */
 		query?: string;
 		filter?: SourceFilter;
 	}
 
-	let { search, onadd, onclose, placed = [], source, like, pieces, owner = false, recent, similar, pinned = false, onpin, tab = $bindable(), query = $bindable(''), filter = $bindable('all') }: Props = $props();
+	let { search, onadd, onclose, placed = [], source, like, linkFrom, onaddlinked, pieces, owner = false, recent, similar, pinned = false, onpin, prefer, onlisted, numbered = false, tab = $bindable(), query = $bindable(''), filter = $bindable('all') }: Props = $props();
 
 	const onTable = $derived(new Set(placed));
 	let found = $state<Block[]>([]);
@@ -79,7 +92,7 @@
 		}
 		let live = true;
 		const from = untrack(() => source), likened = untrack(() => things);
-		tab = cut ? 'page' : 'similar';
+		tab = cut && !(untrack(() => prefer) === 'similar' && thingsKey) ? 'page' : thingsKey ? 'similar' : 'page';
 		const settle = () => {
 			if (!live) return;
 			// Leave a list that turned out empty for the next one that has something.
@@ -99,6 +112,15 @@
 		};
 	});
 	const partsLeft = $derived((parts ?? []).filter((block) => !onTable.has(blockKey(block))));
+	const alikeLeft = $derived((alike ?? []).filter((block) => !onTable.has(blockKey(block))));
+	// What a voice counts along: the lines of the list showing that can still be added.
+	$effect(() => {
+		if (!onlisted) return;
+		if (showing === 'page' && sourceKey) onlisted(partsLeft, parts === null);
+		else if (showing === 'similar' && thingsKey) onlisted(alikeLeft, alike === null);
+		else if (showing === 'recent' && recent) onlisted([], false);
+		else onlisted(results, phase === 'loading');
+	});
 	const tabs = $derived.by(() => {
 		const all = [
 			...(sourceKey && pieces && parts?.length !== 0 ? [{ label: 'This page', value: 'page', icon: '✂️' }] : []),
@@ -164,19 +186,20 @@
 		</div>
 	{/if}
 
+	{#if numbered && showing !== 'recent'}<p class="hint" role="note">Listening: say “add the second one”, “add the first three”, or “add” and a name.</p>{/if}
 	{#if showing === 'page' && sourceKey}
 		<p class="hint">Pieces of <strong>{source?.title}</strong>. Drag onto the table, or click to add.</p>
-		<BlockList groups={[{ rows: partsLeft.map((block) => ({ block })) }]} {onadd} naming="kind" busy={parts === null} empty="Every piece is on the table." />
+		<BlockList groups={[{ rows: partsLeft.map((block) => ({ block })) }]} {onadd} {numbered} naming="kind" busy={parts === null} empty="Every piece is on the table." />
 		{#if parts === null}<p class="hint">Reading the page…</p>{/if}
 	{:else if showing === 'similar' && thingsKey}
 		<p class="hint">
 			{#if things.length === 1}
-				Saved things that {likeLooks(things[0]) ? 'look' : 'read'} like <strong>{likeTitle(things[0])}</strong>, nearest first.
+				Saved things that {likeLooks(things[0]) ? 'look' : 'read'} like <strong>{likeTitle(things[0])}</strong>, nearest first. Added ones are linked to it.
 			{:else}
-				Saved things like <strong>{things.length > LIKE_SEEDS_MAX ? `the first ${LIKE_SEEDS_MAX} of the ${things.length} things selected` : `the ${things.length} things selected`}</strong>. What is like more of them comes first.
+				Saved things like <strong>{things.length > LIKE_SEEDS_MAX ? `the first ${LIKE_SEEDS_MAX} of the ${things.length} things selected` : `the ${things.length} things selected`}</strong>. What is like more of them comes first. Added ones are linked to an area around them.
 			{/if}
 		</p>
-		<BlockList groups={[{ rows: (alike ?? []).map((block) => ({ block, placed: onTable.has(blockKey(block)) })) }]} {onadd} busy={alike === null} empty={things.length === 1 ? 'Nothing saved is like it.' : 'Nothing saved is like them.'} />
+		<BlockList groups={[{ rows: (alike ?? []).map((block) => ({ block, placed: onTable.has(blockKey(block)) })) }]} onadd={onaddlinked ?? onadd} link={linkFrom} {numbered} busy={alike === null} empty={things.length === 1 ? 'Nothing saved is like it.' : 'Nothing saved is like them.'} />
 		{#if alike === null}<p class="hint">Looking…</p>{/if}
 	{:else if showing === 'recent' && recent}
 		<BlockFeed load={recent} {onadd} {placed} />
@@ -188,7 +211,7 @@
 
 		<p class="hint">Drag onto the table, or click to add.</p>
 
-		<BlockList groups={[{ rows: results.map((block) => ({ block })) }]} {onadd} busy={phase === 'loading'} empty={emptyMessage} />
+		<BlockList groups={[{ rows: results.map((block) => ({ block })) }]} {onadd} {numbered} busy={phase === 'loading'} empty={emptyMessage} />
 	{/if}
 
 	<form class="link" onsubmit={addLink}>

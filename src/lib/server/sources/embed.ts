@@ -99,8 +99,45 @@ export function shapeOf(answer: unknown, depth = 0): string {
 	return `{${Object.entries(answer as Record<string, unknown>).slice(0, 12).map(([key, value]) => `${key}: ${key === 'finish_reason' && typeof value === 'string' ? JSON.stringify(value.slice(0, 30)) : shapeOf(value, depth + 1)}`).join(', ')}}`.slice(0, 200);
 }
 
+/** Where a streamed piece's words may be, in the order streams name them. */
+const PIECE_IN = ['response', 'answer', 'chunk', 'delta', 'text', 'content', 'token', 'choices'];
+const pieceIn = (piece: unknown, depth = 0): string | undefined => {
+	if (typeof piece === 'string') return piece;
+	if (!piece || typeof piece !== 'object' || depth > 4) return undefined;
+	if (Array.isArray(piece)) return piece.map((one) => pieceIn(one, depth + 1) ?? '').join('') || undefined;
+	for (const key of PIECE_IN) { const said = pieceIn((piece as Record<string, unknown>)[key], depth + 1); if (said !== undefined) return said; }
+	return undefined;
+};
+
+/**
+ * An answer that came as a stream, put back together: the whole body when it is one JSON answer,
+ * otherwise server-sent events whose pieces are joined, with the counts from whichever event had them.
+ */
+export async function gathered(stream: ReadableStream<Uint8Array>): Promise<unknown> {
+	const body = (await new Response(stream).text()).trim();
+	try { return JSON.parse(body); } catch { /* events, then */ }
+	const events = body.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trim()).filter((line) => line && line !== '[DONE]');
+	if (!events.length) return body;
+	let answer = '', usage: unknown, metrics: unknown, whole: unknown;
+	for (const event of events) {
+		let piece: unknown;
+		try { piece = JSON.parse(event); } catch { answer += event; continue; }
+		if (piece && typeof piece === 'object') {
+			const fields = piece as Record<string, unknown>;
+			usage = fields.usage ?? usage;
+			metrics = fields.metrics ?? metrics;
+			// A last event that repeats the whole answer wins over the pieces before it.
+			if (typeof fields.answer === 'string' && 'finish_reason' in fields && answer) { whole = fields.answer; continue; }
+		}
+		answer += pieceIn(piece) ?? '';
+	}
+	return { answer: typeof whole === 'string' ? whole : answer, usage, metrics };
+}
+
 async function read(env: EmbedEnv, data: string, index?: SourceIndex): Promise<string> {
-	const answer = (await env.AI!.run(env.SOURCES_READ_MODEL || READ_MODEL, { task: 'query', image: data, question: READ_PROMPT, reasoning: false, temperature: 0, max_tokens: 1500 } as never)) as { metrics?: unknown; usage?: unknown; result?: { metrics?: unknown; usage?: unknown } } | string;
+	const sent = await env.AI!.run(env.SOURCES_READ_MODEL || READ_MODEL, { task: 'query', image: data, question: READ_PROMPT, reasoning: false, stream: false, temperature: 0, max_tokens: 1500 } as never);
+	// This model answers as a stream even when not asked to.
+	const answer = (sent instanceof ReadableStream ? await gathered(sent) : sent) as { metrics?: unknown; usage?: unknown; result?: { metrics?: unknown; usage?: unknown } } | string;
 	const said = saidIn(answer);
 	// Not the answer itself, which may be a private picture's words: only how it was laid out, to mend the reading by.
 	if (said === undefined) throw new Error(`The vision model sent no answer. It sent ${shapeOf(answer)}`);

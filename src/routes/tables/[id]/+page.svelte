@@ -2,7 +2,7 @@
 	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { BlockPicker, RenameTable, TableCanvas, TableContextMenu, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
+	import { BlockPicker, MindMapHelp, RenameTable, TableCanvas, TableContextMenu, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
 	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
 	import { page } from '$app/state';
@@ -20,7 +20,7 @@
 	import { wikiHref } from '$lib/wiki/links';
 	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
-	import { VoiceNotes } from '$lib/voice-session.svelte';
+	import { VoiceNotes, type VoiceDrawer } from '$lib/voice-session.svelte';
 	import { browserSource, voiceLogger, voiceRefiner, voiceWords, workerSource } from '$lib/voice-source';
 	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
@@ -40,7 +40,7 @@
 	let missing = $state(false);
 
 	let api = $state<TableApi>();
-	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
+	let view = $state<TableState>({ tool: 'select', mindMap: false, canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 	let adding = $state(false);
 	/**
 	 * The Add menu kept open as a sidebar down the right of the table, which this browser remembers
@@ -75,6 +75,52 @@
 	let source = $state<Block>();
 	// Everything selected when Add was pressed: what Similar finds the like of.
 	let like = $state<LikeThing[]>([]);
+	// Their ids on the table: what blocks added from Similar are linked from.
+	let likeIds = $state<string[]>([]);
+	// The list the picker shows, the one it was asked aloud to open on, and the lines that can be added from it.
+	let pickerTab = $state<'page' | 'similar' | 'recent' | 'site'>();
+	let prefer = $state<'page' | 'similar'>();
+	let listed: { blocks: Block[]; busy: boolean } = { blocks: [], busy: false };
+
+	/** Adds from the picker, beside the block it was opened for. A voice note's additions leave the selection where it is. */
+	function addListed(blocks: Block[], select = true, linked = false) {
+		api?.addBlocks(blocks, undefined, { near: source, select, ...(linked ? { linkFrom: likeIds } : {}), ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) });
+	}
+
+	/** The picker as a voice note uses it: "show similar items", "get context", then "add the second one". */
+	const drawer: VoiceDrawer = {
+		show(list) {
+			const selected = api?.selectedThings() ?? [];
+			if (list === 'similar') {
+				if (session?.mode !== 'owner') return 'Similar needs you signed in';
+				if (!selected.length) return false;
+			} else if (!view.selected || view.selected.kind === 'book') return false;
+			const tab = list === 'pieces' ? 'page' : 'similar';
+			// Asked again for what is showing already: its lines are the ones to count along.
+			const same = adding && pickerTab === tab && (view.selected ? blockKey(view.selected) : '') === (source ? blockKey(source) : '') && selected.map(likeKey).join('\n') === like.map(likeKey).join('\n');
+			source = view.selected;
+			like = selected;
+			likeIds = api?.selectedIds() ?? [];
+			prefer = pickerTab = tab;
+			if (!same) listed = { blocks: [], busy: true };
+			tagging = pinned ? tagging : null;
+			showAdding(true);
+			return true;
+		},
+		open: () => adding,
+		async listed() {
+			// What was asked for is on its way: wait for it, though not for ever.
+			for (let waited = 0; adding && listed.busy && waited < 10_000; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100));
+			return adding ? listed.blocks.map((block) => block.title || block.excerpt || '') : [];
+		},
+		loaded: () => (adding && !listed.busy ? listed.blocks.map((block) => block.title || block.excerpt || '') : undefined),
+		add(places) {
+			const blocks = places.map((at) => listed.blocks[at]).filter(Boolean);
+			if (blocks.length) addListed(blocks, false, pickerTab === 'similar');
+			return blocks.length;
+		},
+		close: () => showAdding(false)
+	};
 	/** The tag panel: off, editing the selection's tags, or reviewing what is staged before it is saved. */
 	let tagging = $state<'edit' | 'review' | null>(null);
 	let renaming = $state(false);
@@ -101,7 +147,7 @@
 	$effect(() => api?.voice.edits((before, after) => void voice.learn(before, after)));
 	// The owner's known words come from the site, so they are the same on every device.
 	$effect(() => { if (session?.mode === 'owner') void voice.syncWords(); });
-	const voice: VoiceNotes = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), wordsStore: voiceWords(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
+	const voice: VoiceNotes = new VoiceNotes({ drawer: () => (editable ? drawer : undefined), canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), wordsStore: voiceWords(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
@@ -377,6 +423,8 @@
 	});
 
 	let contextMenu = $state<TableContextMenu>();
+	/** Whether mind map mode's list of keys shows. */
+	let mindKeys = $state(false);
 
 	/** Add, from the toolbar or the right-click menu: opens or closes the picker. */
 	function add() {
@@ -385,6 +433,8 @@
 		const turned = pinned && adding && selected.length > 0 && selected.map(likeKey).join('\n') !== like.map(likeKey).join('\n');
 		source = view.selected;
 		like = selected;
+		likeIds = api?.selectedIds() ?? [];
+		prefer = undefined;
 		if (turned) return;
 		showAdding(!adding);
 		if (adding && !pinned) tagging = null;
@@ -480,6 +530,7 @@
 					canRedo: view.canRedo,
 					autoLayout: view.autoLayout,
 					auto: true,
+					mindMap: view.mindMap,
 					details: view.details,
 					tags: session.mode !== 'pass',
 					media: true,
@@ -491,6 +542,8 @@
 				onmedia={(files) => void api?.addMedia(files)}
 				onlayout={layout}
 				onautolayout={(value) => api?.setAutoLayout(value)}
+				onmindmap={(on) => api?.setMindMap(on)}
+				onmindmapkeys={() => (mindKeys = !mindKeys)}
 				onadd={add}
 				ondetails={(shown) => api?.setDetails(shown)}
 				ontags={tags}
@@ -522,6 +575,8 @@
 				onlayout={layout}
 				autoLayout={view.autoLayout}
 				onautolayout={(value) => api?.setAutoLayout(value)}
+				mindMap={view.mindMap}
+				onmindmap={(on) => api?.setMindMap(on)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
@@ -539,6 +594,9 @@
 				onvoicewords={(words) => (voice.words = words)}
 			/>
 		</div>
+		{#if editable}
+			<div class="dock dock--keys"><MindMapHelp active={view.mindMap} bind:open={mindKeys} /></div>
+		{/if}
 		{#if editable && adding}
 			<!-- One picker in two places: a menu over the table, or a sidebar the table makes room for. It keeps what it was showing when it moves. -->
 			<div class={pinned ? 'sidebar' : 'dock dock--picker'}>
@@ -548,12 +606,18 @@
 					placed={view.placed}
 					{source}
 					{like}
+					linkFrom={likeIds}
+					onaddlinked={(blocks) => addListed(blocks, true, true)}
 					pieces={(block) => pagePieces(block, wikiHref)}
 					{recent}
 					similar={session.mode === 'owner' ? similarBlocks : undefined}
 					{pinned}
 					onpin={pin}
-					onadd={(blocks) => api?.addBlocks(blocks, undefined, { near: source, ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) })}
+					{prefer}
+					bind:tab={pickerTab}
+					numbered={voice.listening && voice.commands}
+					onlisted={(blocks, busy) => (listed = { blocks, busy })}
+					onadd={(blocks) => addListed(blocks)}
 					onclose={() => showAdding(false)}
 				/>
 			</div>
@@ -585,6 +649,18 @@
 		left: 50%;
 		bottom: var(--space-4);
 		translate: -50% 0;
+	}
+
+	/* Mind map mode's list of keys, in the corner the Add menu and the chat leave free. */
+	.dock--keys {
+		left: var(--space-4);
+		bottom: calc(var(--space-4) + 4rem);
+	}
+
+	@media (max-width: 600px) {
+		.dock--keys {
+			display: none;
+		}
 	}
 
 	/* The Add menu kept open as a sidebar (a SidePanel down the right): the canvas ends beside it. */

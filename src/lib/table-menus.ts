@@ -160,6 +160,8 @@ export interface TableContextState {
 	autoLayout?: string;
 	/** Whether auto layout can be switched. */
 	auto?: boolean;
+	/** Whether the table is in mind map mode; left out, the mode can't be switched from here. */
+	mindMap?: boolean;
 	/** Whether the selected blocks show their details. */
 	details?: 'shown' | 'hidden' | 'mixed';
 	tags?: boolean;
@@ -175,7 +177,7 @@ export interface TableContextState {
  * The canvas's right-click menu: everything the toolbar does, by the same names. What applies to
  * the selection comes first; layouts for the whole table, the tools and the rest follow.
  * Values: `layout:<scope>:<layout>`, `auto`, `tool:<id>`, `more:<More value>`, `voice[:<choice>]`,
- * `post:<as>`, and `add`, `details`, `tags`, `undo`, `redo`, `fit`, `publish`.
+ * `post:<as>`, and `add`, `details`, `tags`, `mindmap`, `mindmap-keys`, `undo`, `redo`, `fit`, `publish`.
  */
 export function contextItems(state: TableContextState): TableContextItem[] {
 	const scopes = layoutScopes(state.selection);
@@ -203,6 +205,8 @@ export function contextItems(state: TableContextState): TableContextItem[] {
 		{ value: 'layout:table', label: 'Lay out the whole table', icon: 'layout', group: 'table', items: layouts('table') }
 	);
 	if (state.auto) items.push({ value: 'auto', label: 'Auto layout', hint: 'Again whenever something is added', icon: 'sparkle', checked: !!state.autoLayout, group: 'table' });
+	if (state.mindMap !== undefined) items.push({ value: 'mindmap', label: 'Mind map mode', hint: 'Build a tree from the keyboard', icon: 'layout-outline', checked: state.mindMap, group: 'table' });
+	if (state.mindMap) items.push({ value: 'mindmap-keys', label: 'Mind map keys', icon: 'properties', shortcut: '?', group: 'table' });
 	items.push({ value: 'tools', label: 'Tools', icon: 'shapes', group: 'table', items: tools });
 	if (voice) {
 		items.push({

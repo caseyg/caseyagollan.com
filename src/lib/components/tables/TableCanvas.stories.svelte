@@ -3,10 +3,14 @@
 	import { blocks } from '$lib/storybook/fixtures';
 	import TableCanvas from './TableCanvas.svelte';
 	import TableToolbar from './TableToolbar.svelte';
+	import MindMapHelp from './MindMapHelp.svelte';
 	import { layoutOp } from '$lib/table-menus';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { COMMANDS, MINDMAP, RAMBLE, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
+	import { COMMANDS, DRAWER, MINDMAP, RAMBLE, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
+	import BlockPicker from './BlockPicker.svelte';
+	import type { Block } from '$lib/tables';
+	import type { LikeThing } from '$lib/table-feed';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCanvas', component: TableCanvas, tags: ['!autodocs'] });
 	const sample = Object.values(blocks);
@@ -14,7 +18,7 @@
 
 <script lang="ts">
 	let api: TableApi | undefined = $state();
-	let view: TableState = $state({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
+	let view: TableState = $state({ tool: 'select', mindMap: false, canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 
 	function onready(ready: TableApi) {
 		api = ready;
@@ -34,6 +38,50 @@
 	function onvoiceready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
+	}
+
+	// The Add drawer by voice: "show similar items" and "get context" open it, and its lines are added by place or by name.
+	let adding = $state(false);
+	let like = $state<LikeThing[]>([]);
+	let source = $state<Block>();
+	let pickerTab = $state<'page' | 'similar' | 'recent' | 'site'>();
+	let listed: { blocks: Block[]; busy: boolean } = { blocks: [], busy: false };
+	const similar = async (): Promise<Block[]> => [blocks.arenaImage, blocks.arenaLink, blocks.raindrop, blocks.arenaText, blocks.note, blocks.article];
+	const pieces = async (): Promise<Block[]> => [blocks.image, blocks.socialPost, blocks.quote];
+	const asking = new VoiceNotes({
+		canvas: () => api?.voice,
+		sources: () => [scriptedSource(DRAWER, 110)],
+		refine: scriptedRefine,
+		log: (entry) => console.debug('voice log', JSON.stringify(entry)),
+		drawer: () => ({
+			show(list) {
+				const selected = api?.selectedThings() ?? [];
+				if (list === 'similar' ? !selected.length : !view.selected) return false;
+				source = view.selected;
+				like = selected;
+				pickerTab = list === 'pieces' ? 'page' : 'similar';
+				listed = { blocks: [], busy: true };
+				adding = true;
+				return true;
+			},
+			open: () => adding,
+			async listed() {
+				for (let waited = 0; adding && listed.busy && waited < 5000; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100));
+				return listed.blocks.map((block) => block.title);
+			},
+			loaded: () => (adding && !listed.busy ? listed.blocks.map((block) => block.title) : undefined),
+			add(places) {
+				const picked = places.map((at) => listed.blocks[at]).filter(Boolean);
+				api?.addBlocks(picked, undefined, { near: source, select: false, columns: Math.min(picked.length, 4) });
+				return picked.length;
+			},
+			close: () => (adding = false)
+		})
+	});
+	function ondrawerready(ready: TableApi) {
+		api = ready;
+		ready.subscribe((state) => (view = state));
+		ready.addBlocks([blocks.wiki], undefined, { select: false });
 	}
 
 	// Markdown as it might be pasted from notes: headings, a list with a list inside it, and formatted text.
@@ -74,6 +122,16 @@ Each morning starts with a short demo, then people work on their own sites.
 		ready.zoomToFit();
 	}
 
+	// Mind map mode on a small tree, its root selected and the canvas holding the keys.
+	async function onmindmap(ready: TableApi) {
+		api = ready;
+		ready.subscribe((state) => (view = state));
+		const made = await ready.addMarkdown('# Garden\n\n- Beds\n  - Tomatoes\n  - Beans\n- Paths\n- Shed', { x: 0, y: 0 });
+		ready.zoomToFit();
+		ready.setMindMap(true);
+		await ready.perform({ op: 'select', ids: made.slice(0, 1), zoom: false });
+	}
+
 	async function onareas(ready: TableApi) {
 		const ids = ready.addBlocks(sample.slice(0, 8), undefined, { columns: 4, select: false });
 		await ready.perform({ op: 'frame', name: 'Reading', ids: ids.slice(0, 4) });
@@ -96,6 +154,22 @@ Each morning starts with a short demo, then people work on their own sites.
 	<div class="frame">
 		<TableCanvas document={null} {onready} />
 		<div class="dock"><TableToolbar onfit={() => api?.zoomToFit()} /></div>
+	</div>
+</Story>
+
+<!--
+	Mind map mode: the toolbar's Mind map switch hands the keyboard to the tree. Arrow keys walk it,
+	Tab adds a child, ⌘Enter a sibling, ⇧Tab a parent, ⌥ with an arrow moves a node, Backspace removes
+	one, and ? lists every key. Each change sets the tree out again as an outline.
+	A sticky note made from another's edge (in any mode) is joined to it by an arrow.
+-->
+<Story asChild name="Mind map mode">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onmindmap} />
+		<div class="keys"><MindMapHelp active={view.mindMap} /></div>
+		<div class="dock">
+			<TableToolbar editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved" geo={view.geo} ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} selection={view.selection} onlayout={(value, scope) => { const op = layoutOp(value, scope, view.selection.map((item) => item.id)); if (op) void api?.perform(op); }} autoLayout={view.autoLayout} onautolayout={(value) => api?.setAutoLayout(value)} mindMap={view.mindMap} onmindmap={(on) => api?.setMindMap(on)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()} />
+		</div>
 	</div>
 </Story>
 
@@ -183,6 +257,35 @@ Each morning starts with a short demo, then people work on their own sites.
 </Story>
 
 <!--
+	The Add drawer by voice: "show similar items" opens it on what is like the note just spoken (or the
+	selection), and "get context" on the selected block's page in pieces. While it is listening the lines
+	are numbered: "add the second one", "add the first two" and "add new avenues" add from the list, a tap
+	still adds one, and "close the drawer" puts it away.
+-->
+<Story asChild name="Voice drawer">
+	<div class="frame tall">
+		<TableCanvas document={null} editable onready={ondrawerready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved" {adding} onadd={() => (adding = !adding)}
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: asking.status, level: asking.level, notice: asking.notice, correct: asking.correct, arrange: asking.arrange, commands: asking.commands, did: asking.did, thinking: asking.thinking > 0, usage: asking.usageView, words: asking.words }}
+				onvoice={asking.toggle} onvoicecorrect={(on) => (asking.correct = on)} onvoicearrange={(on) => (asking.arrange = on)} onvoicecommands={(on) => (asking.commands = on)} onvoicemeter={(on) => (asking.meter = on)} onvoicewords={(words) => (asking.words = words)}
+			/>
+		</div>
+		{#if adding}
+			<div class="picker">
+				<BlockPicker
+					search={async () => []} {similar} {pieces} {source} {like} placed={view.placed} prefer={pickerTab === 'similar' ? 'similar' : 'page'} bind:tab={pickerTab}
+					numbered={asking.listening && asking.commands} onlisted={(found, busy) => (listed = { blocks: found, busy })}
+					onadd={(added) => api?.addBlocks(added, undefined, { near: source })} onclose={() => (adding = false)}
+				/>
+			</div>
+		{/if}
+	</div>
+</Story>
+
+<!--
 	Markdown pasted on the table, or a .md file dropped on it, is set down as a tree: a text block per
 	heading and list item, an arrow to each from the heading or item it sits under. Paragraphs stay
 	together under their heading, and bold, italics, code and links are kept. Paste your own to try it.
@@ -200,4 +303,6 @@ Each morning starts with a short demo, then people work on their own sites.
 	.frame { position: relative; width: 100%; height: 36rem; }
 	.frame.tall { height: 44rem; }
 	.dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; }
+	.keys { position: absolute; left: var(--space-4); bottom: calc(var(--space-4) + 4rem); }
+	.picker { position: absolute; top: var(--space-4); right: var(--space-4); bottom: 5rem; width: 22rem; }
 </style>

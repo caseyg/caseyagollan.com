@@ -10,6 +10,9 @@
 		onmedia?: (files: File[]) => void;
 		onlayout?: (layout: string, scope: LayoutScope) => void;
 		onautolayout?: (layout: string | null) => void;
+		onmindmap?: (on: boolean) => void;
+		/** Show or hide the list of mind map keys. */
+		onmindmapkeys?: () => void;
 		onadd?: () => void;
 		ondetails?: (shown: boolean) => void;
 		ontags?: () => void;
@@ -22,7 +25,7 @@
 		onpublish?: (published: boolean) => void;
 	}
 
-	let { state: table, ontool, onmedia, onlayout, onautolayout, onadd, ondetails, ontags, onundo, onredo, onfit, onvoice, onvoicechoice, onpost, onpublish }: Props = $props();
+	let { state: table, ontool, onmedia, onlayout, onautolayout, onmindmap, onmindmapkeys, onadd, ondetails, ontags, onundo, onredo, onfit, onvoice, onvoicechoice, onpost, onpublish }: Props = $props();
 
 	let menu = $state<ContextMenu>();
 	let picker = $state<HTMLInputElement>();
@@ -46,7 +49,9 @@
 		} else if (kind === 'auto') {
 			onautolayout?.(table.autoLayout ? null : 'auto');
 			if (!table.autoLayout) onlayout?.('auto', 'table');
-		} else if (kind === 'tool') ontool?.(arg);
+		} else if (kind === 'mindmap') onmindmap?.(!table.mindMap);
+		else if (kind === 'mindmap-keys') onmindmapkeys?.();
+		else if (kind === 'tool') ontool?.(arg);
 		else if (kind === 'more') {
 			if (arg === 'media') return picker?.click();
 			const choice = toolChoice(arg);

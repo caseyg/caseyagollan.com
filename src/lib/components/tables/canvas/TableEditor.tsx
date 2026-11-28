@@ -32,11 +32,13 @@ import type { LikeThing } from '$lib/table-feed';
 import { TABLE_PICTURE_MAX_SIDE } from '$lib/table-post';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableMapCard, type TableMapLink, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { AUTO_LAYOUT, autoLayoutOf, layoutOp } from '$lib/table-menus';
+import { MIND_MAP, mindMapOf } from '$lib/table-mindmap';
 import { arrange, clustersBy, labelIssues, routeArrows, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { tagRef } from '$lib/tag-edits';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
-import { addMarkdownTree, installTextBlocks, voiceCanvas, type VoiceCanvas } from './textBlocks';
+import { addMarkdownTree, installTextBlocks, reveal, voiceCanvas, type VoiceCanvas } from './textBlocks';
+import { installMindMap } from './mindMap';
 import { isMarkdownFile, looksLikeMarkdown } from '$lib/markdown-tree';
 import { markdownRich, richMarkdown, type RichDoc } from '$lib/voice-notes';
 
@@ -49,6 +51,8 @@ export interface TableState {
 	geo?: string;
 	/** The layout the table is kept in as things are added (a Layout menu value); unset when auto layout is off. */
 	autoLayout?: string;
+	/** Mind map mode: the keyboard builds and walks a tree, set out as an outline after each change. */
+	mindMap: boolean;
 	canUndo: boolean;
 	canRedo: boolean;
 	empty: boolean;
@@ -81,8 +85,10 @@ export interface TableApi {
 	 * Adds blocks with their top-left at a screen point, or around the middle of the view (or beside
 	 * the block they were taken from, `near`), in a row or wrapped into `columns`. `sizes` gives a block
 	 * its own size (a rendered page is as tall as its picture); `plain` sets them down with details hidden.
+	 * `linkFrom` (ids of things on the table) draws an arrow to each new block from what it was found by:
+	 * from the one thing, or from an area put around several.
 	 */
-	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean }): string[];
+	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean; linkFrom?: string[] }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
 	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'relink' | 'rename' | 'tag' }>): Promise<unknown>;
 	/** What a voice note writes with: blocks whose words arrive as they are heard (`$lib/voice-session.svelte`). */
@@ -98,6 +104,11 @@ export interface TableApi {
 	 * each time something is added; null turns it off. Saved with the table, in its document's meta.
 	 */
 	setAutoLayout(layout: string | null): void;
+	/**
+	 * Mind map mode (`$lib/table-mindmap`, `./mindMap`): while on, the keyboard builds and walks a tree
+	 * of text blocks and arrows. Saved with the table, in its document's meta.
+	 */
+	setMindMap(on: boolean): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
 	/**
@@ -105,6 +116,8 @@ export interface TableApi {
 	 * areas by their words, pictures set down from this device by their address.
 	 */
 	selectedThings(): LikeThing[];
+	/** The ids of the same things, in the same order: what blocks added as like them are linked from. */
+	selectedIds(): string[];
 	/** Clears the selection. */
 	deselect(): void;
 	undo(): void;
@@ -138,10 +151,10 @@ const GAP = GRID;
  * Where a block added without a drop point goes: the middle of the view, or just right of the block
  * it was taken from, or the nearest free place around there, so it isn't set down on top of another.
  */
-function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block, ignore: TLShapeId[] = []): { x: number; y: number } {
+function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block | TLShapeId, ignore: TLShapeId[] = []): { x: number; y: number } {
 	const viewport = editor.getViewportPageBounds();
-	const key = near && blockKey(near);
-	const source = key ? editor.getCurrentPageShapes().find((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE) && blockKey((shape as SiteBlockShape).props) === key) : undefined;
+	const key = near && typeof near !== 'string' && blockKey(near);
+	const source = typeof near === 'string' ? editor.getShape(near) : key ? editor.getCurrentPageShapes().find((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE) && blockKey((shape as SiteBlockShape).props) === key) : undefined;
 	const beside = source && editor.getShapePageBounds(source);
 	const start = beside ? { x: onGrid(beside.maxX + GAP), y: onGrid(beside.minY) } : { x: onGrid(viewport.center.x - size.w / 2), y: onGrid(viewport.center.y - size.h / 2) };
 	const taken = editor.getCurrentPageShapes().filter((shape) => !ignore.includes(shape.id)).map((shape) => editor.getShapePageBounds(shape)).filter((bounds) => bounds !== undefined);
@@ -188,16 +201,18 @@ function pushAside(editor: Editor, id: TLShapeId) {
 
 function apiFor(editor: Editor): TableApi {
 	const api: TableApi = {
-		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false, sizes, plain = false } = {}) {
+		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false, sizes, plain = false, linkFrom } = {}) {
 			if (!blocks.length) return [];
 			const dropped = at && (page ? at : editor.screenToPage(at));
 			const sized = (block: Block, index: number) => ({ ...blockProps(block), ...(sizes?.[index] ? { w: Math.max(40, Math.round(sizes[index]!.w)), h: Math.max(40, Math.round(sizes[index]!.h)) } : {}), ...(plain ? { hideMeta: true } : {}) });
-			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, sized(blocks[0], 0), near);
+			editor.markHistoryStoppingPoint('add blocks');
+			// What the new blocks are linked from is settled first (several things get their area), so they are set down clear of it.
+			const anchor = linkFrom?.length ? linkAnchor(editor, linkFrom) : undefined;
+			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, sized(blocks[0], 0), anchor ?? near);
 			const ids: TLShapeId[] = [];
 			let x = origin.x;
 			let y = origin.y;
 			let rowHeight = 0;
-			editor.markHistoryStoppingPoint('add blocks');
 			editor.run(() => {
 				blocks.forEach((block, index) => {
 					if (index && index % columns === 0) {
@@ -212,6 +227,7 @@ function apiFor(editor: Editor): TableApi {
 					x += props.w + GAP;
 					rowHeight = Math.max(rowHeight, props.h);
 				});
+				if (anchor) connect(editor, ids.map((id) => ({ from: short(anchor), to: short(id) })));
 			});
 			if (select) editor.select(...ids);
 			editor.setCurrentTool('select');
@@ -247,7 +263,14 @@ function apiFor(editor: Editor): TableApi {
 			const { [AUTO_LAYOUT]: _was, ...meta } = editor.getDocumentSettings().meta;
 			editor.updateDocumentSettings({ meta: layout ? { ...meta, [AUTO_LAYOUT]: layout } : meta });
 		},
+		setMindMap(on) {
+			const { [MIND_MAP]: _was, ...meta } = editor.getDocumentSettings().meta;
+			editor.updateDocumentSettings({ meta: on ? { ...meta, [MIND_MAP]: true } : meta });
+			// The keys are the canvas's from here on, not the button's that was pressed.
+			if (on) { editor.setCurrentTool('select'); editor.focus(); }
+		},
 		selectedThings: () => editor.getSelectedShapes().flatMap((shape) => likeThing(editor, shape) ?? []),
+		selectedIds: () => editor.getSelectedShapes().filter((shape) => likeThing(editor, shape)).map((shape) => short(shape.id)),
 		deselect: () => editor.selectNone(),
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
@@ -282,6 +305,7 @@ function apiFor(editor: Editor): TableApi {
 					tool: editor.getCurrentToolId(),
 					geo: editor.getStyleForNextShape(GeoShapeGeoStyle),
 					autoLayout: autoLayoutOf(editor.getDocumentSettings().meta),
+					mindMap: mindMapOf(editor.getDocumentSettings().meta),
 					canUndo: editor.getCanUndo(),
 					canRedo: editor.getCanRedo(),
 					empty: editor.getCurrentPageShapeIds().size === 0,
@@ -571,7 +595,7 @@ const wait = (ms = ANIMATION.animation.duration + 60) => new Promise((resolve) =
  * one of the shapes (an item in a frame) counts as that shape, so frames joined through what
  * they hold are joined.
  */
-function arrangement(editor: Editor, shapes: TLShape[], op: Extract<TableOp, { op: 'arrange' }>, at?: { x: number; y: number }) {
+function arrangement(editor: Editor, shapes: TLShape[], op: Extract<TableOp, { op: 'arrange' }>, at?: { x: number; y: number }, middles?: Map<string, number>) {
 	const ids = new Set(shapes.map((shape) => shape.id));
 	const within = (id: TLShapeId | string): string | undefined => {
 		const shape = shapeOf(editor, id);
@@ -584,7 +608,8 @@ function arrangement(editor: Editor, shapes: TLShape[], op: Extract<TableOp, { o
 		return from && to && from !== to ? [{ arrow, from, to }] : [];
 	});
 	const edges: Edge[] = links.map(({ from, to }) => ({ from, to }));
-	const boxes = roomOf(editor, shapes);
+	// A box may be counted as standing at another height (`middles`), where order goes by height: a new branch's place among its siblings.
+	const boxes = roomOf(editor, shapes).map((box) => (middles?.has(box.id) ? { ...box, y: middles.get(box.id)! - box.h / 2 } : box));
 	const named = op.layout === 'cluster' && op.groups?.length
 		? op.groups.map((group) => ({ ...group, ids: group.ids.flatMap((id) => within(id) ?? []) }))
 		: op.layout === 'cluster' ? clustersBy(shapes.map((shape) => ({ id: short(shape.id), kind: itemOf(editor, shape).type, color: (shape.props as { color?: string }).color })), op.by ?? 'kind', edges) : undefined;
@@ -704,6 +729,92 @@ async function arrangeOp(editor: Editor, op: Extract<TableOp, { op: 'arrange' }>
 	const report = await changed(editor, { arranged: count, as: result.mode, ...done, ...(result.note ? { note: result.note } : {}) });
 	if (!named.length && !holding && op.zoom !== false) editor.zoomToFit({ animation: { duration: 220 } });
 	return report;
+}
+
+/**
+ * Shapes already standing where they belong are shown travelling there from where they stood.
+ * The journey is kept out of undo (the change itself is already in it, whole), so words typed
+ * while things are still moving never leave an undo step that stops them halfway.
+ */
+function glide(editor: Editor, from: Map<TLShapeId, { x: number; y: number }>, duration = 180): () => void {
+	const moves = [...from].flatMap(([id, start]) => {
+		const shape = editor.getShape(id);
+		return shape && (Math.abs(shape.x - start.x) > 0.5 || Math.abs(shape.y - start.y) > 0.5) ? [{ id, type: shape.type, start, end: { x: shape.x, y: shape.y }, at: { x: shape.x, y: shape.y } }] : [];
+	});
+	if (!moves.length || editor.user.getAnimationSpeed() === 0) return () => {};
+	let elapsed = 0, over = false;
+	const set = (t: number) => editor.run(() => editor.updateShapes(moves.map((move) => { move.at = { x: move.start.x + (move.end.x - move.start.x) * t, y: move.start.y + (move.end.y - move.start.y) * t }; return { id: move.id, type: move.type, ...move.at }; })), { history: 'ignore' });
+	const stop = () => { over = true; editor.off('tick', tick); };
+	/** Whether everything is still where this last put it: an undo, or a hand, takes over otherwise. */
+	const ours = () => moves.every((move) => { const shape = editor.getShape(move.id); return shape && Math.abs(shape.x - move.at.x) < 0.01 && Math.abs(shape.y - move.at.y) < 0.01; });
+	function tick(ms: number) {
+		if (over) return;
+		if (!ours()) return stop();
+		elapsed += ms;
+		const t = Math.min(1, elapsed / duration);
+		set(1 - (1 - t) ** 3);
+		if (t >= 1) stop();
+	}
+	set(0);
+	editor.on('tick', tick);
+	// Asked to finish early (the next change is here), everything goes straight to its place.
+	return () => { if (!over && ours()) set(1); stop(); };
+}
+
+let landing: (() => void) | undefined;
+
+/**
+ * Mind map mode's layout: these joined blocks set out as an outline at once, `anchor` (their root)
+ * staying where it is, whatever they would cover moving down. `middles` counts a block as standing
+ * at another height when siblings are put in order.
+ */
+function layOutTree(editor: Editor, ids: string[], anchor: string, middles?: Map<string, number>) {
+	landing?.();
+	const shapes = outermost(editor, shapesFor(editor, ids).filter(SOLID));
+	const root = shapeOf(editor, anchor), stood = root && editor.getShapePageBounds(root);
+	if (shapes.length < 2 || !stood) return;
+	const plan = arrangement(editor, shapes, { op: 'arrange', layout: 'outline' }, undefined, middles);
+	const lands = plan.placements.find((spot) => spot.id === short(anchor));
+	if (!lands) return;
+	const by = { x: stood.x - lands.x, y: stood.y - lands.y };
+	const placements = plan.placements.map((spot) => ({ ...spot, x: spot.x + by.x, y: spot.y + by.y }));
+	const parents = new Set(shapes.map((shape) => shape.parentId));
+	const moving = new Map(placements.map((spot) => [spot.id, spot]));
+	const beside = parents.size === 1 ? editor.getSortedChildIdsForParent(shapes[0].parentId).map((id) => editor.getShape(id)!).filter(SOLID) : shapes;
+	const pushed = unroomed(editor, tidyLayout(roomOf(editor, beside).map((box) => ({ ...box, ...moving.get(box.id) })), plan.gap, moving.keys()).filter((move) => !moving.has(move.id)));
+	const from = new Map(beside.map((shape) => [shape.id, { x: shape.x, y: shape.y }]));
+	editor.run(() => {
+		place(editor, [...placements, ...pushed], false);
+		editor.updateShapes(plan.arrows.shapes);
+		editor.updateBindings(plan.arrows.bindings);
+		wrapFrames(editor);
+	});
+	landing = glide(editor, from);
+}
+
+/**
+ * A sticky note made from another's edge (tldraw's handles there: a press makes one beside it, a
+ * drag carries one off) is joined to the note it came from by an arrow, in the same step to undo.
+ */
+function joinNotesFromEdges(editor: Editor) {
+	// tldraw leaves its handle state before it makes the note, so the note pressed is remembered from the press
+	// (events are told here after tldraw has acted on them: by then a press on a handle has entered that state).
+	let from: TLShapeId | undefined;
+	const onEvent = (info: TLEventInfo) => {
+		if (info.type !== 'pointer') return;
+		if (info.name === 'pointer_down') {
+			const pressed = editor.isIn('select.pointing_handle') ? (editor.getStateDescendant('select.pointing_handle') as unknown as { info?: { shape?: TLShape } } | undefined)?.info?.shape : undefined;
+			from = pressed?.type === 'note' ? pressed.id : undefined;
+		} else if (info.name === 'pointer_up') setTimeout(() => (from = undefined));
+	};
+	editor.on('event', onEvent);
+	const off = editor.sideEffects.registerAfterCreateHandler('shape', (shape, source) => {
+		if (source !== 'user' || shape.type !== 'note' || !from || from === shape.id || !editor.getShape(from)) return;
+		const origin = from;
+		from = undefined;
+		connect(editor, [{ from: short(origin), to: short(shape.id) }]);
+	});
+	return () => { off(); editor.off('event', onEvent); };
 }
 
 /** Draws the table to a picture the assistant can look at, each item numbered, overlaps outlined in red. */
@@ -898,6 +1009,25 @@ function draw(editor: Editor, strokes: TableStroke[]) {
 		}
 	});
 	return { added };
+}
+
+/**
+ * What arrows to newly added blocks start from, given what the blocks were found by. One thing is
+ * the start itself; several are put in an area first (the one they already share, when they do),
+ * and the arrows start from the area. Things that have since left the table are passed over.
+ */
+function linkAnchor(editor: Editor, from: string[]): TLShapeId | undefined {
+	const anchors = from.map((id) => shapeOf(editor, id)).filter((shape): shape is TLShape => !!shape && shape.type !== 'arrow');
+	if (!anchors.length) return undefined;
+	let anchor = anchors[0].id;
+	if (anchors.length > 1) {
+		const parent = anchors[0].parentId;
+		const shared = anchors.every((shape) => shape.parentId === parent) ? editor.getShape(parent as TLShapeId) : undefined;
+		// The area made the last time is used again while it holds just these things.
+		const same = shared?.type === 'frame' && editor.getSortedChildIdsForParent(shared.id).filter((id) => editor.getShape(id)?.type !== 'arrow').length === anchors.length;
+		anchor = same ? shared!.id : (`shape:${frame(editor, { op: 'frame', name: '', ids: anchors.map((shape) => short(shape.id)) }).added[0]}` as TLShapeId);
+	}
+	return anchor;
 }
 
 /** A named frame: around items (which move into it), or empty at a place. */
@@ -1129,7 +1259,8 @@ function keepLaidOut(editor: Editor, api: TableApi) {
 	};
 	const stop = editor.store.listen(
 		({ changes }) => {
-			if (running || !autoLayoutOf(editor.getDocumentSettings().meta)) return;
+			// Mind map mode sets its own trees out as they change.
+			if (running || !autoLayoutOf(editor.getDocumentSettings().meta) || mindMapOf(editor.getDocumentSettings().meta)) return;
 			if (!Object.values(changes.added).some((record) => record.typeName === 'shape' && SOLID(record as TLShape))) return;
 			clearTimeout(timer);
 			timer = setTimeout(run, 400);
@@ -1199,6 +1330,16 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			if (editable) void upgradeLinkBlocks(editor);
 			// Text blocks combine when one is dropped on another, and divide on Enter.
 			const offText = editable ? installTextBlocks(editor, { pushAside }) : undefined;
+			const offMind = editable
+				? installMindMap(editor, {
+						on: () => mindMapOf(editor.getDocumentSettings().meta),
+						layOut: layOutTree,
+						tie: (_editor, from, to) => { const made = connect(editor, [{ from: short(from), to: short(to) }]).added[0]; return made ? (`shape:${made}` as TLShapeId) : undefined; },
+						openSpot,
+						reveal
+					})
+				: undefined;
+			const offNotes = editable ? joinNotesFromEdges(editor) : undefined;
 			if (embedded) {
 				editor.setCameraOptions({ wheelBehavior: 'none' });
 				editor.setCurrentTool('hand');
@@ -1206,6 +1347,8 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			return () => {
 				stop();
 				offText?.();
+				offMind?.();
+				offNotes?.();
 				stopLayout();
 				editor.off('event', offEvent);
 			};
