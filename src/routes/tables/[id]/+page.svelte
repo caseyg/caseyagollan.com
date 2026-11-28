@@ -96,7 +96,7 @@
 	// The owner's voice note: the Worker's speech model where there is one, the browser's dictation otherwise.
 	// A word corrected by hand on the table is a word the voice note should know next time.
 	$effect(() => api?.voice.edits((before, after) => void voice.learn(before, after)));
-	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
+	const voice: VoiceNotes = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
