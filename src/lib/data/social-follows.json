@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-11-27T10:23:30.890Z",
+  "updatedAt": "2026-11-28T10:22:45.978Z",
   "accounts": [
     {
       "service": "mastodon",
@@ -655,11 +655,6 @@
       "service": "mastodon",
       "handle": "bhoggard@queer.dev",
       "name": "Barry Hoggard"
-    },
-    {
-      "service": "bluesky",
-      "handle": "biancawylie.com",
-      "name": "bianca wylie"
     },
     {
       "service": "bluesky",
@@ -1715,6 +1710,11 @@
       "service": "bluesky",
       "handle": "erosamon.bsky.social",
       "name": "Emily Rosamond"
+    },
+    {
+      "service": "bluesky",
+      "handle": "eryk.bsky.social",
+      "name": "Eryk Salvaggio"
     },
     {
       "service": "bluesky",
