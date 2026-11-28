@@ -8,7 +8,7 @@
  * keeps every key but Enter, which ends the editing (Shift+Enter is still a new line, and a list
  * keeps Enter for its next item). With the mode off nothing here listens.
  */
-import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEditingShapeWithRichText, toRichText, type Editor, type TLArrowShape, type TLShape, type TLShapeId, type TLTextShape } from 'tldraw';
+import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEditingShapeWithRichText, toRichText, type Editor, type TLArrowShape, type TLNoteShape, type TLShape, type TLShapeId, type TLTextShape } from 'tldraw';
 import { GRID, type Box } from '$lib/table-layout';
 import { afterSibling, lastChild, mindGraph, mindMove, mindRemoval, mindStep, type MindDirection, type MindGraph, type MindLink } from '$lib/table-mindmap';
 
@@ -80,14 +80,17 @@ export function installMindMap(editor: Editor, deps: MindMapDeps): () => void {
 		if (tree.length > 1) deps.layOut(editor, tree, anchor && tree.includes(anchor) ? anchor : graph.roots(id)[0], middles);
 	};
 
-	/** An empty text block, for now beside the node it will be joined to, or where there is room. */
+	/** An empty block of the kind it is made from, for now beside the node it will be joined to, or where there is room. */
 	const make = (beside: TLShape | undefined, under?: { x: number; y: number }): TLShapeId => {
 		const id = createShapeId();
 		const bounds = beside && editor.getShapePageBounds(beside);
 		const spot = under ?? (bounds ? { x: bounds.maxX + GRID * 3, y: bounds.y } : deps.openSpot(editor, { w: WRAP_WIDTH, h: GRID * 2 }));
 		// A node in an area keeps its place from the area's corner.
 		const local = beside ? editor.getShapeParentTransform(beside).clone().invert().applyToPoint(spot) : spot;
-		editor.createShape<TLTextShape>({ id, type: 'text', ...(beside ? { parentId: beside.parentId } : {}), x: local.x, y: local.y, props: { richText: toRichText(''), autoSize: true }, meta: { mind: true } });
+		const base = { id, ...(beside ? { parentId: beside.parentId } : {}), x: local.x, y: local.y, meta: { mind: true } };
+		// A node made from a sticky note is a sticky note of the same colour; from anything else, plain text.
+		if (beside?.type === 'note') editor.createShape<TLNoteShape>({ ...base, type: 'note', props: { richText: toRichText(''), color: (beside as TLNoteShape).props.color } });
+		else editor.createShape<TLTextShape>({ ...base, type: 'text', props: { richText: toRichText(''), autoSize: true } });
 		return id;
 	};
 
@@ -279,9 +282,13 @@ export function installMindMap(editor: Editor, deps: MindMapDeps): () => void {
 		if (!ended || !deps.on()) return;
 		// After tldraw has finished ending the edit, in the same step to undo.
 		setTimeout(() => {
-			const shape = editor.getShape(ended.id);
+			let shape = editor.getShape(ended.id);
+			// tldraw removes a text block left empty; a sticky note made here goes the same way.
+			const blank = shape?.type === 'note' && shape.meta.mind && !renderPlaintextFromRichText(editor, (shape as TLNoteShape).props.richText).trim() ? shape.id : undefined;
+			if (blank) shape = undefined;
 			if (!shape) {
 				editor.run(() => {
+					if (blank) editor.deleteShapes([blank]);
 					editor.deleteShapes(ended.arrows.filter((id) => editor.getShape(id)));
 					if (ended.parent && editor.getShape(long(ended.parent))) layOut(read(editor, ended.parentId), ended.parent);
 				});

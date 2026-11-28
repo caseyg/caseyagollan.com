@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { markdownRich, richMarkdown, emptyHeading, cleanWords, learnedWords, recentLine, shortIds, readable, cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
+import { drawerCommand, listPick, pickListed, markdownRich, richMarkdown, emptyHeading, cleanWords, learnedWords, recentLine, shortIds, readable, cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
 import { listenOptions, voiceListen } from '../src/lib/server/voice';
 
 const doc = (...paragraphs: string[]): RichDoc => ({ type: 'doc', content: paragraphs.map((text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })) });
@@ -530,5 +530,46 @@ describe('Markdown headings', () => {
 		expect(emptyHeading('##')).toBe('##');
 		expect(emptyHeading('# Roadmap')).toBeNull();
 		expect(cleanVoiceOps([{ op: 'add_note', text: '# Heading', style: 'text' }], { items: [], selected: [], spoken: [] })).toEqual([{ op: 'add_note', text: '# Heading', style: 'text' }]);
+	});
+});
+
+describe('the Add drawer by voice', () => {
+	test('hears a request for what is alike, for a page in pieces, and to put the drawer away', () => {
+		for (const said of ['show similar items', 'Show me similar things.', 'okay find more like this', "what's related to this?", 'anything similar']) expect(drawerCommand(said)).toBe('similar');
+		for (const said of ['get context', 'Get the context.', 'show me the pieces of this', "what's in this?", 'show its images', 'pull this apart']) expect(drawerCommand(said)).toBe('pieces');
+		expect(drawerCommand('close the drawer')).toBe('close');
+		expect(drawerCommand('hide similar')).toBe('close');
+	});
+
+	test('leaves thoughts and other commands alone', () => {
+		for (const said of ['this is similar to the venue problem', 'show me the pricing note', 'find the links note', 'the context matters', 'I need more context on the budget before deciding']) expect(drawerCommand(said)).toBeNull();
+	});
+
+	const titles = ['Cooperative handbook', 'Platform cooperativism', 'A pattern language', 'Venue checklist', 'Tools for conviviality'];
+	const picked = (said: string) => { const pick = listPick(said); return pick && pickListed(pick, titles); };
+
+	test('adds by place', () => {
+		expect(picked('add the second one')).toEqual([1]);
+		expect(picked('Add the first three.')).toEqual([0, 1, 2]);
+		expect(picked('add the first and the fourth')).toEqual([0, 3]);
+		expect(picked('add number two')).toEqual([1]);
+		expect(picked('add numbers two and five')).toEqual([1, 4]);
+		expect(picked('add the last two')).toEqual([3, 4]);
+		expect(picked('add the 3rd one')).toEqual([2]);
+		expect(picked('add all of them')).toEqual([0, 1, 2, 3, 4]);
+		expect(picked('add the ninth one')).toEqual([]);
+	});
+
+	test('adds by name, the best match alone', () => {
+		expect(picked('add pattern language')).toEqual([2]);
+		expect(picked('add the cooperative handbook')).toEqual([0]);
+		expect(picked('add conviviality to the table')).toEqual([4]);
+		expect(picked('add the budget spreadsheet')).toEqual([]);
+	});
+
+	test('is not asked to make things', () => {
+		for (const said of ['add a sticky', 'add a new note', 'the handbook is good']) expect(listPick(said)).toBeNull();
+		for (const said of ['add a new note about venues', 'add an arrow to the handbook', 'add a sticky for tools']) expect(picked(said)).toEqual([]);
+		expect(pickListed(listPick('add new avenues')!, ['Light Phone', 'New avenues for the internet'])).toEqual([1]);
 	});
 });

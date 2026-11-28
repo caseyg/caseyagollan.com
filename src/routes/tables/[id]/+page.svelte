@@ -20,7 +20,7 @@
 	import { wikiHref } from '$lib/wiki/links';
 	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
-	import { VoiceNotes } from '$lib/voice-session.svelte';
+	import { VoiceNotes, type VoiceDrawer } from '$lib/voice-session.svelte';
 	import { browserSource, voiceLogger, voiceRefiner, voiceWords, workerSource } from '$lib/voice-source';
 	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
@@ -75,6 +75,49 @@
 	let source = $state<Block>();
 	// Everything selected when Add was pressed: what Similar finds the like of.
 	let like = $state<LikeThing[]>([]);
+	// The list the picker shows, the one it was asked aloud to open on, and the lines that can be added from it.
+	let pickerTab = $state<'page' | 'similar' | 'recent' | 'site'>();
+	let prefer = $state<'page' | 'similar'>();
+	let listed: { blocks: Block[]; busy: boolean } = { blocks: [], busy: false };
+
+	/** Adds from the picker, beside the block it was opened for. A voice note's additions leave the selection where it is. */
+	function addListed(blocks: Block[], select = true) {
+		api?.addBlocks(blocks, undefined, { near: source, select, ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) });
+	}
+
+	/** The picker as a voice note uses it: "show similar items", "get context", then "add the second one". */
+	const drawer: VoiceDrawer = {
+		show(list) {
+			const selected = api?.selectedThings() ?? [];
+			if (list === 'similar') {
+				if (session?.mode !== 'owner') return 'Similar needs you signed in';
+				if (!selected.length) return false;
+			} else if (!view.selected || view.selected.kind === 'book') return false;
+			const tab = list === 'pieces' ? 'page' : 'similar';
+			// Asked again for what is showing already: its lines are the ones to count along.
+			const same = adding && pickerTab === tab && (view.selected ? blockKey(view.selected) : '') === (source ? blockKey(source) : '') && selected.map(likeKey).join('\n') === like.map(likeKey).join('\n');
+			source = view.selected;
+			like = selected;
+			prefer = pickerTab = tab;
+			if (!same) listed = { blocks: [], busy: true };
+			tagging = pinned ? tagging : null;
+			showAdding(true);
+			return true;
+		},
+		open: () => adding,
+		async listed() {
+			// What was asked for is on its way: wait for it, though not for ever.
+			for (let waited = 0; adding && listed.busy && waited < 10_000; waited += 100) await new Promise((resolve) => setTimeout(resolve, 100));
+			return adding ? listed.blocks.map((block) => block.title || block.excerpt || '') : [];
+		},
+		loaded: () => (adding && !listed.busy ? listed.blocks.map((block) => block.title || block.excerpt || '') : undefined),
+		add(places) {
+			const blocks = places.map((at) => listed.blocks[at]).filter(Boolean);
+			if (blocks.length) addListed(blocks, false);
+			return blocks.length;
+		},
+		close: () => showAdding(false)
+	};
 	/** The tag panel: off, editing the selection's tags, or reviewing what is staged before it is saved. */
 	let tagging = $state<'edit' | 'review' | null>(null);
 	let renaming = $state(false);
@@ -101,7 +144,7 @@
 	$effect(() => api?.voice.edits((before, after) => void voice.learn(before, after)));
 	// The owner's known words come from the site, so they are the same on every device.
 	$effect(() => { if (session?.mode === 'owner') void voice.syncWords(); });
-	const voice: VoiceNotes = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), wordsStore: voiceWords(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
+	const voice: VoiceNotes = new VoiceNotes({ drawer: () => (editable ? drawer : undefined), canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), wordsStore: voiceWords(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
@@ -387,6 +430,7 @@
 		const turned = pinned && adding && selected.length > 0 && selected.map(likeKey).join('\n') !== like.map(likeKey).join('\n');
 		source = view.selected;
 		like = selected;
+		prefer = undefined;
 		if (turned) return;
 		showAdding(!adding);
 		if (adding && !pinned) tagging = null;
@@ -563,7 +607,11 @@
 					similar={session.mode === 'owner' ? similarBlocks : undefined}
 					{pinned}
 					onpin={pin}
-					onadd={(blocks) => api?.addBlocks(blocks, undefined, { near: source, ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) })}
+					{prefer}
+					bind:tab={pickerTab}
+					numbered={voice.listening && voice.commands}
+					onlisted={(blocks, busy) => (listed = { blocks, busy })}
+					onadd={(blocks) => addListed(blocks)}
 					onclose={() => showAdding(false)}
 				/>
 			</div>
