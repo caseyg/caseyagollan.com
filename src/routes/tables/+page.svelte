@@ -4,7 +4,7 @@
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
 	import { TableGrid, TABLES_CRUMB } from '$lib/components/tables';
-	import { Button, Notice, Page, PageHeader } from '$lib/components/ui';
+	import { Notice, Page, PageHeader } from '$lib/components/ui';
 	import { createTable, listDemoTables, tableHref, tablesSession, thumbnailUrl, type TablesSession } from '$lib/tables-client';
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import type { TableSummary } from '$lib/tables';
@@ -50,31 +50,18 @@
 <Nav currentPage="tables" />
 
 <Page as="main" width="wide" class="tables-page">
-	<PageHeader trail={[{ ...TABLES_CRUMB, current: true }]} title="Tables" description="Posts, books, wiki pages, Are.na blocks and links, set out on tables to see side by side.">
-		{#snippet actions()}
-			{#if editable}
-				<div class="actions">
-					<Button variant="primary" size="sm" icon="plus" onclick={newTable} disabled={creating}>New table</Button>
-				</div>
-			{/if}
-		{/snippet}
-	</PageHeader>
+	<PageHeader trail={[{ ...TABLES_CRUMB, current: true }]} title="Tables" description="Posts, books, wiki pages, Are.na blocks and links, set out on tables to see side by side." />
 
 	{#if session.mode === 'demo'}<Notice>Preview only: tables are saved in this browser.</Notice>{/if}
 	{#if failure}<Notice tone="error">{failure}</Notice>{/if}
 
-	<TableGrid {tables} href={(id) => tableHref(id, session.mode)} thumbnail={(table) => thumbnailUrl(table, session.mode)} />
+	<TableGrid {tables} href={(id) => tableHref(id, session.mode)} thumbnail={(table) => thumbnailUrl(table, session.mode)} onNew={editable ? newTable : undefined} {creating} />
 </Page>
 
 <style>
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-		align-self: start;
-	}
-
-	/* Cards want more room than a reading column. */
+	/* Cards want more room than a reading column, so the page always starts below the trail and navigation. */
 	:global(.tables-page.page--wide) {
 		max-width: var(--content-max-width);
+		padding-top: calc(var(--nav-lane) + var(--space-5));
 	}
 </style>
