@@ -41,6 +41,12 @@
 		 */
 		autoLayout?: string;
 		onautolayout?: (layout: string | null) => void;
+		/**
+		 * Whether the table is in mind map mode. With `onmindmap`, the owner gets its switch: while on,
+		 * the keyboard builds and walks a tree, set out as an outline after each change.
+		 */
+		mindMap?: boolean;
+		onmindmap?: (on: boolean) => void;
 		/** Which way the menus open: up, as the bar sits at the bottom of the page. */
 		menuSide?: 'top' | 'bottom';
 		onundo?: () => void;
@@ -77,7 +83,7 @@
 		onvoicewords?: (words: string[]) => void;
 	}
 
-	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false, voice, onvoice, onvoicecorrect, onvoicearrange, onvoicecommands, onvoicemeter, onvoicewords }: Props = $props();
+	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, mindMap = false, onmindmap, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false, voice, onvoice, onvoicecorrect, onvoicearrange, onvoicecommands, onvoicemeter, onvoicewords }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -145,6 +151,9 @@
 				pressed={!!autoLayout}
 				onaction={layOut}
 			/>
+		{/if}
+		{#if onmindmap}
+			<Button variant="quiet" size="sm" icon="layout-outline" pressed={mindMap} onclick={() => onmindmap(!mindMap)} title={mindMap ? 'Leave mind map mode' : 'Mind map mode: build a tree from the keyboard (Tab adds a child, ? lists the keys)'}>Mind map</Button>
 		{/if}
 		{#if details && ondetails}
 			<span class="divider" aria-hidden="true"></span>
