@@ -101,6 +101,38 @@ export function richPlain(doc: RichDoc | undefined): string {
 	return (doc?.content ?? []).map(words).join('\n').trim();
 }
 
+const HEADING = /^(#{1,6})(?:\s+(.*))?$/;
+
+/**
+ * Words as a document, read as Markdown where a line is a heading: `# Title` is a first-level
+ * heading, down to `######`. Every other line is a paragraph, as plain text always was. This is
+ * what a text block, a sticky or a shape is given when the chat or a voice note writes in it.
+ */
+export function markdownRich(text: string): RichDoc {
+	const lines = text.split('\n');
+	return {
+		type: 'doc',
+		content: lines.map((line) => {
+			const heading = HEADING.exec(line.trim());
+			const words = heading ? (heading[2] ?? '').trim() : line;
+			const content = words ? [{ type: 'text', text: words }] : undefined;
+			return heading ? { type: 'heading', attrs: { level: heading[1].length }, ...(content ? { content } : {}) } : { type: 'paragraph', ...(content ? { content } : {}) };
+		})
+	};
+}
+
+/** A document's words as they would be written to make it: `richPlain`, with each heading's `#`s before it. */
+export function richMarkdown(doc: RichDoc | undefined): string {
+	const words = (node: RichNode): string => (node.type === 'text' ? node.text ?? '' : node.type === 'hardBreak' ? '\n' : (node.content ?? []).map(words).join(node.type.endsWith('List') ? '\n' : ''));
+	return (doc?.content ?? []).map((node) => (node.type === 'heading' ? `${'#'.repeat(Math.min(6, Math.max(1, Number(node.attrs?.level) || 1)))} ${words(node)}` : words(node))).join('\n').trim();
+}
+
+/** A heading made with no words given for it: the level, when the text is only `#`s or the stand-in word. */
+export function emptyHeading(text: string): string | null {
+	const heading = /^(#{1,6})\s*(?:heading)?$/i.exec(text.trim());
+	return heading ? heading[1] : null;
+}
+
 /** A document without the empty paragraphs a cut leaves at its ends. One paragraph always stays. */
 export function trimRich(doc: RichDoc): RichDoc {
 	const content = [...(doc.content ?? [])];
@@ -636,6 +668,7 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 			'{"op":"connect","links":[{"from":id,"to":id,"label"?:string,"both_ends"?:true}]}: an arrow from one item to another.',
 			`{"op":"add_shape","shape":${TABLE_SHAPES.join('|')},"text"?:words inside it,"color"?:color,"w"?:number,"h"?:number, and where: "right_of":id or "below":id or "at":{"x","y"}}: a circle is an ellipse, a square or box a rectangle.`,
 			'{"op":"add_note","text":string,"style":"note"|"text","color"?:color, and where as for add_shape}: a sticky note or a text block holding words the speaker dictates for it. Never write words of your own. "Add a sticky", "add a note", "new branch off X" with no words given for it is a sticky with "text":"" (what the speaker says next will be written in it); a branch off X is that plus a connect from X to it. Words given for a new note are written in sentence case: the first word capitalised and the rest as in a sentence ("a sticky for work" holds "Work", "shared context" holds "Shared context"), names and acronyms keeping their own capitals. Never all capitals unless it is an acronym.',
+			'A text block can be a Markdown heading: its text begins "# " (a title), "## " (a section) or "### " (smaller). "Add a heading Roadmap", "create a markdown heading called Roadmap", "a title that says Roadmap" is an add_note with "style":"text" and "text":"# Roadmap", its words in sentence case like any note’s ("project plan" is "# Project plan"); "a subheading" is "## ". With no words given for it ("create a markdown heading", "add a heading"), the text is "# Heading", a stand-in that the next thing said replaces. "Make that a heading", "turn the first block into a heading" is an edit that puts "# " before the item’s words; "not a heading" takes it away. Headings on the canvas are listed with their "#"s: keep them when rewording one.',
 			'A passage that names something already on the canvas as where a new point belongs is a command, not a note of its own: "off of work, Propel", "under study add flashcards", "CRC, add scraping", "study should have a block for CRC" are each an add_note holding only the point ("Propel", "Flashcards", "Scraping", "CRC") with "right_of" the named item and a connect from the named item to it, in the named item’s own style (a sticky hangs stickies, a text block text). "notes" is then [].',
 			request.focus ? 'The item marked "(adding here)" is where the speaker is working. "Add X" with no place named is a new note about it: under it (a connect from it) when X is a point about that item, or beside it under the item it hangs from (a connect from that one) when X is another of the same kind, as "add journaling" after "under CRC add scraping" is a second point under CRC.' : '',
 			'Arrows run from a topic to its points. "These are about X, link them there", "put these under X" is a connect from X to each. "Flip", "reverse", "the other direction" is, for each arrow meant, a remove of the arrow by its id and a connect the other way; with none named, the arrows the last command drew, all of them.',

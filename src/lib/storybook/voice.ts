@@ -36,6 +36,8 @@ export const ASKED = [
 
 /** A voice note with requests in it: two thoughts, then things asked of the table. */
 export const COMMANDS = [
+	'create a markdown heading',
+	'meeting notes',
 	'testing one two three',
 	'okay cool so this is a new block can you connect these two blocks with an arrow',
 	'turn one two three into numbers',
@@ -81,6 +83,8 @@ function scriptedCommand(request: VoiceRefineRequest): { text: string; ops: Voic
 	const earlier = table.spoken.filter((id) => id !== request.id);
 	const words = (id: string | undefined) => table.items.find((item) => item.id === id)?.text ?? '';
 	const first = earlier[0], last = earlier[earlier.length - 1];
+	// A heading asked for with no words: a stand-in, which the next thing said replaces.
+	if (heard.includes('heading')) return { text: '', ops: [{ op: 'add_note', text: '# Heading', style: 'text' }] };
 	if (heard.includes('scratch') && last) return { text: '', ops: [{ op: 'remove', ids: [last] }] };
 	if (heard.includes('make that friday') && last) return { text: '', ops: [{ op: 'edit', edits: [{ id: last, text: words(last).replace(/thursday/i, 'Friday') }] }] };
 	if (heard.includes('connect these two') && last && request.id) return { text: 'Okay, cool. So this is a new block.', ops: [{ op: 'connect', links: [{ from: last, to: request.id }] }] };
