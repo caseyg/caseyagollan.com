@@ -28,6 +28,8 @@ export const VOICE_LISTEN_PATH = '/api/tables/voice/listen';
 export const VOICE_REFINE_PATH = '/api/tables/voice';
 /** Where the browser sends what it noticed about a voice note (timings, what was done), for the Worker's log. */
 export const VOICE_LOG_PATH = '/api/tables/voice/log';
+/** Where the owner's known words are kept, the same on every device. */
+export const VOICE_WORDS_PATH = '/api/tables/voice/words';
 /** A pause this long ends a block when the transcriber doesn't mark pauses itself. */
 export const VOICE_PAUSE_MS = 1600;
 /** How wide a voice note's text block is; its height follows its words. */

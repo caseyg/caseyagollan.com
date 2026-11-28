@@ -109,7 +109,7 @@
 			<div class="words">
 				<Disclosure>
 					{#snippet summary()}Known words{words.length ? ` (${words.length})` : ''}{/snippet}
-					<small>Names and terms, spelled your way, so they are heard right. Correcting a word on the table by hand adds it here.</small>
+					<small>Names and terms, spelled your way, so they are heard right. Correcting a word on the table by hand adds it here. Saved to your account, and shown only to you.</small>
 					<InlineForm label="A word to know" name="word" hideLabel placeholder="Add a word or name" buttonLabel="Add" bind:value={word} onsubmit={addWord} />
 					{#if words.length}
 						<ul>

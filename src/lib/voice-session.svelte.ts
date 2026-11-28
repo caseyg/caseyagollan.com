@@ -11,7 +11,7 @@
  */
 import { RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 import { VoiceListening, keepChoices, keptChoices } from './voice-listening.svelte';
-import type { VoiceSource } from './voice-source';
+import type { VoiceSource, VoiceWordsStore } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
 
 export interface VoiceOptions {
@@ -23,6 +23,8 @@ export interface VoiceOptions {
 	refine?: (request: VoiceRefineRequest) => Promise<VoiceRefineAnswer | null>;
 	/** Takes a line for the log (when the note starts, each passage with its timings and what was made of it, when it ends). */
 	log?: (entry: VoiceLogEntry) => void;
+	/** The owner's known words as the site keeps them, the same on every device. Left out, they stay in this browser. */
+	wordsStore?: VoiceWordsStore;
 	/** Where the choices are remembered; left out, they last as long as the page. */
 	storage?: Pick<Storage, 'getItem' | 'setItem'>;
 }
@@ -46,6 +48,7 @@ export class VoiceNotes extends VoiceListening {
 	month = $state<VoiceUsage>(noUsage());
 	/** Words the speaker uses, spelled their way: told to the model with every passage. Kept in this browser. */
 	#words = $state<string[]>([]);
+	#synced = false;
 	/** Finished blocks a model is still considering: corrected, or taken as a command. */
 	thinking = $state(0);
 	/** A head start: the question asked of a model when the speaker had probably finished, kept if they had. */
@@ -109,8 +112,33 @@ export class VoiceNotes extends VoiceListening {
 	/** The known words, as the control lists them; setting them keeps them. */
 	get words() { return this.#words; }
 	set words(value: string[]) {
-		this.#words = cleanWords(value);
+		const before = this.#words, after = cleanWords(value);
+		const has = (list: string[], word: string) => list.some((one) => one.toLowerCase() === word.toLowerCase());
+		this.#hold(after);
+		// The site is told what was added and taken out, not the whole list, so another device's words aren't undone.
+		const add = after.filter((word) => !has(before, word)), remove = before.filter((word) => !has(after, word));
+		if (add.length || remove.length) void this.#options.wordsStore?.change(add, remove).then((kept) => { if (kept) this.#hold(kept); });
+	}
+
+	/** The list as it now stands, with a copy in this browser for the next visit's first moments. */
+	#hold(words: string[]) {
+		this.#words = cleanWords(words);
 		try { this.#options.storage?.setItem(WORDS_KEY, JSON.stringify(this.#words)); } catch { /* private window */ }
+	}
+
+	/**
+	 * Fetches the known words from the site: once the owner is known, and again whenever a voice
+	 * note starts, so a word added on another device is there. Words this browser had kept before
+	 * the site did are handed over the first time.
+	 */
+	async syncWords() {
+		const store = this.#options.wordsStore;
+		const kept = await store?.load();
+		if (!store || !kept) return;
+		const has = (word: string) => kept.some((one) => one.toLowerCase() === word.toLowerCase());
+		const mine = this.#synced ? [] : this.#words.filter((word) => !has(word));
+		this.#synced = true;
+		this.#hold(mine.length ? (await store.change(mine, [])) ?? kept : kept);
 	}
 
 	/** A hand edit of something on the table: a word it corrected is a word to know (`learnedWords`). Returns what was learnt. */
@@ -171,6 +199,7 @@ export class VoiceNotes extends VoiceListening {
 	protected odd(what: string) { this.#log('odd', { what }); }
 
 	async start() {
+		void this.syncWords();
 		await super.start();
 		if (this.status !== 'listening') return;
 		// Time listened is counted every few seconds, to whichever source is listening.

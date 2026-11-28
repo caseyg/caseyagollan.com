@@ -20,7 +20,7 @@
 	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { browserSource, voiceLogger, voiceRefiner, workerSource } from '$lib/voice-source';
+	import { browserSource, voiceLogger, voiceRefiner, voiceWords, workerSource } from '$lib/voice-source';
 	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
@@ -96,7 +96,9 @@
 	// The owner's voice note: the Worker's speech model where there is one, the browser's dictation otherwise.
 	// A word corrected by hand on the table is a word the voice note should know next time.
 	$effect(() => api?.voice.edits((before, after) => void voice.learn(before, after)));
-	const voice: VoiceNotes = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
+	// The owner's known words come from the site, so they are the same on every device.
+	$effect(() => { if (session?.mode === 'owner') void voice.syncWords(); });
+	const voice: VoiceNotes = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), wordsStore: voiceWords(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.

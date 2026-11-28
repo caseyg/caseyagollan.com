@@ -10,7 +10,7 @@
  *
  * `listen` tries them in order and settles on the first that starts.
  */
-import { VOICE_LISTEN_PATH, VOICE_TERMS_MAX, VOICE_LOG_PATH, VOICE_PAUSE_MS, VOICE_REFINE_PATH, sttEvents, type VoiceEvent, type VoiceLogEntry, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { VOICE_WORDS_PATH, VOICE_LISTEN_PATH, VOICE_TERMS_MAX, VOICE_LOG_PATH, VOICE_PAUSE_MS, VOICE_REFINE_PATH, sttEvents, type VoiceEvent, type VoiceLogEntry, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 
 export interface VoiceListener {
 	onevent(event: VoiceEvent): void;
@@ -218,6 +218,20 @@ export function voiceRefiner(csrf: () => string | Promise<string>, path = VOICE_
 		if (response.status === 503) return null;
 		if (!response.ok) throw new Error(`Voice refine answered ${response.status}`);
 		return (await response.json()) as VoiceRefineAnswer;
+	};
+}
+
+/** The owner's known words as the site keeps them (`/api/tables/voice/words`). Each resolves with the list, or `null` when it couldn't be reached or isn't theirs to read. */
+export interface VoiceWordsStore {
+	load(): Promise<string[] | null>;
+	change(add: string[], remove: string[]): Promise<string[] | null>;
+}
+
+export function voiceWords(csrf: () => string | Promise<string>, path = VOICE_WORDS_PATH): VoiceWordsStore {
+	const read = async (response: Response) => (response.ok ? ((await response.json()) as { words?: string[] }).words ?? [] : null);
+	return {
+		load: () => fetch(path, { credentials: 'same-origin' }).then(read).catch(() => null),
+		change: async (add, remove) => fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': await csrf() }, body: JSON.stringify({ add, remove }) }).then(read).catch(() => null)
 	};
 }
 
