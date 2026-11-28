@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { TABLE_ARRANGEMENTS } from '../src/lib/table-agent';
-import { AUTO_LAYOUT, autoLayoutOf, contextItems, TOOLS, type TableContextItem, type TableContextState, layoutOp, layoutScopes, MORE_TOOLS, moreToolFor, TABLE_LAYOUTS, toolChoice } from '../src/lib/table-menus';
+import { AUTO_LAYOUT, autoLayoutOf, contextItems, layoutLabel, TOOLS, type TableContextItem, type TableContextState, layoutOp, layoutScopes, MORE_TOOLS, moreToolFor, TABLE_LAYOUTS, toolChoice } from '../src/lib/table-menus';
 
 describe('the Layout menu', () => {
 	test('offers every layout the chat can use', () => {
@@ -68,6 +68,16 @@ test('picking a layout leaves its menu open, on the toolbar and on right-click',
 	expect(items.find((item) => item.value === 'undo')?.keepOpen).toBeUndefined();
 });
 
+test('while auto layout is on, the whole table’s layouts are one-of-many, with the kept one checked', () => {
+	const of = (state: Partial<TableContextState>) => contextItems({ selection: [], ...state } as TableContextState).find((item) => item.value === 'layout:table')?.items ?? [];
+	const on = of({ autoLayout: 'tree' });
+	expect(on.every((item) => item.radio)).toBe(true);
+	expect(on.filter((item) => item.checked).map((item) => item.value)).toEqual(['layout:table:tree']);
+	expect(of({}).some((item) => item.radio || item.checked !== undefined)).toBe(false);
+	expect(layoutLabel('tree')).toBe('Tree');
+	expect(layoutLabel(undefined)).toBeUndefined();
+});
+
 test('every layout and every tool in the menus has an icon', () => {
 	for (const item of [...TABLE_LAYOUTS, ...MORE_TOOLS, ...MORE_TOOLS.flatMap((tool) => tool.items ?? [])]) expect(item.icon).toBeTruthy();
 });
@@ -119,7 +129,7 @@ describe('the right-click menu', () => {
 		expect(by('tool:select').checked).toBeUndefined();
 		expect(by('auto').checked).toBe(true);
 		expect(by('layout:table:tree').checked).toBe(true);
-		expect(by('layout:table:grid').checked).toBeUndefined();
+		expect(by('layout:table:grid').checked).toBe(false);
 		expect(by('undo').disabled).toBe(false);
 		expect(by('redo').disabled).toBe(true);
 		expect(by('voice:correct').checked).toBe(true);

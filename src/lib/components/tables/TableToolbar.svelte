@@ -5,7 +5,7 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
 	import { Toolbar } from '@ui-sdk/svelte/toolbar';
-	import { layoutScopes, moreToolFor, MORE_TOOLS, TABLE_LAYOUTS, toolChoice, TOOLS, type LayoutScope, type ToolId } from '$lib/table-menus';
+	import { layoutLabel, layoutScopes, moreToolFor, MORE_TOOLS, TABLE_LAYOUTS, toolChoice, TOOLS, type LayoutScope, type ToolId } from '$lib/table-menus';
 	import ActionMenu from '../ui/ActionMenu.svelte';
 	import type { TablePostAs } from '$lib/table-post';
 	import type { VoiceShape } from '$lib/voice-notes';
@@ -148,9 +148,9 @@
 				side={menuSide}
 				scope={scopes.selection ? { label: 'Lay out', value: scope, choices: [{ value: 'selection', label: scopes.label }, { value: 'table', label: 'The whole table' }] } : undefined}
 				onscope={(value) => (wanted = value as LayoutScope)}
-				toggle={onautolayout ? { label: 'Auto layout', detail: 'Again whenever something is added', checked: !!autoLayout } : undefined}
+				toggle={onautolayout ? { label: 'Auto layout', detail: autoLayout ? `${layoutLabel(autoLayout) ?? 'On'}, whenever something is added` : 'Again whenever something is added', checked: !!autoLayout } : undefined}
 				ontoggle={auto}
-				current={autoLayout}
+				current={scope === 'table' ? autoLayout : undefined}
 				pressed={!!autoLayout}
 				onaction={layOut}
 			/>

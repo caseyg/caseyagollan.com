@@ -12,7 +12,7 @@
 	];
 
 	const rich: ContextMenuItem[] = [
-		{ value: 'layout', label: 'Lay out', icon: 'layout', items: [{ value: 'grid', label: 'Grid', icon: 'layout', keepOpen: true }, { value: 'tree', label: 'Tree', icon: 'layout-tree', checked: true, keepOpen: true }] },
+		{ value: 'layout', label: 'Lay out', icon: 'layout', items: [{ value: 'grid', label: 'Grid', icon: 'layout', keepOpen: true, radio: true, checked: false }, { value: 'tree', label: 'Tree', icon: 'layout-tree', radio: true, checked: true, keepOpen: true }] },
 		{ value: 'details', label: 'Hide details', icon: 'properties' },
 		{ value: 'add', label: 'Add…', icon: 'plus', group: 'table' },
 		{ value: 'auto', label: 'Auto layout', hint: 'Again whenever something is added', icon: 'sparkle', checked: true, group: 'table' },

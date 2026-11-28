@@ -13,7 +13,7 @@
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
 	import { likeKey, recentFeed, similarBlocks, type LikeThing } from '$lib/table-feed';
 	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
-	import { layoutOp, type LayoutScope } from '$lib/table-menus';
+	import { layoutLabel, layoutOp, type LayoutScope } from '$lib/table-menus';
 	import type { TableTool } from '$lib/components/tables/canvas/TableEditor';
 	import { pagePieces, pickPieces } from '$lib/table-pieces';
 	import { PDF_PAGES_AT_ONCE, pdfName, pdfPageBlock, pdfPageSrc, pdfPages, renderSize, type PdfStore, type RenderedPage } from '$lib/table-render';
@@ -585,7 +585,7 @@
 				onpost={session.mode === 'owner' ? post : undefined}
 				{posting}
 				ontags={tags}
-				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0, usage: voice.usageView, words: voice.words, shape: voice.shape } : undefined}
+				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, autoLayout: layoutLabel(view.autoLayout), commands: voice.commands, did: voice.did, thinking: voice.thinking > 0, usage: voice.usageView, words: voice.words, shape: voice.shape } : undefined}
 				onvoice={voice.toggle}
 				onvoicecorrect={(on) => (voice.correct = on)}
 				onvoicearrange={(on) => (voice.arrange = on)}
