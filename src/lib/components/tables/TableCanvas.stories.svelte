@@ -4,6 +4,8 @@
 	import TableCanvas from './TableCanvas.svelte';
 	import TableToolbar from './TableToolbar.svelte';
 	import type { TableApi, TableState } from './canvas/TableEditor';
+	import { VoiceNotes } from '$lib/voice-session.svelte';
+	import { scriptedRefine, scriptedSource } from '$lib/storybook/voice';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCanvas', component: TableCanvas, tags: ['!autodocs'] });
 	const sample = Object.values(blocks);
@@ -18,6 +20,13 @@
 		ready.subscribe((state) => (view = state));
 		ready.addBlocks(sample, undefined, { columns: 4, select: false });
 		ready.zoomToFit();
+	}
+
+	// A voice note that "hears" a script, corrected and placed by a stand-in for the model.
+	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource()], refine: scriptedRefine });
+	function onvoiceready(ready: TableApi) {
+		api = ready;
+		ready.subscribe((state) => (view = state));
 	}
 
 	async function onareas(ready: TableApi) {
@@ -49,6 +58,25 @@
 <Story asChild name="Areas">
 	<div class="frame">
 		<TableCanvas document={null} editable onready={onareas} />
+	</div>
+</Story>
+
+<!--
+	A voice note: press the microphone and the words arrive in a text block, a new one after each pause.
+	With "Lay out and connect" on, each finished block is tied to the one it follows and the note becomes a tree.
+	Drop one text block on another to combine them; press Enter inside one to split it at the caret.
+-->
+<Story asChild name="Voice note">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onvoiceready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
+				ontool={(tool) => api?.setTool(tool)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange }}
+				onvoice={voice.toggle} onvoicecorrect={(on) => (voice.correct = on)} onvoicearrange={(on) => (voice.arrange = on)}
+			/>
+		</div>
 	</div>
 </Story>
 

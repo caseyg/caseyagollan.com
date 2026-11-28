@@ -13,6 +13,7 @@ export { default as TableToolbar } from './TableToolbar.svelte';
 export { default as TableWireframe } from './TableWireframe.svelte';
 export { default as TableBlock } from './TableBlock.svelte';
 export { default as TagDock } from './TagDock.svelte';
+export { default as VoiceControl, type VoiceView } from './VoiceControl.svelte';
 export type { TableApi, TableState, TaggableBlock } from './canvas/TableEditor';
 
 /** The first segment of every trail in the tables section. */

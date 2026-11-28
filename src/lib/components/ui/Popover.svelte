@@ -1,6 +1,7 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { getContext, type Snippet } from 'svelte';
 	import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@ui-sdk/svelte/popover';
+	import { ToolbarButton } from '@ui-sdk/svelte/toolbar';
 
 	interface Props {
 		/** Content of the trigger button. Leave it out and pass `anchor` to open the panel from code with `open`. */
@@ -22,6 +23,9 @@
 
 	let { trigger, anchor, children, label, hideTitle = true, align = 'start', open = $bindable(false), triggerClass = '', panelClass = '' }: Props = $props();
 
+	// In a toolbar the trigger is one of its buttons: the same tab stop, reached with the arrow keys.
+	const inToolbar = getContext('ui:toolbar') === true;
+
 	// Following a link inside the panel closes it, as leaving the page would.
 	function onPanelClick(event: MouseEvent) {
 		if ((event.target as Element).closest('a[href]')) open = false;
@@ -29,7 +33,13 @@
 </script>
 
 <Popover bind:open>
-	{#if trigger}<PopoverTrigger class="popover-trigger {triggerClass}" aria-label={label} title={label}>{@render trigger()}</PopoverTrigger>{/if}
+	{#if trigger && inToolbar}
+		<PopoverTrigger class="popover-trigger {triggerClass}" aria-label={label} title={label}>
+			{#snippet render({ props })}<ToolbarButton {...props}>{@render trigger()}</ToolbarButton>{/snippet}
+		</PopoverTrigger>
+	{:else if trigger}
+		<PopoverTrigger class="popover-trigger {triggerClass}" aria-label={label} title={label}>{@render trigger()}</PopoverTrigger>
+	{/if}
 	<PopoverContent class="popover-panel {panelClass}" side="bottom" {align} sideOffset={4} collisionPadding={8} anchor={anchor ?? undefined} finalFocus={trigger ? undefined : 'none'} onclick={onPanelClick}>
 		<PopoverTitle class={hideTitle ? 'visually-hidden' : 'popover-title'}>{label}</PopoverTitle>
 		{@render children()}

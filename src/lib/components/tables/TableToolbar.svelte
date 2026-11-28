@@ -18,6 +18,7 @@
 	import { setContext } from 'svelte';
 	import { Toolbar } from '@ui-sdk/svelte/toolbar';
 	import Button from '../ui/Button.svelte';
+	import VoiceControl, { type VoiceView } from './VoiceControl.svelte';
 
 	interface Props {
 		/** The owner gets the drawing tools and the block picker; visitors only fit the view. */
@@ -46,9 +47,17 @@
 		 */
 		tags?: { open: boolean; count: number };
 		ontags?: () => void;
+		/**
+		 * With `onvoice`, the owner gets the voice note: a microphone that writes what is said onto the
+		 * table as text blocks, and its two choices (`onvoicecorrect`, `onvoicearrange`).
+		 */
+		voice?: VoiceView;
+		onvoice?: () => void;
+		onvoicecorrect?: (on: boolean) => void;
+		onvoicearrange?: (on: boolean) => void;
 	}
 
-	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags }: Props = $props();
+	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, voice, onvoice, onvoicecorrect, onvoicearrange }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -61,6 +70,10 @@
 		{#each TOOLS as entry (entry.id)}
 			<Button variant="icon" icon={entry.icon} label="{entry.label} ({entry.key})" pressed={tool === entry.id} onclick={() => ontool?.(entry.id)} />
 		{/each}
+		{#if voice && onvoice}
+			<span class="divider" aria-hidden="true"></span>
+			<VoiceControl {voice} ontoggle={onvoice} oncorrect={onvoicecorrect} onarrange={onvoicearrange} />
+		{/if}
 		<span class="divider" aria-hidden="true"></span>
 		<Button variant="icon" icon="undo" label="Undo" disabled={!canUndo} onclick={onundo} />
 		<Button variant="icon" icon="redo" label="Redo" disabled={!canRedo} onclick={onredo} />
