@@ -5,6 +5,7 @@
 	import BlockPicker from './BlockPicker.svelte';
 	import TableCanvas from './TableCanvas.svelte';
 	import TableToolbar from './TableToolbar.svelte';
+	import MindMapHelp from './MindMapHelp.svelte';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
 	import { layoutOp, type LayoutScope } from '$lib/table-menus';
@@ -30,7 +31,7 @@
 	const id = untrack(() => table.id);
 	let name = $state(untrack(() => table.name));
 	let api = $state<TableApi>();
-	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
+	let view = $state<TableState>({ tool: 'select', mindMap: false, canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 	let adding = $state(false);
 	let status = $state<'saved' | 'unsaved' | 'saving' | 'failed'>('saved');
 	/** A newer view of this table opened: this one stops changing and saving it. */
@@ -185,11 +186,16 @@
 				onlayout={layout}
 				autoLayout={view.autoLayout}
 				onautolayout={(value) => api?.setAutoLayout(value)}
+				mindMap={view.mindMap}
+				onmindmap={(on) => api?.setMindMap(on)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
 			/>
 		</div>
+		{#if editable}
+			<div class="keys"><MindMapHelp active={view.mindMap} /></div>
+		{/if}
 		{#if editable && adding}
 			<div class="picker">
 				<BlockPicker {search} placed={view.placed} onadd={(blocks) => api?.addBlocks(blocks)} onclose={() => (adding = false)} />
@@ -235,6 +241,13 @@
 		translate: -50% 0;
 		z-index: var(--z-sticky);
 		max-width: calc(100% - 2 * var(--space-2));
+	}
+
+	.keys {
+		position: absolute;
+		z-index: var(--z-sticky);
+		left: var(--space-3);
+		bottom: calc(var(--space-4) + 4rem);
 	}
 
 	.picker {

@@ -31,5 +31,8 @@ export const WithLayout: Story = { args: { published: true, onpublish: () => {},
 export const LayoutOfSelection: Story = { args: { ...WithLayout.args, selection: [{ id: 'a', type: 'post' }, { id: 'b', type: 'note' }, { id: 'c', type: 'book' }], details: 'shown', ondetails: () => {} }, parameters: WithLayout.parameters };
 /** Auto layout on: the Layout button stays lit, and the layout being kept is checked. */
 export const AutoLayoutOn: Story = { args: { ...WithLayout.args, autoLayout: 'tree' }, parameters: WithLayout.parameters };
+/** Mind map mode: a switch beside Layout. While it is on, the keyboard builds and walks a tree. */
+export const WithMindMap: Story = { args: { ...WithLayout.args, onmindmap: () => {} }, parameters: WithLayout.parameters };
+export const MindMapOn: Story = { args: { ...WithLayout.args, mindMap: true, onmindmap: () => {} }, parameters: WithLayout.parameters };
 /** A tool from More in hand: its icon takes the More button's place. */
 export const MoreToolInHand: Story = { args: { ...WithLayout.args, tool: 'geo', geo: 'ellipse' }, parameters: WithLayout.parameters };

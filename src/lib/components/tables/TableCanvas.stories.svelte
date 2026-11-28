@@ -3,6 +3,7 @@
 	import { blocks } from '$lib/storybook/fixtures';
 	import TableCanvas from './TableCanvas.svelte';
 	import TableToolbar from './TableToolbar.svelte';
+	import MindMapHelp from './MindMapHelp.svelte';
 	import { layoutOp } from '$lib/table-menus';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
@@ -14,7 +15,7 @@
 
 <script lang="ts">
 	let api: TableApi | undefined = $state();
-	let view: TableState = $state({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
+	let view: TableState = $state({ tool: 'select', mindMap: false, canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 
 	function onready(ready: TableApi) {
 		api = ready;
@@ -74,6 +75,16 @@ Each morning starts with a short demo, then people work on their own sites.
 		ready.zoomToFit();
 	}
 
+	// Mind map mode on a small tree, its root selected and the canvas holding the keys.
+	async function onmindmap(ready: TableApi) {
+		api = ready;
+		ready.subscribe((state) => (view = state));
+		const made = await ready.addMarkdown('# Garden\n\n- Beds\n  - Tomatoes\n  - Beans\n- Paths\n- Shed', { x: 0, y: 0 });
+		ready.zoomToFit();
+		ready.setMindMap(true);
+		await ready.perform({ op: 'select', ids: made.slice(0, 1), zoom: false });
+	}
+
 	async function onareas(ready: TableApi) {
 		const ids = ready.addBlocks(sample.slice(0, 8), undefined, { columns: 4, select: false });
 		await ready.perform({ op: 'frame', name: 'Reading', ids: ids.slice(0, 4) });
@@ -96,6 +107,22 @@ Each morning starts with a short demo, then people work on their own sites.
 	<div class="frame">
 		<TableCanvas document={null} {onready} />
 		<div class="dock"><TableToolbar onfit={() => api?.zoomToFit()} /></div>
+	</div>
+</Story>
+
+<!--
+	Mind map mode: the toolbar's Mind map switch hands the keyboard to the tree. Arrow keys walk it,
+	Tab adds a child, ⌘Enter a sibling, ⇧Tab a parent, ⌥ with an arrow moves a node, Backspace removes
+	one, and ? lists every key. Each change sets the tree out again as an outline.
+	A sticky note made from another's edge (in any mode) is joined to it by an arrow.
+-->
+<Story asChild name="Mind map mode">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onmindmap} />
+		<div class="keys"><MindMapHelp active={view.mindMap} /></div>
+		<div class="dock">
+			<TableToolbar editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved" geo={view.geo} ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} selection={view.selection} onlayout={(value, scope) => { const op = layoutOp(value, scope, view.selection.map((item) => item.id)); if (op) void api?.perform(op); }} autoLayout={view.autoLayout} onautolayout={(value) => api?.setAutoLayout(value)} mindMap={view.mindMap} onmindmap={(on) => api?.setMindMap(on)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()} />
+		</div>
 	</div>
 </Story>
 
@@ -200,4 +227,5 @@ Each morning starts with a short demo, then people work on their own sites.
 	.frame { position: relative; width: 100%; height: 36rem; }
 	.frame.tall { height: 44rem; }
 	.dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; }
+	.keys { position: absolute; left: var(--space-4); bottom: calc(var(--space-4) + 4rem); }
 </style>
