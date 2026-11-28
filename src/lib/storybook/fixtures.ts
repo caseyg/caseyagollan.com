@@ -131,3 +131,27 @@ export const postTypeExamples: Record<string, Post> = {
 	recipe: { ...note, type: 'recipe', microformatType: 'h-recipe', title: 'Tomato toast', content: 'Toast the bread. Rub it with garlic, pile on the tomatoes, and finish with salt and oil.', properties: { name: ['Tomato toast'], ingredient: ['1 thick slice of bread', '1 ripe tomato', '1 clove garlic', 'Olive oil and flaky salt'], yield: ['1 toast'], duration: ['PT10M'] } },
 	audio: { ...note, type: 'audio', title: 'Voice memo', content: 'Thinking out loud about the library.', audio: [{ url: 'https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg', alt: 'Voice memo', type: 'audio/ogg' }], properties: { audio: ['https://upload.wikimedia.org/wikipedia/commons/c/c8/Example.ogg'] } }
 };
+
+/**
+ * A week of posts and saves for the tables Add menu's feed, counted back from `now`: several a day
+ * from every source, so stories show day groups, times and the source pills.
+ */
+export function feedItems(now = new Date()): import('$lib/table-feed').FeedItem[] {
+	const ago = (hours: number) => new Date(now.getTime() - hours * 3_600_000).toISOString();
+	const readwise = (id: string, title: string, site: string): Block => ({ kind: 'link', url: `https://${site}/${id}`, title, meta: `Readwise · ${site}`, icon: '📖', ref: `readwise:document:${id}` });
+	return [
+		{ at: ago(1), source: 'post', block: blocks.note },
+		{ at: ago(3), source: 'arena', block: blocks.arenaImage },
+		{ at: ago(5), source: 'readwise', block: readwise('calm', 'Calm technology, twenty years on', 'calmtech.com') },
+		{ at: ago(26), source: 'raindrop', block: blocks.raindrop },
+		{ at: ago(28), source: 'post', block: blocks.repost },
+		{ at: ago(30), source: 'arena', block: blocks.arenaText },
+		{ at: ago(31), source: 'post', block: blocks.like },
+		{ at: ago(52), source: 'readwise', block: readwise('tables', 'Thinking on tables', 'are.na') },
+		{ at: ago(54), source: 'arena', block: blocks.arenaLink },
+		{ at: ago(77), source: 'post', block: blocks.article },
+		{ at: ago(100), source: 'raindrop', block: { kind: 'raindrop', url: 'https://maggieappleton.com/garden-history', title: 'A brief history of digital gardens', meta: 'Raindrop · maggieappleton.com', icon: '💧', ref: 'raindrop:202' } },
+		{ at: ago(126), source: 'readwise', block: readwise('hobby', 'The hobbyist web', 'example.org') },
+		{ at: ago(150), source: 'arena', block: blocks.arenaChannel }
+	];
+}
