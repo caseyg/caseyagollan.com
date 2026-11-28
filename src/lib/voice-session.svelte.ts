@@ -9,7 +9,7 @@
  * (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so Storybook and
  * the tests run the same session with scripted ones.
  */
-import { drawerCommand, listPick, pickListed, emptyHeading, RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { shapeCommand, VOICE_SHAPES, VOICE_SHAPE_SAID, type VoiceShape, drawerCommand, listPick, pickListed, emptyHeading, RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 import { VoiceListening, keepChoices, keptChoices } from './voice-listening.svelte';
 import type { VoiceSource, VoiceWordsStore } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
@@ -58,6 +58,8 @@ const KEY = 'tables-voice';
 const USAGE_KEY = 'tables-voice-usage';
 /** The known words, kept in this browser. */
 const WORDS_KEY = 'tables-voice-words';
+/** What new notes are written as, kept in this browser. */
+const SHAPE_KEY = 'tables-voice-shape';
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 export class VoiceNotes extends VoiceListening {
@@ -67,6 +69,7 @@ export class VoiceNotes extends VoiceListening {
 	#arrange = $state(false);
 	#commands = $state(true);
 	#meter = $state(false);
+	#shape = $state<VoiceShape>('auto');
 	/** What voice notes have used since this page opened, and this calendar month in this browser. */
 	usage = $state<VoiceUsage>(noUsage());
 	month = $state<VoiceUsage>(noUsage());
@@ -98,6 +101,8 @@ export class VoiceNotes extends VoiceListening {
 	#recent: string[] = [];
 	/** Where the voice note is working: the item it keeps selected, so the next thing said has somewhere to go. */
 	#focus: string | undefined;
+	/** Blocks made stickies after they were spoken, by the id they had as text. */
+	#became = new Map<string, string>();
 	/** Blocks that were wholly a command, and so taken away. */
 	#gone = new Set<string>();
 
@@ -119,6 +124,7 @@ export class VoiceNotes extends VoiceListening {
 		this.#commands = kept.commands ?? this.#commands;
 		this.#meter = kept.meter ?? this.#meter;
 		try { this.#words = cleanWords(JSON.parse(options.storage?.getItem(WORDS_KEY) ?? '[]')); } catch { /* nothing kept */ }
+		try { const shape = options.storage?.getItem(SHAPE_KEY) as VoiceShape | null | undefined; if (shape && VOICE_SHAPES.includes(shape)) this.#shape = shape; } catch { /* nothing kept */ }
 		try {
 			const spent = JSON.parse(options.storage?.getItem(USAGE_KEY) ?? 'null') as { month?: unknown; usage?: unknown } | null;
 			if (spent?.month === thisMonth()) this.month = readUsage(spent.usage);
@@ -134,6 +140,35 @@ export class VoiceNotes extends VoiceListening {
 	/** Whether the running cost shows beside the microphone. */
 	get meter() { return this.#meter; }
 	set meter(value: boolean) { this.#meter = value; this.#keep(); }
+
+	/**
+	 * What new notes are: text blocks, stickies, or (`auto`) whichever each is added from, so a note
+	 * said about a sticky is a sticky. Chosen in the menu or aloud ("use stickies"), and remembered.
+	 */
+	get shape() { return this.#shape; }
+	set shape(value: VoiceShape) {
+		this.#shape = value;
+		try { this.#options.storage?.setItem(SHAPE_KEY, value); } catch { /* private window */ }
+	}
+
+	/**
+	 * A finished note made the shape it should be: the one chosen, or the shape of what it is added
+	 * from. A sticky is another thing on the table than the text block the words arrived in, so the
+	 * voice note is told its new id, which is returned.
+	 */
+	#cast(canvas: VoiceCanvas, id: string, from: string | null | undefined): string {
+		const as = this.#shape === 'auto' ? (from && canvas.kind(from) === 'note' ? 'note' : 'text') : this.#shape;
+		const made = as === 'note' ? canvas.recast(id, as) : undefined;
+		if (!made) return id;
+		this.#became.set(id, made);
+		this.#session = this.#session.map((one) => (one === id ? made : one));
+		if (this.#last?.id === id) this.#last = { ...this.#last, id: made };
+		this.#made.push(made);
+		return made;
+	}
+
+	/** What a block is called now, if it has been made a sticky since it was named. */
+	#now<T extends string | null | undefined>(id: T): T | string { return (id && this.#became.get(id)) || id; }
 
 	/** The known words, as the control lists them; setting them keeps them. */
 	get words() { return this.#words; }
@@ -204,6 +239,7 @@ export class VoiceNotes extends VoiceListening {
 		this.#writing = this.#last = undefined;
 		this.#session = [];
 		this.#gone.clear();
+		this.#became.clear();
 		this.did = undefined;
 		this.#early = undefined;
 		this.#blank = undefined;
@@ -343,6 +379,21 @@ export class VoiceNotes extends VoiceListening {
 			this.#log('passage', { ...passage, was: 'that’s all' });
 			return this.stop();
 		}
+		// "Use stickies", "switch to text", "match what I'm adding from": what new notes are from here on.
+		const shape = this.#commands ? shapeCommand(text) : null;
+		if (shape) {
+			canvas.remove(id);
+			this.#writing = undefined;
+			this.#block = { settled: '', partial: '' };
+			// In turn: what was said before this is still the shape it was said in.
+			this.#settling = this.#settling.then(() => {
+				this.shape = shape;
+				this.did = { text: VOICE_SHAPE_SAID[shape] };
+				this.#tally.commands++;
+				this.#log('passage', { ...passage, was: 'shape, without a model', did: this.did.text });
+			});
+			return;
+		}
 		// "Show similar items", and "add the second one" of what the drawer lists: the drawer's, done in turn, with no model.
 		const asked = this.#commands ? this.#drawer(canvas, text) : null;
 		if (asked) {
@@ -434,9 +485,13 @@ export class VoiceNotes extends VoiceListening {
 	/** A finished block, once a model has answered: corrected, any command in it carried out, then set in its place. */
 	async #finish(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, asked: Promise<VoiceRefineAnswer | null>, took: { ms: number; failed: string; anchor?: string; blank?: string } = { ms: 0, failed: '' }): Promise<VoiceLogEntry> {
 		const answer = await asked;
+		// What this follows may have been made a sticky since the model was asked.
+		if (before) before = { ...before, id: this.#now(before.id) };
+		if (took.anchor) took.anchor = this.#now(took.anchor);
+		if (answer?.follows) answer.follows = this.#now(answer.follows);
 		// What was made of the passage, for the log.
 		const made: VoiceLogEntry = { was: 'note, as heard', text: block.text };
-		const session = how.session.filter((id) => !this.#gone.has(id));
+		const session = how.session.map((id) => this.#now(id)).filter((id) => !this.#gone.has(id));
 		const ops = answer?.ops ?? [];
 		// A passage that was all command leaves no block; the block spoken before it is the last again.
 		if (answer?.none) {
@@ -470,6 +525,9 @@ export class VoiceNotes extends VoiceListening {
 			// What is selected is the topic being spoken about; otherwise the model says, and failing that the block before.
 			const follows = how.arrange && took.anchor && took.anchor !== block.id ? took.anchor : answer && answer.follows !== undefined ? answer.follows : before && !this.#gone.has(before.id) ? before.id : undefined;
 			if (how.arrange && took.anchor && follows === took.anchor) made.branch_of = 'the selection';
+			// A sticky when stickies were asked for, or when it is added from one.
+			const from = (how.arrange ? follows : undefined) ?? took.anchor ?? before?.id;
+			block = { ...block, id: this.#cast(canvas, block.id, from === block.id ? undefined : from) };
 			await canvas.settle(block.id, { follows, arrange: how.arrange, session: [...session, ...this.#made] });
 			if (!ops.length) {
 				this.#recent.push(recentLine(block.text, [], { id: block.id, follows: how.arrange ? follows : undefined }));
@@ -479,8 +537,9 @@ export class VoiceNotes extends VoiceListening {
 			// A ramble that held several things: a block for each, one under the other.
 			let above = block.id;
 			for (const words of rewritten ? answer?.more ?? [] : []) {
-				const id = canvas.write(undefined, words, above);
-				this.#session.splice(this.#session.indexOf(above) + 1, 0, id);
+				const written = canvas.write(undefined, words, above);
+				this.#session.splice(this.#session.indexOf(above) + 1, 0, written);
+				const id = this.#cast(canvas, written, above);
 				if (this.#last?.id === above) this.#last = { id, text: words };
 				await canvas.settle(id, { follows: above, arrange: how.arrange, session: this.#session.filter((one) => !this.#gone.has(one)) });
 				above = id;

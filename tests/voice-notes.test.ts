@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { drawerCommand, listPick, pickListed, markdownRich, richMarkdown, emptyHeading, cleanWords, learnedWords, recentLine, shortIds, readable, cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
+import { shapeCommand, drawerCommand, listPick, pickListed, markdownRich, richMarkdown, emptyHeading, cleanWords, learnedWords, recentLine, shortIds, readable, cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
 import { listenOptions, voiceListen } from '../src/lib/server/voice';
 
 const doc = (...paragraphs: string[]): RichDoc => ({ type: 'doc', content: paragraphs.map((text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })) });
@@ -571,5 +571,17 @@ describe('the Add drawer by voice', () => {
 		for (const said of ['add a sticky', 'add a new note', 'the handbook is good']) expect(listPick(said)).toBeNull();
 		for (const said of ['add a new note about venues', 'add an arrow to the handbook', 'add a sticky for tools']) expect(picked(said)).toEqual([]);
 		expect(pickListed(listPick('add new avenues')!, ['Light Phone', 'New avenues for the internet'])).toEqual([1]);
+	});
+});
+
+describe('what new notes are, said aloud', () => {
+	test('hears stickies, text, and matching', () => {
+		for (const said of ['use stickies', 'Switch to sticky notes.', 'sticky mode', 'add as stickies', 'make new ones stickies', 'change the shape to sticky', 'switch to post-its', 'okay use stickies please']) expect(shapeCommand(said)).toBe('note');
+		for (const said of ['switch to text', 'write as text blocks', 'text mode', 'use text from now on', 'new notes should be text', 'add them as text']) expect(shapeCommand(said)).toBe('text');
+		for (const said of ["match what I'm adding from", 'automatic mode', 'switch back to auto', "use the same as what I'm adding from"]) expect(shapeCommand(said)).toBe('auto');
+	});
+
+	test('leaves thoughts and other commands alone', () => {
+		for (const said of ['add a sticky', 'the text is too small', 'use the venue checklist', 'make that a sticky', 'stickies are useful']) expect(shapeCommand(said)).toBeNull();
 	});
 });

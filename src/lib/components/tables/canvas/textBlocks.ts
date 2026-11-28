@@ -11,7 +11,7 @@
  * - `addMarkdownTree` sets pasted or dropped Markdown down as an outline: a block per heading and
  *   list item, an arrow from each to what it sits under, set out as a compact outline.
  */
-import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEditingShapeWithRichText, toRichText, type Editor, type TLArrowShape, type TLEventInfo, type TLShape, type TLShapeId, type TLTextShape } from 'tldraw';
+import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEditingShapeWithRichText, toRichText, type Editor, type TLArrowShape, type TLEventInfo, type TLNoteShape, type TLShape, type TLShapeId, type TLTextShape } from 'tldraw';
 import { BLOCK_SHAPE } from '$lib/tables';
 import type { TableOp } from '$lib/table-agent';
 import { autoLayoutOf, layoutOp } from '$lib/table-menus';
@@ -27,6 +27,10 @@ export interface VoiceCanvas {
 	/** A correction, kept only if the block still reads as it was heard: an edit made meanwhile wins. */
 	rewrite(id: string, text: string, heard: string): boolean;
 	remove(id: string): void;
+	/** Whether something on the table is a text block, a sticky, or neither. */
+	kind(id: string): 'text' | 'note' | undefined;
+	/** A block of this voice note made a sticky, or a text block again, in the same place. Answers the id of what it is now; nothing when it isn't one, or is that already. */
+	recast(id: string, as: 'text' | 'note'): string | undefined;
 	/** What is on the table that a new block could follow: ids and first words, in the order they were made. */
 	texts(limit?: number): { id: string; text: string }[];
 	/**
@@ -183,7 +187,27 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 		const kept = mindMapOf(meta) ? undefined : layoutOp(autoLayoutOf(meta) ?? '', 'table', []);
 		return deps.perform(kept ?? { op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
 	};
+	// A block of a voice note: a text block, or the sticky one was made into.
+	const own = (id: string) => { const shape = editor.getShape(long(id)); return isText(shape) || (shape?.type === 'note' && shape.meta.voice) ? (shape as TLTextShape | TLNoteShape) : undefined; };
 	return {
+		kind(id) {
+			const type = editor.getShape(long(id))?.type;
+			return type === 'text' || type === 'note' ? type : undefined;
+		},
+		recast(id, as) {
+			const shape = own(id);
+			if (!shape || shape.type === as) return undefined;
+			const bounds = editor.getShapePageBounds(shape)!;
+			const richText = shape.props.richText;
+			// Another shape under another id: one id can't change what kind of thing it is.
+			const made = createShapeId();
+			editor.run(() => {
+				editor.deleteShapes([shape.id]);
+				if (as === 'note') editor.createShape<TLNoteShape>({ id: made, type: 'note', x: bounds.x, y: bounds.y, props: { richText }, meta: { voice: true } });
+				else editor.createShape<TLTextShape>({ id: made, type: 'text', x: bounds.x, y: bounds.y, props: { richText, autoSize: false, w: VOICE_BLOCK_WIDTH }, meta: { voice: true } });
+			});
+			return short(made);
+		},
 		write(id, words, after) {
 			const current = id ? text(id) : undefined;
 			if (current) {
@@ -205,13 +229,13 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 			return short(made);
 		},
 		rewrite(id, words, heard) {
-			const shape = text(id);
+			const shape = own(id);
 			if (!shape || plain(editor, shape) !== heard.replace(/\s+/g, ' ').trim()) return false;
-			editor.updateShape<TLTextShape>({ id: shape.id, type: 'text', props: { richText: toRichText(words) } });
+			editor.updateShape({ id: shape.id, type: shape.type, props: { richText: toRichText(words) } });
 			return true;
 		},
 		remove(id) {
-			if (text(id)) editor.deleteShapes([long(id)]);
+			if (own(id)) editor.deleteShapes([long(id)]);
 		},
 		texts(limit = 40) {
 			return editor.getCurrentPageShapesSorted().flatMap((shape) => {
@@ -220,7 +244,7 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 			}).slice(-limit);
 		},
 		async settle(id, { follows, arrange, session }) {
-			const shape = text(id);
+			const shape = own(id);
 			if (!shape) return;
 			const parent = arrange && follows && follows !== id ? editor.getShape(long(follows)) : undefined;
 			if (!arrange) {
@@ -247,8 +271,8 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 			revealAll(editor, tied);
 		},
 		pending(id, on) {
-			const shape = text(id);
-			if (shape) editor.run(() => editor.updateShape({ id: shape.id, type: 'text', opacity: on ? 0.45 : 1 }), { history: 'ignore' });
+			const shape = own(id);
+			if (shape) editor.run(() => editor.updateShape({ id: shape.id, type: shape.type, opacity: on ? 0.45 : 1 }), { history: 'ignore' });
 		},
 		show(ids, zoom) {
 			const found = ids.map(long).filter((id) => editor.getShape(id));
