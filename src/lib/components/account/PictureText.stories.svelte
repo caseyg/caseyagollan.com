@@ -41,5 +41,11 @@
 
 <Story name="All read" args={{ load: later(done), read: later(done) }} />
 
+<!-- The model isn't answering: the pass stops itself on the first picture and says why. -->
+<Story name="Model not answering" args={{ load: later({ ...none, error: 'InferenceUpstreamError: 3040: Capacity temporarily exceeded' }), read: later(none) }} />
+
+<!-- The few minutes after a deploy, while the copy still runs the version before. -->
+<Story name="Still updating" args={{ load: later('updating' as const) }} />
+
 <!-- The dev server, where there is no Worker to hold the copy. -->
 <Story name="Not available" args={{ load: later(null) }} />

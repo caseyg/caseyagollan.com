@@ -107,12 +107,18 @@ export const READ_BATCH = 10;
  * Reads the words in up to `count` pictures no one has tried yet, several at once. One that can't
  * be read is marked, so the pass doesn't come back to it. `left` says there are more.
  */
-export async function readPending(index: SourceIndex, env: EmbedEnv, count: number): Promise<{ read: number; failed: number; left: boolean }> {
+export async function readPending(index: SourceIndex, env: EmbedEnv, count: number): Promise<{ read: number; failed: number; left: boolean; error?: string }> {
 	if (!env.AI || count < 1) return { read: 0, failed: 0, left: false };
 	const pictures = index.unreadPictures(Math.min(count, READ_BATCH));
-	const done = await Promise.all(pictures.map((url) => imageWords(index, env, url).then(() => true, () => { index.failImageText(url); return false; })));
+	let error: string | undefined;
+	const done = await Promise.all(pictures.map((url) => imageWords(index, env, url).then(() => true, (reason) => {
+		// What went wrong, as the model or the fetch said it: never a picture's address or words.
+		error ??= `${(reason as Error)?.name ?? 'Error'}: ${String((reason as Error)?.message ?? reason).replace(/https?:\/\/\S+/g, '(address)').slice(0, 240)}`;
+		index.failImageText(url);
+		return false;
+	})));
 	const read = done.filter(Boolean).length;
-	return { read, failed: done.length - read, left: pictures.length > 0 && index.unreadPictures(1).length > 0 };
+	return { read, failed: done.length - read, left: pictures.length > 0 && index.unreadPictures(1).length > 0, ...(error ? { error } : {}) };
 }
 
 /** Embeds a batch of what has no vector yet. `left` says there is more to do. */

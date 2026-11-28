@@ -37,6 +37,8 @@ export interface PictureReading {
 	asked: number;
 	/** What the reading has used, as the model counts it. */
 	usage: { pictures: number; input: number; output: number };
+	/** Why the last pass stopped by itself, in the model's own words: it wasn't answering. */
+	error?: string;
 	/** The latest read, newest first, to judge the reading by. */
 	recent: { url: string; text: string; at: string; failed: boolean }[];
 }

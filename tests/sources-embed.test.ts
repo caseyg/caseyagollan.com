@@ -130,7 +130,7 @@ describe('likeness between saved things', () => {
 		// The newest picture can't be fetched; the model counts its tokens for the rest.
 		const env = { see, AI: { run: async (name: string, input: { image?: string }) => { if (input.image === address(10)) throw new Error('gone'); const answer = await model.run(name, input as never); return name === READ_MODEL ? { ...answer, usage: { input_tokens: 1200, output_tokens: 100 } } : answer; } } };
 		expect(index.pictureCounts()).toEqual({ total: 13, read: 0, withWords: 0, failed: 0 });
-		expect(await readPending(index, env, 3)).toEqual({ read: 2, failed: 1, left: true });
+		expect(await readPending(index, env, 3)).toEqual({ read: 2, failed: 1, left: true, error: 'Error: gone' });
 		expect(index.pictureCounts()).toEqual({ total: 13, read: 2, withWords: 1, failed: 1 });
 		expect(index.state<unknown>(READ_USAGE)).toEqual({ pictures: 2, input: 2400, output: 200 });
 		expect(index.search({ owner: true, query: 'moss' }).hits.map((hit) => hit.key)).toEqual(['arena:p12']);
