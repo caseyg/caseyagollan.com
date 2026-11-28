@@ -31,6 +31,7 @@ export const VOICE_BLOCK_WIDTH = 360;
 /** The longest passage a model is asked about; a block is a few sentences. */
 export const VOICE_TEXT_MAX = 4000;
 
+const spoken_ = (value: string) => value.replace(/\s+/g, ' ').trim();
 const spoken = (value: unknown) => (typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '');
 
 /** Two runs of speech as one: a single space between them. */
@@ -152,6 +153,8 @@ export interface VoiceRefineAnswer {
 	follows?: string | null;
 	/** What the passage asked to have done. With these, `text` is what was said besides, which may be nothing. */
 	ops?: VoiceOp[];
+	/** What answering this used, added by the Worker. */
+	usage?: VoiceTextUsage;
 }
 
 const ITEM_WORDS = 160;
@@ -279,6 +282,116 @@ export function describeOps(ops: VoiceOp[]): string {
 		}
 	});
 	return said.length > 2 ? `${said.slice(0, 2).join(', ')} and ${said.length - 2} more` : said.join(', ');
+}
+
+/* Commands heard without a model: selecting and focusing, which should happen as the words arrive. */
+
+/** What "select the pricing note" asks, worked out here: which items, and whether to zoom to them. */
+export interface QuickCommand { kind: 'select' | 'focus'; ids: string[] }
+
+const QUICK = /^(?:(?:okay|ok|hey|please|now|and|then|can you|could you)[, ]+)*(select|pick|choose|highlight|focus on|focus|zoom (?:in )?(?:to|on|into)|go to|jump to|show me|find)\s+(.+?)[.!?]*$/i;
+const FOCUSING = /^(focus|zoom|go|jump|show|find)/i;
+const FILLER = new Set(['the', 'a', 'an', 'that', 'this', 'those', 'these', 'block', 'blocks', 'note', 'notes', 'post', 'posts', 'card', 'cards', 'item', 'items', 'one', 'ones', 'about', 'on', 'with', 'called', 'named', 'titled', 'saying', 'says', 'that', 'which', 'where', 'it', 'of', 'for', 'to', 'please', 'text', 'shape', 'thing']);
+const ORDINALS: Record<string, number> = { first: 0, second: 1, third: 2, fourth: 3, fifth: 4, last: -1, latest: -1, previous: -1, newest: -1 };
+
+/**
+ * A passage that is nothing but "select …" or "focus on …", matched against what is on the table by
+ * its words alone, so it can be acted on while it is still being said. `items` are the things it
+ * could mean (not the passage's own block), `spoken` this voice note's blocks, the latest last.
+ * Names by order ("the first block", "the last one") count among the spoken blocks. `null` when the
+ * passage isn't such a command or nothing on the table answers to it: then a model may still.
+ */
+export function quickCommand(text: string, items: readonly { id: string; text: string }[], spoken: readonly string[] = []): QuickCommand | null {
+	const match = QUICK.exec(spoken_(text));
+	if (!match) return null;
+	const kind = FOCUSING.test(match[1]) ? 'focus' : 'select';
+	const said = letters(match[2]);
+	if (!said.length || said.length > 12) return null;
+	if (said.includes('everything') || said.join(' ') === 'all') return items.length ? { kind, ids: items.map((item) => item.id) } : null;
+	const ordinal = said.find((word) => word in ORDINALS);
+	const wanted = said.filter((word) => !FILLER.has(word) && !(word in ORDINALS));
+	if (ordinal && !wanted.length) {
+		const id = spoken.at(ORDINALS[ordinal]);
+		return id ? { kind, ids: [id] } : null;
+	}
+	if (!wanted.length) return null;
+	// A word counts when the item has it, or has a word it begins: the last word is often still arriving.
+	const scored = items.map((item) => {
+		const has = letters(item.text);
+		const hits = wanted.filter((word, index) => has.some((own) => own === word || (index === wanted.length - 1 && word.length >= 3 && own.startsWith(word)))).length;
+		return { id: item.id, score: hits / wanted.length };
+	}).filter((one) => one.score >= 0.6);
+	if (!scored.length) return null;
+	const best = Math.max(...scored.map((one) => one.score));
+	return { kind, ids: scored.filter((one) => one.score === best).map((one) => one.id).slice(0, 12) };
+}
+
+/* What a voice note costs. */
+
+/** Workers AI's price for each speech model, in dollars a minute of audio sent over the socket. */
+export const VOICE_SPEECH_PRICES: Record<string, number> = { '@cf/deepgram/flux': 0.0077, '@cf/deepgram/nova-3': 0.0092 };
+
+/** What one answer from the text model used, as the Worker reports it with the answer. `speech` is the model the Worker listens with, for pricing the minutes. */
+export interface VoiceTextUsage { provider: string; model: string; input: number; output: number; usd: number; speech?: string }
+
+/** One service's share of a voice note: what it is, how much of it was used, and about what that cost. */
+export interface VoiceSpend { service: string; amount: string; usd: number }
+
+/** Running totals, for this page and (kept in the browser) for the calendar month. */
+export interface VoiceUsage {
+	/** Seconds of audio sent to the Worker's speech model, and which model. */
+	speech: { model: string; seconds: number };
+	/** Seconds heard by the browser's own dictation, which costs nothing here. */
+	browser: number;
+	/** The text model's answers, by `provider:model`. */
+	text: Record<string, { calls: number; input: number; output: number; usd: number }>;
+}
+
+export const noUsage = (): VoiceUsage => ({ speech: { model: VOICE_MODEL, seconds: 0 }, browser: 0, text: {} });
+
+const trimZero = (value: string) => value.replace(/\.0$/, '');
+
+/** A dollar amount at the size these are: cents with a decimal under a dime, "under 0.1¢" for next to nothing. */
+export function formatUsd(usd: number): string {
+	if (!(usd > 0)) return '$0';
+	if (usd < 0.001) return 'under 0.1¢';
+	if (usd < 0.1) return `${trimZero((usd * 100).toFixed(1))}¢`;
+	return `$${usd.toFixed(2)}`;
+}
+
+const minutes = (seconds: number) => (seconds < 60 ? `${Math.round(seconds)} sec` : `${trimZero((seconds / 60).toFixed(1))} min`);
+const thousands = (count: number) => (count < 1000 ? String(count) : `${trimZero((count / 1000).toFixed(1))}k`);
+
+/** What the speech model's minutes cost; a model with no listed price is counted at Flux's. */
+export const speechUsd = (usage: VoiceUsage) => (usage.speech.seconds / 60) * (VOICE_SPEECH_PRICES[usage.speech.model] ?? VOICE_SPEECH_PRICES[VOICE_MODEL]);
+export const usageUsd = (usage: VoiceUsage) => speechUsd(usage) + Object.values(usage.text).reduce((sum, one) => sum + one.usd, 0);
+
+/** The usage a line per service, the ones that were used. */
+export function spendLines(usage: VoiceUsage): VoiceSpend[] {
+	return [
+		...(usage.speech.seconds ? [{ service: `Speech: ${usage.speech.model.replace('@cf/', '')} on Workers AI`, amount: minutes(usage.speech.seconds), usd: speechUsd(usage) }] : []),
+		...(usage.browser ? [{ service: 'Speech: this browser’s dictation', amount: minutes(usage.browser), usd: 0 }] : []),
+		...Object.entries(usage.text).map(([model, one]) => ({ service: `Text: ${model}`, amount: `${one.calls} ${one.calls === 1 ? 'ask' : 'asks'}, ${thousands(one.input)} tokens in, ${thousands(one.output)} out`, usd: one.usd }))
+	];
+}
+
+/** Usage with one answer's tokens added. */
+export function addText(usage: VoiceUsage, used: VoiceTextUsage): VoiceUsage {
+	const key = `${used.provider}:${used.model}`, had = usage.text[key] ?? { calls: 0, input: 0, output: 0, usd: 0 };
+	return { ...usage, speech: used.speech ? { ...usage.speech, model: used.speech } : usage.speech, text: { ...usage.text, [key]: { calls: had.calls + 1, input: had.input + used.input, output: had.output + used.output, usd: had.usd + used.usd } } };
+}
+
+/** Usage read back from the browser, whatever shape it was kept in. */
+export function readUsage(value: unknown): VoiceUsage {
+	const data = record(value), fresh = noUsage();
+	if (!data) return fresh;
+	const count = (from: unknown) => (typeof from === 'number' && Number.isFinite(from) && from > 0 ? from : 0);
+	const speech = record(data.speech);
+	const text = Object.fromEntries(Object.entries(record(data.text) ?? {}).slice(0, 20).flatMap(([key, entry]) => {
+		const one = record(entry);
+		return one ? [[key.slice(0, 120), { calls: count(one.calls), input: count(one.input), output: count(one.output), usd: count(one.usd) }]] : [];
+	}));
+	return { speech: { model: typeof speech?.model === 'string' ? speech.model.slice(0, 80) : fresh.speech.model, seconds: count(speech?.seconds) }, browser: count(data.browser), text };
 }
 
 /** A request cut to what a model is sent: bounded text, and only items with words and plain ids. */

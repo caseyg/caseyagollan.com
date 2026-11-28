@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
+import { addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
 import { listenOptions, voiceListen } from '../src/lib/server/voice';
 
 const doc = (...paragraphs: string[]): RichDoc => ({ type: 'doc', content: paragraphs.map((text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })) });
@@ -205,6 +205,69 @@ describe('spoken commands', () => {
 		expect(describeOps([{ op: 'connect', links: [{ from: 'a1', to: 'b2' }] }])).toBe('Drew 1 arrow');
 		expect(describeOps([{ op: 'add_shape', shape: 'ellipse' }, { op: 'edit', edits: [{ id: 'a1', color: 'red' }, { id: 'b2', color: 'red' }] }])).toBe('Drew an ellipse, Changed 2 blocks');
 		expect(describeOps([{ op: 'remove', ids: ['a1'] }, { op: 'select', ids: ['b2'] }, { op: 'group', ids: ['a1', 'b2'] }])).toBe('Removed 1 block, Selected 1 block and 1 more');
+	});
+});
+
+describe('select and focus, heard at once', () => {
+	const items = [
+		{ id: 'a1', text: 'Testing 1, 2, 3.' },
+		{ id: 'p7', text: 'Notes on pricing for the workshop' },
+		{ id: 'q8', text: 'Workshop schedule' }
+	];
+
+	test('a block is found by its words, even while the last is still arriving', () => {
+		expect(quickCommand('select the pricing block', items)).toEqual({ kind: 'select', ids: ['p7'] });
+		expect(quickCommand('Select the pric', items)).toEqual({ kind: 'select', ids: ['p7'] });
+		expect(quickCommand('Okay, focus on the workshop schedule.', items)).toEqual({ kind: 'focus', ids: ['q8'] });
+		expect(quickCommand('zoom in on pricing', items)).toEqual({ kind: 'focus', ids: ['p7'] });
+	});
+
+	test('several answer when they answer equally', () => {
+		expect(quickCommand('select the workshop notes', items)).toEqual({ kind: 'select', ids: ['p7', 'q8'] });
+		expect(quickCommand('select everything', items)?.ids).toEqual(['a1', 'p7', 'q8']);
+	});
+
+	test('blocks are named by order among those spoken', () => {
+		expect(quickCommand('select the last block', items, ['a1', 'p7'])).toEqual({ kind: 'select', ids: ['p7'] });
+		expect(quickCommand('focus on the first one', items, ['a1', 'p7'])).toEqual({ kind: 'focus', ids: ['a1'] });
+		expect(quickCommand('select the last one', items, [])).toBeNull();
+	});
+
+	test('anything else is left to be written down, or to a model', () => {
+		expect(quickCommand('select the', items)).toBeNull();
+		expect(quickCommand('select the budget block', items)).toBeNull();
+		expect(quickCommand('we should focus the workshop on pricing', items)).toBeNull();
+		expect(quickCommand('the select committee met about pricing', items)).toBeNull();
+		expect(quickCommand('connect the pricing block to the schedule', items)).toBeNull();
+	});
+});
+
+describe('what a voice note costs', () => {
+	test('minutes and tokens are counted by service and priced', () => {
+		let usage = noUsage();
+		usage = { ...usage, speech: { ...usage.speech, seconds: 600 }, browser: 30 };
+		usage = addText(usage, { provider: 'inference-coop', model: 'glm', input: 1200, output: 80, usd: 0.0004, speech: '@cf/deepgram/flux' });
+		usage = addText(usage, { provider: 'inference-coop', model: 'glm', input: 800, output: 20, usd: 0.0002 });
+		expect(spendLines(usage)).toEqual([
+			{ service: 'Speech: deepgram/flux on Workers AI', amount: '10 min', usd: 0.077 },
+			{ service: 'Speech: this browser’s dictation', amount: '30 sec', usd: 0 },
+			{ service: 'Text: inference-coop:glm', amount: '2 asks, 2k tokens in, 100 out', usd: 0.0006000000000000001 }
+		]);
+		expect(usageUsd(usage)).toBeCloseTo(0.0776, 6);
+	});
+
+	test('the Worker’s speech model sets the price of the minutes', () => {
+		const usage = addText({ ...noUsage(), speech: { model: '@cf/deepgram/flux', seconds: 60 } }, { provider: 'a', model: 'b', input: 0, output: 0, usd: 0, speech: '@cf/deepgram/nova-3' });
+		expect(usageUsd(usage)).toBeCloseTo(0.0092, 6);
+	});
+
+	test('amounts are written at the size they are', () => {
+		expect([0, 0.0004, 0.0031, 0.05, 0.5, 12.345].map(formatUsd)).toEqual(['$0', 'under 0.1¢', '0.3¢', '5¢', '$0.50', '$12.35']);
+	});
+
+	test('what the browser kept is read back whatever its shape', () => {
+		expect(readUsage(null)).toEqual(noUsage());
+		expect(readUsage({ speech: { model: 'm', seconds: -4 }, browser: 'x', text: { 'a:b': { calls: 2, input: 10, output: 1, usd: 0.01 }, bad: 7 } })).toEqual({ speech: { model: 'm', seconds: 0 }, browser: 0, text: { 'a:b': { calls: 2, input: 10, output: 1, usd: 0.01 } } });
 	});
 });
 

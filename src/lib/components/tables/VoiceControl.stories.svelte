@@ -38,10 +38,18 @@
 <!-- A spoken command was carried out: what it did shows over the microphone for a few seconds. -->
 <Story asChild name="Command done">{@render control({ ...off, status: 'listening', level: 0.2, did: { text: 'Drew 1 arrow' } })}</Story>
 
+<!-- Usage: what each service has been used for and about what it cost; the switch puts the running total by the microphone. -->
+<Story asChild name="Usage">
+	{@render control({ ...off, status: 'listening', level: 0.3, usage: { shown: true, usd: 0.0508, monthUsd: 1.37, lines: [
+		{ service: 'Speech: deepgram/flux on Workers AI', amount: '6.2 min', usd: 0.0477 },
+		{ service: 'Text: inference-coop:glm-4.6', amount: '41 asks, 38.2k tokens in, 2.9k out', usd: 0.0031 }
+	] } }, true)}
+</Story>
+
 <!-- A reason listening stopped opens the options by itself. -->
 <Story asChild name="Microphone blocked">{@render control({ ...off, notice: 'The microphone is blocked for this site. Allow it in the browser’s site settings.' })}</Story>
 
 <style>
-	.stage { display: flex; justify-content: center; min-height: 20rem; padding-top: var(--space-7); }
+	.stage { display: flex; justify-content: center; min-height: 34rem; padding-top: var(--space-7); }
 	.stage :global([data-slot='toolbar']) { display: flex; align-items: center; height: max-content; }
 </style>

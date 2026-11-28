@@ -476,11 +476,12 @@
 					tagging = tagging ? null : 'edit';
 					if (tagging && !pinned) adding = false;
 				}}
-				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did } : undefined}
+				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, usage: voice.usageView } : undefined}
 				onvoice={voice.toggle}
 				onvoicecorrect={(on) => (voice.correct = on)}
 				onvoicearrange={(on) => (voice.arrange = on)}
 				onvoicecommands={(on) => (voice.commands = on)}
+				onvoicemeter={(on) => (voice.meter = on)}
 			/>
 		</div>
 		{#if editable && adding}

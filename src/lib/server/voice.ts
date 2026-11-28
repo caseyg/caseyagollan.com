@@ -87,5 +87,10 @@ export async function refineSpeech(env: VoiceEnv, request: VoiceRefineRequest, s
 	);
 	if (reply.stopReason === 'error' || reply.stopReason === 'aborted') throw new Error(reply.errorMessage || 'The model stopped with an error');
 	const text = reply.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('');
-	return parseRefine(text, request);
+	const used = reply.usage as { input?: number; output?: number; cacheRead?: number; cost?: { total?: number } } | undefined;
+	const input = (used?.input ?? 0) + (used?.cacheRead ?? 0), output = used?.output ?? 0;
+	// pi-ai prices an answer from the provider's rates; where it has none, the model's own listed rates do.
+	const rates = found.model.cost as { input?: number; output?: number } | undefined;
+	const usd = used?.cost?.total ?? (input * (rates?.input ?? 0) + output * (rates?.output ?? 0)) / 1_000_000;
+	return { ...parseRefine(text, request), usage: { provider: found.model.provider, model: found.model.id, input, output, usd, speech: env.VOICE_MODEL || VOICE_MODEL } };
 }

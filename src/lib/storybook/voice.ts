@@ -15,7 +15,8 @@ export const COMMANDS = [
 	'okay cool so this is a new block can you connect these two blocks with an arrow',
 	'turn one two three into numbers',
 	'draw a circle next to that and call it ideas',
-	'make the first one blue'
+	'make the first one blue',
+	'select the new block'
 ];
 
 /** A source that speaks passages instead of listening, for stories and browser tests. */
@@ -64,11 +65,13 @@ function scriptedCommand(request: VoiceRefineRequest): { text: string; ops: Voic
 /** A stand-in for the model: tidies the stories' passages, and says each follows the one before, the last branching from the first. */
 export async function scriptedRefine(request: VoiceRefineRequest): Promise<VoiceRefineAnswer> {
 	await new Promise((resolve) => setTimeout(resolve, 250));
+	// As the Worker does, each answer says what it used, so the stories' usage counter has something to count.
+	const usage = { provider: 'story', model: 'stand-in', input: 600 + request.text.length, output: 40, usd: 0.00008 };
 	const command = scriptedCommand(request);
-	if (command) return command;
+	if (command) return { ...command, usage };
 	const tidy = request.text.replace(/\b(um|uh)\s+/g, '').replace(/^so\s+/, '');
 	const text = request.correct ? `${tidy.charAt(0).toUpperCase()}${tidy.slice(1)}.`.replace('canvases where', 'canvases, where') : request.text;
 	const spoken = (request.items ?? []).filter((item) => SPOKEN.some((passage) => item.text.toLowerCase().includes(passage.toLowerCase().split(' ').slice(-3).join(' '))));
 	const follows = !request.connect ? undefined : request.text.includes('layout') ? spoken[0]?.id ?? null : spoken[spoken.length - 1]?.id ?? null;
-	return { text, ...(follows !== undefined ? { follows } : {}) };
+	return { text, ...(follows !== undefined ? { follows } : {}), usage };
 }

@@ -88,6 +88,12 @@ How it works:
 - `add_shape` is new with this: tldraw's geo shapes (rectangle, ellipse, star, cloud…), with words
   inside if given.
 
+"Select the pricing note" and "focus on the last one" don't wait for a model or for the pause.
+`quickCommand` matches the words against what is on the table as they arrive (the last word may
+still be half said), so the selection shows at once and follows the words. Focus also zooms to it
+when the passage ends. A block can be named by its words or by its order among those spoken
+("the first block"). When nothing on the table answers, the passage goes to the model as usual.
+
 Bigger asks (searching the site, adding posts, maps, looking at the table) stay with the chat,
 which has the whole tool set and can take several steps.
 
@@ -105,3 +111,19 @@ These work on every text block of a table the owner can change, spoken or typed.
 The sandbox can't open WebSockets to Cloudflare, so the socket to Flux was written against
 Workers AI's published message shapes and tested with a stand-in. It needs a first try on a branch
 preview, which has the `AI` binding and owner sign-in.
+
+## What it costs
+
+The voice menu ends with a usage list: a line per service with how much of it was used and about
+what that cost, a total since the page opened, and a total for the calendar month kept in this
+browser (`tables-voice-usage`). "Show the running cost" puts the page's total beside the
+microphone.
+
+- Speech: seconds listened through the Worker's socket, priced per minute from
+  `VOICE_SPEECH_PRICES` (Flux $0.0077, Nova 3 $0.0092). The browser's own dictation is counted and
+  shown as free.
+- Text: each answer from `POST /api/tables/voice` carries `usage` (provider, model, tokens in and
+  out, dollars), priced by pi-ai from the provider's rates in the chat's model registry.
+
+It is an estimate from listed prices, counted in the browser: another device's use is not in it,
+and the services' own bills are the record.

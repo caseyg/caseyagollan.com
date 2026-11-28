@@ -30,6 +30,8 @@ export interface VoiceCanvas {
 	 * grew onto moves down.
 	 */
 	settle(id: string, how: { follows?: string | null; arrange: boolean; session: string[] }): Promise<void>;
+	/** Selects items at once, as "select the pricing note" is heard; `zoom` goes to them ("focus on…"), otherwise they are only brought into view. */
+	show(ids: string[], zoom: boolean): void;
 	/** What is on the table and what is selected, for a spoken command to act on. */
 	read(): Promise<{ items: VoiceItem[]; selected: string[] }>;
 	/** Carries out a spoken command, an operation at a time as the chat's are; resolves with those that were done. */
@@ -176,6 +178,13 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 				moveTo(editor, shape, freeSpot(boxes(editor, [shape.id]), size, { x: onGrid(beside.maxX + GAP * 4), y: onGrid(beside.y) }));
 			} else deps.pushAside(editor, shape.id);
 			reveal(editor, shape.id);
+		},
+		show(ids, zoom) {
+			const found = ids.map(long).filter((id) => editor.getShape(id));
+			if (!found.length) return;
+			editor.select(...found);
+			if (zoom) editor.zoomToSelection({ animation: { duration: 320 } });
+			else revealAll(editor, found);
 		},
 		async read() {
 			const table = (await deps.perform({ op: 'read' })) as { items?: (VoiceItem & { title?: string })[]; selected?: string[] } | undefined;
