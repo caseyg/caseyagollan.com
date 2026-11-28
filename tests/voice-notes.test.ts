@@ -408,3 +408,19 @@ describe('what Casey\'s first logged voice note showed', () => {
 		expect(parseRefine('{"notes": [], "ops": [{"op": "remove", "ids": ["a1", "z9"]}]}', request).ops).toEqual([{ op: 'remove', ids: ['a1'] }]);
 	});
 });
+
+describe('what the second logged voice note showed', () => {
+	const table = { items: [{ id: 'w1', type: 'note', text: 'Work', x: 0, y: 0, w: 200, h: 200 }, { id: 's1', type: 'note', text: 'Study', x: 300, y: 0, w: 200, h: 200 }, { id: 'ar1', type: 'arrow', x: 0, y: 0, w: 1, h: 1, from: 'w1', to: 's1' }, { id: 'z9', type: 'text', text: "Don't link work and study.", x: 0, y: 300, w: 300, h: 40 }], selected: [], spoken: ['z9'] };
+	const request = { text: "Don't link work and study.", correct: true, split: true, connect: false, commands: true, id: 'z9', table };
+
+	test('a command nothing could be done about is not written down as a thought', () => {
+		expect(parseRefine('{"notes": [], "follows": null, "ops": []}', request)).toEqual({ text: '', none: true });
+		// With no word from the model on notes or ops, the words stay as heard.
+		expect(parseRefine('sorry', request)).toEqual({ text: request.text });
+	});
+
+	test('arrows are listed by id, so one can be taken away', () => {
+		expect(refinePrompt(request).user).toContain('Arrows (id: from→to): ar1: w1→s1');
+		expect(parseRefine('{"notes": [], "ops": [{"op": "remove", "ids": ["ar1"]}]}', request)).toEqual({ text: '', ops: [{ op: 'remove', ids: ['ar1'] }] });
+	});
+});

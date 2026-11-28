@@ -178,6 +178,8 @@ export interface VoiceRefineAnswer {
 	ops?: VoiceOp[];
 	/** Further notes the passage held, after `text`: a ramble that listed several things is a block for each. */
 	more?: string[];
+	/** The model made nothing of the passage: no note, and no command it could carry out. The passage isn't written down. */
+	none?: true;
 	/** What answering this used, added by the Worker. */
 	usage?: VoiceTextUsage;
 }
@@ -409,6 +411,7 @@ export function refineLog(request: VoiceRefineRequest, reply: string, answer: Vo
 		...(answer.follows !== undefined ? { follows: String(answer.follows) } : {}),
 		...(request.commands ? { ops: ops.map((op) => logged(JSON.stringify(op), 160)).slice(0, 12), ops_asked: asked, on_table: request.table?.items.length ?? 0, selected: request.table?.selected.length ?? 0 } : {}),
 		...(request.items?.length ? { could_follow: request.items.length } : {}),
+		...(answer.none ? { none: true } : {}),
 		...(fell || asked > ops.length || !raw ? { not_taken: true, reply: logged(reply.trim(), 600) } : {})
 	};
 }
@@ -507,7 +510,7 @@ function tableLines(table: VoiceTable, own?: string): string {
 	return [
 		'On the canvas (id, kind, its words, left,top, width×height). x grows to the right and y grows downward:',
 		...solid.map((item) => `${item.id} ${item.type}${item.text ? ` ${JSON.stringify(item.text)}` : ''} at ${item.x},${item.y} ${item.w}×${item.h}${item.parent ? ` in ${item.parent}` : ''}${chosen.has(item.id) ? ' (selected)' : ''}${item.id === own ? ' (this passage, as heard)' : ''}`),
-		...(arrows.length ? [`Arrows: ${arrows.map((arrow) => `${arrow.from}→${arrow.to}`).join(', ')}`] : []),
+		...(arrows.length ? [`Arrows (id: from→to): ${arrows.map((arrow) => `${arrow.id}: ${arrow.from}→${arrow.to}`).join(', ')}`] : []),
 		...(table.spoken.length ? [`Spoken in this voice note, the latest last: ${table.spoken.join(', ')}`] : [])
 	].join('\n');
 }
@@ -537,13 +540,14 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 			'Operations, each an object. Use only ids from the canvas listing:',
 			'{"op":"connect","links":[{"from":id,"to":id,"label"?:string,"both_ends"?:true}]}: an arrow from one item to another.',
 			`{"op":"add_shape","shape":${TABLE_SHAPES.join('|')},"text"?:words inside it,"color"?:color,"w"?:number,"h"?:number, and where: "right_of":id or "below":id or "at":{"x","y"}}: a circle is an ellipse, a square or box a rectangle.`,
-			'{"op":"add_note","text":string,"style":"note"|"text","color"?:color, and where as for add_shape}: a sticky note or a text block holding words the speaker dictates for it. Never write words of your own. "Add a sticky", "add a note", "new branch off X" with no words given for it is a sticky with "text":"" (what the speaker says next will be written in it); a branch off X is that plus a connect from X to it.',
+			'{"op":"add_note","text":string,"style":"note"|"text","color"?:color, and where as for add_shape}: a sticky note or a text block holding words the speaker dictates for it. Never write words of your own. "Add a sticky", "add a note", "new branch off X" with no words given for it is a sticky with "text":"" (what the speaker says next will be written in it); a branch off X is that plus a connect from X to it. Words given for a new note start with a capital ("a sticky for work" holds "Work").',
+			'A passage that names something already on the canvas as where a new point belongs is a command, not a note of its own: "off of work, Propel", "under study add flashcards", "CRC, add scraping", "study should have a block for CRC" are each an add_note holding only the point ("Propel", "Flashcards", "Scraping", "CRC") with "right_of" the named item and a connect from the named item to it, in the named item’s own style (a sticky hangs stickies, a text block text). "notes" is then [].',
 			'A new shape or note may carry "as":"new1" (then "new2"…): later operations call it by that name wherever an id goes. "Add a sticky for work connected by an arrow" is an add_note with "as":"new1" and "right_of" the item it hangs from, then a connect from that item to "new1". With nothing named to connect from or put it beside, use the selected item, or else the note spoken last.',
-			'{"op":"edit","edits":[{"id":id,"text"?:the item’s whole new words,"color"?:color}]}: rewords or recolours items. Change only what was asked and keep the rest of the words as they are.',
+			'{"op":"edit","edits":[{"id":id,"text"?:the item’s whole new words,"color"?:color}]}: rewords or recolours items. Change only what was asked and keep the rest of the words as they are. Taking words out of a note ("strike the not invoice", "drop the last word", "take out X") is an edit that leaves the note’s other words; the transcript may mishear the words meant, so match them by sound.',
 			'{"op":"move","moves":[{"id":id,"x"?:left,"y"?:top}]}: moves items; work the place out from the listing, keeping 40 between things.',
 			'{"op":"arrange","layout":auto|grid|columns|row|column|tree|mindmap|radial|layered,"ids"?:[id],"direction"?:down|right|up|left}: sets items out; without ids, the whole canvas.',
 			`{"op":"align","ids":[id],"align"?:${TABLE_ALIGNS.join('|')},"distribute"?:horizontal|vertical}`,
-			'{"op":"frame","name":string,"ids":[id]}: a named area around items. {"op":"group","ids":[id]}. {"op":"remove","ids":[id]}: deletes items. {"op":"select","ids":[id]}.',
+			'{"op":"frame","name":string,"ids":[id]}: a named area around items. {"op":"group","ids":[id]}. {"op":"remove","ids":[id]}: deletes whole items, arrows too: "unlink A and B", "don’t link A and B", "remove that arrow" removes the arrow between them by its id. {"op":"select","ids":[id]}.',
 			`Colors: ${TABLE_COLORS.join(', ')}.`,
 			'Taking something back is a command too. "Actually, make that Friday", "I meant X" or "no, call it Y" rewords the note spoken last (edit, with its whole new words). "Scratch that", "forget that", "never mind" or "remove the last one" removes it (remove).',
 			'What "this", "these", "that" and "them" mean: the selected items when any are selected; otherwise the notes spoken most recently, counting the passage’s own note only if its "text" is not "". "The last one" or "the previous one" is the note spoken before this passage. Things may also be named by their words ("the note about pricing").',
@@ -609,6 +613,8 @@ export function parseRefine(reply: string, request: VoiceRefineRequest): VoiceRe
 	const whole = notes.join(' ');
 	// With a command taken out, what is left is shorter than what was heard, and may be nothing at all.
 	const trusted = ops.length ? answered && (!whole || partOfSpeech(request.text, whole)) : request.correct && !!whole && sameSpeech(request.text, whole);
+	// Heard as a command (or as nothing worth a note) and nothing could be done: it is not written down as if it were a thought.
+	if (request.commands && !ops.length && data && Array.isArray(data.notes) && !listed.length && Array.isArray(data.ops)) return { text: '', none: true };
 	const text = trusted ? notes[0] ?? '' : request.text;
 	const more = trusted && notes.length > 1 ? { more: notes.slice(1) } : {};
 	const done = ops.length ? { ops } : {};

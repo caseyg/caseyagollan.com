@@ -181,6 +181,13 @@ With "Lay out and connect" on, the note is set out as a mind map (`arrange` `min
   branches from), and the next thing said is written in it. An empty sticky or shape that is
   selected takes the next thing said in the same way.
 
+- Naming where a point belongs makes it a branch there: "off of work, Propel", "under study add
+  flashcards", "CRC, add scraping" add just the point, joined to the thing named.
+- "Don't link work and study" removes the arrow between them (arrows are listed to the model by
+  id). Taking words out of a note ("strike the not invoice") rewords it and leaves the rest.
+- A passage the model makes nothing of (a command it can't carry out, or only filler) is not
+  written down: the answer says `none` and the microphone says "Nothing done".
+
 Both came from the first voice note read back from the log (2026-11-28): "Add a new sticky" had
 been written down as a sentence, because the model's empty sticky was refused, and every thought
 followed the one before it.

@@ -299,6 +299,15 @@ export class VoiceNotes extends VoiceListening {
 		const session = how.session.filter((id) => !this.#gone.has(id));
 		const ops = answer?.ops ?? [];
 		// A passage that was all command leaves no block; the block spoken before it is the last again.
+		if (answer?.none) {
+			// Nothing was made of it: not a note, and not a command that could be done. It isn't written down.
+			canvas.remove(block.id);
+			this.#gone.add(block.id);
+			this.#session = this.#session.filter((id) => id !== block.id);
+			if (this.#last?.id === block.id) this.#last = before;
+			this.did = { text: 'Nothing done' };
+			return { was: 'nothing: no note, and no command that could be done', text: '' };
+		}
 		if (ops.length && !answer!.text) {
 			canvas.remove(block.id);
 			this.#gone.add(block.id);
