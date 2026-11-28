@@ -2,7 +2,7 @@
 	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { BlockPicker, RenameTable, TableCanvas, TableContextMenu, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
+	import { BlockPicker, MindMapHelp, RenameTable, TableCanvas, TableContextMenu, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
 	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
 	import { page } from '$app/state';
@@ -40,7 +40,7 @@
 	let missing = $state(false);
 
 	let api = $state<TableApi>();
-	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
+	let view = $state<TableState>({ tool: 'select', mindMap: false, canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 	let adding = $state(false);
 	/**
 	 * The Add menu kept open as a sidebar down the right of the table, which this browser remembers
@@ -423,6 +423,8 @@
 	});
 
 	let contextMenu = $state<TableContextMenu>();
+	/** Whether mind map mode's list of keys shows. */
+	let mindKeys = $state(false);
 
 	/** Add, from the toolbar or the right-click menu: opens or closes the picker. */
 	function add() {
@@ -528,6 +530,7 @@
 					canRedo: view.canRedo,
 					autoLayout: view.autoLayout,
 					auto: true,
+					mindMap: view.mindMap,
 					details: view.details,
 					tags: session.mode !== 'pass',
 					media: true,
@@ -539,6 +542,8 @@
 				onmedia={(files) => void api?.addMedia(files)}
 				onlayout={layout}
 				onautolayout={(value) => api?.setAutoLayout(value)}
+				onmindmap={(on) => api?.setMindMap(on)}
+				onmindmapkeys={() => (mindKeys = !mindKeys)}
 				onadd={add}
 				ondetails={(shown) => api?.setDetails(shown)}
 				ontags={tags}
@@ -570,6 +575,8 @@
 				onlayout={layout}
 				autoLayout={view.autoLayout}
 				onautolayout={(value) => api?.setAutoLayout(value)}
+				mindMap={view.mindMap}
+				onmindmap={(on) => api?.setMindMap(on)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
@@ -588,6 +595,9 @@
 				onvoicewords={(words) => (voice.words = words)}
 			/>
 		</div>
+		{#if editable}
+			<div class="dock dock--keys"><MindMapHelp active={view.mindMap} bind:open={mindKeys} /></div>
+		{/if}
 		{#if editable && adding}
 			<!-- One picker in two places: a menu over the table, or a sidebar the table makes room for. It keeps what it was showing when it moves. -->
 			<div class={pinned ? 'sidebar' : 'dock dock--picker'}>
@@ -640,6 +650,18 @@
 		left: 50%;
 		bottom: var(--space-4);
 		translate: -50% 0;
+	}
+
+	/* Mind map mode's list of keys, in the corner the Add menu and the chat leave free. */
+	.dock--keys {
+		left: var(--space-4);
+		bottom: calc(var(--space-4) + 4rem);
+	}
+
+	@media (max-width: 600px) {
+		.dock--keys {
+			display: none;
+		}
 	}
 
 	/* The Add menu kept open as a sidebar (a SidePanel down the right): the canvas ends beside it. */

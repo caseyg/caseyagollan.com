@@ -102,6 +102,16 @@ describe('the right-click menu', () => {
 		expect(values({ ...full, selection: [{ id: 'a' }] })).not.toContain('layout:selection');
 	});
 
+	test('mind map mode is a switch where it can be switched, with its keys listed while it is on', () => {
+		expect(values(base)).not.toContain('mindmap');
+		const off = flat(contextItems({ ...full, mindMap: false }));
+		expect(off.find((item) => item.value === 'mindmap')?.checked).toBe(false);
+		expect(off.some((item) => item.value === 'mindmap-keys')).toBe(false);
+		const on = flat(contextItems({ ...full, mindMap: true }));
+		expect(on.find((item) => item.value === 'mindmap')?.checked).toBe(true);
+		expect(on.find((item) => item.value === 'mindmap-keys')?.shortcut).toBe('?');
+	});
+
 	test('shows what is on: the tool in hand, auto layout and its layout, undo and redo', () => {
 		const items = flat(contextItems({ ...full, tool: 'geo', geo: 'star', autoLayout: 'tree', canUndo: true }));
 		const by = (value: string) => items.find((item) => item.value === value)!;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { EMBED_DIMENSIONS, EMBED_MODEL, READ_MODEL, READ_USAGE, alike, embedPending, imageWords, readPending, readWords, saidIn, shapeOf, similar } from '../src/lib/server/sources/embed';
+import { EMBED_DIMENSIONS, EMBED_MODEL, READ_MODEL, READ_USAGE, alike, embedPending, gathered, imageWords, readPending, readWords, saidIn, shapeOf, similar } from '../src/lib/server/sources/embed';
 import { document, memoryIndex } from './helpers/sources';
 
 /** A stand-in for the embedding model: one direction for tea, one for boats, so likeness can be told. */
@@ -51,6 +51,17 @@ describe('likeness between saved things', () => {
 	}
 	// Pictures are "fetched" as their own address, so the stand-in model can tell them apart.
 	const see = async (url: string) => url;
+
+	test('an answer sent as a stream is put back together', async () => {
+		const stream = (text: string) => new Response(text).body!;
+		expect(saidIn(await gathered(stream('{"answer":"TEA","metrics":{"input_tokens":3}}')))).toBe('TEA');
+		const events = await gathered(stream('data: {"response":"TE"}\n\ndata: {"response":"A"}\n\ndata: {"usage":{"prompt_tokens":7,"completion_tokens":2}}\n\ndata: [DONE]\n\n')) as { answer: string; usage: unknown };
+		expect(events.answer).toBe('TEA');
+		expect(events.usage).toEqual({ prompt_tokens: 7, completion_tokens: 2 });
+		expect(saidIn(await gathered(stream('data: {"chunk":"TE"}\ndata: {"chunk":"A"}\ndata: {"answer":"TEA","finish_reason":"stop"}\n')))).toBe('TEA');
+		expect(saidIn(await gathered(stream('data: {"choices":[{"delta":{"content":"TEA"}}]}\n')))).toBe('TEA');
+		expect(await gathered(stream('TEA'))).toBe('TEA');
+	});
 
 	test('the model’s words are found however it wraps them, and a missing answer says only its shape', () => {
 		expect(saidIn({ answer: 'TEA', finish_reason: 'stop' })).toBe('TEA');
