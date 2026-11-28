@@ -28,6 +28,19 @@ export const MINDMAP = [
 	'and print name tags'
 ];
 
+/** The Add drawer by voice: a thought, what is like it, some of those added by place and by name, then a block's page in pieces. */
+export const DRAWER = [
+	'calm tools for small websites',
+	'show similar items',
+	'add the second one',
+	'add the first two',
+	'add sander moolin',
+	'select aesthetic crisis',
+	'get context',
+	'add the first one',
+	'close the drawer'
+];
+
 /** What a chat story's dictation "hears": a message, then a follow-up. */
 export const ASKED = [
 	'so um which books about cooperatives are in the library',

@@ -397,6 +397,88 @@ export function quickCommand(text: string, items: readonly { id: string; text: s
 	return { kind, ids: scored.filter((one) => one.score === best).map((one) => one.id).slice(0, 12) };
 }
 
+/* The Add drawer by voice: "show similar items" opens it, and what it lists is added by place or by name. */
+
+const LEAD = '(?:(?:okay|ok|hey|please|now|and|then|so|also|can you|could you|can we|let\'s|lets)[, ]+)*';
+const ASKING = '(?:(?:show|find|open|get|give|see|pull up|bring up|pull out|look for|search for|list)(?: me| us)?|what(?:\'s| is| else is| are)|is there|are there|anything|any|more)';
+const SIMILAR = new RegExp(`^${LEAD}${ASKING}\\b.*\\b(?:similar|alike|related|like (?:this|that|these|those|it|them))\\b`, 'i');
+const CLOSING = new RegExp(`^${LEAD}(?:close|hide|dismiss|put away)\\s+(?:the |that |this )?(?:add )?(?:drawer|sidebar|menu|panel|list|pieces|similar(?: items| things| ones)?|that|it)[.!]*$`, 'i');
+
+const PIECES = new RegExp(`^${LEAD}(?:(?:get|show|give|pull up|bring up|open)(?: me| us)?(?: the| some| more)? context\\b|${ASKING}\\b.*\\b(?:pieces|parts|components|contents|pictures|images|photos|quotes|paragraphs|passages|links)(?: (?:of|in|on|from|for|inside) (?:this|that|it|these|here|there|the \\w+))?[.!?]*$|what(?:'s| is) (?:in|inside|on) (?:this|that|it|here|there|the (?:page|post|block|link|card))\\b|(?:pull|take|break|open) (?:this|that|it|the (?:page|post|block|link|card)) (?:apart|up|open)\\b)`, 'i');
+
+/**
+ * A passage that only asks the Add drawer for something. What is like the selection ("show similar
+ * items", "what's related to this", "find more like these"): `similar`. The selected block's page in
+ * pieces, its pictures, quotes and paragraphs ("get context", "show the pieces of this", "what's in
+ * this"): `pieces`. Putting the drawer away ("close the drawer"): `close`.
+ */
+export function drawerCommand(text: string): 'similar' | 'pieces' | 'close' | null {
+	const said = spoken_(text).replace(/[‘’]/g, "'");
+	if (letters(said).length > 12) return null;
+	return CLOSING.test(said) ? 'close' : SIMILAR.test(said) ? 'similar' : PIECES.test(said) ? 'pieces' : null;
+}
+
+/** Which of a list's lines a spoken "add …" names: by place (counted from 0; from the end when negative), all of them, or by words of a title. */
+export type ListPick = { places: number[] } | { first: number } | { last: number } | { all: true } | { name: string[]; whole?: boolean };
+
+const ADDING = new RegExp(`^${LEAD}(?:add|put|take|use|include|grab|drop in|bring in|place)\\s+(.+?)[.!?]*$`, 'i');
+const PLACES: Record<string, number> = { first: 0, top: 0, second: 1, third: 2, fourth: 3, fifth: 4, sixth: 5, seventh: 6, eighth: 7, ninth: 8, tenth: 9, last: -1, bottom: -1 };
+const COUNTS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, couple: 2, few: 3 };
+const PICK_FILLER = new Set([...FILLER, 'and', 'then', 'also', 'plus', 'number', 'numbers', 'result', 'results', 'them', 'in', 'here', 'there', 'table', 'onto', 'too', 'as', 'well', 'from', 'list', 'similar', 'drawer']);
+/** Words that say something is to be made on the table, not taken from the list. */
+const MAKING = new Set(['sticky', 'stickies', 'arrow', 'arrows', 'heading', 'circle', 'shape', 'rectangle', 'square', 'box', 'frame', 'area', 'text', 'note', 'notes', 'new', 'line', 'blank', 'empty']);
+const count = (word: string | undefined) => (word === undefined ? undefined : word in COUNTS ? COUNTS[word] : /^\d{1,2}$/.test(word) ? Number(word) : undefined);
+const place = (word: string) => (word in PLACES ? PLACES[word] : /^\d{1,2}(?:st|nd|rd|th)$/.test(word) ? parseInt(word, 10) - 1 : undefined);
+
+/**
+ * A passage that is nothing but "add …" said of a list that is showing: "add the second one", "add
+ * the first three", "add the first and the fourth", "add number two", "add all of them", or "add"
+ * and some words of a line's title. `null` when it isn't one. Words that could ask for something
+ * to be made ("add a new note about venues") must all be in a line's title (`whole`).
+ */
+export function listPick(text: string): ListPick | null {
+	const match = ADDING.exec(spoken_(text));
+	if (!match) return null;
+	const said = letters(match[1]);
+	if (!said.length || said.length > 14) return null;
+	// "Add a new sticky" asks for something to be made, unless a line is called just that.
+	const making = said.some((word) => MAKING.has(word));
+	const rest = said.filter((word) => MAKING.has(word) || !PICK_FILLER.has(word));
+	if (making && !rest.some((word) => !MAKING.has(word))) return null;
+	if (said.includes('all') || said.includes('everything') || said.includes('every')) return rest.every((word) => word === 'all' || word === 'everything' || word === 'every' || count(word) !== undefined) ? { all: true } : null;
+	// "The first three", "the last two", "the top five".
+	const edge = said.findIndex((word) => word === 'first' || word === 'top' || word === 'last' || word === 'bottom');
+	const many = edge < 0 ? undefined : count(said[edge + 1]);
+	if (many !== undefined && rest.length === 2) return said[edge] === 'last' || said[edge] === 'bottom' ? { last: many } : { first: many };
+	// "Number two", "numbers two and five".
+	const numbered = said.includes('number') || said.includes('numbers');
+	const places = rest.map((word) => place(word) ?? (numbered && count(word) !== undefined ? count(word)! - 1 : undefined));
+	if (places.length && places.every((one) => one !== undefined)) return { places: [...new Set(places as number[])] };
+	const name = rest.filter((word) => place(word) === undefined);
+	return name.length ? { name, ...(making ? { whole: true } : {}) } : null;
+}
+
+/** As many lines as one spoken "add all of them" takes. */
+export const LIST_PICK_MAX = 12;
+
+/** The lines a pick names, by their place in `titles`, in the list's order. None when nothing answers. */
+export function pickListed(pick: ListPick, titles: readonly string[]): number[] {
+	const total = titles.length, most = Math.min(total, LIST_PICK_MAX);
+	const range = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, index) => from + index);
+	if ('all' in pick) return range(0, most);
+	if ('first' in pick) return range(0, Math.min(pick.first, most));
+	if ('last' in pick) return range(Math.max(0, total - Math.min(pick.last, most)), total);
+	if ('places' in pick) return [...new Set(pick.places.map((at) => (at < 0 ? total + at : at)).filter((at) => at >= 0 && at < total))].sort((a, b) => a - b);
+	const scored = titles.map((title, at) => {
+		const has = letters(title);
+		return { at, score: pick.name.filter((word) => has.some((own) => own === word || (word.length >= 4 && own.startsWith(word)))).length / pick.name.length };
+	}).filter((one) => one.score >= (pick.whole ? 1 : 0.6));
+	if (!scored.length) return [];
+	// The one line that answers best; of equals, the one nearest the top.
+	const best = Math.max(...scored.map((one) => one.score));
+	return [scored.find((one) => one.score === best)!.at];
+}
+
 const ENDING = /^(?:(?:okay|ok|alright|and|so)[, ]+)*(?:that'?s|that is|that will be|that'll be)\s+(?:all|it|everything)(?:\s+for now)?[.!]*$/i;
 
 /** A passage that only says the speaker has finished ("that's all", "okay, that's it"): the voice note ends. */
