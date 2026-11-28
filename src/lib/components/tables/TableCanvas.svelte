@@ -21,10 +21,12 @@
 		embedded?: boolean;
 		onchange?: (document: unknown) => void;
 		onready?: (api: TableApi) => void;
+		/** The canvas was right-clicked (or long-pressed) while editable: where, in the viewport. Whatever was under the pointer is selected by then. */
+		onmenu?: (point: { x: number; y: number }) => void;
 		class?: string;
 	}
 
-	let { document, editable = false, embedded = false, onchange, onready, class: className = '' }: Props = $props();
+	let { document, editable = false, embedded = false, onchange, onready, onmenu, class: className = '' }: Props = $props();
 
 	let host: HTMLDivElement;
 	let api: TableApi | undefined;
@@ -80,6 +82,15 @@
 		};
 	});
 
+	// The site's menu stands in for the browser's, except where text is being typed (spelling, paste).
+	function oncontextmenu(event: MouseEvent) {
+		if (!editable || !onmenu || (event.target as HTMLElement | null)?.closest('[contenteditable="true"], input, textarea')) return;
+		event.preventDefault();
+		const point = { x: event.clientX, y: event.clientY };
+		// tldraw selects what was right-clicked on the same press; the menu reads the selection after that.
+		setTimeout(() => onmenu(point));
+	}
+
 	const carriesBlocks = (event: DragEvent) => !!event.dataTransfer?.types.includes(BLOCK_DRAG_TYPE);
 
 	function ondragover(event: DragEvent) {
@@ -115,6 +126,7 @@
 	ondragovercapture={ondragover}
 	ondragleave={() => (dropping = false)}
 	ondropcapture={ondrop}
+	{oncontextmenu}
 	role="application"
 	aria-label={editable ? 'Table canvas. Double-click a block to open it.' : 'Table. Double-click a block to open it.'}
 >

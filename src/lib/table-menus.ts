@@ -4,6 +4,7 @@
  */
 import type { IconName } from './components/ui/Icon.svelte';
 import type { TableArrangement, TableClusterBy, TableOp } from './table-agent';
+import { TABLE_POST_CHOICES } from './table-post';
 
 export interface TableMenuItem {
 	value: string;
@@ -113,4 +114,108 @@ export const AUTO_LAYOUT = 'autoLayout';
 export function autoLayoutOf(meta: Record<string, unknown> | undefined): string | undefined {
 	const value = meta?.[AUTO_LAYOUT];
 	return typeof value === 'string' && TABLE_LAYOUTS.some((item) => item.value === value) ? value : undefined;
+}
+
+/** The tools the bar shows as buttons. */
+export type ToolId = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser';
+export const TOOLS: { id: ToolId; label: string; icon: IconName; key: string }[] = [
+	{ id: 'select', label: 'Select', icon: 'pointer', key: 'V' },
+	{ id: 'hand', label: 'Pan', icon: 'hand', key: 'H' },
+	{ id: 'note', label: 'Note', icon: 'sticky', key: 'N' },
+	{ id: 'text', label: 'Text', icon: 'type', key: 'T' },
+	{ id: 'draw', label: 'Draw', icon: 'pencil', key: 'D' },
+	{ id: 'arrow', label: 'Arrow', icon: 'arrow', key: 'A' },
+	{ id: 'eraser', label: 'Eraser', icon: 'eraser', key: 'E' }
+];
+
+/** A row of the canvas's right-click menu (`ui/ContextMenu` takes these as they are). */
+export interface TableContextItem {
+	value: string;
+	label: string;
+	hint?: string;
+	icon?: IconName;
+	group?: string;
+	checked?: boolean;
+	shortcut?: string;
+	disabled?: boolean;
+	items?: TableContextItem[];
+}
+
+/** What the right-click menu needs to know of the table; what is left out isn't offered. */
+export interface TableContextState {
+	selection: { id: string; type?: string }[];
+	tool: string;
+	geo?: string;
+	canUndo: boolean;
+	canRedo: boolean;
+	autoLayout?: string;
+	/** Whether auto layout can be switched. */
+	auto?: boolean;
+	/** Whether the selected blocks show their details. */
+	details?: 'shown' | 'hidden' | 'mixed';
+	tags?: boolean;
+	/** Pictures and videos can be added from this device. */
+	media?: boolean;
+	voice?: { status: 'off' | 'starting' | 'listening'; correct: boolean; arrange: boolean; commands?: boolean };
+	/** Whether visitors can see the table; left out, it can't be published from here. */
+	published?: boolean;
+	post?: boolean;
+}
+
+/**
+ * The canvas's right-click menu: everything the toolbar does, by the same names. What applies to
+ * the selection comes first; layouts for the whole table, the tools and the rest follow.
+ * Values: `layout:<scope>:<layout>`, `auto`, `tool:<id>`, `more:<More value>`, `voice[:<choice>]`,
+ * `post:<as>`, and `add`, `details`, `tags`, `undo`, `redo`, `fit`, `publish`.
+ */
+export function contextItems(state: TableContextState): TableContextItem[] {
+	const scopes = layoutScopes(state.selection);
+	const layouts = (scope: LayoutScope): TableContextItem[] =>
+		TABLE_LAYOUTS.map(({ value, label, icon, group }) => ({ value: `layout:${scope}:${value}`, label, icon, group, ...(scope === 'table' && state.autoLayout === value ? { checked: true } : {}) }));
+	const more = (item: TableMenuItem): TableContextItem => ({
+		value: `more:${item.value}`,
+		label: item.label,
+		icon: item.icon,
+		group: item.group ?? 'More',
+		...(item.shortcut ? { shortcut: item.shortcut } : {}),
+		...(item.items ? { items: item.items.map(more) } : moreToolFor(state.tool, state.geo)?.value === item.value ? { checked: true } : {})
+	});
+	const tools: TableContextItem[] = [
+		...TOOLS.map((tool) => ({ value: `tool:${tool.id}`, label: tool.label, icon: tool.icon, shortcut: tool.key, group: 'Tools', ...(state.tool === tool.id ? { checked: true } : {}) })),
+		...MORE_TOOLS.filter((item) => state.media || item.value !== 'media').map(more)
+	];
+	const voice = state.voice;
+	const items: TableContextItem[] = [];
+	if (scopes.selection) items.push({ value: 'layout:selection', label: scopes.label === 'Inside this area' ? 'Lay out inside this area' : 'Lay out the selection', icon: 'layout', items: layouts('selection') });
+	if (state.details) items.push({ value: 'details', label: state.details === 'shown' ? 'Hide details' : 'Show details', icon: 'properties' });
+	if (state.tags && state.selection.length) items.push({ value: 'tags', label: 'Tags…', icon: 'hash' });
+	items.push(
+		{ value: 'add', label: 'Add…', icon: 'plus', group: 'table' },
+		{ value: 'layout:table', label: 'Lay out the whole table', icon: 'layout', group: 'table', items: layouts('table') }
+	);
+	if (state.auto) items.push({ value: 'auto', label: 'Auto layout', hint: 'Again whenever something is added', icon: 'sparkle', checked: !!state.autoLayout, group: 'table' });
+	items.push({ value: 'tools', label: 'Tools', icon: 'shapes', group: 'table', items: tools });
+	if (voice) {
+		items.push({
+			value: 'voice-note',
+			label: 'Voice note',
+			icon: 'mic',
+			group: 'table',
+			items: [
+				{ value: 'voice', label: voice.status === 'off' ? 'Start listening' : 'Stop listening', icon: 'mic' },
+				{ value: 'voice:correct', label: 'Tidy into notes', checked: voice.correct, group: 'choices' },
+				{ value: 'voice:arrange', label: 'Lay out and connect', checked: voice.arrange, group: 'choices' },
+				...(voice.commands !== undefined ? [{ value: 'voice:commands', label: 'Follow spoken commands', checked: voice.commands, group: 'choices' }] : [])
+			]
+		});
+	}
+	if (state.tags && !state.selection.length) items.push({ value: 'tags', label: 'Tags…', icon: 'hash', group: 'table' });
+	items.push(
+		{ value: 'undo', label: 'Undo', icon: 'undo', disabled: !state.canUndo, group: 'view' },
+		{ value: 'redo', label: 'Redo', icon: 'redo', disabled: !state.canRedo, group: 'view' },
+		{ value: 'fit', label: 'Fit to screen', icon: 'fit', group: 'view' }
+	);
+	if (state.post) items.push({ value: 'post', label: 'Post', icon: 'drafts', group: 'publish', items: TABLE_POST_CHOICES.map((choice) => ({ value: `post:${choice.value}`, label: choice.label, hint: choice.value === 'embed' && state.published === false ? 'Readers see it once the table is published' : choice.hint })) });
+	if (state.published !== undefined) items.push({ value: 'publish', label: state.published ? 'Unpublish' : 'Publish', icon: 'globe', hint: state.published ? 'Make this a draft only you can see' : 'Let anyone see this table', group: 'publish' });
+	return items;
 }
