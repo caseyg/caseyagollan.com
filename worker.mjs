@@ -12,6 +12,8 @@ import { routeAgentRequest } from 'agents';
 import { chatViewer, withViewer } from './src/lib/server/chat/identity.ts';
 import { CHAT_OWNER_ONLY } from './src/lib/chat.ts';
 import { withPreviewOrigin } from './src/lib/server/indieauth/contracts.ts';
+import { voiceListen } from './src/lib/server/voice.ts';
+import { VOICE_LISTEN_PATH } from './src/lib/voice-notes.ts';
 
 export { IndieAuthStore } from './src/lib/server/indieauth/store.ts';
 export { ChatThread } from './src/lib/server/chat/agent.ts';
@@ -46,6 +48,8 @@ export default {
     if (env.STORYBOOK && (pathname === '/storybook' || pathname.startsWith('/storybook/'))) return env.STORYBOOK.fetch(request);
     // Live cursors and cursor chat: one Durable Object per page, at /parties/cursors/<page>.
     if (pathname.startsWith('/parties/')) return cursorRequest(request, env);
+    // Voice notes on tables: the owner's microphone, as a WebSocket straight to the speech model.
+    if (pathname === VOICE_LISTEN_PATH) return voiceListen(request, env, async () => !!(await chatViewer(request, env))?.owner);
     if (pathname.startsWith('/agents/')) return chatAgentRequest(request, env).then((response) => response ?? new Response('Not found', { status: 404 }));
     return application.fetch(request, env, context);
   },

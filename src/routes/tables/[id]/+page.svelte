@@ -19,6 +19,9 @@
 	import { wikiHref } from '$lib/wiki/links';
 	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
+	import { VoiceNotes } from '$lib/voice-session.svelte';
+	import { browserSource, workerSource } from '$lib/voice-source';
+	import { VOICE_REFINE_PATH, type VoiceRefineAnswer, type VoiceRefineRequest } from '$lib/voice-notes';
 	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
@@ -84,6 +87,20 @@
 	const statusText = $derived(
 		!editable ? undefined : posting ? 'Making the post…' : postError ? postError : status === 'failed' ? 'Couldn’t save' : status === 'saving' || status === 'unsaved' ? 'Saving…' : session?.mode === 'demo' ? 'Saved in this browser' : 'Saved'
 	);
+
+	/**
+	 * A finished voice note block, asked of a model: corrected, and placed after the block it follows.
+	 * Nothing to ask (the demo, a Worker with no model) answers null and the block stays as heard.
+	 */
+	async function refineVoice(request: VoiceRefineRequest): Promise<VoiceRefineAnswer | null> {
+		const response = await fetch(VOICE_REFINE_PATH, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': session?.csrf ?? '' }, body: JSON.stringify(request) });
+		if ([401, 403, 503].includes(response.status)) return null;
+		if (!response.ok) throw new Error(`Voice note refine answered ${response.status}`);
+		return (await response.json()) as VoiceRefineAnswer;
+	}
+
+	// The owner's voice note: the Worker's speech model where there is one, the browser's dictation otherwise.
+	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(), browserSource()], refine: refineVoice, storage: typeof localStorage === 'undefined' ? undefined : localStorage });
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
@@ -264,6 +281,7 @@
 		window.addEventListener('beforeunload', warn);
 		return () => {
 			window.removeEventListener('beforeunload', warn);
+			voice.stop();
 			phone.removeEventListener('change', fit);
 			// Leaving for another page (or another table): save what's waiting now.
 			if (pending !== undefined) void flush();
@@ -458,6 +476,10 @@
 					tagging = tagging ? null : 'edit';
 					if (tagging && !pinned) adding = false;
 				}}
+				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange } : undefined}
+				onvoice={voice.toggle}
+				onvoicecorrect={(on) => (voice.correct = on)}
+				onvoicearrange={(on) => (voice.arrange = on)}
 			/>
 		</div>
 		{#if editable && adding}

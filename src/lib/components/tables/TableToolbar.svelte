@@ -21,6 +21,7 @@
 	import ActionMenu from '../ui/ActionMenu.svelte';
 	import type { TablePostAs } from '$lib/table-post';
 	import Button from '../ui/Button.svelte';
+	import VoiceControl, { type VoiceView } from './VoiceControl.svelte';
 	import TablePostMenu from './TablePostMenu.svelte';
 
 	interface Props {
@@ -74,9 +75,17 @@
 		onpost?: (as: TablePostAs) => void;
 		/** A post is being made from the table. */
 		posting?: boolean;
+		/**
+		 * With `onvoice`, the owner gets the voice note: a microphone that writes what is said onto the
+		 * table as text blocks, and its two choices (`onvoicecorrect`, `onvoicearrange`).
+		 */
+		voice?: VoiceView;
+		onvoice?: () => void;
+		onvoicecorrect?: (on: boolean) => void;
+		onvoicearrange?: (on: boolean) => void;
 	}
 
-	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false }: Props = $props();
+	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false, voice, onvoice, onvoicecorrect, onvoicearrange }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -121,6 +130,10 @@
 		<ActionMenu label={extra ? `More tools: ${extra.label}` : 'More tools'} icon={extra?.icon ?? 'shapes'} iconOnly items={moreTools} pressed={!!extra} side={menuSide} onaction={more} />
 		{#if onmedia}
 			<input bind:this={picker} class="media" type="file" accept="image/*,video/*" multiple tabindex="-1" aria-hidden="true" onchange={() => { onmedia([...(picker.files ?? [])]); picker.value = ''; }} />
+		{/if}
+		{#if voice && onvoice}
+			<span class="divider" aria-hidden="true"></span>
+			<VoiceControl {voice} ontoggle={onvoice} oncorrect={onvoicecorrect} onarrange={onvoicearrange} />
 		{/if}
 		<span class="divider" aria-hidden="true"></span>
 		<Button variant="icon" icon="undo" label="Undo" disabled={!canUndo} onclick={onundo} />

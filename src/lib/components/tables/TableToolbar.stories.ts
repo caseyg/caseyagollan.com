@@ -16,6 +16,9 @@ export const Posting: Story = { args: { published: true, onpublish: () => {}, on
 export const PickerOpen: Story = { args: { adding: true, tool: 'note' } };
 export const Saving: Story = { args: { status: 'Saving…', tool: 'draw' } };
 export const SaveFailed: Story = { args: { status: 'Couldn’t save' } };
+/** The owner's voice note: a microphone that writes what is said onto the table, with its choices behind the chevron. */
+export const VoiceNote: Story = { args: { published: true, onpublish: () => {}, voice: { status: 'off', correct: true, arrange: false }, onvoice: () => {} } };
+export const VoiceNoteListening: Story = { args: { published: true, onpublish: () => {}, voice: { status: 'listening', level: 0.6, correct: true, arrange: true }, onvoice: () => {} } };
 /** Visitors can only fit the view; they pan and zoom on the canvas itself. */
 export const Visitor: Story = { args: { editable: false, status: undefined } };
 /**

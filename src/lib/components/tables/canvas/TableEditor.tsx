@@ -33,6 +33,7 @@ import { arrange, clustersBy, labelIssues, routeArrows, usesArrows, type Arrange
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { tagRef } from '$lib/tag-edits';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
+import { installTextBlocks, voiceCanvas, type VoiceCanvas } from './textBlocks';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
 export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser' | 'frame' | 'geo' | 'line' | 'highlight' | 'laser';
@@ -79,6 +80,8 @@ export interface TableApi {
 	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
 	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'relink' | 'rename' | 'tag' }>): Promise<unknown>;
+	/** What a voice note writes with: blocks whose words arrive as they are heard (`$lib/voice-session.svelte`). */
+	voice: VoiceCanvas;
 	/** Takes up a tool; `geo` is the shape the geo tool draws. */
 	setTool(tool: TableTool, geo?: string): void;
 	/** Sets pictures or videos from this device down in the middle of the view. */
@@ -165,8 +168,14 @@ function detailsOf(blocks: SiteBlockShape[]): TableState['details'] {
 	return hidden === 0 ? 'shown' : hidden === blocks.length ? 'hidden' : 'mixed';
 }
 
+/** Whatever a shape lies on is moved down (and on down its column), not covered. */
+function pushAside(editor: Editor, id: TLShapeId) {
+	const moves = tidyLayout(boxesOf(editor, shapesFor(editor, undefined).filter(SOLID)), GAP, short(id));
+	if (moves.length) place(editor, moves);
+}
+
 function apiFor(editor: Editor): TableApi {
-	return {
+	const api: TableApi = {
 		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false, sizes, plain = false } = {}) {
 			if (!blocks.length) return [];
 			const dropped = at && (page ? at : editor.screenToPage(at));
@@ -202,6 +211,7 @@ function apiFor(editor: Editor): TableApi {
 		perform(op) {
 			return performOp(editor, op, this);
 		},
+		voice: voiceCanvas(editor, { openSpot, pushAside, perform: (op) => api.perform(op) }),
 		setTool(tool, geo) {
 			if (tool === 'geo' && geo) editor.setStyleForNextShapes(GeoShapeGeoStyle, geo as TLGeoShapeGeoStyle);
 			editor.setCurrentTool(tool);
@@ -271,6 +281,7 @@ function apiFor(editor: Editor): TableApi {
 			});
 		}
 	};
+	return api;
 }
 
 const ANIMATION = { animation: { duration: 320 } };
@@ -1123,12 +1134,15 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			// Read-only once the page has set anything out, so a seeded table can still be shown to visitors.
 			editor.updateInstanceState({ isReadonly: !editable });
 			if (editable) void upgradeLinkBlocks(editor);
+			// Text blocks combine when one is dropped on another, and divide on Enter.
+			const offText = editable ? installTextBlocks(editor, { pushAside }) : undefined;
 			if (embedded) {
 				editor.setCameraOptions({ wheelBehavior: 'none' });
 				editor.setCurrentTool('hand');
 			}
 			return () => {
 				stop();
+				offText?.();
 				stopLayout();
 				editor.off('event', offEvent);
 			};

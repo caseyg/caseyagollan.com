@@ -7,7 +7,7 @@
  * these stop is clickjacking of the owner's pages, downgrade to HTTP, and content sniffing.
  */
 export const HSTS = 'max-age=31536000';
-export const PERMISSIONS = 'camera=(), microphone=(), payment=(), usb=(), geolocation=(self)';
+export const PERMISSIONS = 'camera=(), microphone=(self), payment=(), usb=(), geolocation=(self)';
 export const PAGE_POLICY = "base-uri 'self'; object-src 'none'; frame-ancestors 'self'";
 /** Table embeds are made to be framed by any site. */
 export const EMBED_POLICY = "base-uri 'self'; object-src 'none'";
