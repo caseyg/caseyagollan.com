@@ -58,7 +58,8 @@ a model.
   block follows the one spoken before it.
 
 The model is the chat's: `VOICE_TEXT_MODEL` if set (as the Model menu names it, for example
-`anthropic:claude-haiku-5-5`), else the chat's own model, else any provider with a key.
+`anthropic:claude-haiku-5-5`), else Qwen on Cerebras where its key is set (`VOICE_FAST_MODEL`),
+else the chat's own model, else any provider with a key.
 
 ## Spoken commands
 
@@ -127,7 +128,8 @@ model's answer, and the change itself. What is done about each:
 - The model is the slowest part. Measured from the sandbox with the same seven commands: the
   chat's default (GLM on inference.coop) answers in 1 to 2.5 seconds; Qwen 3.8 on Cerebras in 0.3
   to 0.5 seconds, at about ten times the price per ask (about 0.17¢ against 0.016¢).
-  `VOICE_TEXT_MODEL=cerebras:qwen-3.8-27b` switches to it.
+  Casey chose the fast one (2026-11-28): where `CEREBRAS_API_KEY` is set it is the default
+  (`VOICE_FAST_MODEL`), and the chat's model answers where it isn't. `VOICE_TEXT_MODEL` overrides both.
 
 A command can make something and use it in the same breath: a new note or shape may be given a
 name (`"as":"new1"`) that later operations of that command use as its id, which is how "add a

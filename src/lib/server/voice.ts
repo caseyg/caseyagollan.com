@@ -63,11 +63,14 @@ export async function voiceListen(request: Request, env: VoiceEnv, owner: () => 
 	}
 }
 
-/** The model that answers: `VOICE_TEXT_MODEL` if it can answer here, else the chat's own, else any provider with a key. */
+/** The fast model a voice note prefers: an answer in under half a second is what makes a spoken command feel heard (Casey chose it, 2026-11-28). */
+export const VOICE_FAST_MODEL = 'cerebras:qwen-3.8-27b';
+
+/** The model that answers: `VOICE_TEXT_MODEL` if it can answer here, else the fast one, else the chat's own, else any provider with a key. */
 function textModel(env: VoiceEnv) {
 	const chat = chatModels(env);
 	const keyed = (provider: string) => !!env[CHAT_PROVIDERS.find((one) => one.id === provider)?.secret ?? 'INFERENCE_COOP_API_KEY'];
-	const refs = [chat.resolve(env.VOICE_TEXT_MODEL), chat.model, chat.resolve(chat.options[0]?.key)];
+	const refs = [chat.resolve(env.VOICE_TEXT_MODEL), chat.resolve(VOICE_FAST_MODEL), chat.model, chat.resolve(chat.options[0]?.key)];
 	const ref = refs.find((one) => one && keyed(one.provider));
 	const model = ref && chat.models.getModel(ref.provider, ref.id);
 	return model ? { models: chat.models, model } : undefined;
