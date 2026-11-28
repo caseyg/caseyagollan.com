@@ -213,6 +213,19 @@ A text block can be a heading. Anything the chat or a voice note writes onto a t
 
 Spoken: "add a heading called Roadmap" makes a text block holding `# Roadmap`; "a subheading" is `##`; "make that a heading" puts `# ` before a block's words. "Create a markdown heading" with no words makes `# Heading`, a stand-in that the next thing said replaces at the same level (`emptyHeading`), the way an empty sticky is filled.
 
+## What new notes are
+
+A note is written as a text block while it is being said. Once it has settled it is made the shape it should be (`VoiceNotes.shape`, kept in this browser under `tables-voice-shape`):
+
+- **Matched** (the default): the shape of what the note is added from. A note said about a sticky (the selection, or what it follows when "Lay out and connect" is on, or the note before it) is a sticky; one said about text is text.
+- **Text** or **Stickies**: always that.
+
+The choice is in the microphone's menu ("New notes are"), and can be changed aloud with "Follow spoken commands" on: "use stickies", "switch to text", "write as sticky notes", "sticky mode", "match what I'm adding from". `shapeCommand` reads these with no model, and the change takes its turn after what was said before it, so a note already spoken keeps the shape it was said in. "Add a sticky" still makes one sticky, as before.
+
+A sticky is another thing on the table than the text block the words arrived in (`VoiceCanvas.recast` answers its new id), so the session keeps track of what each block became.
+
+Try it in the story `tables-tablecanvas--voice-shapes`.
+
 ## The Add drawer by voice
 
 With "Follow spoken commands" on, the Add drawer can be opened and used without a hand:

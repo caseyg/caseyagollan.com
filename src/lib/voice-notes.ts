@@ -418,6 +418,29 @@ export function drawerCommand(text: string): 'similar' | 'pieces' | 'close' | nu
 	return CLOSING.test(said) ? 'close' : SIMILAR.test(said) ? 'similar' : PIECES.test(said) ? 'pieces' : null;
 }
 
+/** What a voice note writes its notes as: text blocks, stickies, or (`auto`) whichever the note is added from. */
+export type VoiceShape = 'auto' | 'text' | 'note';
+export const VOICE_SHAPES: readonly VoiceShape[] = ['auto', 'text', 'note'];
+/** How each is named when it is chosen. */
+export const VOICE_SHAPE_SAID: Record<VoiceShape, string> = { auto: 'New notes match what they’re added from', text: 'New notes are text', note: 'New notes are stickies' };
+
+const SHAPE_NOTE = '(?:stick(?:y|ies|ie)(?: notes?)?|post[- ]?its?(?: notes?)?)';
+const SHAPE_TEXT = '(?:(?:plain )?text(?: blocks?| boxes| box)?)';
+const SHAPE_AUTO = '(?:auto(?:matic)?|match(?:ing)?(?: (?:the selection|what(?:ever)? (?:i\'m|i am|is) (?:adding (?:from|to|off of|off)|selected)))?|(?:the )?same (?:as|shape as) (?:the selection|what(?:ever)? (?:i\'m|i am|is) (?:adding (?:from|to|off of|off)|selected))|whatever (?:i\'m|i am) adding (?:from|to|off of|off))';
+const SHAPING = new RegExp(`^${LEAD}(?:(?:(?:use|switch(?: back)? to|change to|go(?: back)? to|write (?:as|in|on|with)|add (?:(?:them|these|things|new ones|new notes|notes) )?as|make (?:new ones|new notes|new things)(?: into)?|new (?:ones|notes|things) (?:as|are|should be)|(?:set|change|switch|toggle) (?:the )?(?:shape|tool|mode|style)(?: to)?)\\s+)(?:the |a |an )?(${SHAPE_NOTE}|${SHAPE_TEXT}|${SHAPE_AUTO})(?: mode| tool)?|(${SHAPE_NOTE}|${SHAPE_TEXT}|auto(?:matic)?) (?:mode|tool)|(match(?:ing)? (?:the selection|what(?:ever)? (?:i'm|i am|is) (?:adding (?:from|to|off of|off)|selected))))(?: (?:from now on|by default|for new (?:ones|notes)|please|again))*[.!]*$`, 'i');
+
+/**
+ * A passage that only says what new notes should be: "use stickies", "switch to text", "write as
+ * sticky notes", "sticky mode", "match what I'm adding from". `null` when it isn't one; "add a
+ * sticky" asks for one to be made, and is a command for the table.
+ */
+export function shapeCommand(text: string): VoiceShape | null {
+	const match = SHAPING.exec(spoken_(text).replace(/[‘’]/g, "'"));
+	const said = (match?.[1] ?? match?.[2] ?? match?.[3])?.toLowerCase();
+	if (!said) return null;
+	return new RegExp(`^${SHAPE_NOTE}$`, 'i').test(said) ? 'note' : new RegExp(`^${SHAPE_TEXT}$`, 'i').test(said) ? 'text' : 'auto';
+}
+
 /** Which of a list's lines a spoken "add …" names: by place (counted from 0; from the end when negative), all of them, or by words of a title. */
 export type ListPick = { places: number[] } | { first: number } | { last: number } | { all: true } | { name: string[]; whole?: boolean };
 

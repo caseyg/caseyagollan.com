@@ -6,7 +6,7 @@
 	import { layoutOp } from '$lib/table-menus';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { COMMANDS, DRAWER, MINDMAP, RAMBLE, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
+	import { COMMANDS, DRAWER, MINDMAP, RAMBLE, SHAPES, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
 	import BlockPicker from './BlockPicker.svelte';
 	import type { Block } from '$lib/tables';
 	import type { LikeThing } from '$lib/table-feed';
@@ -34,6 +34,9 @@
 	const rambling = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(RAMBLE)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
 	const mapping = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(MINDMAP)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
 	mapping.arrange = true;
+	// What new notes are, changed aloud as the map grows.
+	const shaping = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(SHAPES)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
+	shaping.arrange = true;
 	function onvoiceready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
@@ -224,6 +227,25 @@ Each morning starts with a short demo, then people work on their own sites.
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
 				voice={{ status: mapping.status, level: mapping.level, notice: mapping.notice, correct: mapping.correct, arrange: mapping.arrange, commands: mapping.commands, did: mapping.did, thinking: mapping.thinking > 0, usage: mapping.usageView, words: mapping.words }}
 				onvoice={mapping.toggle} onvoicecorrect={(on) => (mapping.correct = on)} onvoicearrange={(on) => (mapping.arrange = on)} onvoicecommands={(on) => (mapping.commands = on)} onvoicemeter={(on) => (mapping.meter = on)} onvoicewords={(words) => (mapping.words = words)}
+			/>
+		</div>
+	</div>
+</Story>
+
+<!--
+	What new notes are: "use stickies" makes each note a sticky, "switch to text" a text block, and "match
+	what I'm adding from" makes a note said about a sticky a sticky and one said about text text. The same
+	choice is in the microphone's menu, and it is remembered.
+-->
+<Story asChild name="Voice shapes">
+	<div class="frame tall">
+		<TableCanvas document={null} editable onready={onvoiceready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: shaping.status, level: shaping.level, notice: shaping.notice, correct: shaping.correct, arrange: shaping.arrange, commands: shaping.commands, did: shaping.did, thinking: shaping.thinking > 0, usage: shaping.usageView, words: shaping.words, shape: shaping.shape }}
+				onvoice={shaping.toggle} onvoicecorrect={(on) => (shaping.correct = on)} onvoicearrange={(on) => (shaping.arrange = on)} onvoicecommands={(on) => (shaping.commands = on)} onvoicemeter={(on) => (shaping.meter = on)} onvoicewords={(words) => (shaping.words = words)} onvoiceshape={(shape) => (shaping.shape = shape)}
 			/>
 		</div>
 	</div>

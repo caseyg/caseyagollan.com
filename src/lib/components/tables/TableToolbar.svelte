@@ -8,6 +8,7 @@
 	import { layoutScopes, moreToolFor, MORE_TOOLS, TABLE_LAYOUTS, toolChoice, TOOLS, type LayoutScope, type ToolId } from '$lib/table-menus';
 	import ActionMenu from '../ui/ActionMenu.svelte';
 	import type { TablePostAs } from '$lib/table-post';
+	import type { VoiceShape } from '$lib/voice-notes';
 	import Button from '../ui/Button.svelte';
 	import VoiceControl, { type VoiceView } from './VoiceControl.svelte';
 	import TablePostMenu from './TablePostMenu.svelte';
@@ -73,11 +74,13 @@
 		onvoicearrange?: (on: boolean) => void;
 		onvoicecommands?: (on: boolean) => void;
 		onvoicemeter?: (on: boolean) => void;
+		/** What new notes are written as, changed from the voice menu. */
+		onvoiceshape?: (shape: VoiceShape) => void;
 		/** The known words, changed from the voice menu. */
 		onvoicewords?: (words: string[]) => void;
 	}
 
-	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false, voice, onvoice, onvoicecorrect, onvoicearrange, onvoicecommands, onvoicemeter, onvoicewords }: Props = $props();
+	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false, voice, onvoice, onvoicecorrect, onvoicearrange, onvoicecommands, onvoicemeter, onvoiceshape, onvoicewords }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -125,7 +128,7 @@
 		{/if}
 		{#if voice && onvoice}
 			<span class="divider" aria-hidden="true"></span>
-			<VoiceControl {voice} ontoggle={onvoice} oncorrect={onvoicecorrect} onarrange={onvoicearrange} oncommands={onvoicecommands} onmeter={onvoicemeter} onwords={onvoicewords} />
+			<VoiceControl {voice} ontoggle={onvoice} oncorrect={onvoicecorrect} onarrange={onvoicearrange} oncommands={onvoicecommands} onmeter={onvoicemeter} onshape={onvoiceshape} onwords={onvoicewords} />
 		{/if}
 		<span class="divider" aria-hidden="true"></span>
 		<Button variant="icon" icon="undo" label="Undo" disabled={!canUndo} onclick={onundo} />

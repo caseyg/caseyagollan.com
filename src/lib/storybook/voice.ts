@@ -28,6 +28,19 @@ export const MINDMAP = [
 	'and print name tags'
 ];
 
+/** What new notes are, chosen aloud: stickies, then text, then whichever each is added from. */
+export const SHAPES = [
+	'workshop ideas',
+	'use stickies',
+	'invite the speakers early',
+	'print name tags',
+	'switch to text',
+	'the budget is due friday',
+	'match what i\'m adding from',
+	'select invite the speakers',
+	'ask them for slides'
+];
+
 /** The Add drawer by voice: a thought, what is like it, some of those added by place and by name, then a block's page in pieces. */
 export const DRAWER = [
 	'calm tools for small websites',
