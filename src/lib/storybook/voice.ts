@@ -16,6 +16,7 @@ export const COMMANDS = [
 	'turn one two three into numbers',
 	'draw a circle next to that and call it ideas',
 	'make the first one blue',
+	'add a new sticky connected by an arrow for work',
 	'select the new block'
 ];
 
@@ -58,13 +59,14 @@ function scriptedCommand(request: VoiceRefineRequest): { text: string; ops: Voic
 	if (heard.includes('connect these two') && last && request.id) return { text: 'Okay, cool. So this is a new block.', ops: [{ op: 'connect', links: [{ from: last, to: request.id }] }] };
 	if (heard.includes('into numbers') && first) return { text: '', ops: [{ op: 'edit', edits: [{ id: first, text: words(first).replace(/one,? two,? three/i, '1, 2, 3') }] }] };
 	if (heard.includes('draw a circle') && last) return { text: '', ops: [{ op: 'add_shape', shape: 'ellipse', text: 'Ideas', right_of: last }] };
+	if (heard.includes('sticky') && last) return { text: '', ops: [{ op: 'add_note', text: 'Work', style: 'note', right_of: last, as: 'new1' }, { op: 'connect', links: [{ from: last, to: 'new1' }] }] };
 	if (heard.includes('blue') && first) return { text: '', ops: [{ op: 'edit', edits: [{ id: first, color: 'blue' }] }] };
 	return undefined;
 }
 
 /** A stand-in for the model: tidies the stories' passages, and says each follows the one before, the last branching from the first. */
 export async function scriptedRefine(request: VoiceRefineRequest): Promise<VoiceRefineAnswer> {
-	await new Promise((resolve) => setTimeout(resolve, 250));
+	await new Promise((resolve) => setTimeout(resolve, 900));
 	// As the Worker does, each answer says what it used, so the stories' usage counter has something to count.
 	const usage = { provider: 'story', model: 'stand-in', input: 600 + request.text.length, output: 40, usd: 0.00008 };
 	const command = scriptedCommand(request);

@@ -14,6 +14,8 @@
 		commands?: boolean;
 		/** What the last spoken command did; shown by the microphone for a few seconds. */
 		did?: { text: string };
+		/** A model is considering what was just said: correcting it, or taking it as a command. */
+		thinking?: boolean;
 		/** What voice notes have used. Left out, nothing about cost is shown. */
 		usage?: VoiceUsageView;
 	}
@@ -64,17 +66,21 @@
 	// What a command did stays a few seconds, then goes. It is shown in the top layer, over the
 	// microphone, because the toolbar clips what it holds.
 	let did = $state('');
+	let shown: { text: string } | undefined;
 	let root: HTMLElement | undefined = $state();
 	let said: HTMLElement | undefined = $state();
 	$effect(() => {
-		if (!voice.did) return void (did = '');
+		// Each thing done is said once, for a few seconds, even while the next block is being thought about.
+		if (!voice.did || voice.did === shown) return;
+		shown = voice.did;
 		did = voice.did.text;
-		const gone = setTimeout(() => (did = ''), 4500);
+		const gone = setTimeout(() => (did = ''), 3500);
 		return () => clearTimeout(gone);
 	});
+	const bubble = $derived(did || (voice.thinking ? 'Thinking…' : ''));
 	$effect(() => {
 		if (!said || !root) return;
-		if (!did) return void (said.matches(':popover-open') && said.hidePopover());
+		if (!bubble) return void (said.matches(':popover-open') && said.hidePopover());
 		const mic = root.getBoundingClientRect();
 		said.style.left = `${mic.left + mic.width / 2}px`;
 		said.style.bottom = `${window.innerHeight - mic.top + 12}px`;
@@ -88,7 +94,7 @@
 -->
 <span bind:this={root} class="voice" class:listening data-status={voice.status} style:--level={listening ? (voice.level ?? 0).toFixed(2) : 0}>
 	<Button variant="icon" icon="mic" {label} pressed={listening} class="voice-mic" onclick={ontoggle} />
-	<span bind:this={said} class="said" popover="manual" role="status">{did}</span>
+	<span bind:this={said} class="said" class:thinking={!did && voice.thinking} popover="manual" role="status">{bubble}</span>
 	{#if voice.usage?.shown}<span class="meter" title="What voice notes have used since this page opened, about">{formatUsd(voice.usage.usd)}</span>{/if}
 	<Popover label="Voice note options" hideTitle={false} align="end" bind:open triggerClass="voice-options" panelClass="voice-panel">
 		{#snippet trigger()}<MenuChevron split={false} />{/snippet}
@@ -150,6 +156,11 @@
 		white-space: nowrap;
 		box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 0.3);
 		pointer-events: none;
+	}
+
+	.said.thinking {
+		color: var(--text-muted);
+		animation: voice-wait 0.8s var(--ease) infinite alternate;
 	}
 
 	/* The running cost: small figures beside the microphone. */
@@ -279,7 +290,8 @@
 			transition: none;
 		}
 
-		.voice[data-status='starting'] :global(.voice-mic) {
+		.voice[data-status='starting'] :global(.voice-mic),
+		.said.thinking {
 			animation: none;
 		}
 	}

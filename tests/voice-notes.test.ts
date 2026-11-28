@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
+import { resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
 import { listenOptions, voiceListen } from '../src/lib/server/voice';
 
 const doc = (...paragraphs: string[]): RichDoc => ({ type: 'doc', content: paragraphs.map((text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })) });
@@ -22,6 +22,13 @@ describe('what a transcriber says', () => {
 
 	test('anything else is no event', () => {
 		for (const message of [null, 'hello', { type: 'Connected' }, { type: 'Metadata' }, { event: 'Mystery', transcript: 'x' }]) expect(sttEvents(message)).toEqual([]);
+	});
+});
+
+describe('a head start', () => {
+	test('Flux saying the speaker has probably finished is passed on, and closes nothing', () => {
+		expect(sttEvents({ event: 'EagerEndOfTurn', transcript: 'draw a circle' })).toEqual([{ type: 'partial', text: 'draw a circle' }, { type: 'likely' }]);
+		expect(hear({ settled: '', partial: 'draw a circle' }, { type: 'likely' })).toEqual({ block: { settled: '', partial: 'draw a circle' }, done: false });
 	});
 });
 
@@ -201,6 +208,22 @@ describe('spoken commands', () => {
 		expect(cleanVoiceOps([{ op: 'remove', ids: ['a1'] }], undefined)).toEqual([]);
 	});
 
+	test('a command can connect to something it has just made', () => {
+		const ops = cleanVoiceOps([
+			{ op: 'add_note', text: 'Work', style: 'note', right_of: 'a1', as: 'new1' },
+			{ op: 'connect', links: [{ from: 'a1', to: 'new1' }, { from: 'a1', to: 'new2' }] },
+			{ op: 'add_note', text: 'Play', as: 'a1' }
+		], table);
+		expect(ops).toEqual([
+			{ op: 'add_note', text: 'Work', style: 'note', right_of: 'a1', as: 'new1' },
+			{ op: 'connect', links: [{ from: 'a1', to: 'new1' }] },
+			{ op: 'add_note', text: 'Play', style: 'note' }
+		]);
+		expect(resolveRefs(ops[1], new Map([['new1', 'x9']]))).toEqual({ op: 'connect', links: [{ from: 'a1', to: 'x9' }] });
+		// Words are never taken for names.
+		expect(resolveRefs({ op: 'add_note', text: 'new1', below: 'new1' }, new Map([['new1', 'x9']]))).toEqual({ op: 'add_note', text: 'new1', below: 'x9' });
+	});
+
 	test('what was done is said in a few words', () => {
 		expect(describeOps([{ op: 'connect', links: [{ from: 'a1', to: 'b2' }] }])).toBe('Drew 1 arrow');
 		expect(describeOps([{ op: 'add_shape', shape: 'ellipse' }, { op: 'edit', edits: [{ id: 'a1', color: 'red' }, { id: 'b2', color: 'red' }] }])).toBe('Drew an ellipse, Changed 2 blocks');
@@ -289,7 +312,7 @@ describe('the listening socket', () => {
 	test('the owner gets the model’s socket, asked for the browser’s sample rate', async () => {
 		const calls: unknown[][] = [];
 		expect(await voiceListen(socket(), { AI: ai(calls) }, async () => true)).toBe(opened);
-		expect(calls).toEqual([['@cf/deepgram/flux', { encoding: 'linear16', sample_rate: '48000', eot_threshold: '0.7', eot_timeout_ms: '3000' }, { websocket: true }]]);
+		expect(calls).toEqual([['@cf/deepgram/flux', { encoding: 'linear16', sample_rate: '48000', eager_eot_threshold: '0.5', eot_threshold: '0.7', eot_timeout_ms: '3000' }, { websocket: true }]]);
 	});
 
 	test('another model is asked for interim results and pauses', () => {

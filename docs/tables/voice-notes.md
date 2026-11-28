@@ -112,6 +112,27 @@ The sandbox can't open WebSockets to Cloudflare, so the socket to Flux was writt
 Workers AI's published message shapes and tested with a stand-in. It needs a first try on a branch
 preview, which has the `AI` binding and owner sign-in.
 
+### How long a command takes
+
+Three waits add up between the last word and the change: Flux deciding the turn is over, the
+model's answer, and the change itself. What is done about each:
+
+- Flux is asked for its early signal (`eager_eot_threshold` 0.5: `EagerEndOfTurn`, here a
+  `likely` event). The model is asked then, while Flux is still making sure; if the pause confirms
+  the same words the answer is already on its way, and if the speaker carries on it is dropped.
+- A block's question no longer waits for the blocks before it to settle: every finished block is
+  asked about at once, and answers are applied in the order spoken.
+- While a block is being considered it is drawn faint on the table and the microphone says
+  "Thinking…", so a command that is on its way doesn't look like one that was missed.
+- The model is the slowest part. Measured from the sandbox with the same seven commands: the
+  chat's default (GLM on inference.coop) answers in 1 to 2.5 seconds; Qwen 3.8 on Cerebras in 0.3
+  to 0.5 seconds, at about ten times the price per ask (about 0.17¢ against 0.016¢).
+  `VOICE_TEXT_MODEL=cerebras:qwen-3.8-27b` switches to it.
+
+A command can make something and use it in the same breath: a new note or shape may be given a
+name (`"as":"new1"`) that later operations of that command use as its id, which is how "add a
+sticky for work connected by an arrow" gets its arrow (`resolveRefs`).
+
 ## What it costs
 
 The voice menu ends with a usage list: a line per service with how much of it was used and about

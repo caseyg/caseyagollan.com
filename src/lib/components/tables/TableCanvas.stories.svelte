@@ -76,7 +76,7 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did }}
+				voice={{ status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0 }}
 				onvoice={voice.toggle} onvoicecorrect={(on) => (voice.correct = on)} onvoicearrange={(on) => (voice.arrange = on)} onvoicecommands={(on) => (voice.commands = on)}
 			/>
 		</div>
@@ -95,7 +95,7 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did, usage: commanding.usageView }}
+				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did, thinking: commanding.thinking > 0, usage: commanding.usageView }}
 				onvoice={commanding.toggle} onvoicecorrect={(on) => (commanding.correct = on)} onvoicearrange={(on) => (commanding.arrange = on)} onvoicecommands={(on) => (commanding.commands = on)} onvoicemeter={(on) => (commanding.meter = on)}
 			/>
 		</div>

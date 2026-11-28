@@ -13,7 +13,7 @@ import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEdit
 import { BLOCK_SHAPE } from '$lib/tables';
 import type { TableOp } from '$lib/table-agent';
 import { GRID, freeSpot, onGrid, upToGrid, type Box } from '$lib/table-layout';
-import { VOICE_BLOCK_WIDTH, mergeRich, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
+import { VOICE_BLOCK_WIDTH, mergeRich, resolveRefs, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
 
 /** What a voice note asks of the canvas. Ids are the short ones the chat uses, without `shape:`. */
 export interface VoiceCanvas {
@@ -30,6 +30,8 @@ export interface VoiceCanvas {
 	 * grew onto moves down.
 	 */
 	settle(id: string, how: { follows?: string | null; arrange: boolean; session: string[] }): Promise<void>;
+	/** A finished block drawn faint while a model considers it, and plainly again after. Not an edit: undo passes over it. */
+	pending(id: string, on: boolean): void;
 	/** Selects items at once, as "select the pricing note" is heard; `zoom` goes to them ("focus on…"), otherwise they are only brought into view. */
 	show(ids: string[], zoom: boolean): void;
 	/** What is on the table and what is selected, for a spoken command to act on. */
@@ -179,6 +181,10 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 			} else deps.pushAside(editor, shape.id);
 			reveal(editor, shape.id);
 		},
+		pending(id, on) {
+			const shape = text(id);
+			if (shape) editor.run(() => editor.updateShape({ id: shape.id, type: 'text', opacity: on ? 0.45 : 1 }), { history: 'ignore' });
+		},
 		show(ids, zoom) {
 			const found = ids.map(long).filter((id) => editor.getShape(id));
 			if (!found.length) return;
@@ -192,8 +198,15 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 		},
 		async run(ops) {
 			const done: VoiceOp[] = [];
+			// What a command makes gets its id here; later operations that named it are told the id.
+			const made = new Map<string, string>();
 			for (const op of ops) {
-				try { await deps.perform(op); done.push(op); } catch (error) { console.error('Voice command failed:', op.op, error); }
+				try {
+					const { as: name, ...rest } = resolveRefs(op, made) as VoiceOp & { as?: string };
+					const result = (await deps.perform(rest as VoiceOp)) as { added?: { id?: string }[] } | undefined;
+					if (name && result?.added?.[0]?.id) made.set(name, result.added[0].id);
+					done.push(op);
+				} catch (error) { console.error('Voice command failed:', op.op, error); }
 			}
 			return done;
 		}

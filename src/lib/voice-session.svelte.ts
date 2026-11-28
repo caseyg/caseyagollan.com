@@ -46,6 +46,10 @@ export class VoiceNotes {
 	/** What voice notes have used since this page opened, and this calendar month in this browser. */
 	usage = $state<VoiceUsage>(noUsage());
 	month = $state<VoiceUsage>(noUsage());
+	/** Finished blocks a model is still considering: corrected, or taken as a command. */
+	thinking = $state(0);
+	/** A head start: the question asked of a model when the speaker had probably finished, kept if they had. */
+	#early: { id: string; text: string; answer: Promise<VoiceRefineAnswer | null> } | undefined;
 	#clock: ReturnType<typeof setInterval> | undefined;
 	#counted = 0;
 	/** Blocks that were wholly a command, and so taken away. */
@@ -189,6 +193,11 @@ export class VoiceNotes {
 			this.#writing = canvas.write(this.#writing, text, this.#last?.id);
 			this.#quick(canvas, text, this.#writing, false);
 		}
+		// Probably finished: the model is asked now, and the answer is waiting if the pause confirms it.
+		if (event.type === 'likely' && text && this.#writing && this.#early?.text !== text) {
+			const id = this.#writing, how = { correct: this.#correct, arrange: this.#arrange, commands: this.#commands, session: [...this.#session, id] };
+			this.#early = { id, text, answer: this.#ask(canvas, { id, text }, this.#last, how) };
+		}
 		if (!done) return;
 		const id = this.#writing ?? canvas.write(undefined, text, this.#last?.id);
 		// All of it was "select…" or "focus on…", and something answered: done already, nothing to write down or ask.
@@ -206,24 +215,44 @@ export class VoiceNotes {
 		this.#writing = undefined;
 		this.#block = { settled: '', partial: '' };
 		const how = { correct: this.#correct, arrange: this.#arrange, commands: this.#commands, session: [...this.#session] };
-		this.#settling = this.#settling.then(() => this.#finish(canvas, { id, text }, before, how)).catch((error) => console.error('Voice note block failed:', error));
+		// The model is asked at once, not after the blocks before this one have settled; answers are still applied in the order spoken.
+		const early = this.#early?.id === id && this.#early.text === text ? this.#early.answer : undefined;
+		this.#early = undefined;
+		const answer = early ?? this.#ask(canvas, { id, text }, before, how);
+		if (this.#options.refine && (how.correct || how.commands || how.arrange)) {
+			this.thinking++;
+			canvas.pending(id, true);
+		}
+		this.#settling = this.#settling
+			.then(() => this.#finish(canvas, { id, text }, before, how, answer))
+			.catch((error) => console.error('Voice note block failed:', error))
+			.finally(() => {
+				canvas.pending(id, false);
+				if (this.#options.refine && (how.correct || how.commands || how.arrange)) this.thinking = Math.max(0, this.thinking - 1);
+			});
 	}
 
-	/** A finished block: corrected and placed by a model if either is wanted, any command in it carried out, then set in its place. */
-	async #finish(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }) {
+	/** Asks a model about a block: what it should read, what it follows, and whether part of it was a command. Never throws. */
+	async #ask(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }): Promise<VoiceRefineAnswer | null> {
 		const session = how.session.filter((id) => !this.#gone.has(id));
 		const others = how.arrange ? canvas.texts().filter((item) => item.id !== block.id) : [];
-		let answer: VoiceRefineAnswer | null = null;
-		if (this.#options.refine && (how.correct || how.commands || others.length)) {
-			try {
-				const table = how.commands ? { ...(await canvas.read()), spoken: session } : undefined;
-				answer = await this.#options.refine({ text: block.text, correct: how.correct, connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}) });
-				if (answer?.usage) { const used = answer.usage; this.#spend((usage) => addText(usage, used)); }
-				if (!answer && how.correct) this.notice = 'No model is set up here to correct the text, so it stays as heard.';
-			} catch {
-				if (how.correct) this.notice = 'The text couldn’t be corrected just now, so it stays as heard.';
-			}
+		if (!this.#options.refine || !(how.correct || how.commands || others.length)) return null;
+		try {
+			const table = how.commands ? { ...(await canvas.read()), spoken: session } : undefined;
+			const answer = await this.#options.refine({ text: block.text, correct: how.correct, connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}) });
+			if (answer?.usage) { const used = answer.usage; this.#spend((usage) => addText(usage, used)); }
+			if (!answer && how.correct) this.notice = 'No model is set up here to correct the text, so it stays as heard.';
+			return answer;
+		} catch {
+			if (how.correct) this.notice = 'The text couldn’t be corrected just now, so it stays as heard.';
+			return null;
 		}
+	}
+
+	/** A finished block, once a model has answered: corrected, any command in it carried out, then set in its place. */
+	async #finish(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, asked: Promise<VoiceRefineAnswer | null>) {
+		const answer = await asked;
+		const session = how.session.filter((id) => !this.#gone.has(id));
 		const ops = answer?.ops ?? [];
 		// A passage that was all command leaves no block; the block spoken before it is the last again.
 		if (ops.length && !answer!.text) {

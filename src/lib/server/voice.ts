@@ -35,8 +35,9 @@ function sameOrigin(request: Request): boolean {
 /** What each model is asked for: 16-bit PCM at the browser's rate, words as they come, and pauses marked. */
 export function listenOptions(model: string, rate: number): Record<string, string> {
 	const audio = { encoding: 'linear16', sample_rate: String(rate) };
-	// Flux ends a turn when it is fairly sure the speaker is done, or after this much quiet.
-	if (model.endsWith('/flux')) return { ...audio, eot_threshold: '0.7', eot_timeout_ms: '3000' };
+	// Flux ends a turn when it is fairly sure the speaker is done, or after this much quiet. Before
+	// that, when it is half sure, it says so (EagerEndOfTurn), which gives a model a head start.
+	if (model.endsWith('/flux')) return { ...audio, eager_eot_threshold: '0.5', eot_threshold: '0.7', eot_timeout_ms: '3000' };
 	return { ...audio, interim_results: 'true', smart_format: 'true', punctuate: 'true', endpointing: '800', utterance_end_ms: '1500', vad_events: 'true' };
 }
 

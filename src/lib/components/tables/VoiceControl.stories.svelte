@@ -38,6 +38,9 @@
 <!-- A spoken command was carried out: what it did shows over the microphone for a few seconds. -->
 <Story asChild name="Command done">{@render control({ ...off, status: 'listening', level: 0.2, did: { text: 'Drew 1 arrow' } })}</Story>
 
+<!-- A model is considering what was just said; the block it is about is drawn faint on the table meanwhile. -->
+<Story asChild name="Thinking">{@render control({ ...off, status: 'listening', level: 0.1, thinking: true })}</Story>
+
 <!-- Usage: what each service has been used for and about what it cost; the switch puts the running total by the microphone. -->
 <Story asChild name="Usage">
 	{@render control({ ...off, status: 'listening', level: 0.3, usage: { shown: true, usd: 0.0508, monthUsd: 1.37, lines: [

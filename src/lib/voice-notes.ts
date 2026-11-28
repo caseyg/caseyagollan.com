@@ -15,6 +15,8 @@ export type VoiceEvent =
 	| { type: 'partial'; text: string }
 	/** Those words, settled. */
 	| { type: 'final'; text: string }
+	/** The speaker has probably finished, and may yet carry on: a head start on whatever a pause sets off. */
+	| { type: 'likely' }
 	/** The speaker paused: the block is done. */
 	| { type: 'break' };
 
@@ -53,7 +55,8 @@ export function sttEvents(message: unknown): VoiceEvent[] {
 		const text = spoken(data.transcript);
 		if (data.event === 'EndOfTurn') return text ? [{ type: 'final', text }, { type: 'break' }] : [{ type: 'break' }];
 		// A turn taken back up after an eager end is still the same turn, its words so far.
-		if (['Update', 'StartOfTurn', 'EagerEndOfTurn', 'TurnResumed'].includes(data.event)) return text ? [{ type: 'partial', text }] : [];
+		if (data.event === 'EagerEndOfTurn') return text ? [{ type: 'partial', text }, { type: 'likely' }] : [];
+		if (['Update', 'StartOfTurn', 'TurnResumed'].includes(data.event)) return text ? [{ type: 'partial', text }] : [];
 		return [];
 	}
 	if (data.type === 'UtteranceEnd') return [{ type: 'break' }];
@@ -74,6 +77,7 @@ export const blockText = (block: SpokenBlock) => joinSpoken(block.settled, block
 /** A block after an event; `done` when the event closed it. A pause with nothing said closes nothing. */
 export function hear(block: SpokenBlock, event: VoiceEvent): { block: SpokenBlock; done: boolean } {
 	if (event.type === 'partial') return { block: { ...block, partial: spoken(event.text) }, done: false };
+	if (event.type === 'likely') return { block, done: false };
 	if (event.type === 'final') return { block: { settled: joinSpoken(block.settled, event.text), partial: '' }, done: false };
 	const settled = blockText(block);
 	return { block: { settled, partial: '' }, done: !!settled };
@@ -144,7 +148,20 @@ export interface VoiceItem { id: string; type: string; text?: string; x: number;
 export interface VoiceTable { items: VoiceItem[]; selected: string[]; spoken: string[] }
 
 /** What a spoken command can do: the chat's own table operations, the ones a sentence can ask for. */
-export type VoiceOp = Extract<TableOp, { op: 'connect' | 'add_shape' | 'add_note' | 'edit' | 'move' | 'arrange' | 'align' | 'frame' | 'group' | 'remove' | 'select' }>;
+export type VoiceOp =
+	| Extract<TableOp, { op: 'connect' | 'edit' | 'move' | 'arrange' | 'align' | 'frame' | 'group' | 'remove' | 'select' }>
+	/** `as`: a name later operations of the same command call the new thing by ("new1"), as an arrow to a note just made must. */
+	| (Extract<TableOp, { op: 'add_shape' | 'add_note' }> & { as?: string });
+
+const REF = /^new\d{1,2}$/;
+
+/** A command's operations with the names it gave new things replaced by the ids those things got. */
+export function resolveRefs<T>(op: T, made: ReadonlyMap<string, string>): T {
+	if (!made.size) return op;
+	const walk = (value: unknown): unknown =>
+		typeof value === 'string' ? made.get(value) ?? value : Array.isArray(value) ? value.map(walk) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, key === 'text' || key === 'label' || key === 'name' ? inner : walk(inner)])) : value;
+	return walk(op) as T;
+}
 
 export interface VoiceRefineAnswer {
 	/** The passage, corrected; as heard when correction was off or the answer couldn't be trusted. */
@@ -193,7 +210,10 @@ const VOICE_ARRANGEMENTS = ['auto', 'grid', 'columns', 'row', 'column', 'tree', 
  * are on the table, and carry nothing but the fields listed here. Anything else is dropped.
  */
 export function cleanVoiceOps(value: unknown, table: VoiceTable | undefined): VoiceOp[] {
+	// Ids on the table, and the names this command has given to things it makes, as it makes them.
 	const known = new Set((table?.items ?? []).map((item) => item.id));
+	if (!table) return [];
+	const named = (from: unknown) => { const name = typeof from === 'string' && REF.test(from) && !known.has(from) ? from : ''; if (name) known.add(name); return name ? { as: name } : {}; };
 	const id = (from: unknown) => { const one = idOf(from); return known.has(one) ? one : ''; };
 	const ids = (from: unknown) => [...new Set(list(from).map(id).filter(Boolean))];
 	const words = (from: unknown, max: number) => (typeof from === 'string' ? from.trim().slice(0, max) : '');
@@ -217,11 +237,11 @@ export function cleanVoiceOps(value: unknown, table: VoiceTable | undefined): Vo
 			case 'add_shape': {
 				const shape = oneOf(op.shape, TABLE_SHAPES);
 				const w = whole(op.w), h = whole(op.h);
-				return shape ? [{ op: 'add_shape', shape, ...(words(op.text, 400) ? { text: words(op.text, 400) } : {}), ...color(op.color), ...(w && w > 0 ? { w } : {}), ...(h && h > 0 ? { h } : {}), ...place(op) }] : [];
+				return shape ? [{ op: 'add_shape', shape, ...(words(op.text, 400) ? { text: words(op.text, 400) } : {}), ...color(op.color), ...(w && w > 0 ? { w } : {}), ...(h && h > 0 ? { h } : {}), ...place(op), ...named(op.as) }] : [];
 			}
 			case 'add_note': {
 				const text = words(op.text, 2000);
-				return text ? [{ op: 'add_note', text, style: op.style === 'text' ? 'text' : 'note', ...color(op.color), ...place(op) }] : [];
+				return text ? [{ op: 'add_note', text, style: op.style === 'text' ? 'text' : 'note', ...color(op.color), ...place(op), ...named(op.as) }] : [];
 			}
 			case 'edit': {
 				const edits = list(op.edits).flatMap((entry) => {
@@ -449,6 +469,7 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 			'{"op":"connect","links":[{"from":id,"to":id,"label"?:string,"both_ends"?:true}]}: an arrow from one item to another.',
 			`{"op":"add_shape","shape":${TABLE_SHAPES.join('|')},"text"?:words inside it,"color"?:color,"w"?:number,"h"?:number, and where: "right_of":id or "below":id or "at":{"x","y"}}: a circle is an ellipse, a square or box a rectangle.`,
 			'{"op":"add_note","text":string,"style":"note"|"text","color"?:color, and where as for add_shape}: a sticky note or a text block holding words the speaker dictates for it. Never write words of your own.',
+			'A new shape or note may carry "as":"new1" (then "new2"…): later operations call it by that name wherever an id goes. "Add a sticky for work connected by an arrow" is an add_note with "as":"new1" and "right_of" the item it hangs from, then a connect from that item to "new1". With nothing named to connect from or put it beside, use the selected item, or else the note spoken last.',
 			'{"op":"edit","edits":[{"id":id,"text"?:the item’s whole new words,"color"?:color}]}: rewords or recolours items. Change only what was asked and keep the rest of the words as they are.',
 			'{"op":"move","moves":[{"id":id,"x"?:left,"y"?:top}]}: moves items; work the place out from the listing, keeping 40 between things.',
 			'{"op":"arrange","layout":auto|grid|columns|row|column|tree|mindmap|radial|layered,"ids"?:[id],"direction"?:down|right|up|left}: sets items out; without ids, the whole canvas.',
