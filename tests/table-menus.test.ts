@@ -61,6 +61,13 @@ describe('the More tools menu', () => {
 	});
 });
 
+test('picking a layout leaves its menu open, on the toolbar and on right-click', () => {
+	for (const layout of TABLE_LAYOUTS) expect(layout.keepOpen).toBe(true);
+	const items = contextItems({ selection: [{ type: 'post' }, { type: 'note' }] } as TableContextState);
+	for (const menu of items.filter((item) => item.value.startsWith('layout:'))) for (const layout of menu.items ?? []) expect(layout.keepOpen).toBe(true);
+	expect(items.find((item) => item.value === 'undo')?.keepOpen).toBeUndefined();
+});
+
 test('every layout and every tool in the menus has an icon', () => {
 	for (const item of [...TABLE_LAYOUTS, ...MORE_TOOLS, ...MORE_TOOLS.flatMap((tool) => tool.items ?? [])]) expect(item.icon).toBeTruthy();
 });
