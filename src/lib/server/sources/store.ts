@@ -9,10 +9,11 @@
  */
 import { DurableObject } from 'cloudflare:workers';
 import { readableMarkdown } from '../chat/fetch-page';
-import { embedPending, similar, type EmbedEnv, type SimilarOptions } from './embed';
+import { alike, embedPending, readPending, similar, READ_BATCH, READ_USAGE, type AlikeOptions, type EmbedEnv, type ReadUsage, type SimilarOptions } from './embed';
 import { SourceIndex, type SearchOptions, type SearchResult, type SourceHit, type StoredDocument } from './index';
 import { readPageText } from './page';
 import { SOURCE_PLUGINS } from './registry';
+import type { PictureReading } from '../../source-status';
 import { fillThin, syncSource, syncStatus, type RawStore, type SyncReport } from './sync';
 
 export interface SourceStoreEnv extends EmbedEnv {
@@ -28,6 +29,10 @@ const CONTINUE_AFTER = 12;
 const MANUAL = 'sync:manual';
 /** Set until the round a forced sync asked for has begun. */
 const FORCED = 'sync:forced';
+/** How many more pictures the owner asked to have read for their words; none are read in bulk without it. */
+const READ_BUDGET = 'read:budget';
+/** As long as one round spends reading pictures. */
+const READ_MS = 15_000;
 /** Seconds between rounds of a pass that has more to fetch and isn't being asked to wait. */
 const NEXT_AFTER = 1;
 /** What the round under way is doing, so a round that never finished (out of memory, most likely) says where it stopped. */
@@ -55,6 +60,23 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 
 	/** Documents like one already here, like some words, or like a picture, nearest first. */
 	async similar(options: SimilarOptions): Promise<(SourceHit & { score: number })[]> { return similar(this.index, this.env, options); }
+	/** Documents like several things at once (blocks, words, pictures), what is near more of them first. */
+	async alike(options: AlikeOptions): Promise<(SourceHit & { score: number })[]> { return alike(this.index, this.env, options); }
+
+	/**
+	 * Has the words read in up to `count` more stored pictures (0 stops). Like syncing, the reading
+	 * itself is done in the alarm, a few batches a round, until the count is used up or none are left.
+	 */
+	async readPictures(count: number): Promise<PictureReading> {
+		this.index.setState(READ_BUDGET, Math.max(0, Math.floor(count)));
+		if (count > 0) await this.ctx.storage.setAlarm(Date.now() + 100);
+		return this.pictures();
+	}
+
+	/** How far reading the words in pictures has got, what it has cost in tokens, and the latest read. */
+	pictures(): PictureReading {
+		return { ...this.index.pictureCounts(), asked: this.index.state<number>(READ_BUDGET) ?? 0, usage: this.index.state<ReadUsage>(READ_USAGE) ?? { pictures: 0, input: 0, output: 0 }, recent: this.index.recentImageText(20) };
+	}
 
 	/**
 	 * Asks for syncing to carry on. The work itself is done in the object's alarm, never in this
@@ -96,8 +118,9 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 		this.index.setState(DOING, 'likeness');
 		const embedded = fetching ? { text: 0, images: 0, left: true } : await embedPending(this.index, this.env).catch(() => ({ text: 0, images: 0, left: false }));
 		if (filled.read || embedded.text || embedded.images) console.log(JSON.stringify({ event: 'source_enrich', pages: filled.read, filled: filled.filled, embedded: embedded.text, images: embedded.images }));
+		const reading = fetching ? false : await this.readRound();
 		// Carry on at once while any source has more to fetch and isn't waiting on its service; otherwise when the shortest wait is over.
-		const enriching = filled.read > 0 || embedded.left;
+		const enriching = filled.read > 0 || embedded.left || reading;
 		const waits = reports.filter((report) => !report.done).map((report) => report.busy ?? (report.failed ? 60 : 0)).filter((seconds) => seconds > 0);
 		if (fetching) await this.ctx.storage.setAlarm(Date.now() + NEXT_AFTER * 1000);
 		else if (enriching) await this.ctx.storage.setAlarm(Date.now() + ENRICH_AFTER * 1000);
@@ -106,9 +129,38 @@ export class SourceStore extends DurableObject<SourceStoreEnv> {
 		return reports;
 	}
 
+	/** Reads pictures for as long as a round allows, out of what the owner asked for. Answers whether there is more to do. */
+	private async readRound(): Promise<boolean> {
+		let budget = this.index.state<number>(READ_BUDGET) ?? 0;
+		if (budget <= 0) return false;
+		this.index.setState(DOING, 'pictures');
+		const began = Date.now();
+		let read = 0, failed = 0;
+		while (budget > 0 && Date.now() - began < READ_MS) {
+			const batch = Math.min(budget, READ_BATCH);
+			const result = await readPending(this.index, this.env, batch).catch(() => ({ read: 0, failed: 0, left: false }));
+			read += result.read;
+			failed += result.failed;
+			budget = result.left ? budget - batch : 0;
+			// A stop asked for meanwhile wins over the count kept here.
+			if ((this.index.state<number>(READ_BUDGET) ?? 0) <= 0) budget = 0;
+			this.index.setState(READ_BUDGET, budget);
+			// Nothing came back at all: the model isn't answering, so stop rather than mark every picture.
+			if (!result.read && result.failed) { this.index.forgetFailedPictures(); this.index.setState(READ_BUDGET, 0); budget = 0; }
+		}
+		if (read || failed) console.log(JSON.stringify({ event: 'source_pictures_read', read, failed, left: budget }));
+		return budget > 0;
+	}
+
 	/** A round of syncing: each source a few steps, then a few thin links' pages, then a batch of embeddings. Alarms never overlap, so neither do rounds. */
 	async alarm(): Promise<void> {
-		if (this.env.SOURCES_SYNC !== 'true' && !this.index.state<boolean>(MANUAL)) return;
+		if (this.env.SOURCES_SYNC !== 'true' && !this.index.state<boolean>(MANUAL)) {
+			// Where nothing syncs by itself (a preview), pictures asked for are still read, and nothing else is set off.
+			const more = await this.readRound().catch(() => false);
+			this.index.setState(DOING, '');
+			if (more) await this.ctx.storage.setAlarm(Date.now() + NEXT_AFTER * 1000);
+			return;
+		}
 		const force = this.index.state<boolean>(FORCED) === true;
 		if (force) this.index.setState(FORCED, false);
 		const died = this.index.state<string>(DOING);

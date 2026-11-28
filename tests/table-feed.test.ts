@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { groupByDay, isPicture, localDay, rangeStart, recentFeed, recentSaves, similarBlocks, sortFeed, timeLabel, type FeedItem } from '../src/lib/table-feed';
+import { groupByDay, isPicture, likeSeeds, likeTitle, localDay, rangeStart, recentFeed, recentSaves, similarBlocks, sortFeed, timeLabel, type FeedItem } from '../src/lib/table-feed';
 import type { Block } from '../src/lib/tables';
 
 const NY = 'America/New_York';
@@ -70,17 +70,35 @@ describe('likeness', () => {
 		expect(isPicture({ kind: 'arena', icon: '🖼️' })).toBe(false);
 	});
 
-	test('a picture asks by how it looks, anything else by its words', async () => {
-		const asked: URLSearchParams[] = [];
-		const fetcher = (async (url: string) => {
-			asked.push(new URL(url, 'https://x.test').searchParams);
+	test('a picture asks by how it looks, a block by its address and words, a sticky by its words', async () => {
+		const asked: { url: string; body: { seeds: unknown[]; limit: number } }[] = [];
+		const fetcher = (async (url: string, init: RequestInit) => {
+			asked.push({ url, body: JSON.parse(String(init.body)) });
 			return { ok: true, json: async () => ({ blocks: [picture] }) } as Response;
 		}) as unknown as typeof fetch;
-		expect(await similarBlocks(picture, 12, fetcher, 'https://site.test')).toEqual([picture]);
-		expect(asked[0].get('picture')).toBe('https://images.example/kettle.jpg');
-		await similarBlocks(article, 12, fetcher, 'https://site.test');
-		expect(asked[1].get('like')).toBe('https://site.test/2026/11/20/tables/');
-		expect(asked[1].get('words')).toBe('On tables. Boards of things.');
-		expect(asked[1].has('picture')).toBe(false);
+		expect(await similarBlocks([{ block: picture }], 12, fetcher, 'https://site.test')).toEqual([picture]);
+		expect(asked[0].url).toBe('/api/sources/alike');
+		expect(asked[0].body.seeds).toEqual([{ url: picture.url, words: picture.title, picture: 'https://images.example/kettle.jpg' }]);
+		await similarBlocks([{ block: article }, { words: '  Why do kettles whistle?  ' }, { picture: '/media/scan.png' }], 12, fetcher, 'https://site.test');
+		expect(asked[1].body).toEqual({
+			seeds: [{ url: 'https://site.test/2026/11/20/tables/', words: 'On tables. Boards of things.' }, { words: 'Why do kettles whistle?' }, { picture: 'https://site.test/media/scan.png' }],
+			limit: 12
+		});
+		// Nothing with words or a picture selected: nothing is asked.
+		expect(await similarBlocks([{ words: '  ' }], 12, fetcher)).toEqual([]);
+		expect(asked).toHaveLength(2);
+	});
+
+	test('the same thing selected twice is asked about once, and only so many at a time', () => {
+		expect(likeSeeds([{ words: 'tea' }, { words: 'tea' }, { block: article }, { block: article }], 'https://site.test')).toHaveLength(2);
+		expect(likeSeeds(Array.from({ length: 30 }, (_, at) => ({ words: `note ${at}` })))).toHaveLength(12);
+		expect(likeSeeds([{ words: 'x'.repeat(5000) }])[0].words).toHaveLength(2000);
+	});
+
+	test('a selected thing is named by its title or its first words', () => {
+		expect(likeTitle({ block: article })).toBe('On tables');
+		expect(likeTitle({ words: 'Why do\nkettles whistle?' })).toBe('Why do kettles whistle?');
+		expect(likeTitle({ words: 'word '.repeat(40) }).length).toBeLessThanOrEqual(60);
+		expect(likeTitle({ picture: '/media/scan.png' })).toBe('this picture');
 	});
 });

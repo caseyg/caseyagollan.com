@@ -83,3 +83,13 @@
 	.page { min-height: 100vh; }
 	.dock { width: 22rem; height: 36rem; }
 </style>
+
+<!-- A sticky or text box selected: what reads like its words. -->
+<Story asChild name="Similar to a sticky">
+	<div class="dock"><BlockPicker {search} {pieces} {similar} {recent} like={[{ words: 'Why do kettles whistle? Something about steam and a narrow gap.' }]} onadd={add} onclose={() => {}} /></div>
+</Story>
+
+<!-- Several things selected, of any kind: what is like more of them comes first. -->
+<Story asChild name="Similar to several things">
+	<div class="dock"><BlockPicker {search} {pieces} {similar} {recent} like={[{ block: blocks.wiki }, { words: 'Why do kettles whistle?' }, { block: blocks.arenaImage }]} placed={[blocks.raindrop.url]} onadd={add} onclose={() => {}} /></div>
+</Story>

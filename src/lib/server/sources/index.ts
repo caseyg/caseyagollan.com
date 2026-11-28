@@ -16,6 +16,8 @@ export interface Sql {
 
 /** The longest text kept for one document: SQLite in a Durable Object takes 2 MB a row. */
 export const TEXT_LIMIT = 900_000;
+/** The most words kept from one picture. */
+export const IMAGE_TEXT_LIMIT = 8000;
 /** Words of its own a link needs before its page is worth reading for more. */
 const THIN = 80;
 
@@ -123,6 +125,8 @@ export class SourceIndex {
 		this.sql.all('CREATE TABLE IF NOT EXISTS state (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
 		// One vector for a document's words and one for its picture, as little-endian 32-bit floats of unit length.
 		this.sql.all('CREATE TABLE IF NOT EXISTS vectors (key TEXT NOT NULL, what TEXT NOT NULL, v BLOB NOT NULL, PRIMARY KEY (key, what))');
+		// The words read out of a picture, by the picture's address: read once, kept, and searched with the documents that show it.
+		this.sql.all('CREATE TABLE IF NOT EXISTS image_text (url TEXT PRIMARY KEY, text TEXT NOT NULL, model TEXT, at TEXT NOT NULL)');
 	}
 
 	// ------------------------------------------------------------ writing
@@ -152,11 +156,12 @@ export class SourceIndex {
 			const text = (document.text ?? '').slice(0, TEXT_LIMIT);
 			const own = document.highlights ?? [];
 			const highlights = this.highlightsOf(document.source, document.id, own);
-			const meta = [document.author, document.site, document.summary, document.note, document.tags.join(' '), document.places.join(' '), document.url].filter(Boolean).join('\n');
 			const hash = `${document.title}\n${document.summary ?? ''}\n${text.length}:${text.slice(0, 2000)}`;
 			const existing = this.sql.all<{ rowid: number; hash: string | null; text_from: string | null; image: string | null }>('SELECT rowid, hash, text_from, image FROM docs WHERE key = ?', key)[0];
 			// A picture found on the page stays when the source itself has none.
 			const image = document.image ?? (existing?.text_from === 'page' ? existing.image : null) ?? null;
+			// The words in its picture, when they have been read, are searched with the rest.
+			const meta = [document.author, document.site, document.summary, document.note, document.tags.join(' '), document.places.join(' '), document.url, image ? this.imageText(image) : ''].filter(Boolean).join('\n');
 			const fields = [
 				document.kind, document.title, document.url, document.openUrl ?? null, document.summary ?? null, document.author ?? null, document.site ?? null, image,
 				JSON.stringify(document.tags), JSON.stringify(document.places), document.created ?? null, document.updated ?? null, document.published ?? null, document.private ? 1 : 0,
@@ -280,15 +285,73 @@ export class SourceIndex {
 		);
 	}
 
+	// ------------------------------------------------------------ words in pictures
+
+	/** The words read out of a picture: `undefined` when it hasn't been read, empty when it has none. */
+	imageText(url: string): string | undefined {
+		return this.sql.all<{ text: string }>("SELECT text FROM image_text WHERE url = ? AND model IS NOT 'failed'", url)[0]?.text;
+	}
+
+	/** Marks a picture that couldn't be read, so a pass over them all doesn't try it again. Asking about it on a table still does. */
+	failImageText(url: string, now = new Date().toISOString()): void {
+		this.sql.all("INSERT OR IGNORE INTO image_text (url, text, model, at) VALUES (?, '', 'failed', ?)", url, now);
+	}
+
+	/** Lets the pictures that couldn't be read be tried again: for when it was the model that failed, not they. */
+	forgetFailedPictures(): void {
+		this.sql.all("DELETE FROM image_text WHERE model = 'failed'");
+	}
+
+	/** Pictures no one has tried to read yet, newest first. */
+	unreadPictures(limit: number): string[] {
+		return this.sql.all<{ image: string }>(
+			`SELECT d.image, MAX(d.created) AS newest FROM docs d LEFT JOIN image_text t ON t.url = d.image
+			 WHERE d.image IS NOT NULL AND d.image != '' AND t.url IS NULL GROUP BY d.image ORDER BY newest DESC LIMIT ?`, limit
+		).map((row) => row.image);
+	}
+
+	/** How far reading has got: pictures in all, those read, those with words, those that couldn't be read. */
+	pictureCounts(): { total: number; read: number; withWords: number; failed: number } {
+		const [{ total }] = this.sql.all<{ total: number }>("SELECT COUNT(DISTINCT image) AS total FROM docs WHERE image IS NOT NULL AND image != ''");
+		const [row] = this.sql.all<{ read: number | null; words: number | null; failed: number | null }>(
+			`SELECT SUM(t.model IS NOT 'failed') AS read, SUM(t.model IS NOT 'failed' AND t.text != '') AS words, SUM(t.model IS 'failed') AS failed
+			 FROM image_text t WHERE t.url IN (SELECT image FROM docs)`
+		);
+		return { total, read: row?.read ?? 0, withWords: row?.words ?? 0, failed: row?.failed ?? 0 };
+	}
+
+	/** The pictures read most lately, with what was read in them, for the owner to judge the reading by. */
+	recentImageText(limit: number): { url: string; text: string; at: string; failed: boolean }[] {
+		return this.sql.all<{ url: string; text: string; at: string; model: string | null }>('SELECT url, substr(text, 1, 600) AS text, at, model FROM image_text ORDER BY at DESC, rowid DESC LIMIT ?', limit)
+			.map(({ model, ...row }) => ({ ...row, failed: model === 'failed' }));
+	}
+
+	/**
+	 * Keeps the words read out of a picture, so it is read once. Documents that show the picture are
+	 * found by those words from now on, and their likeness is worked out again with them.
+	 */
+	setImageText(url: string, text: string, model?: string, now = new Date().toISOString()): void {
+		const words = text.trim().slice(0, IMAGE_TEXT_LIMIT);
+		const before = this.imageText(url);
+		this.sql.all('INSERT OR REPLACE INTO image_text (url, text, model, at) VALUES (?, ?, ?, ?)', url, words, model === 'failed' ? null : model ?? null, now);
+		if (!words || before === words) return;
+		for (const { rowid } of this.sql.all<{ rowid: number }>('SELECT rowid FROM docs WHERE image = ?', url)) {
+			const [{ meta }] = this.sql.all<{ meta: string }>('SELECT meta FROM docs_fts WHERE rowid = ?', rowid);
+			const kept = before && meta.endsWith(before) ? meta.slice(0, -before.length).trimEnd() : meta;
+			this.sql.all('UPDATE docs_fts SET meta = ? WHERE rowid = ?', [kept, words].filter(Boolean).join('\n'), rowid);
+			this.sql.all('UPDATE docs SET embedded = NULL WHERE rowid = ?', rowid);
+		}
+	}
+
 	// ------------------------------------------------------------ embeddings
 
 	/** Documents whose words (or picture) have no vector yet, newest first. */
-	unembedded(what: 'text' | 'image', limit: number): { key: string; title: string; summary: string; text: string; highlights: string; image?: string; private: boolean; source: string; kind: string }[] {
+	unembedded(what: 'text' | 'image', limit: number): { key: string; title: string; summary: string; text: string; highlights: string; image?: string; seen?: string; private: boolean; source: string; kind: string }[] {
 		const where = what === 'text' ? 'd.embedded IS NULL' : "d.image_embedded IS NULL AND d.image IS NOT NULL AND d.image != ''";
-		return this.sql.all<{ key: string; title: string; summary: string | null; text: string; highlights: string; image: string | null; private: number; source: string; kind: string }>(
-			`SELECT d.key, d.title, d.summary, substr(f.body, 1, 6000) AS text, substr(f.highlights, 1, 2000) AS highlights, d.image, d.private, d.source, d.kind
-			 FROM docs d JOIN docs_fts f ON f.rowid = d.rowid WHERE ${where} ORDER BY d.created DESC LIMIT ?`, limit
-		).map((row) => ({ ...row, summary: row.summary ?? '', image: row.image ?? undefined, private: !!row.private }));
+		return this.sql.all<{ key: string; title: string; summary: string | null; text: string; highlights: string; image: string | null; seen: string | null; private: number; source: string; kind: string }>(
+			`SELECT d.key, d.title, d.summary, substr(f.body, 1, 6000) AS text, substr(f.highlights, 1, 2000) AS highlights, d.image, substr(t.text, 1, 2000) AS seen, d.private, d.source, d.kind
+			 FROM docs d JOIN docs_fts f ON f.rowid = d.rowid LEFT JOIN image_text t ON t.url = d.image WHERE ${where} ORDER BY d.created DESC LIMIT ?`, limit
+		).map((row) => ({ ...row, summary: row.summary ?? '', image: row.image ?? undefined, seen: row.seen || undefined, private: !!row.private }));
 	}
 
 	/** Records that a document's words or picture were embedded (or couldn't be: `failed` isn't tried again). */

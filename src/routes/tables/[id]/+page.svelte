@@ -10,7 +10,7 @@
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import { hashItem } from '$lib/table-search';
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
-	import { recentFeed, similarBlocks } from '$lib/table-feed';
+	import { likeKey, recentFeed, similarBlocks, type LikeThing } from '$lib/table-feed';
 	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
 	import { layoutOp, type LayoutScope } from '$lib/table-menus';
 	import type { TableTool } from '$lib/components/tables/canvas/TableEditor';
@@ -72,6 +72,8 @@
 	}
 	/** The block that was selected when Add opened; the picker offers its page's pieces. */
 	let source = $state<Block>();
+	// Everything selected when Add was pressed: what Similar finds the like of.
+	let like = $state<LikeThing[]>([]);
 	/** The tag panel: off, editing the selection's tags, or reviewing what is staged before it is saved. */
 	let tagging = $state<'edit' | 'review' | null>(null);
 	let renaming = $state(false);
@@ -460,9 +462,11 @@
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
 				onadd={() => {
-					// With the sidebar open, Add with another block selected turns the sidebar to that block.
-					const turned = pinned && adding && !!view.selected && (!source || blockKey(view.selected) !== blockKey(source));
+					// With the sidebar open, Add with something else selected turns the sidebar to that.
+					const selected = api?.selectedThings() ?? [];
+					const turned = pinned && adding && selected.length > 0 && selected.map(likeKey).join('\n') !== like.map(likeKey).join('\n');
 					source = view.selected;
+					like = selected;
 					if (turned) return;
 					showAdding(!adding);
 					if (adding && !pinned) tagging = null;
@@ -491,6 +495,7 @@
 					owner={session.mode === 'owner'}
 					placed={view.placed}
 					{source}
+					{like}
 					pieces={(block) => pagePieces(block, wikiHref)}
 					{recent}
 					similar={session.mode === 'owner' ? similarBlocks : undefined}

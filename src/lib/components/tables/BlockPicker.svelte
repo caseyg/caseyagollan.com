@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { blockKey, linkBlock, type Block } from '$lib/tables';
-	import { isPicture, type FeedItem } from '$lib/table-feed';
+	import { LIKE_SEEDS_MAX, likeKey, likeLooks, likeTitle, type FeedItem, type LikeThing } from '$lib/table-feed';
 	import { linkedBlock } from '$lib/table-sources';
 	import type { SourceFilter } from '$lib/table-sources';
 	import Button from '../ui/Button.svelte';
@@ -32,8 +32,13 @@
 		 * day, newest first, for a roundup of the week.
 		 */
 		recent?: (since: Date) => Promise<FeedItem[]>;
-		/** Saved things like a block. With it, the block selected when the picker opened also offers what is like it. */
-		similar?: (block: Block) => Promise<Block[]>;
+		/**
+		 * Everything selected when the picker opened, to find the like of: blocks, and stickies and text
+		 * boxes by their words. Left out, it is `source` alone.
+		 */
+		like?: LikeThing[];
+		/** Saved things like what is selected. With it, the picker also offers what is like the selection. */
+		similar?: (things: LikeThing[]) => Promise<Block[]>;
 		/** Kept open as a sidebar down the right of the page instead of a menu. */
 		pinned?: boolean;
 		/** With it, the picker has a button that moves it between the menu and the sidebar. */
@@ -45,7 +50,7 @@
 		filter?: SourceFilter;
 	}
 
-	let { search, onadd, onclose, placed = [], source, pieces, owner = false, recent, similar, pinned = false, onpin, tab = $bindable(), query = $bindable(''), filter = $bindable('all') }: Props = $props();
+	let { search, onadd, onclose, placed = [], source, like, pieces, owner = false, recent, similar, pinned = false, onpin, tab = $bindable(), query = $bindable(''), filter = $bindable('all') }: Props = $props();
 
 	const onTable = $derived(new Set(placed));
 	let found = $state<Block[]>([]);
@@ -55,34 +60,37 @@
 	const home = $derived<Tab>(recent && pinned ? 'recent' : 'site');
 	const showing = $derived(tab ?? home);
 
-	// The selected block's page, read once per block, and what is like the block; the picker opens on
-	// its pieces when it has any, else on what is like it.
+	// The selected block's page, read once per block, and what is like the selection; the picker
+	// opens on the block's pieces when it has any, else on what is like what is selected.
 	let parts = $state<Block[] | null>(null);
 	let alike = $state<Block[] | null>(null);
 	const sourceKey = $derived(source ? blockKey(source) : '');
+	const things = $derived<LikeThing[]>(like ?? (source ? [{ block: source }] : []));
+	const thingsKey = $derived(similar ? things.map(likeKey).join('\n') : '');
+	const cut = $derived(pieces && sourceKey ? pieces : undefined);
 	$effect(() => {
-		const key = sourceKey;
+		const key = `${sourceKey}\n${thingsKey}`;
 		parts = null;
 		alike = null;
-		if (!key || !source || (!pieces && !similar)) {
+		if (!key.trim() || (!cut && !thingsKey)) {
 			// Nothing selected any more: back to the list the picker rests on.
 			if (untrack(() => tab === 'page' || tab === 'similar')) tab = undefined;
 			return;
 		}
 		let live = true;
-		const from = source;
-		tab = pieces ? 'page' : 'similar';
+		const from = untrack(() => source), likened = untrack(() => things);
+		tab = cut ? 'page' : 'similar';
 		const settle = () => {
 			if (!live) return;
 			// Leave a list that turned out empty for the next one that has something.
-			if (tab === 'page' && parts?.length === 0) tab = similar && alike?.length !== 0 ? 'similar' : undefined;
+			if (tab === 'page' && parts?.length === 0) tab = thingsKey && alike?.length !== 0 ? 'similar' : undefined;
 			if (tab === 'similar' && alike?.length === 0) tab = parts?.length ? 'page' : undefined;
 		};
-		void (pieces ? pieces(from).catch(() => []) : Promise.resolve([])).then((next) => {
+		void (cut && from ? cut(from).catch(() => []) : Promise.resolve([])).then((next) => {
 			if (live) parts = next;
 			settle();
 		});
-		void (similar ? similar(from).catch(() => []) : Promise.resolve([])).then((next) => {
+		void (similar && thingsKey ? similar(likened).catch(() => []) : Promise.resolve([])).then((next) => {
 			if (live) alike = next;
 			settle();
 		});
@@ -94,7 +102,7 @@
 	const tabs = $derived.by(() => {
 		const all = [
 			...(sourceKey && pieces && parts?.length !== 0 ? [{ label: 'This page', value: 'page', icon: '✂️' }] : []),
-			...(sourceKey && similar && alike?.length !== 0 ? [{ label: 'Similar', value: 'similar', icon: '🧲' }] : []),
+			...(thingsKey && alike?.length !== 0 ? [{ label: 'Similar', value: 'similar', icon: '🧲' }] : []),
 			...(recent ? [{ label: 'Recent', value: 'recent', icon: '🗓️' }] : []),
 			{ label: 'Search', value: 'site', icon: '🔎' }
 		];
@@ -160,9 +168,15 @@
 		<p class="hint">Pieces of <strong>{source?.title}</strong>. Drag onto the table, or click to add.</p>
 		<BlockList groups={[{ rows: partsLeft.map((block) => ({ block })) }]} {onadd} naming="kind" busy={parts === null} empty="Every piece is on the table." />
 		{#if parts === null}<p class="hint">Reading the page…</p>{/if}
-	{:else if showing === 'similar' && sourceKey}
-		<p class="hint">Saved things that {source && isPicture(source) ? 'look' : 'read'} like <strong>{source?.title}</strong>, nearest first.</p>
-		<BlockList groups={[{ rows: (alike ?? []).map((block) => ({ block, placed: onTable.has(blockKey(block)) })) }]} {onadd} busy={alike === null} empty="Nothing saved is like it." />
+	{:else if showing === 'similar' && thingsKey}
+		<p class="hint">
+			{#if things.length === 1}
+				Saved things that {likeLooks(things[0]) ? 'look' : 'read'} like <strong>{likeTitle(things[0])}</strong>, nearest first.
+			{:else}
+				Saved things like <strong>{things.length > LIKE_SEEDS_MAX ? `the first ${LIKE_SEEDS_MAX} of the ${things.length} things selected` : `the ${things.length} things selected`}</strong>. What is like more of them comes first.
+			{/if}
+		</p>
+		<BlockList groups={[{ rows: (alike ?? []).map((block) => ({ block, placed: onTable.has(blockKey(block)) })) }]} {onadd} busy={alike === null} empty={things.length === 1 ? 'Nothing saved is like it.' : 'Nothing saved is like them.'} />
 		{#if alike === null}<p class="hint">Looking…</p>{/if}
 	{:else if showing === 'recent' && recent}
 		<BlockFeed load={recent} {onadd} {placed} />
