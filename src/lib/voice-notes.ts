@@ -249,7 +249,8 @@ export function cleanVoiceOps(value: unknown, table: VoiceTable | undefined): Vo
 			}
 			case 'add_note': {
 				const text = words(op.text, 2000);
-				return text ? [{ op: 'add_note', text, style: op.style === 'text' ? 'text' : 'note', ...color(op.color), ...place(op), ...named(op.as) }] : [];
+				// A sticky may be asked for with nothing in it yet ("add a sticky"): what is said next is its words.
+				return text || op.style !== 'text' ? [{ op: 'add_note', text, style: op.style === 'text' ? 'text' : 'note', ...color(op.color), ...place(op), ...named(op.as) }] : [];
 			}
 			case 'edit': {
 				const edits = list(op.edits).flatMap((entry) => {
@@ -521,7 +522,7 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 			: request.correct
 			? `"notes": the passage as a list of notes, one for each separate thought or item in it (a single thought stays one note; things listed one after another, to do, to get or to remember, are a note each: "i need to book the room and email the speakers" is ["Book the room.", "Email the speakers."]). In each, fix speech-to-text mistakes: misheard or split words (judge by the context), punctuation, capitals. Take out filler (um, uh, a sentence started twice) and talk about the talking itself ("okay so", "next thing", "let me think"). Keep the speaker’s own words, order, language and meaning. Do not summarise, add or rephrase.${besides.replace('It is ""', 'It is []')}`
 			: commands ? `"text": the passage exactly as given.${besides}` : '',
-		request.connect ? '"follows": the id of the one listed note this passage most directly continues, answers or elaborates, or null when it starts a new subject.' : '',
+		request.connect ? '"follows": the id of the one listed note this passage is about, as a branch of a mind map hangs from its topic. Points made about the same topic all follow that topic, side by side, not one another: follow the note said just before only when the passage elaborates on that note itself. null when it starts a new subject.' : '',
 		commands ? '"ops": the canvas operations a command in the passage asks for, in order; [] when there is no command.' : ''
 	].filter(Boolean);
 	const system = [
@@ -536,7 +537,7 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 			'Operations, each an object. Use only ids from the canvas listing:',
 			'{"op":"connect","links":[{"from":id,"to":id,"label"?:string,"both_ends"?:true}]}: an arrow from one item to another.',
 			`{"op":"add_shape","shape":${TABLE_SHAPES.join('|')},"text"?:words inside it,"color"?:color,"w"?:number,"h"?:number, and where: "right_of":id or "below":id or "at":{"x","y"}}: a circle is an ellipse, a square or box a rectangle.`,
-			'{"op":"add_note","text":string,"style":"note"|"text","color"?:color, and where as for add_shape}: a sticky note or a text block holding words the speaker dictates for it. Never write words of your own.',
+			'{"op":"add_note","text":string,"style":"note"|"text","color"?:color, and where as for add_shape}: a sticky note or a text block holding words the speaker dictates for it. Never write words of your own. "Add a sticky", "add a note", "new branch off X" with no words given for it is a sticky with "text":"" (what the speaker says next will be written in it); a branch off X is that plus a connect from X to it.',
 			'A new shape or note may carry "as":"new1" (then "new2"…): later operations call it by that name wherever an id goes. "Add a sticky for work connected by an arrow" is an add_note with "as":"new1" and "right_of" the item it hangs from, then a connect from that item to "new1". With nothing named to connect from or put it beside, use the selected item, or else the note spoken last.',
 			'{"op":"edit","edits":[{"id":id,"text"?:the item’s whole new words,"color"?:color}]}: rewords or recolours items. Change only what was asked and keep the rest of the words as they are.',
 			'{"op":"move","moves":[{"id":id,"x"?:left,"y"?:top}]}: moves items; work the place out from the listing, keeping 40 between things.',
@@ -594,7 +595,12 @@ function partOfSpeech(heard: string, kept: string): boolean {
 /** A model's reply as an answer. Whatever can't be trusted falls back: the words as heard, no opinion on what it follows, nothing done. */
 export function parseRefine(reply: string, request: VoiceRefineRequest): VoiceRefineAnswer {
 	const data = firstObject(reply);
-	const ops = request.commands && data ? cleanVoiceOps(data.ops, request.table) : [];
+	// A model sometimes "removes" the passage's own block to say it wasn't a note: empty notes already say that, and the block is not its to remove.
+	const ops = (request.commands && data ? cleanVoiceOps(data.ops, request.table) : []).flatMap((op) => {
+		if (op.op !== 'remove' || !request.id) return [op];
+		const ids = op.ids.filter((one) => one !== request.id);
+		return ids.length ? [{ ...op, ids }] : [];
+	});
 	// The passage comes back as notes, one a thought; an answer with plain `text` is one note.
 	const listed = Array.isArray(data?.notes) ? data.notes.map(spoken).filter(Boolean).slice(0, 12) : spoken(data?.text) ? [spoken(data?.text)] : [];
 	// Where one text was asked for (a chat message), notes answered anyway are that one text.

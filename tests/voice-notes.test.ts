@@ -391,3 +391,20 @@ describe('the log', () => {
 		expect(refineLog(request, same, parseRefine(same, request), { ms: 1, model: 'a:b', input: 1, output: 1 }).not_taken).toBeUndefined();
 	});
 });
+
+describe('what Casey\'s first logged voice note showed', () => {
+	const table = { items: [{ id: 'a1', type: 'text', text: 'How does sticky?', x: 0, y: 0, w: 300, h: 40 }, { id: 'z9', type: 'text', text: 'Add a note.', x: 0, y: 80, w: 300, h: 40 }], selected: [], spoken: ['a1', 'z9'] };
+	const request = { text: 'Add a note.', correct: true, split: true, connect: false, commands: true, id: 'z9', table };
+
+	test('a sticky asked for with no words is made empty, not written down as a sentence', () => {
+		expect(parseRefine('{"notes": [], "ops": [{"op": "add_note", "text": "", "style": "note", "below": "a1"}]}', request)).toEqual({ text: '', ops: [{ op: 'add_note', text: '', style: 'note', below: 'a1' }] });
+		// A text block with nothing in it is nothing.
+		expect(cleanVoiceOps([{ op: 'add_note', text: '', style: 'text' }], table)).toEqual([]);
+	});
+
+	test('the passage\'s own block is not the model\'s to remove', () => {
+		const answer = parseRefine('{"notes": [], "ops": [{"op": "remove", "ids": ["z9"]}, {"op": "add_note", "text": "", "style": "note", "as": "new1", "below": "a1"}, {"op": "connect", "links": [{"from": "a1", "to": "new1"}]}]}', request);
+		expect(answer.ops).toEqual([{ op: 'add_note', text: '', style: 'note', below: 'a1', as: 'new1' }, { op: 'connect', links: [{ from: 'a1', to: 'new1' }] }]);
+		expect(parseRefine('{"notes": [], "ops": [{"op": "remove", "ids": ["a1", "z9"]}]}', request).ops).toEqual([{ op: 'remove', ids: ['a1'] }]);
+	});
+});

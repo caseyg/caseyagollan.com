@@ -45,7 +45,7 @@ export class VoiceNotes extends VoiceListening {
 	/** Finished blocks a model is still considering: corrected, or taken as a command. */
 	thinking = $state(0);
 	/** A head start: the question asked of a model when the speaker had probably finished, kept if they had. */
-	#early: { id: string; text: string; answer: Promise<VoiceRefineAnswer | null>; took: { ms: number; failed: string } } | undefined;
+	#early: { id: string; text: string; answer: Promise<VoiceRefineAnswer | null>; took: { ms: number; failed: string; anchor?: string; blank?: string } } | undefined;
 	#clock: ReturnType<typeof setInterval> | undefined;
 	/** Which voice note this is, so one that has ended doesn't select its blocks during the next. */
 	#note = 0;
@@ -57,6 +57,10 @@ export class VoiceNotes extends VoiceListening {
 	#likely = 0;
 	#tally = { likely: 0, early: 0, notes: 0, commands: 0 };
 	#counted = 0;
+	/** A sticky a command made with nothing in it: what is said next is written there. */
+	#blank: string | undefined;
+	/** Stickies this voice note made or filled: part of its map, though they aren't text blocks. */
+	#made: string[] = [];
 	/** Blocks that were wholly a command, and so taken away. */
 	#gone = new Set<string>();
 
@@ -125,6 +129,8 @@ export class VoiceNotes extends VoiceListening {
 		this.#gone.clear();
 		this.did = undefined;
 		this.#early = undefined;
+		this.#blank = undefined;
+		this.#made = [];
 		this.#note++;
 		this.#trace = Math.random().toString(36).slice(2, 10);
 		this.#began = Date.now();
@@ -191,7 +197,7 @@ export class VoiceNotes extends VoiceListening {
 			this.#writing = canvas.write(this.#writing, text, this.#last?.id);
 			// Words still arriving are drawn faint: they are a draft until the pause settles them.
 			if (fresh) { canvas.pending(this.#writing, true); this.#passages++; this.#spoke = Date.now(); this.#likely = 0; }
-			this.#quick(canvas, text, this.#writing, false);
+			if (this.#quick(canvas, text, this.#writing, false) && event.type === 'likely') return;
 		}
 		// Probably finished: the model is asked now, and the answer is waiting if the pause confirms it.
 		if (event.type === 'likely' && text && this.#writing && this.#early?.text !== text) {
@@ -241,7 +247,7 @@ export class VoiceNotes extends VoiceListening {
 			canvas.pending(id, true);
 		}
 		this.#settling = this.#settling
-			.then(() => this.#finish(canvas, { id, text }, before, how, answer))
+			.then(() => this.#finish(canvas, { id, text }, before, how, answer, took))
 			.then((made) => {
 				if (String(made.was).includes('command')) this.#tally.commands++;
 				else this.#tally.notes += 1 + (typeof made.more === 'number' ? made.more : 0);
@@ -258,13 +264,19 @@ export class VoiceNotes extends VoiceListening {
 	}
 
 	/** Asks a model about a block: what it should read, what it follows, and whether part of it was a command. Never throws. */
-	async #ask(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, took: { ms: number; failed: string } = { ms: 0, failed: '' }): Promise<VoiceRefineAnswer | null> {
+	async #ask(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, took: { ms: number; failed: string; anchor?: string; blank?: string } = { ms: 0, failed: '' }): Promise<VoiceRefineAnswer | null> {
 		const session = how.session.filter((id) => !this.#gone.has(id));
 		const others = how.arrange ? canvas.texts().filter((item) => item.id !== block.id) : [];
 		if (!this.#options.refine || !(how.correct || how.commands || others.length)) return null;
 		const began = Date.now();
 		try {
-			const table = how.commands ? { ...(await canvas.read()), spoken: session } : undefined;
+			const seen = how.commands || how.arrange ? await canvas.read() : undefined;
+			const table = how.commands && seen ? { ...seen, spoken: session } : undefined;
+			// The one thing selected is where the speaker is pointing: an empty sticky is waiting for these words, anything else is the topic they branch from.
+			const chosen = seen?.selected.filter((id) => id !== block.id) ?? [];
+			const pointed = chosen.length === 1 ? seen!.items.find((item) => item.id === chosen[0]) : undefined;
+			if (pointed && !pointed.text && (pointed.type === 'note' || pointed.type === 'geo')) took.blank = pointed.id;
+			else if (pointed && pointed.type !== 'arrow' && pointed.type !== 'frame') took.anchor = pointed.id;
 			const answer = await this.#options.refine({ text: block.text, correct: how.correct, ...(how.correct ? { split: true } : {}), connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}), trace: `${this.#trace}.${this.#passages}` });
 			took.ms = Date.now() - began;
 			if (!answer) took.failed = 'no model';
@@ -280,7 +292,7 @@ export class VoiceNotes extends VoiceListening {
 	}
 
 	/** A finished block, once a model has answered: corrected, any command in it carried out, then set in its place. */
-	async #finish(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, asked: Promise<VoiceRefineAnswer | null>): Promise<VoiceLogEntry> {
+	async #finish(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, asked: Promise<VoiceRefineAnswer | null>, took: { ms: number; failed: string; anchor?: string; blank?: string } = { ms: 0, failed: '' }): Promise<VoiceLogEntry> {
 		const answer = await asked;
 		// What was made of the passage, for the log.
 		const made: VoiceLogEntry = { was: 'note, as heard', text: block.text };
@@ -294,6 +306,10 @@ export class VoiceNotes extends VoiceListening {
 			if (this.#last?.id === block.id) this.#last = before;
 			made.was = 'command';
 			made.text = '';
+		} else if (!ops.length && (took.blank ?? this.#blank) && (await this.#fill(canvas, took.blank ?? this.#blank!, block, [answer?.text || block.text, ...(answer?.more ?? [])].join('\n'), how))) {
+			// An empty sticky was waiting for these words.
+			made.was = 'note, into the empty sticky';
+			made.text = answer?.text || block.text;
 		} else {
 			const rewritten = !!answer && (answer.text === block.text || ((how.correct || ops.length > 0) && canvas.rewrite(block.id, answer.text, block.text)));
 			if (rewritten && this.#last?.id === block.id) this.#last = { id: block.id, text: answer!.text };
@@ -301,8 +317,10 @@ export class VoiceNotes extends VoiceListening {
 			if (rewritten) made.text = answer!.text;
 			if (rewritten && answer?.more?.length) made.more = answer.more.length;
 			// With no opinion from a model, a block follows the one spoken before it.
-			const follows = answer && answer.follows !== undefined ? answer.follows : before && !this.#gone.has(before.id) ? before.id : undefined;
-			await canvas.settle(block.id, { follows, arrange: how.arrange, session });
+			// What is selected is the topic being spoken about; otherwise the model says, and failing that the block before.
+			const follows = how.arrange && took.anchor && took.anchor !== block.id ? took.anchor : answer && answer.follows !== undefined ? answer.follows : before && !this.#gone.has(before.id) ? before.id : undefined;
+			if (how.arrange && took.anchor && follows === took.anchor) made.branch_of = 'the selection';
+			await canvas.settle(block.id, { follows, arrange: how.arrange, session: [...session, ...this.#made] });
 			// A ramble that held several things: a block for each, one under the other.
 			let above = block.id;
 			for (const words of rewritten ? answer?.more ?? [] : []) {
@@ -317,6 +335,13 @@ export class VoiceNotes extends VoiceListening {
 		const done = await canvas.run(ops);
 		made.ops_asked = ops.length;
 		made.ops_done = done.length;
+		// A sticky made with nothing in it waits for the next thing said; any sticky made is part of this note's map.
+		for (const op of done) {
+			if (op.op !== 'add_note' || !op.made) continue;
+			this.#made.push(op.made);
+			this.#blank = op.text ? this.#blank : op.made;
+		}
+		if (how.arrange && this.#made.length) await canvas.map(this.#made.at(-1)!, [...this.#session, ...this.#made, ...ops.flatMap((op) => (op.op === 'connect' ? op.links.map((link) => link.from) : []))]);
 		// Blocks of this voice note that a command took away ("scratch that") are no longer part of it.
 		const left = new Map(canvas.texts(500).map((item) => [item.id, item.text]));
 		for (const id of this.#session) if (!left.has(id)) this.#gone.add(id);
@@ -328,6 +353,23 @@ export class VoiceNotes extends VoiceListening {
 		this.did = { text: done.length ? describeOps(done) : 'That couldn’t be done here.' };
 		made.did = this.did.text;
 		return made;
+	}
+
+	/** Writes a passage into an empty sticky that was waiting for it, in place of a block of its own. False when the sticky is gone or no longer empty. */
+	async #fill(canvas: VoiceCanvas, sticky: string, block: { id: string; text: string }, words: string, how: { arrange: boolean }): Promise<boolean> {
+		this.#blank = undefined;
+		const there = (await canvas.read()).items.find((item) => item.id === sticky);
+		if (!there || there.text) return false;
+		const done = await canvas.run([{ op: 'edit', edits: [{ id: sticky, text: words }] }]);
+		if (!done.length) return false;
+		canvas.remove(block.id);
+		this.#gone.add(block.id);
+		this.#session = this.#session.filter((id) => id !== block.id);
+		if (!this.#made.includes(sticky)) this.#made.push(sticky);
+		// The sticky is now the last thing said, for what follows to hang from.
+		if (this.#last?.id === block.id) this.#last = { id: sticky, text: words };
+		if (how.arrange) await canvas.map(sticky, [...this.#session, ...this.#made]);
+		return true;
 	}
 
 	/** Resolves once every finished block has been corrected and placed. */

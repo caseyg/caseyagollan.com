@@ -18,6 +18,16 @@ export const RAMBLE = [
 	'that\'s all'
 ];
 
+/** Thinking aloud as a mind map: a topic, a sticky asked for and then filled, and two points made about the topic once it is selected. */
+export const MINDMAP = [
+	'planning the workshop',
+	'add a sticky',
+	'the venue needs a projector',
+	'select planning the workshop',
+	'we should invite the speakers early',
+	'and print name tags'
+];
+
 /** What a chat story's dictation "hears": a message, then a follow-up. */
 export const ASKED = [
 	'so um which books about cooperatives are in the library',
@@ -76,6 +86,7 @@ function scriptedCommand(request: VoiceRefineRequest): { text: string; ops: Voic
 	if (heard.includes('connect these two') && last && request.id) return { text: 'Okay, cool. So this is a new block.', ops: [{ op: 'connect', links: [{ from: last, to: request.id }] }] };
 	if (heard.includes('into numbers') && first) return { text: '', ops: [{ op: 'edit', edits: [{ id: first, text: words(first).replace(/one,? two,? three/i, '1, 2, 3') }] }] };
 	if (heard.includes('draw a circle') && last) return { text: '', ops: [{ op: 'add_shape', shape: 'ellipse', text: 'Ideas', right_of: last }] };
+	if (heard.includes('add a sticky') && last) return { text: '', ops: [{ op: 'add_note', text: '', style: 'note', right_of: last, as: 'new1' }, { op: 'connect', links: [{ from: last, to: 'new1' }] }] };
 	if (heard.includes('sticky') && last) return { text: '', ops: [{ op: 'add_note', text: 'Work', style: 'note', right_of: last, as: 'new1' }, { op: 'connect', links: [{ from: last, to: 'new1' }] }] };
 	if (heard.includes('blue') && first) return { text: '', ops: [{ op: 'edit', edits: [{ id: first, color: 'blue' }] }] };
 	return undefined;

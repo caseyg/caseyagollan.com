@@ -6,7 +6,7 @@
 	import { layoutOp } from '$lib/table-menus';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { COMMANDS, RAMBLE, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
+	import { COMMANDS, MINDMAP, RAMBLE, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCanvas', component: TableCanvas, tags: ['!autodocs'] });
 	const sample = Object.values(blocks);
@@ -29,6 +29,8 @@
 	const commanding = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(COMMANDS)], refine: scriptedRefine });
 	// A ramble, as Todoist's Ramble takes one: several things at once, some taken back, ended by saying so.
 	const rambling = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(RAMBLE)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
+	const mapping = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(MINDMAP)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
+	mapping.arrange = true;
 	function onvoiceready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
@@ -118,6 +120,25 @@
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
 				voice={{ status: rambling.status, level: rambling.level, notice: rambling.notice, correct: rambling.correct, arrange: rambling.arrange, commands: rambling.commands, did: rambling.did, thinking: rambling.thinking > 0, usage: rambling.usageView }}
 				onvoice={rambling.toggle} onvoicecorrect={(on) => (rambling.correct = on)} onvoicearrange={(on) => (rambling.arrange = on)} onvoicecommands={(on) => (rambling.commands = on)} onvoicemeter={(on) => (rambling.meter = on)}
+			/>
+		</div>
+	</div>
+</Story>
+
+<!--
+	Thinking aloud as a mind map, with "Lay out and connect" on: "add a sticky" makes an empty one and
+	the next thing said is written in it; once "select planning the workshop" has chosen the topic,
+	what is said branches from it, side by side, not in a line.
+-->
+<Story asChild name="Voice mind map">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onvoiceready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: mapping.status, level: mapping.level, notice: mapping.notice, correct: mapping.correct, arrange: mapping.arrange, commands: mapping.commands, did: mapping.did, thinking: mapping.thinking > 0, usage: mapping.usageView }}
+				onvoice={mapping.toggle} onvoicecorrect={(on) => (mapping.correct = on)} onvoicearrange={(on) => (mapping.arrange = on)} onvoicecommands={(on) => (mapping.commands = on)} onvoicemeter={(on) => (mapping.meter = on)}
 			/>
 		</div>
 	</div>

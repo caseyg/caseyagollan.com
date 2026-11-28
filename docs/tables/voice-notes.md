@@ -170,6 +170,21 @@ microphone.
 It is an estimate from listed prices, counted in the browser: another device's use is not in it,
 and the services' own bills are the record.
 
+## Thinking aloud as a mind map
+
+With "Lay out and connect" on, the note is set out as a mind map (`arrange` `mindmap`), not a line:
+
+- What is selected is the topic. While one thing is selected, each new thought branches from it,
+  side by side. "Select the pricing note" moves to another branch; nothing selected leaves it to
+  the model, which is told that points about one topic hang from the topic and not from each other.
+- "Add a sticky", "add a note", "new branch off pricing" make an empty sticky (joined to what it
+  branches from), and the next thing said is written in it. An empty sticky or shape that is
+  selected takes the next thing said in the same way.
+
+Both came from the first voice note read back from the log (2026-11-28): "Add a new sticky" had
+been written down as a sentence, because the model's empty sticky was refused, and every thought
+followed the one before it.
+
 ## Reading what happened
 
 A voice note that went badly can be read back from the Worker's log (Workers observability, on
@@ -202,7 +217,7 @@ what was dictated; what is on the table is only counted. The log is Casey's own 
 account's and keeps lines for a few days.
 
 To read it: the telemetry query API (`POST /accounts/<id>/workers/observability/telemetry/query`,
-filter `$metadata.message` includes `voice_`), or the Worker's Logs tab in the dashboard.
+filter key `event` includes `voice`), or the Worker's Logs tab in the dashboard.
 
 ## The same listening in the chat
 
