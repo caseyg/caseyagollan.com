@@ -10,14 +10,14 @@ describe('the Layout menu', () => {
 	});
 
 	test('lays out the whole table, or only what is selected', () => {
-		expect(layoutOp('tree', 'table', ['a', 'b'])).toEqual({ op: 'arrange', layout: 'tree' });
-		expect(layoutOp('tree', 'selection', ['a', 'b'])).toEqual({ op: 'arrange', layout: 'tree', ids: ['a', 'b'] });
-		expect(layoutOp('grid', 'selection', [])).toEqual({ op: 'arrange', layout: 'grid' });
+		expect(layoutOp('tree', 'table', ['a', 'b'])).toEqual({ op: 'arrange', layout: 'tree', zoom: false });
+		expect(layoutOp('tree', 'selection', ['a', 'b'])).toEqual({ op: 'arrange', layout: 'tree', zoom: false, ids: ['a', 'b'] });
+		expect(layoutOp('grid', 'selection', [])).toEqual({ op: 'arrange', layout: 'grid', zoom: false });
 		expect(layoutOp('nonsense', 'table', [])).toBeUndefined();
 	});
 
 	test('groups are made without drawing areas around them', () => {
-		expect(layoutOp('cluster:color', 'table', [])).toEqual({ op: 'arrange', layout: 'cluster', by: 'color', frame: false });
+		expect(layoutOp('cluster:color', 'table', [])).toEqual({ op: 'arrange', layout: 'cluster', zoom: false, by: 'color', frame: false });
 	});
 
 	test('a selection can be laid out when it is several things, or one area', () => {

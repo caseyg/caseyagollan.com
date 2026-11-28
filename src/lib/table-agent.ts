@@ -106,7 +106,7 @@ export type TableOp =
 	 * `groups` (or `by`) and frames each named group unless `frame` is false. `arrows`: what becomes of
 	 * the arrows among the items in a graph layout (straightened unless told to keep them, or made elbows).
 	 */
-	| ({ op: 'arrange'; layout: TableArrangement; ids?: string[]; ordered?: boolean; inside?: string; columns?: number; gap?: number; direction?: TableDirection; root?: string; groups?: TableCluster[]; by?: TableClusterBy; frame?: boolean; arrows?: 'keep' | 'straight' | 'elbow' } & TablePlace)
+	| ({ op: 'arrange'; layout: TableArrangement; ids?: string[]; ordered?: boolean; inside?: string; columns?: number; gap?: number; direction?: TableDirection; root?: string; groups?: TableCluster[]; by?: TableClusterBy; frame?: boolean; arrows?: 'keep' | 'straight' | 'elbow'; /** `false` leaves the view where it is, not fitted to the table. */ zoom?: boolean } & TablePlace)
 	| { op: 'align'; ids: string[]; align?: TableAlign; distribute?: 'horizontal' | 'vertical' }
 	| { op: 'tidy'; ids?: string[] }
 	| { op: 'look'; ids?: string[] }

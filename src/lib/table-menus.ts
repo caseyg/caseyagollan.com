@@ -52,7 +52,8 @@ type ArrangeOp = Extract<TableOp, { op: 'arrange' }>;
 export function layoutOp(value: string, scope: LayoutScope, selected: string[]): ArrangeOp | undefined {
 	const [layout, by] = value.split(':') as [TableArrangement, TableClusterBy | undefined];
 	if (!TABLE_LAYOUTS.some((item) => item.value === value)) return undefined;
-	return { op: 'arrange', layout, ...(by ? { by, frame: false } : {}), ...(scope === 'selection' && selected.length ? { ids: selected } : {}) };
+	// A layout picked by hand leaves the view alone: the table moves, not what is being looked at.
+	return { op: 'arrange', layout, zoom: false, ...(by ? { by, frame: false } : {}), ...(scope === 'selection' && selected.length ? { ids: selected } : {}) };
 }
 
 /** Whether a selection can be laid out on its own: several things, or one area (for what it holds). */
