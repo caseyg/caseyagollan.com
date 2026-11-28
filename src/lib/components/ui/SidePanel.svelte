@@ -12,6 +12,8 @@
 		compact?: boolean;
 		/** A window floating over the bottom right corner of the page instead of a panel down its side; the page keeps its full width. */
 		floating?: boolean;
+		/** Which side of the page it stands on. A panel on the left leaves the right to another (the docked chat). */
+		side?: 'right' | 'left';
 		/** Beside the close button: the panel's title. */
 		header?: Snippet;
 		/** Small buttons before the close button. */
@@ -23,7 +25,7 @@
 		[key: string]: unknown;
 	}
 
-	let { label, onclose, closeLabel = 'Close', compact = false, floating = false, header, actions, footer, children, class: className = '', ...rest }: Props = $props();
+	let { label, onclose, closeLabel = 'Close', compact = false, floating = false, side = 'right', header, actions, footer, children, class: className = '', ...rest }: Props = $props();
 </script>
 
 <!--
@@ -31,9 +33,9 @@
 	navigation stays whole while the panel is open. The body scrolls; the header and footer stay.
 	The library's book details and the docked chat are both one of these. On a phone it lies along
 	the bottom instead. `floating` makes it a window over the bottom right corner. Set `--side-panel-width` to change its width; a panel that should stand
-	beside another reads `--side-panel-offset`.
+	beside another reads `--side-panel-offset`. `side="left"` stands it down the left side instead.
 -->
-<aside class="side-panel {className}" class:compact class:floating aria-label={label} {...rest}>
+<aside class="side-panel {className}" class:compact class:floating class:left={side === 'left'} aria-label={label} {...rest}>
 	{#if header || actions || onclose}
 		<header class="side-panel-header">
 			<div class="side-panel-title">{@render header?.()}</div>
@@ -70,6 +72,11 @@
 
 	.compact {
 		--side-panel-pad: var(--space-3);
+	}
+
+	.left:not(.floating) {
+		right: auto;
+		left: calc(var(--nav-inset) + var(--side-panel-offset, 0px) + env(safe-area-inset-left));
 	}
 
 	/* A window over the page's corner: solid enough to read over whatever is under it, and lifted off it. */
@@ -145,6 +152,7 @@
 			z-index: calc(var(--z-nav) + 1);
 			top: auto;
 			right: 0;
+			left: 0;
 			bottom: 0;
 			width: 100%;
 			max-width: none;
