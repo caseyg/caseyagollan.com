@@ -75,14 +75,16 @@
 	let source = $state<Block>();
 	// Everything selected when Add was pressed: what Similar finds the like of.
 	let like = $state<LikeThing[]>([]);
+	// Their ids on the table: what blocks added from Similar are linked from.
+	let likeIds = $state<string[]>([]);
 	// The list the picker shows, the one it was asked aloud to open on, and the lines that can be added from it.
 	let pickerTab = $state<'page' | 'similar' | 'recent' | 'site'>();
 	let prefer = $state<'page' | 'similar'>();
 	let listed: { blocks: Block[]; busy: boolean } = { blocks: [], busy: false };
 
 	/** Adds from the picker, beside the block it was opened for. A voice note's additions leave the selection where it is. */
-	function addListed(blocks: Block[], select = true) {
-		api?.addBlocks(blocks, undefined, { near: source, select, ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) });
+	function addListed(blocks: Block[], select = true, linked = false) {
+		api?.addBlocks(blocks, undefined, { near: source, select, ...(linked ? { linkFrom: likeIds } : {}), ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) });
 	}
 
 	/** The picker as a voice note uses it: "show similar items", "get context", then "add the second one". */
@@ -98,6 +100,7 @@
 			const same = adding && pickerTab === tab && (view.selected ? blockKey(view.selected) : '') === (source ? blockKey(source) : '') && selected.map(likeKey).join('\n') === like.map(likeKey).join('\n');
 			source = view.selected;
 			like = selected;
+			likeIds = api?.selectedIds() ?? [];
 			prefer = pickerTab = tab;
 			if (!same) listed = { blocks: [], busy: true };
 			tagging = pinned ? tagging : null;
@@ -113,7 +116,7 @@
 		loaded: () => (adding && !listed.busy ? listed.blocks.map((block) => block.title || block.excerpt || '') : undefined),
 		add(places) {
 			const blocks = places.map((at) => listed.blocks[at]).filter(Boolean);
-			if (blocks.length) addListed(blocks, false);
+			if (blocks.length) addListed(blocks, false, pickerTab === 'similar');
 			return blocks.length;
 		},
 		close: () => showAdding(false)
@@ -428,6 +431,7 @@
 		const turned = pinned && adding && selected.length > 0 && selected.map(likeKey).join('\n') !== like.map(likeKey).join('\n');
 		source = view.selected;
 		like = selected;
+		likeIds = api?.selectedIds() ?? [];
 		prefer = undefined;
 		if (turned) return;
 		showAdding(!adding);
@@ -592,6 +596,8 @@
 					placed={view.placed}
 					{source}
 					{like}
+					linkFrom={likeIds}
+					onaddlinked={(blocks) => addListed(blocks, true, true)}
 					pieces={(block) => pagePieces(block, wikiHref)}
 					{recent}
 					similar={session.mode === 'owner' ? similarBlocks : undefined}

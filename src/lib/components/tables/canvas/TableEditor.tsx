@@ -81,8 +81,10 @@ export interface TableApi {
 	 * Adds blocks with their top-left at a screen point, or around the middle of the view (or beside
 	 * the block they were taken from, `near`), in a row or wrapped into `columns`. `sizes` gives a block
 	 * its own size (a rendered page is as tall as its picture); `plain` sets them down with details hidden.
+	 * `linkFrom` (ids of things on the table) draws an arrow to each new block from what it was found by:
+	 * from the one thing, or from an area put around several.
 	 */
-	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean }): string[];
+	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean; linkFrom?: string[] }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
 	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'relink' | 'rename' | 'tag' }>): Promise<unknown>;
 	/** What a voice note writes with: blocks whose words arrive as they are heard (`$lib/voice-session.svelte`). */
@@ -105,6 +107,8 @@ export interface TableApi {
 	 * areas by their words, pictures set down from this device by their address.
 	 */
 	selectedThings(): LikeThing[];
+	/** The ids of the same things, in the same order: what blocks added as like them are linked from. */
+	selectedIds(): string[];
 	/** Clears the selection. */
 	deselect(): void;
 	undo(): void;
@@ -138,10 +142,10 @@ const GAP = GRID;
  * Where a block added without a drop point goes: the middle of the view, or just right of the block
  * it was taken from, or the nearest free place around there, so it isn't set down on top of another.
  */
-function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block, ignore: TLShapeId[] = []): { x: number; y: number } {
+function openSpot(editor: Editor, size: { w: number; h: number }, near?: Block | TLShapeId, ignore: TLShapeId[] = []): { x: number; y: number } {
 	const viewport = editor.getViewportPageBounds();
-	const key = near && blockKey(near);
-	const source = key ? editor.getCurrentPageShapes().find((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE) && blockKey((shape as SiteBlockShape).props) === key) : undefined;
+	const key = near && typeof near !== 'string' && blockKey(near);
+	const source = typeof near === 'string' ? editor.getShape(near) : key ? editor.getCurrentPageShapes().find((shape) => editor.isShapeOfType(shape, BLOCK_SHAPE) && blockKey((shape as SiteBlockShape).props) === key) : undefined;
 	const beside = source && editor.getShapePageBounds(source);
 	const start = beside ? { x: onGrid(beside.maxX + GAP), y: onGrid(beside.minY) } : { x: onGrid(viewport.center.x - size.w / 2), y: onGrid(viewport.center.y - size.h / 2) };
 	const taken = editor.getCurrentPageShapes().filter((shape) => !ignore.includes(shape.id)).map((shape) => editor.getShapePageBounds(shape)).filter((bounds) => bounds !== undefined);
@@ -188,16 +192,18 @@ function pushAside(editor: Editor, id: TLShapeId) {
 
 function apiFor(editor: Editor): TableApi {
 	const api: TableApi = {
-		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false, sizes, plain = false } = {}) {
+		addBlocks(blocks, at, { columns = blocks.length, select = true, near, page = false, sizes, plain = false, linkFrom } = {}) {
 			if (!blocks.length) return [];
 			const dropped = at && (page ? at : editor.screenToPage(at));
 			const sized = (block: Block, index: number) => ({ ...blockProps(block), ...(sizes?.[index] ? { w: Math.max(40, Math.round(sizes[index]!.w)), h: Math.max(40, Math.round(sizes[index]!.h)) } : {}), ...(plain ? { hideMeta: true } : {}) });
-			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, sized(blocks[0], 0), near);
+			editor.markHistoryStoppingPoint('add blocks');
+			// What the new blocks are linked from is settled first (several things get their area), so they are set down clear of it.
+			const anchor = linkFrom?.length ? linkAnchor(editor, linkFrom) : undefined;
+			const origin = dropped ? { x: onGrid(dropped.x), y: onGrid(dropped.y) } : openSpot(editor, sized(blocks[0], 0), anchor ?? near);
 			const ids: TLShapeId[] = [];
 			let x = origin.x;
 			let y = origin.y;
 			let rowHeight = 0;
-			editor.markHistoryStoppingPoint('add blocks');
 			editor.run(() => {
 				blocks.forEach((block, index) => {
 					if (index && index % columns === 0) {
@@ -212,6 +218,7 @@ function apiFor(editor: Editor): TableApi {
 					x += props.w + GAP;
 					rowHeight = Math.max(rowHeight, props.h);
 				});
+				if (anchor) connect(editor, ids.map((id) => ({ from: short(anchor), to: short(id) })));
 			});
 			if (select) editor.select(...ids);
 			editor.setCurrentTool('select');
@@ -248,6 +255,7 @@ function apiFor(editor: Editor): TableApi {
 			editor.updateDocumentSettings({ meta: layout ? { ...meta, [AUTO_LAYOUT]: layout } : meta });
 		},
 		selectedThings: () => editor.getSelectedShapes().flatMap((shape) => likeThing(editor, shape) ?? []),
+		selectedIds: () => editor.getSelectedShapes().filter((shape) => likeThing(editor, shape)).map((shape) => short(shape.id)),
 		deselect: () => editor.selectNone(),
 		undo: () => editor.undo(),
 		redo: () => editor.redo(),
@@ -898,6 +906,25 @@ function draw(editor: Editor, strokes: TableStroke[]) {
 		}
 	});
 	return { added };
+}
+
+/**
+ * What arrows to newly added blocks start from, given what the blocks were found by. One thing is
+ * the start itself; several are put in an area first (the one they already share, when they do),
+ * and the arrows start from the area. Things that have since left the table are passed over.
+ */
+function linkAnchor(editor: Editor, from: string[]): TLShapeId | undefined {
+	const anchors = from.map((id) => shapeOf(editor, id)).filter((shape): shape is TLShape => !!shape && shape.type !== 'arrow');
+	if (!anchors.length) return undefined;
+	let anchor = anchors[0].id;
+	if (anchors.length > 1) {
+		const parent = anchors[0].parentId;
+		const shared = anchors.every((shape) => shape.parentId === parent) ? editor.getShape(parent as TLShapeId) : undefined;
+		// The area made the last time is used again while it holds just these things.
+		const same = shared?.type === 'frame' && editor.getSortedChildIdsForParent(shared.id).filter((id) => editor.getShape(id)?.type !== 'arrow').length === anchors.length;
+		anchor = same ? shared!.id : (`shape:${frame(editor, { op: 'frame', name: '', ids: anchors.map((shape) => short(shape.id)) }).added[0]}` as TLShapeId);
+	}
+	return anchor;
 }
 
 /** A named frame: around items (which move into it), or empty at a place. */

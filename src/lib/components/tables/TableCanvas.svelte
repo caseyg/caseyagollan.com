@@ -1,6 +1,8 @@
 <script module lang="ts">
 	/** The type a dragged block carries, as JSON: one `Block` or a list of them. */
 	export const BLOCK_DRAG_TYPE = 'application/x-caseyagollan-block';
+	/** Dragged with blocks that were found as like something on the table: the ids of what they are linked from once dropped. */
+	export const BLOCK_LINK_TYPE = 'application/x-caseyagollan-block-link';
 </script>
 
 <script lang="ts">
@@ -115,7 +117,14 @@
 		}
 		const blocks = [parsed].flat().map(cleanBlock).filter((block): block is Block => block !== null);
 		// Several dragged over together are set out in rows, in the order they were listed.
-		api.addBlocks(blocks, { x: event.clientX, y: event.clientY }, { columns: Math.min(blocks.length, 4) });
+		let linkFrom: string[] | undefined;
+		try {
+			const ids: unknown = JSON.parse(event.dataTransfer!.getData(BLOCK_LINK_TYPE) || '[]');
+			if (Array.isArray(ids)) linkFrom = ids.filter((id): id is string => typeof id === 'string').slice(0, 50);
+		} catch {
+			// Dropped without links.
+		}
+		api.addBlocks(blocks, { x: event.clientX, y: event.clientY }, { columns: Math.min(blocks.length, 4), ...(linkFrom?.length ? { linkFrom } : {}) });
 	}
 </script>
 

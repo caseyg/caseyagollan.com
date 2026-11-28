@@ -7,7 +7,7 @@ export { default as BlockFeed } from './BlockFeed.svelte';
 export { default as BlockList } from './BlockList.svelte';
 export { default as BlockPicker } from './BlockPicker.svelte';
 export { default as TableAppView } from './TableAppView.svelte';
-export { default as TableCanvas, BLOCK_DRAG_TYPE } from './TableCanvas.svelte';
+export { default as TableCanvas, BLOCK_DRAG_TYPE, BLOCK_LINK_TYPE } from './TableCanvas.svelte';
 export { default as TableCard } from './TableCard.svelte';
 export { default as NewTableCard } from './NewTableCard.svelte';
 export { default as TableGrid } from './TableGrid.svelte';
