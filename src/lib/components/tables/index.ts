@@ -13,6 +13,7 @@ export { default as NewTableCard } from './NewTableCard.svelte';
 export { default as TableGrid } from './TableGrid.svelte';
 export { default as RenameTable } from './RenameTable.svelte';
 export { default as TablePostMenu } from './TablePostMenu.svelte';
+export { default as TableContextMenu } from './TableContextMenu.svelte';
 export { default as TableToolbar } from './TableToolbar.svelte';
 export { default as TableWireframe } from './TableWireframe.svelte';
 export { default as TableBlock } from './TableBlock.svelte';

@@ -2,7 +2,7 @@
 	import { onMount, untrack } from 'svelte';
 	import type { PageData } from './$types';
 	import Nav from '$lib/components/Nav.svelte';
-	import { BlockPicker, RenameTable, TableCanvas, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
+	import { BlockPicker, RenameTable, TableCanvas, TableContextMenu, TableToolbar, TableWireframe, TagDock, TABLES_CRUMB, type TableApi, type TableState } from '$lib/components/tables';
 	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
 	import { page } from '$app/state';
@@ -363,6 +363,23 @@
 		return () => window.removeEventListener('pointerdown', close, true);
 	});
 
+	let contextMenu = $state<TableContextMenu>();
+
+	/** Add, from the toolbar or the right-click menu: opens or closes the picker. */
+	function add() {
+		// With the sidebar open, Add with another block selected turns the sidebar to that block.
+		const turned = pinned && adding && !!view.selected && (!source || blockKey(view.selected) !== blockKey(source));
+		source = view.selected;
+		if (turned) return;
+		showAdding(!adding);
+		if (adding && !pinned) tagging = null;
+	}
+
+	function tags() {
+		tagging = tagging ? null : 'edit';
+		if (tagging && !pinned) adding = false;
+	}
+
 	function layout(value: string, scope: LayoutScope) {
 		const op = layoutOp(value, scope, view.selection.map((item) => item.id));
 		if (op) void api?.perform(op);
@@ -436,7 +453,41 @@
 	{#if missing}
 		<p class="missing">There’s no table at this address. <a href={listHref}>See all tables</a>.</p>
 	{:else if session}
-		<TableCanvas {document} {editable} {onchange} {onready} />
+		<TableCanvas {document} {editable} {onchange} {onready} onmenu={(point) => void contextMenu?.openAt(point)} />
+		{#if editable}
+			<TableContextMenu
+				bind:this={contextMenu}
+				state={{
+					selection: view.selection,
+					tool: view.tool,
+					geo: view.geo,
+					canUndo: view.canUndo,
+					canRedo: view.canRedo,
+					autoLayout: view.autoLayout,
+					auto: true,
+					details: view.details,
+					tags: session.mode !== 'pass',
+					media: true,
+					voice: session.mode !== 'pass' ? { status: voice.status, correct: voice.correct, arrange: voice.arrange, commands: voice.commands } : undefined,
+					published: session.mode === 'pass' ? undefined : published,
+					post: session.mode === 'owner'
+				}}
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)}
+				onmedia={(files) => void api?.addMedia(files)}
+				onlayout={layout}
+				onautolayout={(value) => api?.setAutoLayout(value)}
+				onadd={add}
+				ondetails={(shown) => api?.setDetails(shown)}
+				ontags={tags}
+				onundo={() => api?.undo()}
+				onredo={() => api?.redo()}
+				onfit={() => api?.zoomToFit()}
+				onvoice={voice.toggle}
+				onvoicechoice={(choice, on) => (voice[choice] = on)}
+				onpost={post}
+				onpublish={publish}
+			/>
+		{/if}
 		<div class="dock dock--toolbar">
 			<TableToolbar
 				{editable}
@@ -459,21 +510,11 @@
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
-				onadd={() => {
-					// With the sidebar open, Add with another block selected turns the sidebar to that block.
-					const turned = pinned && adding && !!view.selected && (!source || blockKey(view.selected) !== blockKey(source));
-					source = view.selected;
-					if (turned) return;
-					showAdding(!adding);
-					if (adding && !pinned) tagging = null;
-				}}
+				onadd={add}
 				tags={editable && session.mode !== 'pass' ? { open: !!tagging, count: stagedCount() } : undefined}
 				onpost={session.mode === 'owner' ? post : undefined}
 				{posting}
-				ontags={() => {
-					tagging = tagging ? null : 'edit';
-					if (tagging && !pinned) adding = false;
-				}}
+				ontags={tags}
 				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0, usage: voice.usageView, words: voice.words } : undefined}
 				onvoice={voice.toggle}
 				onvoicecorrect={(on) => (voice.correct = on)}

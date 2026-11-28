@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { TABLE_ARRANGEMENTS } from '../src/lib/table-agent';
-import { AUTO_LAYOUT, autoLayoutOf, layoutOp, layoutScopes, MORE_TOOLS, moreToolFor, TABLE_LAYOUTS, toolChoice } from '../src/lib/table-menus';
+import { AUTO_LAYOUT, autoLayoutOf, contextItems, TOOLS, type TableContextItem, type TableContextState, layoutOp, layoutScopes, MORE_TOOLS, moreToolFor, TABLE_LAYOUTS, toolChoice } from '../src/lib/table-menus';
 
 describe('the Layout menu', () => {
 	test('offers every layout the chat can use', () => {
@@ -63,4 +63,49 @@ describe('the More tools menu', () => {
 
 test('every layout and every tool in the menus has an icon', () => {
 	for (const item of [...TABLE_LAYOUTS, ...MORE_TOOLS, ...MORE_TOOLS.flatMap((tool) => tool.items ?? [])]) expect(item.icon).toBeTruthy();
+});
+
+describe('the right-click menu', () => {
+	const base: TableContextState = { selection: [], tool: 'select', canUndo: false, canRedo: false };
+	const full: TableContextState = { ...base, auto: true, tags: true, media: true, voice: { status: 'off', correct: true, arrange: false, commands: false }, published: false, post: true };
+	const flat = (items: TableContextItem[]): TableContextItem[] => items.flatMap((item) => [item, ...flat(item.items ?? [])]);
+	const values = (state: TableContextState) => flat(contextItems(state)).map((item) => item.value);
+
+	test('offers what the toolbar does: every layout, tool and shape, and the rest', () => {
+		const all = values(full);
+		for (const layout of TABLE_LAYOUTS) expect(all).toContain(`layout:table:${layout.value}`);
+		for (const tool of TOOLS) expect(all).toContain(`tool:${tool.id}`);
+		for (const tool of MORE_TOOLS.flatMap((item) => item.items ?? [item])) expect(all).toContain(`more:${tool.value}`);
+		for (const value of ['add', 'auto', 'tags', 'voice', 'voice:correct', 'voice:arrange', 'voice:commands', 'undo', 'redo', 'fit', 'post:embed', 'post:picture', 'publish']) expect(all).toContain(value);
+		expect(new Set(all).size).toBe(all.length);
+	});
+
+	test('leaves out what the table can’t do here', () => {
+		const all = values(base);
+		for (const value of ['auto', 'tags', 'voice', 'more:media', 'post:embed', 'publish', 'details', 'layout:selection']) expect(all).not.toContain(value);
+		expect(all).toContain('layout:table:grid');
+	});
+
+	test('what applies to the selection comes first', () => {
+		const items = contextItems({ ...full, selection: [{ id: 'a' }, { id: 'b' }], details: 'shown' });
+		expect(items.slice(0, 3).map((item) => item.value)).toEqual(['layout:selection', 'details', 'tags']);
+		expect(items[0].items?.map((item) => item.value)).toContain('layout:selection:outline');
+		expect(items[1].label).toBe('Hide details');
+		expect(contextItems({ ...full, selection: [{ id: 'f', type: 'frame' }] })[0].label).toBe('Lay out inside this area');
+		expect(values({ ...full, selection: [{ id: 'a' }] })).not.toContain('layout:selection');
+	});
+
+	test('shows what is on: the tool in hand, auto layout and its layout, undo and redo', () => {
+		const items = flat(contextItems({ ...full, tool: 'geo', geo: 'star', autoLayout: 'tree', canUndo: true }));
+		const by = (value: string) => items.find((item) => item.value === value)!;
+		expect(by('more:geo:star').checked).toBe(true);
+		expect(by('tool:select').checked).toBeUndefined();
+		expect(by('auto').checked).toBe(true);
+		expect(by('layout:table:tree').checked).toBe(true);
+		expect(by('layout:table:grid').checked).toBeUndefined();
+		expect(by('undo').disabled).toBe(false);
+		expect(by('redo').disabled).toBe(true);
+		expect(by('voice:correct').checked).toBe(true);
+		expect(by('publish').label).toBe('Publish');
+	});
 });
