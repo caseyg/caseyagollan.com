@@ -6,7 +6,8 @@
 	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
 	import { page } from '$app/state';
-	import { listTables, postTable, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
+	import { listTables, nameOnLeave, postTable, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
+	import { isUntitled, UNTITLED } from '$lib/table-names';
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import { hashItem } from '$lib/table-search';
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
@@ -279,12 +280,20 @@
 			if (status === 'unsaved' || status === 'saving') event.preventDefault();
 		};
 		window.addEventListener('beforeunload', warn);
+		// A table left still untitled is named from what is on it, once what's waiting has been saved.
+		// (A tab that closes before this is heard is caught by the site's own pass a few minutes later.)
+		const nameIfLeft = () => {
+			if (session && !view.empty) nameOnLeave(session, { id, name });
+		};
+		const leaving = () => void flush().then(nameIfLeft);
+		window.addEventListener('pagehide', leaving);
 		return () => {
 			window.removeEventListener('beforeunload', warn);
+			window.removeEventListener('pagehide', leaving);
 			voice.stop();
 			phone.removeEventListener('change', fit);
 			// Leaving for another page (or another table): save what's waiting now.
-			if (pending !== undefined) void flush();
+			leaving();
 		};
 	});
 
@@ -330,7 +339,9 @@
 		pending = undefined;
 		status = 'saving';
 		saving = saveTable(session, id, { document: next })
-			.then(() => {
+			.then((saved) => {
+				// The site may have named the table while it sat open.
+				if (isUntitled({ name }) && !isUntitled(saved)) name = saved.name;
 				if (pending === undefined) status = 'saved';
 			})
 			.catch((error) => {
@@ -431,7 +442,7 @@
 	}
 
 	const nameSegment = $derived(
-		editable ? { label: name || 'Untitled table', onclick: openRename, title: 'Rename', ariaLabel: `${name}, rename` } : { label: name || 'Table', href: '', current: true }
+		editable ? { label: name || UNTITLED, onclick: openRename, title: 'Rename', ariaLabel: `${name}, rename` } : { label: name || 'Table', href: '', current: true }
 	);
 </script>
 

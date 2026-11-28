@@ -1,6 +1,7 @@
 import { ownerHint } from './owner';
 import { searchBlocks } from './table-sources';
 import { searchTableTexts, tableTexts, type TableSearchResult } from './table-search';
+import { isUntitled, UNTITLED } from './table-names';
 import { tableWireframe } from './table-wireframe';
 import { byUpdated, cleanName, emptyTable, linkBlock, summarizeDocument, toSummary, validId, type Block, type Table, type TableSummary } from './tables';
 
@@ -129,9 +130,9 @@ export async function searchTables(mode: TablesMode, query: string, signal?: Abo
 }
 
 /** Creates a table and returns it. */
-export async function createTable(session: TablesSession, name = 'Untitled table'): Promise<Table> {
+export async function createTable(session: TablesSession, name = UNTITLED): Promise<Table> {
 	if (session.mode === 'demo') {
-		const table = emptyTable(cleanName(name) ?? 'Untitled table');
+		const table = emptyTable(cleanName(name) ?? UNTITLED);
 		writeDemo({ ...demoStore(), [table.id]: table });
 		return table;
 	}
@@ -142,7 +143,7 @@ export async function createTable(session: TablesSession, name = 'Untitled table
 export async function saveTable(session: TablesSession, id: string, change: { name?: string; document?: unknown; published?: boolean }): Promise<TableSummary> {
 	if (session.mode === 'demo') {
 		const store = demoStore();
-		const current = store[id] ?? emptyTable('Untitled table', id);
+		const current = store[id] ?? emptyTable(UNTITLED, id);
 		const next: DemoTable = { ...current, updated: new Date().toISOString() };
 		if (change.name !== undefined) next.name = cleanName(change.name) ?? current.name;
 		if (change.published !== undefined) next.published = change.published;
@@ -156,6 +157,42 @@ export async function saveTable(session: TablesSession, id: string, change: { na
 		return toSummary(table);
 	}
 	return (await send<{ table: TableSummary }>(session, 'PUT', `/api/tables/${id}`, change)).table;
+}
+
+/* Names being found for tables just left, so the list of tables can show them when they come. */
+const naming = new Map<string, Promise<string | null>>();
+
+/**
+ * Asks for a name for a table that is being left still untitled. The answer comes after the page
+ * is gone, so the request outlives it (`keepalive`); a failure is nothing, since the site names
+ * tables left untitled on its own a few minutes later.
+ */
+export function nameOnLeave(session: TablesSession, table: { id: string; name: string }): void {
+	if (session.mode !== 'owner' || !isUntitled(table) || naming.has(table.id)) return;
+	const found = fetch(`/api/tables/${table.id}/name`, { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'x-csrf-token': session.csrf ?? '' } })
+		.then(async (response) => (response.ok ? (((await response.json()) as { name?: string | null }).name ?? null) : null))
+		.catch(() => null);
+	naming.set(table.id, found);
+	void found.then(() => setTimeout(() => naming.delete(table.id), 5000));
+}
+
+/** The list with the names that were being found as it loaded: a table left a moment ago shows its new name. */
+export async function withNewNames(tables: TableSummary[]): Promise<TableSummary[]> {
+	if (!naming.size) return tables;
+	const names = new Map(await Promise.all([...naming].map(async ([id, name]) => [id, await name] as const)));
+	return tables.map((table) => { const name = names.get(table.id); return name && isUntitled(table) ? { ...table, name } : table; });
+}
+
+/** Names every untitled table that has words on it, a few at a time, telling `onnamed` as they come. */
+export async function nameUntitledTables(session: TablesSession, onnamed: (named: { id: string; name: string }[]) => void): Promise<number> {
+	let count = 0;
+	for (let round = 0; round < 100; round++) {
+		const { named, left } = await send<{ named: { id: string; name: string }[]; left: number }>(session, 'POST', '/api/tables/names', {});
+		count += named.length;
+		if (named.length) onnamed(named);
+		if (!left) break;
+	}
+	return count;
 }
 
 /**

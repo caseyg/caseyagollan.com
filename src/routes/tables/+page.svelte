@@ -5,7 +5,8 @@
 	import Nav from '$lib/components/Nav.svelte';
 	import { TableGrid, TABLES_CRUMB } from '$lib/components/tables';
 	import { Notice, Page, PageHeader } from '$lib/components/ui';
-	import { createTable, listDemoTables, tableHref, tablesSession, thumbnailUrl, type TablesSession } from '$lib/tables-client';
+	import { createTable, listDemoTables, nameUntitledTables, tableHref, tablesSession, thumbnailUrl, withNewNames, type TablesSession } from '$lib/tables-client';
+	import { isUntitled } from '$lib/table-names';
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import type { TableSummary } from '$lib/tables';
 
@@ -23,7 +24,30 @@
 	onMount(async () => {
 		session = await tablesSession();
 		if (session.mode === 'demo') demoTables = await listDemoTables();
+		// A table left a moment ago may be getting its name as this list loads.
+		else if (session.tables) session.tables = await withNewNames(session.tables);
 	});
+
+	// The owner can have every untitled table named from what is on it (⌘K: Name untitled tables).
+	let naming = $state(false);
+	let named = $state<number | null>(null);
+	const untitled = $derived(session.mode === 'owner' ? tables.filter((table) => isUntitled(table) && table.count > 0).length : 0);
+
+	async function nameUntitled() {
+		if (naming) return;
+		naming = true;
+		named = null;
+		failure = '';
+		try {
+			named = await nameUntitledTables(session, (fresh) => {
+				const names = new Map(fresh.map((table) => [table.id, table.name]));
+				session.tables = session.tables?.map((table) => (names.has(table.id) ? { ...table, name: names.get(table.id)! } : table));
+			});
+		} catch (cause) {
+			failure = cause instanceof Error ? cause.message : 'The tables couldn’t be named.';
+		}
+		naming = false;
+	}
 
 	async function newTable() {
 		creating = true;
@@ -37,7 +61,7 @@
 		}
 	}
 
-	useTablesCommands(() => ({ tables, mode: session.mode, onNew: editable ? newTable : undefined }));
+	useTablesCommands(() => ({ tables, mode: session.mode, onNew: editable ? newTable : undefined, untitled, onNameUntitled: untitled && !naming ? nameUntitled : undefined }));
 </script>
 
 <svelte:head>
@@ -54,6 +78,7 @@
 
 	{#if session.mode === 'demo'}<Notice>Preview only: tables are saved in this browser.</Notice>{/if}
 	{#if failure}<Notice tone="error">{failure}</Notice>{/if}
+	{#if naming}<Notice>Naming untitled tables…</Notice>{:else if named !== null}<Notice>{named === 0 ? 'No untitled table could be named.' : named === 1 ? 'Named 1 table.' : `Named ${named} tables.`}</Notice>{/if}
 
 	<TableGrid {tables} href={(id) => tableHref(id, session.mode)} thumbnail={(table) => thumbnailUrl(table, session.mode)} onNew={editable ? newTable : undefined} {creating} />
 </Page>

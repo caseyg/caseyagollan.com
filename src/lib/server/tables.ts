@@ -1,4 +1,5 @@
 import { byUpdated, isPublished, toSummary, validId, type Table, type TableSummary } from '../tables';
+import { isUntitled } from '../table-names';
 import { searchTableTexts, tableTexts, type TableSearchResult, type TableText } from '../table-search';
 
 /*
@@ -46,6 +47,29 @@ export async function writeTable(bucket: R2Bucket, table: Table): Promise<TableS
 	const next = [toSummary(table), ...list].sort(byUpdated);
 	await bucket.put(INDEX, JSON.stringify(next), JSON_TYPE);
 	return next;
+}
+
+/**
+ * Gives a table a name if it still has none, and returns it as it now is; null when it is gone.
+ * Nothing else about it changes (not even when it was last changed), and it is only written if
+ * nobody saved it in between: a canvas or a name saved meanwhile wins, and the name is tried again
+ * on what was saved.
+ */
+export async function renameUntitled(bucket: R2Bucket, id: string, name: string): Promise<TableSummary | null> {
+	if (!validId(id)) return null;
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const object = await bucket.get(tableKey(id));
+		if (!object) return null;
+		const table = (await object.json()) as Table;
+		if (!isUntitled(table)) return toSummary(table);
+		const next: Table = { ...table, name };
+		const put = await bucket.put(tableKey(id), JSON.stringify(next), { ...JSON_TYPE, onlyIf: { etagMatches: object.etag } });
+		if (!put) continue;
+		const list = (await listTables(bucket)).map((entry) => (entry.id === id ? toSummary(next) : entry));
+		await bucket.put(INDEX, JSON.stringify(list), JSON_TYPE);
+		return toSummary(next);
+	}
+	return null;
 }
 
 /** What each table says, kept beside the index so a search reads one object, not every table. */

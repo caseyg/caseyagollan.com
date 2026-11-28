@@ -10,15 +10,16 @@ const LISTED = 60;
  * ⌘K on a tables page: every table by name, and, typing, the things on tables that hold the
  * words. A result opens its table with that thing in view.
  */
-export function useTablesCommands(options: () => { tables: TableSummary[]; mode: TablesMode; currentId?: string; onNew?: () => unknown }): void {
+export function useTablesCommands(options: () => { tables: TableSummary[]; mode: TablesMode; currentId?: string; onNew?: () => unknown; untitled?: number; onNameUntitled?: () => unknown }): void {
 	const href = (id: string, mode: TablesMode, item?: string) => `${tableHref(id, mode)}${itemHash(item)}`;
 	usePageCommands(() => {
-		const { tables, mode, currentId, onNew } = options();
+		const { tables, mode, currentId, onNew, untitled, onNameUntitled } = options();
 		return [{
 			label: 'Tables',
 			items: [
 				...(currentId ? [{ value: `go:/tables/${mode === 'demo' ? '?owner=demo' : ''}`, label: 'All tables', icon: '🗂️', keywords: ['list', 'browse'] }] : []),
 				...(onNew ? [{ value: 'tables:new', label: 'New table', icon: '➕', keywords: ['make', 'create', 'start'] }] : []),
+				...(onNameUntitled ? [{ value: 'tables:name', label: 'Name untitled tables', hint: untitled === 1 ? '1 table, from what is on it' : `${untitled} tables, from what is on them`, icon: '🏷️', keywords: ['rename', 'title', 'auto'] }] : []),
 				...tables.filter((table) => table.id !== currentId).slice(0, LISTED).map((table) => ({
 					value: `go:${href(table.id, mode)}`,
 					label: table.name,
@@ -26,7 +27,7 @@ export function useTablesCommands(options: () => { tables: TableSummary[]; mode:
 					icon: '🗂️'
 				}))
 			],
-			run: (value) => (value === 'tables:new' ? onNew?.() : undefined),
+			run: (value) => (value === 'tables:new' ? onNew?.() : value === 'tables:name' ? onNameUntitled?.() : undefined),
 			search: async (query, signal) =>
 				(await searchTables(mode, query, signal)).map((result) => ({
 					value: `go:${href(result.table, mode, result.item)}`,

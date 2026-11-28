@@ -12,6 +12,7 @@ import { routeAgentRequest } from 'agents';
 import { chatViewer, withViewer } from './src/lib/server/chat/identity.ts';
 import { CHAT_OWNER_ONLY } from './src/lib/chat.ts';
 import { withPreviewOrigin } from './src/lib/server/indieauth/contracts.ts';
+import { nameIdleTables } from './src/lib/server/table-names.ts';
 import { voiceListen } from './src/lib/server/voice.ts';
 import { VOICE_LISTEN_PATH } from './src/lib/voice-notes.ts';
 
@@ -99,6 +100,14 @@ export default {
         console.error(JSON.stringify({ event: 'backfeed_sync_failed' }));
         failed = true;
       }
+    }
+    // Name untitled tables that were changed lately and have since been left alone.
+    try {
+      const result = await nameIdleTables(env, event.scheduledTime);
+      if (!result.skipped) console.log(JSON.stringify({ event: 'table_names', ...result }));
+    } catch {
+      console.error(JSON.stringify({ event: 'table_names_failed' }));
+      failed = true;
     }
     // Bring the site's own copy of Casey's Readwise, Raindrop and Are.na up to date. The store decides
     // what is due, logs its own counts, and wakes itself to carry on a long first sync.
