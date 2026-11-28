@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import {
 	DefaultColorStyle,
 	DefaultFontStyle,
+	GeoShapeGeoStyle,
 	Tldraw,
 	b64Vecs,
 	createShapeId,
@@ -18,6 +19,7 @@ import {
 	type TLBindingUpdate,
 	type TLShapePartial,
 	type TLEventInfo,
+	type TLGeoShapeGeoStyle,
 	type TLShapeId
 } from 'tldraw';
 import 'tldraw/tldraw.css';
@@ -26,16 +28,21 @@ import { linkedBlock, richerBlock } from '$lib/table-sources';
 import type { ChatSelectionItem } from '$lib/chat';
 import { TABLE_PICTURE_MAX_SIDE } from '$lib/table-post';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableMapCard, type TableMapLink, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
+import { AUTO_LAYOUT, autoLayoutOf, layoutOp } from '$lib/table-menus';
 import { arrange, clustersBy, labelIssues, routeArrows, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
 import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { tagRef } from '$lib/tag-edits';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
-export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser';
+export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser' | 'frame' | 'geo' | 'line' | 'highlight' | 'laser';
 
 export interface TableState {
 	tool: TableTool | string;
+	/** The shape the geo tool draws next (`rectangle`, `ellipse`…). */
+	geo?: string;
+	/** The layout the table is kept in as things are added (a Layout menu value); unset when auto layout is off. */
+	autoLayout?: string;
 	canUndo: boolean;
 	canRedo: boolean;
 	empty: boolean;
@@ -72,7 +79,15 @@ export interface TableApi {
 	addBlocks(blocks: Block[], at?: { x: number; y: number }, options?: { columns?: number; select?: boolean; near?: Block; page?: boolean; sizes?: ({ w: number; h: number } | null | undefined)[]; plain?: boolean }): string[];
 	/** What the chat assistant asks of the canvas (`TableOp`s the canvas itself handles); returns what it reports back. */
 	perform(op: Exclude<TableOp, { op: 'add_from_search' | 'add_links' | 'add_pieces' | 'add_pdf_pages' | 'relink' | 'rename' | 'tag' }>): Promise<unknown>;
-	setTool(tool: TableTool): void;
+	/** Takes up a tool; `geo` is the shape the geo tool draws. */
+	setTool(tool: TableTool, geo?: string): void;
+	/** Sets pictures or videos from this device down in the middle of the view. */
+	addMedia(files: File[]): Promise<void>;
+	/**
+	 * Auto layout: keeps the whole table in this layout (a Layout menu value), laying it out again
+	 * each time something is added; null turns it off. Saved with the table, in its document's meta.
+	 */
+	setAutoLayout(layout: string | null): void;
 	/** Shows or hides the selected blocks' details, for everyone who sees the table. */
 	setDetails(shown: boolean): void;
 	/** Clears the selection. */
@@ -187,12 +202,25 @@ function apiFor(editor: Editor): TableApi {
 		perform(op) {
 			return performOp(editor, op, this);
 		},
-		setTool: (tool) => editor.setCurrentTool(tool),
+		setTool(tool, geo) {
+			if (tool === 'geo' && geo) editor.setStyleForNextShapes(GeoShapeGeoStyle, geo as TLGeoShapeGeoStyle);
+			editor.setCurrentTool(tool);
+		},
+		async addMedia(files) {
+			if (!files.length) return;
+			editor.markHistoryStoppingPoint('add media');
+			await editor.putExternalContent({ type: 'files', files, point: editor.getViewportPageBounds().center });
+			editor.setCurrentTool('select');
+		},
 		setDetails(shown) {
 			const blocks = selectedBlocks(editor).filter((shape) => shape.props.hideMeta === shown);
 			if (!blocks.length) return;
 			editor.markHistoryStoppingPoint('toggle details');
 			editor.updateShapes(blocks.map((shape) => ({ id: shape.id, type: BLOCK_SHAPE, props: { hideMeta: !shown } })));
+		},
+		setAutoLayout(layout) {
+			const { [AUTO_LAYOUT]: _was, ...meta } = editor.getDocumentSettings().meta;
+			editor.updateDocumentSettings({ meta: layout ? { ...meta, [AUTO_LAYOUT]: layout } : meta });
 		},
 		deselect: () => editor.selectNone(),
 		undo: () => editor.undo(),
@@ -226,6 +254,8 @@ function apiFor(editor: Editor): TableApi {
 				const only = editor.getOnlySelectedShape();
 				listener({
 					tool: editor.getCurrentToolId(),
+					geo: editor.getStyleForNextShape(GeoShapeGeoStyle),
+					autoLayout: autoLayoutOf(editor.getDocumentSettings().meta),
 					canUndo: editor.getCanUndo(),
 					canRedo: editor.getCanRedo(),
 					empty: editor.getCurrentPageShapeIds().size === 0,
@@ -1026,6 +1056,34 @@ export async function upgradeLinkBlocks(editor: Editor, richer: typeof richerBlo
 	return count;
 }
 
+/**
+ * Auto layout: while the table's document asks for one (`autoLayoutOf`), the whole table is laid
+ * out again after anything that takes up room is added, by a person or the chat. It waits for a
+ * quiet moment: nothing being dragged, drawn or typed, and no more arriving.
+ */
+function keepLaidOut(editor: Editor, api: TableApi) {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	let running = false;
+	const busy = () => running || editor.inputs.getIsPointing() || editor.inputs.getIsDragging() || !!editor.getEditingShapeId();
+	const run = async () => {
+		const op = layoutOp(autoLayoutOf(editor.getDocumentSettings().meta) ?? '', 'table', []);
+		if (!op) return;
+		if (busy()) return void (timer = setTimeout(run, 400));
+		running = true;
+		try { await api.perform(op); } finally { running = false; }
+	};
+	const stop = editor.store.listen(
+		({ changes }) => {
+			if (running || !autoLayoutOf(editor.getDocumentSettings().meta)) return;
+			if (!Object.values(changes.added).some((record) => record.typeName === 'shape' && SOLID(record as TLShape))) return;
+			clearTimeout(timer);
+			timer = setTimeout(run, 400);
+		},
+		{ scope: 'document', source: 'user' }
+	);
+	return () => { stop(); clearTimeout(timer); };
+}
+
 /** A table's canvas: tldraw without its own interface, drawn in the site's colours. */
 export function TableEditor({ document, editable, embedded = false, licenseKey, onChange, onReady }: TableEditorProps) {
 	const onMount = useCallback(
@@ -1059,7 +1117,9 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			});
 
 			const stop = editor.store.listen(() => onChange?.(getSnapshot(editor.store).document), { scope: 'document', source: 'user' });
-			onReady?.(apiFor(editor));
+			const api = apiFor(editor);
+			const stopLayout = editable ? keepLaidOut(editor, api) : () => {};
+			onReady?.(api);
 			// Read-only once the page has set anything out, so a seeded table can still be shown to visitors.
 			editor.updateInstanceState({ isReadonly: !editable });
 			if (editable) void upgradeLinkBlocks(editor);
@@ -1069,6 +1129,7 @@ export function TableEditor({ document, editable, embedded = false, licenseKey, 
 			}
 			return () => {
 				stop();
+				stopLayout();
 				editor.off('event', offEvent);
 			};
 		},

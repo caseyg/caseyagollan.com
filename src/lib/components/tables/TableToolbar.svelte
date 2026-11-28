@@ -17,6 +17,8 @@
 <script lang="ts">
 	import { setContext } from 'svelte';
 	import { Toolbar } from '@ui-sdk/svelte/toolbar';
+	import { layoutScopes, moreToolFor, MORE_TOOLS, TABLE_LAYOUTS, toolChoice, type LayoutScope } from '$lib/table-menus';
+	import ActionMenu from '../ui/ActionMenu.svelte';
 	import type { TablePostAs } from '$lib/table-post';
 	import Button from '../ui/Button.svelte';
 	import TablePostMenu from './TablePostMenu.svelte';
@@ -31,7 +33,27 @@
 		adding?: boolean;
 		/** Save state, e.g. "Saved" or "Saving…". */
 		status?: string;
-		ontool?: (tool: ToolId) => void;
+		/** The shape the geo tool draws, so More can show it while it is in hand. */
+		geo?: string;
+		/** A tool from the bar, or one of tldraw's others from More (`geo` with its shape). */
+		ontool?: (tool: ToolId | string, geo?: string) => void;
+		/** With `onmedia`, More offers pictures and videos from this device. */
+		onmedia?: (files: File[]) => void;
+		/**
+		 * What is selected (`type` tells an area from the rest). With `onlayout`, the owner gets a
+		 * Layout menu: it sets out the selection, or the whole table, as the layout chosen.
+		 */
+		selection?: { id: string; type?: string }[];
+		onlayout?: (layout: string, scope: LayoutScope) => void;
+		/**
+		 * The layout the table is kept in as things are added, when auto layout is on. With
+		 * `onautolayout`, the Layout menu gets the switch; a layout chosen for the whole table
+		 * while it is on becomes the one kept (null turns it off).
+		 */
+		autoLayout?: string;
+		onautolayout?: (layout: string | null) => void;
+		/** Which way the menus open: up, as the bar sits at the bottom of the page. */
+		menuSide?: 'top' | 'bottom';
 		onundo?: () => void;
 		onredo?: () => void;
 		onfit?: () => void;
@@ -54,10 +76,39 @@
 		posting?: boolean;
 	}
 
-	let { editable = false, tool = 'select', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false }: Props = $props();
+	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
+
+	let picker: HTMLInputElement;
+	const extra = $derived(moreToolFor(tool, geo));
+	const moreTools = $derived(onmedia ? MORE_TOOLS : MORE_TOOLS.filter((item) => item.value !== 'media'));
+
+	function more(value: string) {
+		if (value === 'media') return picker.click();
+		const choice = toolChoice(value);
+		if (choice) ontool?.(choice.tool, choice.geo);
+	}
+
+	const scopes = $derived(layoutScopes(selection));
+	/** What the Layout menu sets out; a selection made after choosing the whole table takes over again. */
+	let wanted = $state<LayoutScope>('selection');
+	$effect(() => {
+		if (!scopes.selection) wanted = 'selection';
+	});
+	const scope = $derived<LayoutScope>(scopes.selection ? wanted : 'table');
+
+	function layOut(layout: string) {
+		onlayout?.(layout, scope);
+		if (autoLayout && scope === 'table') onautolayout?.(layout);
+	}
+
+	/** Turning auto layout on lays the table out at once, as it will be kept. */
+	function auto(on: boolean) {
+		onautolayout?.(on ? 'auto' : null);
+		if (on) onlayout?.('auto', 'table');
+	}
 </script>
 
 <Toolbar class="table-toolbar" aria-label="Table">
@@ -67,9 +118,29 @@
 		{#each TOOLS as entry (entry.id)}
 			<Button variant="icon" icon={entry.icon} label="{entry.label} ({entry.key})" pressed={tool === entry.id} onclick={() => ontool?.(entry.id)} />
 		{/each}
+		<ActionMenu label={extra ? `More tools: ${extra.label}` : 'More tools'} icon={extra?.icon ?? 'shapes'} iconOnly items={moreTools} pressed={!!extra} side={menuSide} onaction={more} />
+		{#if onmedia}
+			<input bind:this={picker} class="media" type="file" accept="image/*,video/*" multiple tabindex="-1" aria-hidden="true" onchange={() => { onmedia([...(picker.files ?? [])]); picker.value = ''; }} />
+		{/if}
 		<span class="divider" aria-hidden="true"></span>
 		<Button variant="icon" icon="undo" label="Undo" disabled={!canUndo} onclick={onundo} />
 		<Button variant="icon" icon="redo" label="Redo" disabled={!canRedo} onclick={onredo} />
+		{#if onlayout}
+			<span class="divider" aria-hidden="true"></span>
+			<ActionMenu
+				label="Layout"
+				icon="layout"
+				items={TABLE_LAYOUTS}
+				side={menuSide}
+				scope={scopes.selection ? { label: 'Lay out', value: scope, choices: [{ value: 'selection', label: scopes.label }, { value: 'table', label: 'The whole table' }] } : undefined}
+				onscope={(value) => (wanted = value as LayoutScope)}
+				toggle={onautolayout ? { label: 'Auto layout', detail: 'Again whenever something is added', checked: !!autoLayout } : undefined}
+				ontoggle={auto}
+				current={autoLayout}
+				pressed={!!autoLayout}
+				onaction={layOut}
+			/>
+		{/if}
 		{#if details && ondetails}
 			<span class="divider" aria-hidden="true"></span>
 			<Button variant="quiet" size="sm" icon="properties" pressed={details === 'shown'} onclick={() => ondetails(details !== 'shown')} title={details === 'shown' ? 'Hide the selected blocks’ source line and kind tile' : 'Show the selected blocks’ source line and kind tile'}>Details</Button>
@@ -119,6 +190,10 @@
 		height: 1.25rem;
 		margin: 0 var(--space-1);
 		background: var(--border);
+	}
+
+	.media {
+		display: none;
 	}
 
 	.status {

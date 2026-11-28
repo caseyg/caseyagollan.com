@@ -5,8 +5,9 @@
 	import BlockPicker from './BlockPicker.svelte';
 	import TableCanvas from './TableCanvas.svelte';
 	import TableToolbar from './TableToolbar.svelte';
-	import type { TableApi, TableState } from './canvas/TableEditor';
+	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
+	import { layoutOp, type LayoutScope } from '$lib/table-menus';
 	import { searchBlocks } from '$lib/table-sources';
 	import type { TableOpEvent, TableOpResult } from '$lib/table-agent';
 	import type { TableViewLink, ViewDisplay } from '$lib/table-view-link';
@@ -97,6 +98,11 @@
 		}
 	}
 
+	function layout(value: string, scope: LayoutScope) {
+		const op = layoutOp(value, scope, view.selection.map((item) => item.id));
+		if (op) void api?.perform(op);
+	}
+
 	function onready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
@@ -172,7 +178,13 @@
 				status={editable ? statusText : undefined}
 				details={view.details}
 				ondetails={(shown) => api?.setDetails(shown)}
-				ontool={(tool) => api?.setTool(tool)}
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)}
+				geo={view.geo}
+				onmedia={(files) => void api?.addMedia(files)}
+				selection={view.selection}
+				onlayout={layout}
+				autoLayout={view.autoLayout}
+				onautolayout={(value) => api?.setAutoLayout(value)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}

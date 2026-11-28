@@ -3,7 +3,8 @@
 	import { blocks } from '$lib/storybook/fixtures';
 	import TableCanvas from './TableCanvas.svelte';
 	import TableToolbar from './TableToolbar.svelte';
-	import type { TableApi, TableState } from './canvas/TableEditor';
+	import { layoutOp } from '$lib/table-menus';
+	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCanvas', component: TableCanvas, tags: ['!autodocs'] });
 	const sample = Object.values(blocks);
@@ -32,7 +33,7 @@
 	<div class="frame">
 		<TableCanvas document={null} editable {onready} />
 		<div class="dock">
-			<TableToolbar editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved" ontool={(tool) => api?.setTool(tool)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()} />
+			<TableToolbar editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved" geo={view.geo} ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onmedia={(files) => void api?.addMedia(files)} selection={view.selection} onlayout={(value, scope) => { const op = layoutOp(value, scope, view.selection.map((item) => item.id)); if (op) void api?.perform(op); }} autoLayout={view.autoLayout} onautolayout={(value) => api?.setAutoLayout(value)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()} />
 		</div>
 	</div>
 </Story>
