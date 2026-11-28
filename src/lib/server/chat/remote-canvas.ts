@@ -16,6 +16,10 @@ export const VIEW_WAIT = 15_000;
 /** A view that hasn't asked for this long is gone (closed, scrolled away and frozen, offline). */
 export const VIEW_GONE = VIEW_WAIT + 12_000;
 
+/** How long after a table is shown its view is still expected to turn up, and how long a change waits for it. */
+export const VIEW_EXPECTED = 30_000;
+export const VIEW_OPENING = 6_000;
+
 export const NO_VIEW = 'This table isn’t open on a canvas right now, so it can be read but not changed. Open it with table_open, then try again.';
 
 export type { ViewTurn } from '../../table-view-link';
@@ -37,9 +41,39 @@ export class RemoteCanvas {
 		return !!this.view && this.now() - this.view.seen < VIEW_GONE;
 	}
 
+	/** A table was just shown to someone (`table_open`): its view should attach within moments. */
+	private expected: number | undefined;
+	expect() { this.expected = this.now(); }
+
+	/**
+	 * Whether a view is there to take a change, waiting a little for one that was just opened: a
+	 * model asks for its first change the moment `table_open` answers, before the view has loaded.
+	 * A view that doesn't come (a client that draws none) is waited for once, not before every change.
+	 */
+	async ready(wait = VIEW_OPENING): Promise<boolean> {
+		if (this.open()) return true;
+		if (this.expected === undefined || this.now() - this.expected > VIEW_EXPECTED) return false;
+		const until = Date.now() + wait;
+		while (!this.open() && Date.now() < until) await new Promise((resolve) => setTimeout(resolve, 100));
+		if (!this.open()) this.expected = undefined;
+		return this.open();
+	}
+
+	/** Whether this view is the one whose saves count: the one taking changes, or any when none is. */
+	holds(view: string): boolean {
+		return !this.view || this.view.id === view;
+	}
+
+	/** The table was changed where it is saved, with no view open: a view left over from before must not save its older copy over that. */
+	release() {
+		this.view = { id: '', seen: 0 };
+		this.wake?.();
+	}
+
 	/** A view opens (or opens again after a reload): from now on it is the one that takes changes. */
 	attach(view: string) {
 		this.view = { id: view, seen: this.now() };
+		this.expected = undefined;
 		// Whoever was waiting belongs to the view before: let it hear that it was replaced.
 		this.wake?.();
 	}

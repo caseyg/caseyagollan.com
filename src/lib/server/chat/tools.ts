@@ -244,7 +244,7 @@ const TABLE_SECTION = [
 		'- table_tag reads tags and stages tag changes for posts, Raindrop bookmarks and Readwise items on the table: “tag these as X”, “retag this frame”, “what are these tagged”. One call for all the blocks (no ids: every one; `inside`: a frame’s id or name). Changes are staged for Casey to review and save on the table: say “staged”, never “saved”. Never micropub_update_post for their tags.',
 		'- table_connect draws arrows tied to both items, for “leads to”, “source of”, “explains”. Lay things out first, then connect them, with labels of one to three words. table_group puts items in a named frame (or an unnamed group) so they move together. table_edit changes words and colours, gives blocks a different link, removes things, and renames the table. table_draw is the pen, for emphasis: a loop `around` an item, or a line. table_select points something out on Casey’s screen.',
 		'- Don’t guess sizes. Blocks are about 240×240 (books 180×300); sticky notes are 200 wide and grow taller with their text; text cards wrap at the width you give (320 to 480 reads well). Use `below` or `right_of` an id, rather than coordinates, to put new things beside what they belong with, and leave 80 to 120 units between sections.',
-		'- Each change reports `issues` only when something overlaps, is crammed, or an arrow runs through a card it doesn’t join (`crossings`). Fix those with one table_arrange (layout `tidy`, or `auto` when it is a real mess) before you answer. No `issues` means the layout is clean.',
+		'- Each change reports `issues` only when something overlaps, is crammed, an arrow runs through a card it doesn’t join (`crossings`), or an arrow’s label can’t be read: under a card (`labels_covered`) or on another label (`labels_colliding`). Fix those with one table_arrange (layout `tidy`, or `auto` when it is a real mess) before you answer: `tidy` also runs the arrows again where the cards now stand, fanning out the ones that share a side of a card, curving round cards in the way and sliding labels clear, so call it after placing cards by hand with table_move. No `issues` means the layout is clean.',
 		'- After building or rearranging more than a few things, call table_look once: it shows you a picture of the table with each item numbered (red means it overlaps). Fix what looks wrong, then answer. Don’t look more than twice.'
 	].join('\n')
 ].join('\n\n');
@@ -836,8 +836,8 @@ export function chatExtension(deps: ToolDeps): Extension {
 		}
 		const wanted = new Set(ids);
 		const items = (table.items ?? []).filter((item) => wanted.has(item.id)).map(brief);
-		const found = (issues ?? table.issues) as { overlaps?: unknown[]; crowded?: unknown[]; crossings?: unknown[] } | undefined;
-		const wrong = found && (found.overlaps?.length || found.crowded?.length || found.crossings?.length);
+		const found = (issues ?? table.issues) as { overlaps?: unknown[]; crowded?: unknown[]; crossings?: unknown[]; labels_covered?: unknown[]; labels_colliding?: unknown[] } | undefined;
+		const wrong = found && (found.overlaps?.length || found.crowded?.length || found.crossings?.length || found.labels_covered?.length || found.labels_colliding?.length);
 		return json({ ...done, ...(items.length ? { items: items.slice(0, 60) } : {}), on_table: table.items?.length ?? 0, ...(wrong ? { issues: found } : {}) });
 	};
 	const PLACE = {

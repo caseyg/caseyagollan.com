@@ -63,7 +63,9 @@ What generalizes to any personal site:
 - **One live view per thing.** Opening the same table again replaces the earlier view, which is told to stop saving, so two canvases never write over each other.
 - **Scopes still decide.** Reading a table needs `read`; changing one needs `update` and making one `create`, the scopes Micropub already defines. A connection without them gets a canvas to look at.
 - **Links out carry a pass.** The browser inside an MCP client often can't use the owner's passkey, so a link the server gives to something private (a draft table) carries a short-lived pass to that one thing. The browser that opens it trades the pass for a cookie scoped to that thing, with no more permission than the connection had. Only hashes of passes are stored.
-- **Clients that draw nothing lose nothing.** Tools that need the view are left out for a client that didn't declare the extension, so it never sees a tool it can't use.
+- **The view is optional.** A model asks for its first change the moment the tool that shows the view answers, before the view has loaded, and some clients draw no view at all. So every tool that changes a table works without one: a change waits a few seconds for a view that was just opened, and otherwise is made to the saved table by the server, with the same layout code the canvas runs. Only the tool that shows the view is left out for a client that didn't declare the extension.
+- **A change made behind a view retires it.** When the server changes the saved copy, a view left open from before is told it is out of date and its saves are refused, so an older canvas never writes over newer work.
+- **A model needs to see what it made.** Each change answers with what is wrong with the layout (overlaps, arrows through cards, labels that can't be read), and with no canvas open the tool that looks at the table returns a drawing made from the saved copy.
 
 ## In-process use
 

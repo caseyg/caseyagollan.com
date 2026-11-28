@@ -15,6 +15,7 @@ import {
 	type TLArrowShape,
 	type TLEditorSnapshot,
 	type TLShape,
+	type TLBindingUpdate,
 	type TLShapePartial,
 	type TLEventInfo,
 	type TLShapeId
@@ -24,8 +25,8 @@ import { BLOCK_SHAPE, blockKey, type Block } from '$lib/tables';
 import { linkedBlock, richerBlock } from '$lib/table-sources';
 import type { ChatSelectionItem } from '$lib/chat';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableMapCard, type TableMapLink, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
-import { arrange, clustersBy, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
-import { GRID, onGrid, arrowCrossings, bendAround, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
+import { arrange, clustersBy, labelIssues, routeArrows, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
+import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, layoutIssues, rowLayout, tidyLayout, type Box, type Placement } from '$lib/table-layout';
 import { tagRef } from '$lib/tag-edits';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 import { installTextBlocks, voiceCanvas, type VoiceCanvas } from './textBlocks';
@@ -359,7 +360,17 @@ function issuesOf(editor: Editor) {
 	});
 	const seen = new Set<string>();
 	const crossings = arrowCrossings(arrows, boxes.filter((box) => editor.getShape(`shape:${box.id}` as TLShapeId)?.type !== 'frame')).filter((pair) => !seen.has(pair.join()) && !!seen.add(pair.join()));
-	return crossings.length ? { ...issues, crossings } : issues;
+	// Labels that can't be read: under a card, or on another label.
+	const cards = boxes.filter((box) => { const type = editor.getShape(`shape:${box.id}` as TLShapeId)?.type; return type !== 'frame' && type !== 'group'; });
+	const lines = shapes.filter((shape): shape is TLArrowShape => shape.type === 'arrow').flatMap((arrow) => {
+		const ends = getArrowBindings(editor, arrow);
+		const from = ends.start && editor.getShapePageBounds(ends.start.toId), to = ends.end && editor.getShapePageBounds(ends.end.toId);
+		if (!ends.start || !ends.end || !from || !to) return [];
+		const point = (box: typeof from, binding: typeof ends.start) => { const anchor = binding.props.isPrecise ? binding.props.normalizedAnchor : { x: 0.5, y: 0.5 }; return { x: box.x + box.w * anchor.x, y: box.y + box.h * anchor.y }; };
+		const box = (id: TLShapeId, bounds: typeof from) => ({ id: short(id), x: bounds.x, y: bounds.y, w: bounds.w, h: bounds.h });
+		return [{ id: short(arrow.id), a: point(from, ends.start), b: point(to, ends.end), from: box(ends.start.toId, from), to: box(ends.end.toId, to), bend: arrow.props.kind === 'elbow' ? 0 : arrow.props.bend, label: renderPlaintextFromRichText(editor, arrow.props.richText), labelPosition: arrow.props.labelPosition }];
+	});
+	return { ...issues, ...(crossings.length ? { crossings } : {}), ...labelIssues(cards, lines) };
 }
 
 /** A loop drawn around an item (`meta.around`) follows it when the assistant moves it. */
@@ -379,7 +390,7 @@ function followTargets(editor: Editor) {
 /** What a change reports: what it did, plus any overlaps left, so the assistant can fix them before it answers. */
 async function changed(editor: Editor, result: Record<string, unknown>) {
 	const issues = await settled(editor);
-	const clean = !issues.overlaps.length && !issues.crowded.length && !issues.crossings?.length;
+	const clean = !issues.overlaps.length && !issues.crowded.length && Object.keys(issues).length === 2;
 	return { ...result, ...(clean ? { layout: 'no overlaps' } : { issues }) };
 }
 
@@ -488,21 +499,47 @@ function arrangement(editor: Editor, shapes: TLShape[], op: Extract<TableOp, { o
 		? op.groups.map((group) => ({ ...group, ids: group.ids.flatMap((id) => within(id) ?? []) }))
 		: op.layout === 'cluster' ? clustersBy(shapes.map((shape) => ({ id: short(shape.id), kind: itemOf(editor, shape).type, color: (shape.props as { color?: string }).color })), op.by ?? 'kind', edges) : undefined;
 	const gap = Math.max(0, Math.min(200, op.gap ?? GAP));
-	const result = arrange({ mode: op.layout, boxes, edges, at, gap, ordered: op.ordered, columns: op.columns, direction: op.direction, root: op.root ? within(op.root) : undefined, groups: named, clusterGap: op.frame === false ? 120 : 200 });
+	const result = arrange({ mode: op.layout, boxes, edges, at, gap, ordered: op.ordered, columns: op.columns, direction: op.direction, root: op.root ? within(op.root) : undefined, groups: named, clusterGap: op.frame === false ? 120 : 200, headings: shapes.filter((shape) => shape.type === 'text').map((shape) => short(shape.id)) });
 	const placements = unroomed(editor, result.placements);
 	// Arrows bent to suit where things were are straightened for a tree or flow (or squared off into
 	// elbows), then curved only as far as it takes to clear a card in the way: a flow's long way back, say.
 	const restyle = op.arrows === 'straight' || op.arrows === 'elbow' || (op.arrows !== 'keep' && usesArrows(result.mode));
 	const going = new Map(placements.map((spot) => [spot.id, spot]));
 	const landed = boxesOf(editor, shapes).map((box) => ({ ...box, ...going.get(box.id) }));
-	const travel = new Map(boxesOf(editor, shapes).map((box) => [box.id, { x: (going.get(box.id)?.x ?? box.x) - box.x, y: (going.get(box.id)?.y ?? box.y) - box.y }]));
-	const arrows = !restyle ? [] : links.map(({ arrow, from, to }) => {
-		const ends = getArrowBindings(editor, arrow);
-		const end = (id: TLShapeId, holder: string) => { const centre = editor.getShapePageBounds(id)!.center, by = travel.get(holder)!; return { x: centre.x + by.x, y: centre.y + by.y }; };
-		const bend = op.arrows === 'elbow' ? 0 : bendAround(end(ends.start!.toId, from), end(ends.end!.toId, to), landed.filter((box) => box.id !== from && box.id !== to));
-		return { id: arrow.id, type: 'arrow' as const, props: { bend, ...(op.arrows === 'elbow' ? { kind: 'elbow' as const } : {}) } };
-	});
+	const arrows = restyle ? routed(editor, landed, links, op.arrows === 'elbow') : { shapes: [], bindings: [] };
 	return { result, placements, arrows, gap };
+}
+
+/**
+ * Arrows as `routeArrows` runs them between boxes where they have landed (or stand): each one's
+ * curve and label place, and where its ends meet their cards, as changes to make in one go. An
+ * end tied to something inside a box (an item in a frame) keeps its place.
+ */
+function routed(editor: Editor, landed: Box[], links: { arrow: TLArrowShape; from: string; to: string }[], elbow = false) {
+	const routes = new Map(routeArrows(landed, links.map(({ arrow, from, to }) => ({ id: arrow.id, from, to, label: renderPlaintextFromRichText(editor, arrow.props.richText) })), { elbow }).map((route) => [route.id, route]));
+	const shapes: TLShapePartial[] = [], bindings: TLBindingUpdate[] = [];
+	for (const { arrow, from, to } of links) {
+		const route = routes.get(arrow.id);
+		if (!route) continue;
+		shapes.push({ id: arrow.id, type: 'arrow', props: { bend: route.bend, labelPosition: route.labelPosition, ...(elbow ? { kind: 'elbow' as const } : {}) } });
+		const ends = getArrowBindings(editor, arrow);
+		for (const [binding, holder, anchor, precise] of [[ends.start, from, route.start, route.startPrecise], [ends.end, to, route.end, route.endPrecise]] as const) {
+			if (binding && short(binding.toId) === holder) bindings.push({ id: binding.id, type: 'arrow', props: { normalizedAnchor: anchor, isPrecise: precise } } as TLBindingUpdate);
+		}
+	}
+	return { shapes, bindings };
+}
+
+/** Arrows among these shapes run again where the shapes stand now (`tidy`). */
+function reroute(editor: Editor, shapes: TLShape[]) {
+	const ids = new Set(shapes.map((shape) => shape.id));
+	const links = editor.getCurrentPageShapes().filter((shape): shape is TLArrowShape => shape.type === 'arrow' && shape.props.kind !== 'elbow').flatMap((arrow) => {
+		const ends = getArrowBindings(editor, arrow);
+		return ends.start && ends.end && ids.has(ends.start.toId) && ids.has(ends.end.toId) && ends.start.toId !== ends.end.toId ? [{ arrow, from: short(ends.start.toId), to: short(ends.end.toId) }] : [];
+	});
+	const plan = routed(editor, boxesOf(editor, shapes), links);
+	editor.run(() => { editor.updateShapes(plan.shapes); editor.updateBindings(plan.bindings); });
+	return links.length;
 }
 
 /** The shapes a frame holds that take up room. */
@@ -530,7 +567,7 @@ async function arrangeOp(editor: Editor, op: Extract<TableOp, { op: 'arrange' }>
 		const shapes = heldBy(editor, holding);
 		const bounds = editor.getShapePageBounds(holding)!;
 		const plan = arrangement(editor, shapes, op, originOf(editor, op) ?? { x: bounds.x + FRAME_PAD, y: bounds.y + FRAME_PAD });
-		editor.run(() => { place(editor, plan.placements); if (plan.arrows.length) editor.updateShapes(plan.arrows); });
+		editor.run(() => { place(editor, plan.placements); editor.updateShapes(plan.arrows.shapes); editor.updateBindings(plan.arrows.bindings); });
 		await wait();
 		// The frame takes the shape of what it now holds, and what that lands on moves down.
 		editor.run(() => fitFrameToContent(editor, holding.id, { padding: FRAME_PAD }));
@@ -548,7 +585,8 @@ async function arrangeOp(editor: Editor, op: Extract<TableOp, { op: 'arrange' }>
 					const bounds = editor.getShapePageBounds(inner)!;
 					const plan = arrangement(editor, heldBy(editor, inner), { op: 'arrange', layout: 'auto', gap: op.gap }, { x: bounds.x + FRAME_PAD, y: bounds.y + FRAME_PAD });
 					place(editor, plan.placements, false);
-					if (plan.arrows.length) editor.updateShapes(plan.arrows);
+					editor.updateShapes(plan.arrows.shapes);
+					editor.updateBindings(plan.arrows.bindings);
 					fitFrameToContent(editor, inner.id, { padding: FRAME_PAD });
 				}
 			});
@@ -562,7 +600,7 @@ async function arrangeOp(editor: Editor, op: Extract<TableOp, { op: 'arrange' }>
 		const moving = new Map(plan.result.placements.map((spot) => [spot.id, spot]));
 		const beside = parents.size === 1 ? editor.getSortedChildIdsForParent(shapes[0].parentId).map((id) => editor.getShape(id)!).filter(SOLID) : [];
 		const pushed = unroomed(editor, tidyLayout(roomOf(editor, beside).map((box) => ({ ...box, ...moving.get(box.id) })), plan.gap, moving.keys()).filter((move) => !moving.has(move.id)));
-		editor.run(() => { place(editor, [...plan.placements, ...pushed]); if (plan.arrows.length) editor.updateShapes(plan.arrows); });
+		editor.run(() => { place(editor, [...plan.placements, ...pushed]); editor.updateShapes(plan.arrows.shapes); editor.updateBindings(plan.arrows.bindings); });
 		({ result } = plan);
 		count = shapes.length;
 		if (pushed.length) done.pushed_aside = pushed.length;
@@ -891,7 +929,11 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 		case 'tidy': {
 			const shapes = outermost(editor, shapesFor(editor, op.ids).filter(SOLID));
 			editor.markHistoryStoppingPoint('tidy');
-			return changed(editor, { moved: place(editor, tidyLayout(boxesOf(editor, shapes))) });
+			const moved = place(editor, tidyLayout(boxesOf(editor, shapes)));
+			if (moved) await wait();
+			// Arrows among them run again where things now stand: ends fanned out, curves around cards in the way, labels apart.
+			const cards = shapes.flatMap((shape) => (shape.type === 'frame' || shape.type === 'group' ? [shape, ...editor.getSortedChildIdsForParent(shape.id).map((id) => editor.getShape(id)!)] : [shape])).filter((shape) => shape.type !== 'frame' && shape.type !== 'group');
+			return changed(editor, { moved, arrows_routed: reroute(editor, cards) });
 		}
 		case 'connect':
 			editor.markHistoryStoppingPoint('connect');

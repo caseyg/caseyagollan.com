@@ -458,6 +458,10 @@ export class ChatThread extends Agent<ChatAgentEnv & Cloudflare.Env> {
 	async viewDone(view: string, reply: TableOpReply): Promise<void> { this.remote.done(view, reply); }
 	async viewOpen(): Promise<boolean> { return this.remote.open(); }
 	async viewOp(op: TableOp): Promise<unknown> { return this.remote.perform(op); }
+	async viewExpect(): Promise<void> { this.remote.expect(); }
+	async viewReady(): Promise<boolean> { return this.remote.ready(); }
+	async viewHolds(view: string): Promise<boolean> { return this.remote.holds(view); }
+	async viewRelease(): Promise<void> { this.remote.release(); }
 
 	/**
 	 * A table's thread, made the first time its page asks: named for the table, at the id
