@@ -9,6 +9,7 @@ export { default as TableCanvas, BLOCK_DRAG_TYPE } from './TableCanvas.svelte';
 export { default as TableCard } from './TableCard.svelte';
 export { default as TableGrid } from './TableGrid.svelte';
 export { default as RenameTable } from './RenameTable.svelte';
+export { default as TablePostMenu } from './TablePostMenu.svelte';
 export { default as TableToolbar } from './TableToolbar.svelte';
 export { default as TableWireframe } from './TableWireframe.svelte';
 export { default as TableBlock } from './TableBlock.svelte';

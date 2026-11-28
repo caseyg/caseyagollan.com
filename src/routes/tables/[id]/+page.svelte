@@ -6,7 +6,7 @@
 	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
 	import { page } from '$app/state';
-	import { listTables, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
+	import { listTables, postTable, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import { hashItem } from '$lib/table-search';
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
@@ -16,6 +16,7 @@
 	import { wikiHref } from '$lib/wiki/links';
 	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
+	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
@@ -45,8 +46,11 @@
 
 	const editable = $derived(!!session && session.mode !== 'visitor');
 	const listHref = $derived(session?.mode === 'demo' ? '/tables/?owner=demo' : '/tables/');
+	/** A draft post being made from the table, or why it couldn't be. */
+	let posting = $state(false);
+	let postError = $state('');
 	const statusText = $derived(
-		!editable ? undefined : status === 'failed' ? 'Couldn’t save' : status === 'saving' || status === 'unsaved' ? 'Saving…' : session?.mode === 'demo' ? 'Saved in this browser' : 'Saved'
+		!editable ? undefined : posting ? 'Making the post…' : postError ? postError : status === 'failed' ? 'Couldn’t save' : status === 'saving' || status === 'unsaved' ? 'Saving…' : session?.mode === 'demo' ? 'Saved in this browser' : 'Saved'
 	);
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
@@ -247,6 +251,7 @@
 	function onchange(next: unknown) {
 		if (!editable) return;
 		pending = next;
+		postError = '';
 		status = 'unsaved';
 		clearTimeout(timer);
 		timer = setTimeout(flush, 1200);
@@ -304,6 +309,23 @@
 			console.error(error);
 			published = !next;
 			status = 'failed';
+		}
+	}
+
+	/** A new draft post with the table in it, framed live or as a picture of how it looks now; then on to the composer. */
+	async function post(as: TablePostAs) {
+		if (!session || !api || posting) return;
+		posting = true;
+		postError = '';
+		try {
+			// The post shows the table as saved, so what's waiting goes first.
+			await flush();
+			const picture = as === 'picture' ? await api.picture() : undefined;
+			if (as === 'picture' && !picture) throw new Error('There’s nothing on the table to picture yet.');
+			location.assign(await postTable(session, id, picture ?? undefined));
+		} catch (error) {
+			postError = String((error as Error)?.message ?? error).slice(0, 160);
+			posting = false;
 		}
 	}
 
@@ -369,6 +391,8 @@
 					if (adding) tagging = null;
 				}}
 				tags={editable && session.mode !== 'pass' ? { open: !!tagging, count: stagedCount() } : undefined}
+				onpost={session.mode === 'owner' ? post : undefined}
+				{posting}
 				ontags={() => {
 					tagging = tagging ? null : 'edit';
 					if (tagging) adding = false;

@@ -10,6 +10,9 @@ export const Draft: Story = { args: { published: false, onpublish: () => {} } };
 /** Blocks selected: Details shows or hides their source line and kind tile, for everyone. */
 export const BlocksSelected: Story = { args: { published: true, onpublish: () => {}, details: 'shown', ondetails: () => {} } };
 export const DetailsHidden: Story = { args: { published: true, onpublish: () => {}, details: 'hidden', ondetails: () => {} } };
+/** Post starts a draft post with the table in it: embedded live, or as a picture. */
+export const WithPost: Story = { args: { published: true, onpublish: () => {}, onpost: () => {} } };
+export const Posting: Story = { args: { published: true, onpublish: () => {}, onpost: () => {}, posting: true, status: 'Making the post…' } };
 export const PickerOpen: Story = { args: { adding: true, tool: 'note' } };
 export const Saving: Story = { args: { status: 'Saving…', tool: 'draw' } };
 export const SaveFailed: Story = { args: { status: 'Couldn’t save' } };
