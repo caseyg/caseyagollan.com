@@ -15,6 +15,7 @@ import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEdit
 import { BLOCK_SHAPE } from '$lib/tables';
 import type { TableOp } from '$lib/table-agent';
 import { autoLayoutOf, layoutOp } from '$lib/table-menus';
+import { mindMapOf } from '$lib/table-mindmap';
 import { GRID, freeSpot, onGrid, upToGrid, type Box } from '$lib/table-layout';
 import { markdownTree } from '$lib/markdown-tree';
 import { VOICE_BLOCK_WIDTH, mergeRich, resolveRefs, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
@@ -176,7 +177,12 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 	 * one is used, over the whole table, so the two never pull against each other; otherwise the
 	 * note alone becomes a mind map.
 	 */
-	const setOut = (tied: TLShapeId[]) => deps.perform(layoutOp(autoLayoutOf(editor.getDocumentSettings().meta) ?? '', 'table', []) ?? { op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
+	const setOut = (tied: TLShapeId[]) => {
+		const meta = editor.getDocumentSettings().meta;
+		// Mind map mode keeps the table itself, and holds auto layout off while it is on.
+		const kept = mindMapOf(meta) ? undefined : layoutOp(autoLayoutOf(meta) ?? '', 'table', []);
+		return deps.perform(kept ?? { op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
+	};
 	return {
 		write(id, words, after) {
 			const current = id ? text(id) : undefined;
