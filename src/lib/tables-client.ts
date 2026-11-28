@@ -158,6 +158,22 @@ export async function saveTable(session: TablesSession, id: string, change: { na
 	return (await send<{ table: TableSummary }>(session, 'PUT', `/api/tables/${id}`, change)).table;
 }
 
+/**
+ * Starts a draft post with the table in it and returns where it opens in the composer. `picture`
+ * is the table drawn by the open canvas; without one the post frames the table live.
+ */
+export async function postTable(session: TablesSession, id: string, picture?: Blob): Promise<string> {
+	const response = await fetch(`/api/tables/${id}/post`, {
+		method: 'POST',
+		credentials: 'same-origin',
+		headers: { 'content-type': picture ? picture.type : 'application/json', 'x-csrf-token': session.csrf ?? '' },
+		body: picture ?? JSON.stringify({ as: 'embed' })
+	});
+	const data = (await response.json().catch(() => ({}))) as { href?: string; error?: string };
+	if (!response.ok || !data.href) throw new Error(data.error || 'The post couldn’t be started.');
+	return data.href;
+}
+
 /** Keeps `?owner=demo` on links between tables in the demo, so a copied link works the same. */
 export const tableHref = (id: string, mode: TablesMode) => `/tables/${id}/${mode === 'demo' ? '?owner=demo' : ''}`;
 
