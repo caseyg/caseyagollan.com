@@ -49,6 +49,11 @@
 	] } }, true)}
 </Story>
 
+<!-- What new notes are: matched to what each is added from, always text, or always stickies. Also changed aloud ("use stickies"). -->
+<Story asChild name="New notes are">
+	{@render control({ ...off, shape: 'auto' }, true)}
+</Story>
+
 <!-- Known words: names and terms spelled the speaker's way, added by hand here or learnt from a correction made on the table. -->
 <Story asChild name="Known words">
 	{@render control({ ...off, words: ['Otso', 'caseyagollan.com', 'Propel', 'CRC'] }, true)}

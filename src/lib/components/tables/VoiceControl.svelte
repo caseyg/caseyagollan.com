@@ -12,6 +12,8 @@
 		arrange: boolean;
 		/** A request to change the table is carried out, not written down. Left out, the choice isn't offered. */
 		commands?: boolean;
+		/** What new notes are written as. Left out, the choice isn't offered. */
+		shape?: VoiceShape;
 		/** What the last spoken command did; shown by the microphone for a few seconds. */
 		did?: { text: string };
 		/** A model is considering what was just said: correcting it, or taking it as a command. */
@@ -40,7 +42,8 @@
 	import InlineForm from '../ui/InlineForm.svelte';
 	import Switch from '../ui/Switch.svelte';
 	import VoiceMenu, { type VoiceChoice } from '../ui/VoiceMenu.svelte';
-	import { formatUsd, type VoiceSpend } from '$lib/voice-notes';
+	import SegmentedPill from '../ui/SegmentedPill.svelte';
+	import { formatUsd, type VoiceShape, type VoiceSpend } from '$lib/voice-notes';
 
 	interface Props {
 		voice: VoiceView;
@@ -50,13 +53,15 @@
 		onarrange?: (on: boolean) => void;
 		oncommands?: (on: boolean) => void;
 		onmeter?: (on: boolean) => void;
+		/** What new notes are written as, chosen here. */
+		onshape?: (shape: VoiceShape) => void;
 		/** The known words with one added or taken out. */
 		onwords?: (words: string[]) => void;
 		/** Whether the options are showing. They open by themselves when there is something to say. */
 		open?: boolean;
 	}
 
-	let { voice, ontoggle, oncorrect, onarrange, oncommands, onmeter, onwords, open = $bindable(false) }: Props = $props();
+	let { voice, ontoggle, oncorrect, onarrange, oncommands, onmeter, onshape, onwords, open = $bindable(false) }: Props = $props();
 
 	let word = $state('');
 	function addWord(value: string) {
@@ -104,6 +109,13 @@
 -->
 <span bind:this={root} class="voice">
 	<VoiceMenu status={voice.status} level={voice.level} {label} optionsLabel="Voice note options" {choices} notice={voice.notice} hint="Just talk: a pause starts a new note. Say “actually, make that…” or “scratch that” to take something back, and “that’s all” to finish. Drop one text block on another to combine them; press Enter inside one to split it." {ontoggle} onchoice={choose} bind:open>
+		{#if voice.shape}
+			<div class="shape">
+				<span class="choice">New notes are</span>
+				<SegmentedPill segments={[{ label: 'Matched', value: 'auto' }, { label: 'Text', value: 'text' }, { label: 'Stickies', value: 'note' }]} size="sm" label="New notes are" value={voice.shape} onValueChange={(value) => onshape?.(value as VoiceShape)} />
+				<small>Matched: a note said about a sticky is a sticky, and about text is text. Or say “use stickies”, “switch to text”, “match what I’m adding from”.</small>
+			</div>
+		{/if}
 		{#if voice.words}
 			{@const words = voice.words}
 			<div class="words">
@@ -186,6 +198,22 @@
 		font-size: var(--fs-xs);
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
+	}
+
+	.shape {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-1);
+		margin-top: var(--space-1);
+		padding: var(--space-2);
+		border-top: 1px solid var(--border-subtle);
+		font-size: var(--fs-sm);
+	}
+
+	.shape small {
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
 	}
 
 	.words {

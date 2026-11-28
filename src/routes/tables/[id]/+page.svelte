@@ -585,12 +585,13 @@
 				onpost={session.mode === 'owner' ? post : undefined}
 				{posting}
 				ontags={tags}
-				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0, usage: voice.usageView, words: voice.words } : undefined}
+				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0, usage: voice.usageView, words: voice.words, shape: voice.shape } : undefined}
 				onvoice={voice.toggle}
 				onvoicecorrect={(on) => (voice.correct = on)}
 				onvoicearrange={(on) => (voice.arrange = on)}
 				onvoicecommands={(on) => (voice.commands = on)}
 				onvoicemeter={(on) => (voice.meter = on)}
+				onvoiceshape={(shape) => (voice.shape = shape)}
 				onvoicewords={(words) => (voice.words = words)}
 			/>
 		</div>
