@@ -3,6 +3,8 @@
 	import ChatPromptInput from './ChatPromptInput.svelte';
 	import { CHAT_PROVIDERS, modelOptions } from '$lib/chat-models';
 	import { owner, visitor } from './fixtures';
+	import { VoiceError } from '$lib/voice-source';
+	import { ASKED, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
 
 	const models = { models: modelOptions(CHAT_PROVIDERS), current: 'inference-coop:glm-flash-green' };
 
@@ -12,6 +14,10 @@
 		{ name: 'find-skills', description: 'Find published skills on skills.sh and offer to install one.', enabled: true, origin: 'builtin' as const, updatedAt: 0 },
 		{ name: 'link-roundup', description: 'Write a link roundup post from recent bookmarks and likes. Use whenever Casey asks for a roundup, a links post, or “what I’ve been reading”.', enabled: true, origin: 'custom' as const, updatedAt: 0 }
 	];
+	/** A microphone that "hears" a script, and a stand-in for the model that corrects; choices aren't kept. */
+	const voice = { sources: () => [scriptedSource(ASKED)], refine: scriptedRefine, storage: { getItem: () => null, setItem: () => {} } };
+	const typing = { ...voice, storage: { getItem: () => JSON.stringify({ send: false }), setItem: () => {} } };
+	const blocked = { ...voice, sources: () => [{ name: 'blocked', start: () => Promise.reject(new VoiceError('The microphone is blocked for this site. Allow it in the browser’s site settings.')) }] };
 	const { Story } = defineMeta({ title: 'Chat/ChatPromptInput', component: ChatPromptInput, args: { viewer: visitor, onsend: send, tools: ['search_site', 'fetch_page'] } });
 </script>
 
@@ -45,3 +51,17 @@
 <Story name="Model menu" args={{ viewer: owner, compact: true, value: 'What did I post about cooperatives?', models, onmodel: () => {} }} />
 
 <Story name="Model menu, phone" args={{ viewer: owner, compact: true, models: { ...models, current: 'anthropic:claude-sonnet-5-5' }, onmodel: () => {} }} parameters={{ viewport: { defaultViewport: 'mobile1' } }} />
+
+<!--
+	Casey's microphone. Press it: the words arrive in the box as they are said, a pause corrects and
+	sends them, and listening carries on for the next message. (Here a script speaks, twice.)
+-->
+<Story name="Voice" args={{ viewer: owner, compact: true, voice }} />
+
+<!-- With “Send when I pause” off, what is said is added to the box, after what was typed, and waits there. -->
+<Story name="Voice, sent by hand" args={{ viewer: owner, compact: true, value: 'A question for the library:', voice: typing }} />
+
+<!-- A reason the microphone can’t listen opens its menu to say so. -->
+<Story name="Voice, microphone blocked" args={{ viewer: owner, compact: true, voice: blocked }} />
+
+<Story name="Voice, phone" args={{ viewer: owner, compact: true, models, onmodel: () => {}, voice }} parameters={{ viewport: { defaultViewport: 'mobile1' } }} />
