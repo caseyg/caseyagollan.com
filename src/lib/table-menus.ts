@@ -114,6 +114,9 @@ export function moreToolFor(tool: string, geo?: string): TableMenuItem | undefin
 /** Where a table keeps its auto layout, in its document's `meta`: the Layout menu value to lay out again as, or nothing when off. */
 export const AUTO_LAYOUT = 'autoLayout';
 
+/** The name of a layout, as the menus give it. */
+export const layoutLabel = (value: string | undefined): string | undefined => TABLE_LAYOUTS.find((layout) => layout.value === value)?.label;
+
 /** The layout a document's meta asks to be kept in, if it is one the menu knows. */
 export function autoLayoutOf(meta: Record<string, unknown> | undefined): string | undefined {
 	const value = meta?.[AUTO_LAYOUT];
@@ -143,6 +146,7 @@ export interface TableContextItem {
 	shortcut?: string;
 	disabled?: boolean;
 	keepOpen?: boolean;
+	radio?: boolean;
 	items?: TableContextItem[];
 }
 
@@ -176,7 +180,7 @@ export interface TableContextState {
 export function contextItems(state: TableContextState): TableContextItem[] {
 	const scopes = layoutScopes(state.selection);
 	const layouts = (scope: LayoutScope): TableContextItem[] =>
-		TABLE_LAYOUTS.map(({ value, label, icon, group }) => ({ value: `layout:${scope}:${value}`, label, icon, group, keepOpen: true, ...(scope === 'table' && state.autoLayout === value ? { checked: true } : {}) }));
+		TABLE_LAYOUTS.map(({ value, label, icon, group }) => ({ value: `layout:${scope}:${value}`, label, icon, group, keepOpen: true, ...(scope === 'table' && state.autoLayout ? { radio: true, checked: state.autoLayout === value } : {}) }));
 	const more = (item: TableMenuItem): TableContextItem => ({
 		value: `more:${item.value}`,
 		label: item.label,

@@ -14,6 +14,7 @@
 import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEditingShapeWithRichText, toRichText, type Editor, type TLArrowShape, type TLEventInfo, type TLShape, type TLShapeId, type TLTextShape } from 'tldraw';
 import { BLOCK_SHAPE } from '$lib/tables';
 import type { TableOp } from '$lib/table-agent';
+import { autoLayoutOf, layoutOp } from '$lib/table-menus';
 import { GRID, freeSpot, onGrid, upToGrid, type Box } from '$lib/table-layout';
 import { markdownTree } from '$lib/markdown-tree';
 import { VOICE_BLOCK_WIDTH, mergeRich, resolveRefs, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
@@ -170,6 +171,12 @@ function tiedTo(editor: Editor, id: TLShapeId, session: Set<TLShapeId>): TLShape
 
 export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 	const text = (id: string) => { const shape = editor.getShape(long(id)); return isText(shape) ? shape : undefined; };
+	/**
+	 * Sets a voice note's blocks out. While the table keeps a layout of its own (auto layout), that
+	 * one is used, over the whole table, so the two never pull against each other; otherwise the
+	 * note alone becomes a mind map.
+	 */
+	const setOut = (tied: TLShapeId[]) => deps.perform(layoutOp(autoLayoutOf(editor.getDocumentSettings().meta) ?? '', 'table', []) ?? { op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
 	return {
 		write(id, words, after) {
 			const current = id ? text(id) : undefined;
@@ -218,7 +225,7 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 			// What the block hangs from is part of its map, whether or not this voice note made it.
 			const tied = tiedTo(editor, shape.id, new Set([...session, ...(parent ? [short(parent.id)] : [])].map(long)));
 			if (tied.length > 1) {
-				await deps.perform({ op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
+				await setOut(tied);
 				return revealAll(editor, tied);
 			} else if (parent) {
 				// The first block said about something already on the table goes beside it.
@@ -230,7 +237,7 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 		async map(id, among) {
 			if (!editor.getShape(long(id))) return;
 			const tied = tiedTo(editor, long(id), new Set(among.map(long)));
-			if (tied.length > 1) await deps.perform({ op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
+			if (tied.length > 1) await setOut(tied);
 			revealAll(editor, tied);
 		},
 		pending(id, on) {

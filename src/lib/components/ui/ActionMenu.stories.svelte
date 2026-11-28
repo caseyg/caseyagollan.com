@@ -30,6 +30,7 @@
 	let last = $state('nothing yet');
 	let scope = $state('selection');
 	let on = $state(false);
+	let kept = $state('grid');
 </script>
 
 <!-- A split button, its label and a chevron, that opens a menu of things to do under headings. Arrow keys, typeahead and Escape work as in any menu. -->
@@ -48,10 +49,13 @@
 	{/snippet}
 </Story>
 
-<!-- A switch for a mode the actions leave on; the action in effect is checked, and the button stays lit. -->
+<!--
+	A switch for a mode the actions leave on, and the button stays lit. While it is on the actions
+	are one-of-many choices: picking one moves the check to it.
+-->
 <Story name="With a switch">
 	{#snippet template(args)}
-		<ActionMenu {...args} toggle={{ label: 'Auto layout', detail: 'Again whenever something is added', checked: on }} ontoggle={(checked) => (on = checked)} current={on ? 'grid' : undefined} pressed={on} />
+		<ActionMenu {...args} toggle={{ label: 'Auto layout', detail: 'Again whenever something is added', checked: on }} ontoggle={(checked) => (on = checked)} current={on ? kept : undefined} onaction={(value) => (kept = value)} pressed={on} />
 	{/snippet}
 </Story>
 

@@ -13,6 +13,8 @@
 		group?: string;
 		/** A switch that is on (or the choice in effect): the row ends in a check. `false` keeps the room for one. */
 		checked?: boolean;
+		/** One of several choices in a second menu, of which only one is on: `checked` says whether it is this one. */
+		radio?: boolean;
 		/** The key that does the same, shown as a hint at the end of the row. */
 		shortcut?: string;
 		/** Picking it leaves the menu open, for things worth trying one after another. */
@@ -28,7 +30,7 @@
 </script>
 
 <script lang="ts">
-	import { createMenuController, Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem, MenuItemIcon, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger } from '@ui-sdk/svelte/menu';
+	import { createMenuController, Menu, MenuContent, MenuGroup, MenuGroupLabel, MenuItem, MenuItemIcon, MenuRadioGroup, MenuRadioItem, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger } from '@ui-sdk/svelte/menu';
 	import Icon from './Icon.svelte';
 
 	interface Props {
@@ -55,6 +57,16 @@
 	const destructive = $derived(items.filter((item) => item.destructive));
 	const icons = $derived(items.some((item) => item.icon));
 
+	// One-of-many: a pick that changes the choice is reported by its group. Picking the one already
+	// on changes nothing there, so its click reports it, unless the group just did.
+	let picked = false;
+	function pick(value: string) {
+		picked = true;
+		queueMicrotask(() => (picked = false));
+		onAction(value);
+	}
+	const again = (item: ContextMenuItem) => { if (!picked && item.checked) onAction(item.value); };
+
 	/** Opens the menu at a point in the viewport, such as a right-click's `clientX`/`clientY`. */
 	export function openAt(point: ContextMenuPoint) {
 		return menu.open({ anchor: { x: point.x, y: point.y }, focus: 'first' });
@@ -73,6 +85,13 @@
 	</span>
 {/snippet}
 
+{#snippet rows(items: ContextMenuItem[], icons: boolean)}
+	{#each items as one, index (one.value)}
+		{#if index && one.group !== items[index - 1].group}<MenuSeparator class="context-menu-separator" />{/if}
+		{@render row(one, icons)}
+	{/each}
+{/snippet}
+
 {#snippet row(item: ContextMenuItem, icons: boolean)}
 	{#if item.items}
 		{@const inner = item.items}
@@ -83,12 +102,19 @@
 				<span class="context-menu-more" aria-hidden="true"><Icon name="chevron" size={14} /></span>
 			</MenuSubTrigger>
 			<MenuSubContent class="context-menu" sideOffset={4} collisionPadding={8}>
-				{#each inner as one, index (one.value)}
-					{#if index && one.group !== inner[index - 1].group}<MenuSeparator class="context-menu-separator" />{/if}
-					{@render row(one, innerIcons)}
-				{/each}
+				{#if inner.some((one) => one.radio)}
+					<MenuRadioGroup value={inner.find((one) => one.radio && one.checked)?.value ?? ''} onValueChange={(next) => pick(String(next))}>{@render rows(inner, innerIcons)}</MenuRadioGroup>
+				{:else}
+					{@render rows(inner, innerIcons)}
+				{/if}
 			</MenuSubContent>
 		</MenuSub>
+	{:else if item.radio}
+		<MenuRadioItem class="context-menu-item" value={item.value} label={item.label} disabled={item.disabled} closeOnSelect={!item.keepOpen} onclick={() => again(item)}>
+			{@render face(item, icons)}
+			{#if item.checked}<span class="context-menu-check"><Icon name="check" size={16} /></span>{/if}
+			{#if item.shortcut}<kbd class="context-menu-key" aria-hidden="true">{item.shortcut}</kbd>{/if}
+		</MenuRadioItem>
 	{:else}
 		<MenuItem class="context-menu-item" value={item.value} label={item.label} disabled={item.disabled} destructive={item.destructive} closeOnSelect={!item.keepOpen}>
 			{@render face(item, icons)}

@@ -10,6 +10,8 @@
 		correct: boolean;
 		/** Finished blocks are joined by arrows and set out as a tree. */
 		arrange: boolean;
+		/** The layout the table's auto layout keeps, by name, while it is on: it sets the note out, not the voice note. */
+		autoLayout?: string;
 		/** A request to change the table is carried out, not written down. Left out, the choice isn't offered. */
 		commands?: boolean;
 		/** What the last spoken command did; shown by the microphone for a few seconds. */
@@ -68,7 +70,7 @@
 
 	const choices = $derived<VoiceChoice[]>([
 		{ key: 'correct', label: 'Tidy into notes', detail: 'After each pause, a model turns what you said into clean notes, one for each thought.', checked: voice.correct },
-		{ key: 'arrange', label: 'Lay out and connect', detail: 'Each block is joined by an arrow to the one it follows, and the note is set out as a tree.', checked: voice.arrange },
+		{ key: 'arrange', label: 'Lay out and connect', detail: voice.autoLayout ? `Each block is joined by an arrow to the one it follows. Auto layout sets the table out (${voice.autoLayout}).` : 'Each block is joined by an arrow to the one it follows, and the note is set out as a tree.', checked: voice.arrange },
 		...(voice.commands !== undefined ? [{ key: 'commands', label: 'Follow spoken commands', detail: '“Connect these two with an arrow”, “draw a circle next to that”, “make the last one red”: done, not written down.', checked: voice.commands }] : [])
 	]);
 	const choose = (key: string, on: boolean) => (key === 'correct' ? oncorrect : key === 'arrange' ? onarrange : oncommands)?.(on);

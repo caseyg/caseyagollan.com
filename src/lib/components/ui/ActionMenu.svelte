@@ -55,7 +55,10 @@
 		onscope?: (value: string) => void;
 		toggle?: ActionToggle;
 		ontoggle?: (checked: boolean) => void;
-		/** The item in effect, which gets a check: the one a mode keeps using, say. */
+		/**
+		 * The item in effect, which gets a check: the one a mode keeps using, say. While it is given
+		 * (an empty string for none yet) the items are one-of-many choices, and say so to a screen reader.
+		 */
 		current?: string;
 		/** Draws the button as held down, such as while one of its tools is in hand. */
 		pressed?: boolean;
@@ -83,6 +86,15 @@
 		}
 		return all;
 	});
+	// One-of-many: a pick that changes the choice is reported by the group. Picking the one already
+	// in effect changes nothing there, so its click reports it, unless the group just did.
+	let picked = false;
+	function pick(value: string) {
+		picked = true;
+		queueMicrotask(() => (picked = false));
+		onaction?.(value);
+	}
+	const again = (value: string) => { if (!picked && value === current) onaction?.(value); };
 	const triggerClass = $derived(`button button--quiet button--sm action-menu-trigger ${className}`);
 </script>
 
@@ -103,13 +115,29 @@
 				{#each item.items as inner (inner.value)}{@render row(inner)}{/each}
 			</MenuSubContent>
 		</MenuSub>
+	{:else if current !== undefined}
+		<MenuRadioItem class="choice-menu-item" value={item.value} label={item.label} disabled={item.disabled} closeOnSelect={!item.keepOpen} onclick={() => again(item.value)}>
+			{@render face(item)}
+			{#if item.value === current}<span class="action-menu-current"><Icon name="check" size={16} /></span>{/if}
+			{#if item.shortcut}<kbd class="action-menu-key" aria-hidden="true">{item.shortcut}</kbd>{/if}
+		</MenuRadioItem>
 	{:else}
 		<MenuItem class="choice-menu-item" value={item.value} label={item.label} disabled={item.disabled} closeOnSelect={!item.keepOpen}>
 			{@render face(item)}
-			{#if item.value === current}<span class="action-menu-current"><Icon name="check" size={16} /></span><span class="visually-hidden">, in effect</span>{/if}
+			{#if item.value === current}<span class="action-menu-current"><Icon name="check" size={16} /></span>{/if}
 			{#if item.shortcut}<kbd class="action-menu-key" aria-hidden="true">{item.shortcut}</kbd>{/if}
 		</MenuItem>
 	{/if}
+{/snippet}
+
+{#snippet actions()}
+	{#each groups as group, index (group.name)}
+		{#if index && !group.name}<MenuSeparator class="action-menu-separator" />{/if}
+		<MenuGroup>
+			{#if group.name}<MenuGroupLabel class="choice-menu-group">{group.name}</MenuGroupLabel>{/if}
+			{#each group.items as item (item.value)}{@render row(item)}{/each}
+		</MenuGroup>
+	{/each}
 {/snippet}
 
 {#snippet trigger()}
@@ -154,13 +182,11 @@
 			</MenuCheckboxItem>
 			<MenuSeparator class="action-menu-separator" />
 		{/if}
-		{#each groups as group, index (group.name)}
-			{#if index && !group.name}<MenuSeparator class="action-menu-separator" />{/if}
-			<MenuGroup>
-				{#if group.name}<MenuGroupLabel class="choice-menu-group">{group.name}</MenuGroupLabel>{/if}
-				{#each group.items as item (item.value)}{@render row(item)}{/each}
-			</MenuGroup>
-		{/each}
+		{#if current !== undefined}
+			<MenuRadioGroup value={current} onValueChange={(next) => pick(String(next))}>{@render actions()}</MenuRadioGroup>
+		{:else}
+			{@render actions()}
+		{/if}
 	</MenuContent>
 </Menu>
 
