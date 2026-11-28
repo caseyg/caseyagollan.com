@@ -6,12 +6,14 @@
 	import { enableTags, loadTags, stage, stagedCount, tagsAfter, tagStore } from '$lib/tag-edits.svelte';
 	import { PageHeader } from '$lib/components/ui';
 	import { page } from '$app/state';
-	import { listTables, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
+	import { listTables, postTable, readDemoTable, saveTable, tablesSession, type TablesSession } from '$lib/tables-client';
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import { hashItem } from '$lib/table-search';
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
 	import { recentFeed, similarBlocks } from '$lib/table-feed';
 	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
+	import { layoutOp, type LayoutScope } from '$lib/table-menus';
+	import type { TableTool } from '$lib/components/tables/canvas/TableEditor';
 	import { pagePieces, pickPieces } from '$lib/table-pieces';
 	import { PDF_PAGES_AT_ONCE, pdfName, pdfPageBlock, pdfPageSrc, pdfPages, renderSize, type PdfStore, type RenderedPage } from '$lib/table-render';
 	import { wikiHref } from '$lib/wiki/links';
@@ -20,6 +22,7 @@
 	import { VoiceNotes } from '$lib/voice-session.svelte';
 	import { browserSource, workerSource } from '$lib/voice-source';
 	import { VOICE_REFINE_PATH, type VoiceRefineAnswer, type VoiceRefineRequest } from '$lib/voice-notes';
+	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
 	let { data }: { data: PageData } = $props();
@@ -78,8 +81,11 @@
 
 	const editable = $derived(!!session && session.mode !== 'visitor');
 	const listHref = $derived(session?.mode === 'demo' ? '/tables/?owner=demo' : '/tables/');
+	/** A draft post being made from the table, or why it couldn't be. */
+	let posting = $state(false);
+	let postError = $state('');
 	const statusText = $derived(
-		!editable ? undefined : status === 'failed' ? 'Couldn’t save' : status === 'saving' || status === 'unsaved' ? 'Saving…' : session?.mode === 'demo' ? 'Saved in this browser' : 'Saved'
+		!editable ? undefined : posting ? 'Making the post…' : postError ? postError : status === 'failed' ? 'Couldn’t save' : status === 'saving' || status === 'unsaved' ? 'Saving…' : session?.mode === 'demo' ? 'Saved in this browser' : 'Saved'
 	);
 
 	/**
@@ -309,6 +315,7 @@
 	function onchange(next: unknown) {
 		if (!editable) return;
 		pending = next;
+		postError = '';
 		status = 'unsaved';
 		clearTimeout(timer);
 		timer = setTimeout(flush, 1200);
@@ -358,6 +365,11 @@
 		return () => window.removeEventListener('pointerdown', close, true);
 	});
 
+	function layout(value: string, scope: LayoutScope) {
+		const op = layoutOp(value, scope, view.selection.map((item) => item.id));
+		if (op) void api?.perform(op);
+	}
+
 	async function publish(next: boolean) {
 		if (!session) return;
 		published = next;
@@ -367,6 +379,23 @@
 			console.error(error);
 			published = !next;
 			status = 'failed';
+		}
+	}
+
+	/** A new draft post with the table in it, framed live or as a picture of how it looks now; then on to the composer. */
+	async function post(as: TablePostAs) {
+		if (!session || !api || posting) return;
+		posting = true;
+		postError = '';
+		try {
+			// The post shows the table as saved, so what's waiting goes first.
+			await flush();
+			const picture = as === 'picture' ? await api.picture() : undefined;
+			if (as === 'picture' && !picture) throw new Error('There’s nothing on the table to picture yet.');
+			location.assign(await postTable(session, id, picture ?? undefined));
+		} catch (error) {
+			postError = String((error as Error)?.message ?? error).slice(0, 160);
+			posting = false;
 		}
 	}
 
@@ -422,7 +451,13 @@
 				onpublish={session.mode === 'pass' ? undefined : publish}
 				details={view.details}
 				ondetails={(shown) => api?.setDetails(shown)}
-				ontool={(tool) => api?.setTool(tool)}
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)}
+				geo={view.geo}
+				onmedia={(files) => void api?.addMedia(files)}
+				selection={view.selection}
+				onlayout={layout}
+				autoLayout={view.autoLayout}
+				onautolayout={(value) => api?.setAutoLayout(value)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
@@ -435,6 +470,8 @@
 					if (adding && !pinned) tagging = null;
 				}}
 				tags={editable && session.mode !== 'pass' ? { open: !!tagging, count: stagedCount() } : undefined}
+				onpost={session.mode === 'owner' ? post : undefined}
+				{posting}
 				ontags={() => {
 					tagging = tagging ? null : 'edit';
 					if (tagging && !pinned) adding = false;
