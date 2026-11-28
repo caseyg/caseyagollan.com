@@ -21,20 +21,20 @@ export interface TableMenuItem {
 export type LayoutScope = 'selection' | 'table';
 
 export const TABLE_LAYOUTS: TableMenuItem[] = [
-	{ value: 'auto', label: 'Tidy up', detail: 'Picks what suits' },
-	{ value: 'grid', label: 'Grid', detail: 'Aligned', group: 'Rows and columns' },
-	{ value: 'columns', label: 'Columns', detail: 'Like a wall of cards', group: 'Rows and columns' },
-	{ value: 'pack', label: 'Pack', detail: 'Rows of mixed heights', group: 'Rows and columns' },
-	{ value: 'row', label: 'One row', group: 'Rows and columns' },
-	{ value: 'column', label: 'One column', group: 'Rows and columns' },
-	{ value: 'tree', label: 'Tree', detail: 'Top down', group: 'Following the arrows' },
-	{ value: 'mindmap', label: 'Mind map', detail: 'Out to both sides', group: 'Following the arrows' },
-	{ value: 'radial', label: 'Radial', detail: 'In rings', group: 'Following the arrows' },
-	{ value: 'layered', label: 'Flow', detail: 'Left to right', group: 'Following the arrows' },
-	{ value: 'force', label: 'Web', detail: 'Linked things close', group: 'Following the arrows' },
-	{ value: 'cluster:kind', label: 'By kind', detail: 'Posts, books, notes…', group: 'In groups' },
-	{ value: 'cluster:color', label: 'By colour', group: 'In groups' },
-	{ value: 'cluster:connected', label: 'By what’s linked', group: 'In groups' }
+	{ value: 'auto', icon: 'sparkle', label: 'Tidy up', detail: 'Picks what suits' },
+	{ value: 'grid', icon: 'layout', label: 'Grid', detail: 'Aligned', group: 'Rows and columns' },
+	{ value: 'columns', icon: 'layout-columns', label: 'Columns', detail: 'Like a wall of cards', group: 'Rows and columns' },
+	{ value: 'pack', icon: 'layout-pack', label: 'Pack', detail: 'Rows of mixed heights', group: 'Rows and columns' },
+	{ value: 'row', icon: 'layout-row', label: 'One row', group: 'Rows and columns' },
+	{ value: 'column', icon: 'layout-column', label: 'One column', group: 'Rows and columns' },
+	{ value: 'tree', icon: 'layout-tree', label: 'Tree', detail: 'Top down', group: 'Following the arrows' },
+	{ value: 'mindmap', icon: 'layout-mindmap', label: 'Mind map', detail: 'Out to both sides', group: 'Following the arrows' },
+	{ value: 'radial', icon: 'layout-radial', label: 'Radial', detail: 'In rings', group: 'Following the arrows' },
+	{ value: 'layered', icon: 'layout-flow', label: 'Flow', detail: 'Left to right', group: 'Following the arrows' },
+	{ value: 'force', icon: 'layout-web', label: 'Web', detail: 'Linked things close', group: 'Following the arrows' },
+	{ value: 'cluster:kind', icon: 'layers', label: 'By kind', detail: 'Posts, books, notes…', group: 'In groups' },
+	{ value: 'cluster:color', icon: 'palette', label: 'By colour', group: 'In groups' },
+	{ value: 'cluster:connected', icon: 'link', label: 'By what’s linked', group: 'In groups' }
 ];
 
 type ArrangeOp = Extract<TableOp, { op: 'arrange' }>;
@@ -74,18 +74,18 @@ export const MORE_TOOLS: TableMenuItem[] = [
 		icon: 'shapes',
 		group: 'Shapes',
 		items: [
-			shape('hexagon', 'Hexagon'),
-			shape('oval', 'Oval'),
-			shape('rhombus', 'Rhombus'),
-			shape('star', 'Star'),
-			shape('cloud', 'Cloud'),
-			shape('heart', 'Heart'),
-			shape('x-box', 'Crossed box'),
-			shape('check-box', 'Checked box'),
-			shape('arrow-left', 'Arrow left'),
-			shape('arrow-up', 'Arrow up'),
-			shape('arrow-down', 'Arrow down'),
-			shape('arrow-right', 'Arrow right')
+			shape('hexagon', 'Hexagon', 'hexagon'),
+			shape('oval', 'Oval', 'oval'),
+			shape('rhombus', 'Rhombus', 'rhombus'),
+			shape('star', 'Star', 'star'),
+			shape('cloud', 'Cloud', 'cloud'),
+			shape('heart', 'Heart', 'heart'),
+			shape('x-box', 'Crossed box', 'x-box'),
+			shape('check-box', 'Checked box', 'check-box'),
+			shape('arrow-left', 'Arrow left', 'block-arrow-left'),
+			shape('arrow-up', 'Arrow up', 'block-arrow-up'),
+			shape('arrow-down', 'Arrow down', 'block-arrow-down'),
+			shape('arrow-right', 'Arrow right', 'block-arrow-right')
 		]
 	},
 	{ value: 'line', label: 'Line', icon: 'line', shortcut: 'L', group: 'Marks' },

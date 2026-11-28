@@ -60,3 +60,7 @@ describe('the More tools menu', () => {
 		expect(moreToolFor('draw')).toBeUndefined();
 	});
 });
+
+test('every layout and every tool in the menus has an icon', () => {
+	for (const item of [...TABLE_LAYOUTS, ...MORE_TOOLS, ...MORE_TOOLS.flatMap((tool) => tool.items ?? [])]) expect(item.icon).toBeTruthy();
+});
