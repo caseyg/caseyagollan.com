@@ -26,6 +26,7 @@ import 'tldraw/tldraw.css';
 import { BLOCK_SHAPE, blockKey, type Block } from '$lib/tables';
 import { linkedBlock, richerBlock } from '$lib/table-sources';
 import type { ChatSelectionItem } from '$lib/chat';
+import { TABLE_PICTURE_MAX_SIDE } from '$lib/table-post';
 import { LOOK_MAX_SIDE, type TableItem, type TableLayout, type TableLink, type TableLook, type TableMapCard, type TableMapLink, type TableNote, type TableOp, type TablePlace, type TableStroke } from '$lib/table-agent';
 import { AUTO_LAYOUT, autoLayoutOf, layoutOp } from '$lib/table-menus';
 import { arrange, clustersBy, labelIssues, routeArrows, usesArrows, type ArrangeResult, type Edge } from '$lib/table-arrange';
@@ -96,6 +97,8 @@ export interface TableApi {
 	zoomToFit(): void;
 	/** The canvas's document, as saved. */
 	document(): unknown;
+	/** The whole table as a PNG, as it looks now; null when nothing is on it. */
+	picture(): Promise<Blob | null>;
 	subscribe(listener: (state: TableState) => void): () => void;
 }
 
@@ -224,6 +227,28 @@ function apiFor(editor: Editor): TableApi {
 		redo: () => editor.redo(),
 		zoomToFit: () => editor.zoomToFit({ animation: { duration: 220 } }),
 		document: () => getSnapshot(editor.store).document,
+		async picture() {
+			const shapes = editor.getCurrentPageShapesSorted();
+			const bounds = shapes.length ? editor.getShapesPageBounds(shapes.map((shape) => shape.id)) : undefined;
+			if (!bounds) return null;
+			const padding = 48;
+			// Sharp on a dense screen, but never larger than a post needs.
+			const scale = Math.min(2, TABLE_PICTURE_MAX_SIDE / (Math.max(bounds.w, bounds.h) + padding * 2));
+			const { blob, width, height } = await editor.toImage(shapes, { format: 'png', background: false, darkMode: true, padding, scale, pixelRatio: 1 });
+			// On the table's own ground, the site's, where tldraw's export would put its dark one.
+			const ground = getComputedStyle(editor.getContainer()).getPropertyValue('--tl-color-background').trim();
+			if (!ground) return blob;
+			const bitmap = await createImageBitmap(blob);
+			const canvas = document.createElement('canvas');
+			canvas.width = bitmap.width || Math.round(width);
+			canvas.height = bitmap.height || Math.round(height);
+			const context = canvas.getContext('2d')!;
+			context.fillStyle = ground;
+			context.fillRect(0, 0, canvas.width, canvas.height);
+			context.drawImage(bitmap, 0, 0);
+			bitmap.close();
+			return new Promise<Blob | null>((resolve) => canvas.toBlob((drawn) => resolve(drawn ?? blob), 'image/png'));
+		},
 		subscribe(listener) {
 			return react('table state', () => {
 				const only = editor.getOnlySelectedShape();

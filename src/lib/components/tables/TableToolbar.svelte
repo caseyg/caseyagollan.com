@@ -19,7 +19,9 @@
 	import { Toolbar } from '@ui-sdk/svelte/toolbar';
 	import { layoutScopes, moreToolFor, MORE_TOOLS, TABLE_LAYOUTS, toolChoice, type LayoutScope } from '$lib/table-menus';
 	import ActionMenu from '../ui/ActionMenu.svelte';
+	import type { TablePostAs } from '$lib/table-post';
 	import Button from '../ui/Button.svelte';
+	import TablePostMenu from './TablePostMenu.svelte';
 
 	interface Props {
 		/** The owner gets the drawing tools and the block picker; visitors only fit the view. */
@@ -68,9 +70,13 @@
 		 */
 		tags?: { open: boolean; count: number };
 		ontags?: () => void;
+		/** With `onpost`, the owner gets Post: a draft post with the table in it, live or as a picture. */
+		onpost?: (as: TablePostAs) => void;
+		/** A post is being made from the table. */
+		posting?: boolean;
 	}
 
-	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags }: Props = $props();
+	let { editable = false, tool = 'select', geo, onmedia, selection = [], onlayout, autoLayout, onautolayout, menuSide = 'top', canUndo = false, canRedo = false, adding = false, status, ontool, onundo, onredo, onfit, onadd, published = false, onpublish, details, ondetails, tags, ontags, onpost, posting = false }: Props = $props();
 
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
@@ -148,6 +154,7 @@
 	{#if status}<span class="status" role="status">{status}</span>{/if}
 	{#if editable && onpublish}
 		<span class="divider" aria-hidden="true"></span>
+		{#if onpost}<TablePostMenu {published} busy={posting} {onpost} />{/if}
 		{#if published}
 			<Button variant="quiet" size="sm" onclick={() => onpublish(false)} title="Make this a draft only you can see">Unpublish</Button>
 		{:else}
