@@ -15,6 +15,8 @@
 		checked?: boolean;
 		/** The key that does the same, shown as a hint at the end of the row. */
 		shortcut?: string;
+		/** Picking it leaves the menu open, for things worth trying one after another. */
+		keepOpen?: boolean;
 		/** Makes the item open a second menu beside it, of these. */
 		items?: ContextMenuItem[];
 	}
@@ -88,7 +90,7 @@
 			</MenuSubContent>
 		</MenuSub>
 	{:else}
-		<MenuItem class="context-menu-item" value={item.value} label={item.label} disabled={item.disabled} destructive={item.destructive}>
+		<MenuItem class="context-menu-item" value={item.value} label={item.label} disabled={item.disabled} destructive={item.destructive} closeOnSelect={!item.keepOpen}>
 			{@render face(item, icons)}
 			{#if item.checked}<span class="context-menu-check"><Icon name="check" size={16} /></span><span class="visually-hidden">, on</span>{/if}
 			{#if item.shortcut}<kbd class="context-menu-key" aria-hidden="true">{item.shortcut}</kbd>{/if}

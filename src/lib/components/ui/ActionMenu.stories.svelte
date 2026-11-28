@@ -4,8 +4,8 @@
 
 	const items: ActionItem[] = [
 		{ value: 'tidy', label: 'Tidy up', detail: 'Whatever suits' },
-		{ value: 'grid', label: 'Grid', detail: 'Aligned', group: 'Rows and columns' },
-		{ value: 'row', label: 'One row', group: 'Rows and columns' },
+		{ value: 'grid', label: 'Grid', detail: 'Aligned', group: 'Rows and columns', keepOpen: true },
+		{ value: 'row', label: 'One row', group: 'Rows and columns', keepOpen: true },
 		{ value: 'tree', label: 'Tree', group: 'Following the arrows' },
 		{ value: 'radial', label: 'Radial', group: 'Following the arrows', disabled: true }
 	];

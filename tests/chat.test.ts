@@ -5,7 +5,7 @@ import { chatViewer, startVisitorSession, viewerFrom, withViewer, VIEWER_HEADER 
 import { discoverIndieAuth, finishLogin, instanceOrigin, LOGIN_COOKIE, profileAddress, safeReturn, startLogin } from '../src/lib/server/chat/login';
 import { callMicropubTool, handleMcpHttp, handleMcpMessage, micropubMcpClient, MICROPUB_TOOLS, type MicropubCall } from '../src/lib/server/chat/micropub-mcp';
 import { streamCompletion } from '../src/lib/server/chat/model';
-import { agentSearchDocument, daysBefore, findDocuments, localDate, searchDocuments } from '../src/lib/server/chat/site-search';
+import { agentSearchDocument, daysBefore, findDocuments, loadAgentIndex, localDate, searchDocuments } from '../src/lib/server/chat/site-search';
 
 function bucket() {
 	const objects = new Map<string, string>();
@@ -504,6 +504,16 @@ describe('search_site finds and browses', () => {
 		expect(daysBefore('2026-11-25', 7)).toBe('2026-11-18');
 		expect(daysBefore('2026-03-01', 1)).toBe('2026-02-28');
 	});
+});
+
+test('each place the index is read from keeps its own copy', async () => {
+	const from = (url: string) => ({ fetch: async () => Response.json([{ u: url, t: 'One', y: 'note', x: 'Words' }]) });
+	const first = from('/first/'), second = from('/second/');
+	expect((await loadAgentIndex(first, 'https://caseyagollan.com/'))[0].u).toBe('/first/');
+	expect((await loadAgentIndex(second, 'https://caseyagollan.com/'))[0].u).toBe('/second/');
+	// And the first is still answered from its own copy, without asking again.
+	first.fetch = async () => new Response('', { status: 500 });
+	expect((await loadAgentIndex(first, 'https://caseyagollan.com/'))[0].u).toBe('/first/');
 });
 
 describe('the chat’s tools', () => {

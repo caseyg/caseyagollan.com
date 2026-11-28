@@ -171,15 +171,20 @@ function excerpt(text: string, terms: string[]): string {
 	return `${start > 0 ? '…' : ''}${slice}${start + MATCH_TEXT < text.length ? '…' : ''}`;
 }
 
-let cached: { at: number; documents: AgentSearchDocument[] } | undefined;
+type CachedIndex = { at: number; documents: AgentSearchDocument[] };
+// One copy per place the index is read from, so two sources in one isolate (as in tests) never answer for each other.
+const cachedByAssets = new WeakMap<object, CachedIndex>();
+let cachedByFetch: CachedIndex | undefined;
 
 /** Load the index once per isolate (for ten minutes) from the site's own assets. */
 export async function loadAgentIndex(assets: Pick<Fetcher, 'fetch'> | undefined, origin: string, now = Date.now()): Promise<AgentSearchDocument[]> {
+	const cached = assets ? cachedByAssets.get(assets) : cachedByFetch;
 	if (cached && now - cached.at < 600_000) return cached.documents;
 	const request = new Request(new URL(AGENT_INDEX_PATH, origin));
 	const response = assets ? await assets.fetch(request) : await fetch(request);
 	if (!response.ok) throw new Error(`The search index answered ${response.status}`);
 	const documents = await response.json() as AgentSearchDocument[];
-	cached = { at: now, documents };
+	if (assets) cachedByAssets.set(assets, { at: now, documents });
+	else cachedByFetch = { at: now, documents };
 	return documents;
 }

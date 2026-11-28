@@ -12,6 +12,8 @@
 		/** The key that does the same, shown as a hint at the end of the row. */
 		shortcut?: string;
 		disabled?: boolean;
+		/** Picking it leaves the menu open, for things worth trying one after another. */
+		keepOpen?: boolean;
 		/** Makes the item open a second menu beside it, of these. */
 		items?: ActionItem[];
 	}
@@ -102,7 +104,7 @@
 			</MenuSubContent>
 		</MenuSub>
 	{:else}
-		<MenuItem class="choice-menu-item" value={item.value} label={item.label} disabled={item.disabled}>
+		<MenuItem class="choice-menu-item" value={item.value} label={item.label} disabled={item.disabled} closeOnSelect={!item.keepOpen}>
 			{@render face(item)}
 			{#if item.value === current}<span class="action-menu-current"><Icon name="check" size={16} /></span><span class="visually-hidden">, in effect</span>{/if}
 			{#if item.shortcut}<kbd class="action-menu-key" aria-hidden="true">{item.shortcut}</kbd>{/if}

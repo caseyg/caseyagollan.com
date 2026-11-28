@@ -14,6 +14,8 @@ export interface TableMenuItem {
 	group?: string;
 	/** The key that picks it, as a hint. */
 	shortcut?: string;
+	/** Picking it leaves the menu open, to pick another and compare. */
+	keepOpen?: boolean;
 	/** Items that open beside this one. */
 	items?: TableMenuItem[];
 }
@@ -21,7 +23,8 @@ export interface TableMenuItem {
 /** What a layout sets out: everything on the table, or only what is selected. */
 export type LayoutScope = 'selection' | 'table';
 
-export const TABLE_LAYOUTS: TableMenuItem[] = [
+/** The layouts. Picking one leaves its menu open, so several can be tried one after another. */
+export const TABLE_LAYOUTS: TableMenuItem[] = ([
 	{ value: 'auto', icon: 'sparkle', label: 'Tidy up', detail: 'Picks what suits' },
 	{ value: 'grid', icon: 'layout', label: 'Grid', detail: 'Aligned', group: 'Rows and columns' },
 	{ value: 'columns', icon: 'layout-columns', label: 'Columns', detail: 'Like a wall of cards', group: 'Rows and columns' },
@@ -37,7 +40,7 @@ export const TABLE_LAYOUTS: TableMenuItem[] = [
 	{ value: 'cluster:kind', icon: 'layers', label: 'By kind', detail: 'Posts, books, notes…', group: 'In groups' },
 	{ value: 'cluster:color', icon: 'palette', label: 'By colour', group: 'In groups' },
 	{ value: 'cluster:connected', icon: 'link', label: 'By what’s linked', group: 'In groups' }
-];
+] satisfies TableMenuItem[]).map((layout) => ({ ...layout, keepOpen: true }));
 
 type ArrangeOp = Extract<TableOp, { op: 'arrange' }>;
 
@@ -49,7 +52,8 @@ type ArrangeOp = Extract<TableOp, { op: 'arrange' }>;
 export function layoutOp(value: string, scope: LayoutScope, selected: string[]): ArrangeOp | undefined {
 	const [layout, by] = value.split(':') as [TableArrangement, TableClusterBy | undefined];
 	if (!TABLE_LAYOUTS.some((item) => item.value === value)) return undefined;
-	return { op: 'arrange', layout, ...(by ? { by, frame: false } : {}), ...(scope === 'selection' && selected.length ? { ids: selected } : {}) };
+	// A layout picked by hand leaves the view alone: the table moves, not what is being looked at.
+	return { op: 'arrange', layout, zoom: false, ...(by ? { by, frame: false } : {}), ...(scope === 'selection' && selected.length ? { ids: selected } : {}) };
 }
 
 /** Whether a selection can be laid out on its own: several things, or one area (for what it holds). */
@@ -138,6 +142,7 @@ export interface TableContextItem {
 	checked?: boolean;
 	shortcut?: string;
 	disabled?: boolean;
+	keepOpen?: boolean;
 	items?: TableContextItem[];
 }
 
@@ -173,7 +178,7 @@ export interface TableContextState {
 export function contextItems(state: TableContextState): TableContextItem[] {
 	const scopes = layoutScopes(state.selection);
 	const layouts = (scope: LayoutScope): TableContextItem[] =>
-		TABLE_LAYOUTS.map(({ value, label, icon, group }) => ({ value: `layout:${scope}:${value}`, label, icon, group, ...(scope === 'table' && state.autoLayout === value ? { checked: true } : {}) }));
+		TABLE_LAYOUTS.map(({ value, label, icon, group }) => ({ value: `layout:${scope}:${value}`, label, icon, group, keepOpen: true, ...(scope === 'table' && state.autoLayout === value ? { checked: true } : {}) }));
 	const more = (item: TableMenuItem): TableContextItem => ({
 		value: `more:${item.value}`,
 		label: item.label,
