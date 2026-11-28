@@ -42,6 +42,10 @@ export const TABLE_ALIGNS: readonly TableAlign[] = ['left', 'center-horizontal',
 export const TABLE_COLORS = ['white', 'grey', 'black', 'light-violet', 'violet', 'blue', 'light-blue', 'yellow', 'orange', 'green', 'light-green', 'light-red', 'red'] as const;
 export type TableColor = (typeof TABLE_COLORS)[number];
 
+/** The shapes `add_shape` draws: tldraw's geo shapes, by its names. */
+export const TABLE_SHAPES = ['rectangle', 'ellipse', 'triangle', 'diamond', 'pentagon', 'hexagon', 'octagon', 'star', 'rhombus', 'trapezoid', 'oval', 'cloud', 'heart', 'x-box', 'check-box', 'arrow-right', 'arrow-left', 'arrow-up', 'arrow-down'] as const;
+export type TableShape = (typeof TABLE_SHAPES)[number];
+
 /** An arrow between two items, bound to both so it follows them when they move. */
 export interface TableLink { from: string; to: string; label?: string; color?: TableColor; bend?: number; kind?: 'arc' | 'elbow'; dash?: 'draw' | 'solid' | 'dashed' | 'dotted'; both_ends?: boolean }
 
@@ -83,6 +87,8 @@ export type TableOp =
 	| ({ op: 'add_note'; text: string; style?: 'note' | 'text'; w?: number; color?: TableColor } & TablePlace)
 	/** Several notes at once, set out together from their measured sizes: a comparison's cells in one change. */
 	| ({ op: 'add_notes'; notes: TableNote[]; layout?: TableLayout; columns?: number } & TablePlace)
+	/** A geometric shape, with words in it if given; 200 square unless sized. */
+	| ({ op: 'add_shape'; shape: TableShape; text?: string; color?: TableColor; w?: number; h?: number } & TablePlace)
 	| { op: 'connect'; links: TableLink[] }
 	| { op: 'draw'; strokes: TableStroke[] }
 	| { op: 'frame'; name: string; ids?: string[]; at?: TablePoint; w?: number; h?: number; color?: TableColor }

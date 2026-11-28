@@ -42,9 +42,9 @@ the speaker is done (`eot_threshold`), or after three quiet seconds (`eot_timeou
 in `listenOptions`. The browser fallback ends a block after 1.6 quiet seconds (`VOICE_PAUSE_MS`).
 Listening switches itself off after three minutes of hearing nothing.
 
-## The two choices
+## The choices
 
-Both are off the main path: they act on a block after it has been written, so text never waits for
+They are off the main path: they act on a block after it has been written, so text never waits for
 a model.
 
 - **Correct the text.** The finished block and the one before it go to a model, which returns the
@@ -59,6 +59,37 @@ a model.
 
 The model is the chat's: `VOICE_TEXT_MODEL` if set (as the Model menu names it, for example
 `anthropic:claude-haiku-5-5`), else the chat's own model, else any provider with a key.
+
+## Spoken commands
+
+With "Follow spoken commands" on (the default), a finished block is also read for a request to
+change the table: "connect these two blocks with an arrow", "turn one, two, three into numbers",
+"draw a circle next to that and call it ideas", "move the pricing post under this one", "delete
+the last block". The request is carried out and left out of what is written down; whatever was
+said besides it stays as a block. What was done shows over the microphone for a few seconds, and
+undo takes it back.
+
+How it works:
+
+- The same one call that corrects a block (`POST /api/tables/voice`) is also sent the table: each
+  item's id, kind, words, place and size, what is selected, and this voice note's blocks in the
+  order they were spoken. One call keeps it quick: about a second with the chat's model.
+- The model answers with `ops`: the chat's own table operations (`TableOp` in
+  `src/lib/table-agent.ts`), limited to the ones a sentence can ask for: `connect`, `add_shape`,
+  `add_note`, `edit`, `move`, `arrange`, `align`, `frame`, `group`, `remove`, `select`. The page
+  carries them out through `TableApi.perform`, as it does for the chat, so they animate, save and
+  undo like any edit.
+- `cleanVoiceOps` keeps only those operations, only on ids that are on the table, with only the
+  fields it knows, at most eight a passage. Anything else in an answer is dropped.
+- "This", "these" and "that" mean what is selected, or else the blocks spoken most recently.
+- The prompt holds that a thought is not a command ("we should connect with the design team" is
+  written down) and that when unsure it is dictation. Words the model adds of its own are not
+  taken (`partOfSpeech`).
+- `add_shape` is new with this: tldraw's geo shapes (rectangle, ellipse, star, cloud…), with words
+  inside if given.
+
+Bigger asks (searching the site, adding posts, maps, looking at the table) stay with the chat,
+which has the whole tool set and can take several steps.
 
 ## Text blocks as an outline
 
