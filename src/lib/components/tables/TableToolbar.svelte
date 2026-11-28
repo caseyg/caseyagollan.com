@@ -1,23 +1,11 @@
 <script module lang="ts">
-	import type { IconName } from '../ui/Icon.svelte';
-
-	export type ToolId = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser';
-
-	export const TOOLS: { id: ToolId; label: string; icon: IconName; key: string }[] = [
-		{ id: 'select', label: 'Select', icon: 'pointer', key: 'V' },
-		{ id: 'hand', label: 'Pan', icon: 'hand', key: 'H' },
-		{ id: 'note', label: 'Note', icon: 'sticky', key: 'N' },
-		{ id: 'text', label: 'Text', icon: 'type', key: 'T' },
-		{ id: 'draw', label: 'Draw', icon: 'pencil', key: 'D' },
-		{ id: 'arrow', label: 'Arrow', icon: 'arrow', key: 'A' },
-		{ id: 'eraser', label: 'Eraser', icon: 'eraser', key: 'E' }
-	];
+	export { TOOLS, type ToolId } from '$lib/table-menus';
 </script>
 
 <script lang="ts">
 	import { setContext } from 'svelte';
 	import { Toolbar } from '@ui-sdk/svelte/toolbar';
-	import { layoutScopes, moreToolFor, MORE_TOOLS, TABLE_LAYOUTS, toolChoice, type LayoutScope } from '$lib/table-menus';
+	import { layoutScopes, moreToolFor, MORE_TOOLS, TABLE_LAYOUTS, toolChoice, TOOLS, type LayoutScope, type ToolId } from '$lib/table-menus';
 	import ActionMenu from '../ui/ActionMenu.svelte';
 	import type { TablePostAs } from '$lib/table-post';
 	import Button from '../ui/Button.svelte';
@@ -94,12 +82,12 @@
 	// Buttons inside join the toolbar: one tab stop, with arrow keys between them.
 	setContext('ui:toolbar', true);
 
-	let picker: HTMLInputElement;
+	let picker = $state<HTMLInputElement>();
 	const extra = $derived(moreToolFor(tool, geo));
 	const moreTools = $derived(onmedia ? MORE_TOOLS : MORE_TOOLS.filter((item) => item.value !== 'media'));
 
 	function more(value: string) {
-		if (value === 'media') return picker.click();
+		if (value === 'media') return picker?.click();
 		const choice = toolChoice(value);
 		if (choice) ontool?.(choice.tool, choice.geo);
 	}
@@ -133,7 +121,7 @@
 		{/each}
 		<ActionMenu label={extra ? `More tools: ${extra.label}` : 'More tools'} icon={extra?.icon ?? 'shapes'} iconOnly items={moreTools} pressed={!!extra} side={menuSide} onaction={more} />
 		{#if onmedia}
-			<input bind:this={picker} class="media" type="file" accept="image/*,video/*" multiple tabindex="-1" aria-hidden="true" onchange={() => { onmedia([...(picker.files ?? [])]); picker.value = ''; }} />
+			<input bind:this={picker} class="media" type="file" accept="image/*,video/*" multiple tabindex="-1" aria-hidden="true" onchange={() => { if (!picker) return; onmedia([...(picker.files ?? [])]); picker.value = ''; }} />
 		{/if}
 		{#if voice && onvoice}
 			<span class="divider" aria-hidden="true"></span>
