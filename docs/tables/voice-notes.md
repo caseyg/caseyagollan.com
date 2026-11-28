@@ -192,6 +192,19 @@ Both came from the first voice note read back from the log (2026-11-28): "Add a 
 been written down as a sentence, because the model's empty sticky was refused, and every thought
 followed the one before it.
 
+## Keeping track of what was just said
+
+A passage is read against the ones before it, so a follow-up doesn't have to name its target again.
+
+- **Earlier passages.** Each request carries `recent`: the last eight passages of the voice note, a line each, with what was done about them (`recentLine`). "ISO format", "and in parentheses", "sentence case, not uppercase" and "the other direction" are commands about what the command before made or changed, not notes.
+- **Where it is working.** After each passage the voice note selects the thing it is working at: a sticky a command just made or changed, or the topic a spoken note was hung from. That selection is what the speaker sees as "the next thing goes here", and it goes to the model as `focus` (marked "(adding here)"). It is a hint: the model decides whether a new point goes under it or beside it. A selection made by hand, or asked for aloud ("select…"), is the speaker pointing and is followed strictly, as before.
+- **Short ids.** The model is shown `b1`, `b2`… in place of the canvas's 21-character ids (`shortIds`), and its answer is read back into them. One answer ran to its token limit inside a long id; an answer that can't be read is now asked for once more.
+- **Regrouping and tidying.** "A and B should both be under something called P, connected to W" adds P between them. "Flip the arrows" reverses every arrow the last command drew. "Clean up" removes stray text blocks of this voice note: instructions written down by mistake, and fragments.
+
+## Known words
+
+Names and terms the speaker uses, spelled their way, are kept in the browser (`tables-voice-words`) and listed in the voice menu under "Known words", where they can be added and removed. They are used twice: sent to the speech model as key terms when the socket opens (`keyterm`, up to 40; the socket is opened again without them should the model refuse), and given to the text model with every passage. Correcting a word by hand on the table adds it (`learnedWords`): only a small correction teaches, and only words spelled as no ordinary word is (a capital, a digit, a dot or hyphen inside).
+
 ## Reading what happened
 
 A voice note that went badly can be read back from the Worker's log (Workers observability, on

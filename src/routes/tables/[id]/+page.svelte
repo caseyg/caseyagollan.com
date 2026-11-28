@@ -94,7 +94,9 @@
 	const refineVoice = voiceRefiner(() => session?.csrf ?? '');
 
 	// The owner's voice note: the Worker's speech model where there is one, the browser's dictation otherwise.
-	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
+	// A word corrected by hand on the table is a word the voice note should know next time.
+	$effect(() => api?.voice.edits((before, after) => void voice.learn(before, after)));
+	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(undefined, () => voice.words), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.
@@ -470,12 +472,13 @@
 					tagging = tagging ? null : 'edit';
 					if (tagging && !pinned) adding = false;
 				}}
-				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0, usage: voice.usageView } : undefined}
+				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0, usage: voice.usageView, words: voice.words } : undefined}
 				onvoice={voice.toggle}
 				onvoicecorrect={(on) => (voice.correct = on)}
 				onvoicearrange={(on) => (voice.arrange = on)}
 				onvoicecommands={(on) => (voice.commands = on)}
 				onvoicemeter={(on) => (voice.meter = on)}
+				onvoicewords={(words) => (voice.words = words)}
 			/>
 		</div>
 		{#if editable && adding}

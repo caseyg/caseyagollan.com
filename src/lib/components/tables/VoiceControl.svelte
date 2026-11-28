@@ -18,6 +18,8 @@
 		thinking?: boolean;
 		/** What voice notes have used. Left out, nothing about cost is shown. */
 		usage?: VoiceUsageView;
+		/** Words the speaker uses, spelled their way. Left out, the list isn't offered. */
+		words?: string[];
 	}
 
 	/** Usage as the control shows it: a line per service, the totals, and whether the total sits by the microphone. */
@@ -32,6 +34,10 @@
 </script>
 
 <script lang="ts">
+	import Chip from '../ui/Chip.svelte';
+	import Disclosure from '../ui/Disclosure.svelte';
+	import Icon from '../ui/Icon.svelte';
+	import InlineForm from '../ui/InlineForm.svelte';
 	import Switch from '../ui/Switch.svelte';
 	import VoiceMenu, { type VoiceChoice } from '../ui/VoiceMenu.svelte';
 	import { formatUsd, type VoiceSpend } from '$lib/voice-notes';
@@ -44,11 +50,19 @@
 		onarrange?: (on: boolean) => void;
 		oncommands?: (on: boolean) => void;
 		onmeter?: (on: boolean) => void;
+		/** The known words with one added or taken out. */
+		onwords?: (words: string[]) => void;
 		/** Whether the options are showing. They open by themselves when there is something to say. */
 		open?: boolean;
 	}
 
-	let { voice, ontoggle, oncorrect, onarrange, oncommands, onmeter, open = $bindable(false) }: Props = $props();
+	let { voice, ontoggle, oncorrect, onarrange, oncommands, onmeter, onwords, open = $bindable(false) }: Props = $props();
+
+	let word = $state('');
+	function addWord(value: string) {
+		if (value && !voice.words?.some((one) => one.toLowerCase() === value.toLowerCase())) onwords?.([value, ...(voice.words ?? [])]);
+		word = '';
+	}
 
 	const label = $derived(voice.status === 'listening' ? 'Stop the voice note' : voice.status === 'starting' ? 'Starting the microphone…' : 'Voice note: talk, and your words become text blocks');
 
@@ -90,6 +104,23 @@
 -->
 <span bind:this={root} class="voice">
 	<VoiceMenu status={voice.status} level={voice.level} {label} optionsLabel="Voice note options" {choices} notice={voice.notice} hint="Just talk: a pause starts a new note. Say “actually, make that…” or “scratch that” to take something back, and “that’s all” to finish. Drop one text block on another to combine them; press Enter inside one to split it." {ontoggle} onchoice={choose} bind:open>
+		{#if voice.words}
+			{@const words = voice.words}
+			<div class="words">
+				<Disclosure>
+					{#snippet summary()}Known words{words.length ? ` (${words.length})` : ''}{/snippet}
+					<small>Names and terms, spelled your way, so they are heard right. Correcting a word on the table by hand adds it here.</small>
+					<InlineForm label="A word to know" name="word" hideLabel placeholder="Add a word or name" buttonLabel="Add" bind:value={word} onsubmit={addWord} />
+					{#if words.length}
+						<ul>
+							{#each words as one (one)}
+								<li><Chip variant="soft" size="sm" title="Forget “{one}”" aria-label="Forget {one}" onclick={() => onwords?.(words.filter((other) => other !== one))}>{one}<Icon name="close" size={10} /></Chip></li>
+							{/each}
+						</ul>
+					{/if}
+				</Disclosure>
+			</div>
+		{/if}
 		{#if voice.usage}
 			{@const usage = voice.usage}
 			<div class="usage">
@@ -155,6 +186,29 @@
 		font-size: var(--fs-xs);
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
+	}
+
+	.words {
+		margin-top: var(--space-1);
+		padding: var(--space-2);
+		border-top: 1px solid var(--border-subtle);
+		font-size: var(--fs-sm);
+	}
+
+	.words small {
+		display: block;
+		margin: var(--space-1) 0 var(--space-2);
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+	}
+
+	.words ul {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+		margin: var(--space-2) 0 0;
+		padding: 0;
+		list-style: none;
 	}
 
 	.usage {

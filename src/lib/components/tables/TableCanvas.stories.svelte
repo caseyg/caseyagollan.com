@@ -99,8 +99,8 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did, thinking: commanding.thinking > 0, usage: commanding.usageView }}
-				onvoice={commanding.toggle} onvoicecorrect={(on) => (commanding.correct = on)} onvoicearrange={(on) => (commanding.arrange = on)} onvoicecommands={(on) => (commanding.commands = on)} onvoicemeter={(on) => (commanding.meter = on)}
+				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did, thinking: commanding.thinking > 0, usage: commanding.usageView, words: commanding.words }}
+				onvoice={commanding.toggle} onvoicecorrect={(on) => (commanding.correct = on)} onvoicearrange={(on) => (commanding.arrange = on)} onvoicecommands={(on) => (commanding.commands = on)} onvoicemeter={(on) => (commanding.meter = on)} onvoicewords={(words) => (commanding.words = words)}
 			/>
 		</div>
 	</div>
@@ -118,8 +118,8 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: rambling.status, level: rambling.level, notice: rambling.notice, correct: rambling.correct, arrange: rambling.arrange, commands: rambling.commands, did: rambling.did, thinking: rambling.thinking > 0, usage: rambling.usageView }}
-				onvoice={rambling.toggle} onvoicecorrect={(on) => (rambling.correct = on)} onvoicearrange={(on) => (rambling.arrange = on)} onvoicecommands={(on) => (rambling.commands = on)} onvoicemeter={(on) => (rambling.meter = on)}
+				voice={{ status: rambling.status, level: rambling.level, notice: rambling.notice, correct: rambling.correct, arrange: rambling.arrange, commands: rambling.commands, did: rambling.did, thinking: rambling.thinking > 0, usage: rambling.usageView, words: rambling.words }}
+				onvoice={rambling.toggle} onvoicecorrect={(on) => (rambling.correct = on)} onvoicearrange={(on) => (rambling.arrange = on)} onvoicecommands={(on) => (rambling.commands = on)} onvoicemeter={(on) => (rambling.meter = on)} onvoicewords={(words) => (rambling.words = words)}
 			/>
 		</div>
 	</div>
@@ -137,8 +137,8 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: mapping.status, level: mapping.level, notice: mapping.notice, correct: mapping.correct, arrange: mapping.arrange, commands: mapping.commands, did: mapping.did, thinking: mapping.thinking > 0, usage: mapping.usageView }}
-				onvoice={mapping.toggle} onvoicecorrect={(on) => (mapping.correct = on)} onvoicearrange={(on) => (mapping.arrange = on)} onvoicecommands={(on) => (mapping.commands = on)} onvoicemeter={(on) => (mapping.meter = on)}
+				voice={{ status: mapping.status, level: mapping.level, notice: mapping.notice, correct: mapping.correct, arrange: mapping.arrange, commands: mapping.commands, did: mapping.did, thinking: mapping.thinking > 0, usage: mapping.usageView, words: mapping.words }}
+				onvoice={mapping.toggle} onvoicecorrect={(on) => (mapping.correct = on)} onvoicearrange={(on) => (mapping.arrange = on)} onvoicecommands={(on) => (mapping.commands = on)} onvoicemeter={(on) => (mapping.meter = on)} onvoicewords={(words) => (mapping.words = words)}
 			/>
 		</div>
 	</div>

@@ -10,7 +10,7 @@
  *
  * `listen` tries them in order and settles on the first that starts.
  */
-import { VOICE_LISTEN_PATH, VOICE_LOG_PATH, VOICE_PAUSE_MS, VOICE_REFINE_PATH, sttEvents, type VoiceEvent, type VoiceLogEntry, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { VOICE_LISTEN_PATH, VOICE_TERMS_MAX, VOICE_LOG_PATH, VOICE_PAUSE_MS, VOICE_REFINE_PATH, sttEvents, type VoiceEvent, type VoiceLogEntry, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 
 export interface VoiceListener {
 	onevent(event: VoiceEvent): void;
@@ -71,7 +71,7 @@ export function loudness(samples: Int16Array): number {
 	return Math.min(1, Math.sqrt(sum / samples.length) * 6);
 }
 
-export function workerSource(path = VOICE_LISTEN_PATH): VoiceSource {
+export function workerSource(path = VOICE_LISTEN_PATH, words: () => string[] = () => []): VoiceSource {
 	return {
 		name: 'worker',
 		async start(listener) {
@@ -79,6 +79,8 @@ export function workerSource(path = VOICE_LISTEN_PATH): VoiceSource {
 			// The socket first: without a speech model behind it there is no reason to ask for the microphone.
 			const context = new AudioContext({ sampleRate: 16000 });
 			const address = new URL(`${path}?rate=${context.sampleRate}`, location.href);
+			// Known words go to the speech model as key terms, so a name is heard as it is spelled.
+			for (const word of words().slice(0, VOICE_TERMS_MAX)) address.searchParams.append('term', word);
 			address.protocol = address.protocol === 'https:' ? 'wss:' : 'ws:';
 			const socket = new WebSocket(address);
 			socket.binaryType = 'arraybuffer';

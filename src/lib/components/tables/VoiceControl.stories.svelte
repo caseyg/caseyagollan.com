@@ -49,6 +49,11 @@
 	] } }, true)}
 </Story>
 
+<!-- Known words: names and terms spelled the speaker's way, added by hand here or learnt from a correction made on the table. -->
+<Story asChild name="Known words">
+	{@render control({ ...off, words: ['Otso', 'caseyagollan.com', 'Propel', 'CRC'] }, true)}
+</Story>
+
 <!-- A reason listening stopped opens the options by itself. -->
 <Story asChild name="Microphone blocked">{@render control({ ...off, notice: 'The microphone is blocked for this site. Allow it in the browser’s site settings.' })}</Story>
 

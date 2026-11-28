@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
+import { cleanWords, learnedWords, recentLine, shortIds, readable, cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
 import { listenOptions, voiceListen } from '../src/lib/server/voice';
 
 const doc = (...paragraphs: string[]): RichDoc => ({ type: 'doc', content: paragraphs.map((text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })) });
@@ -356,6 +356,20 @@ describe('the listening socket', () => {
 		expect(listenOptions('@cf/deepgram/nova-3', 16000)).toMatchObject({ sample_rate: '16000', interim_results: 'true', utterance_end_ms: '1500' });
 	});
 
+	test('known words go to the model as key terms, and it is asked again without them if it refuses', async () => {
+		const withTerms = new Request('https://caseyagollan.com/api/tables/voice/listen?rate=16000&term=Otso&term=caseyagollan.com&term=otso', { headers: { upgrade: 'websocket', origin: 'https://caseyagollan.com' } });
+		const calls: unknown[][] = [];
+		expect(await voiceListen(withTerms, { AI: ai(calls) }, async () => true)).toBe(opened);
+		expect((calls[0][1] as { keyterm: string[] }).keyterm).toEqual(['Otso', 'caseyagollan.com']);
+		const fussy: unknown[][] = [];
+		const refuses = { run: async (...args: unknown[]) => { fussy.push(args); if ((args[1] as { keyterm?: unknown }).keyterm) throw new Error('unknown parameter'); return opened; } };
+		const errors = console.error;
+		console.error = () => {};
+		try { expect(await voiceListen(withTerms, { AI: refuses }, async () => true)).toBe(opened); } finally { console.error = errors; }
+		expect(fussy.length).toBe(2);
+		expect((fussy[1][1] as { keyterm?: unknown }).keyterm).toBeUndefined();
+	});
+
 	test('a model that fails to open is a 502, not a crash', async () => {
 		expect((await voiceListen(socket(), { AI: { run: async () => { throw new Error('boom'); } } }, async () => true)).status).toBe(502);
 	});
@@ -422,5 +436,74 @@ describe('what the second logged voice note showed', () => {
 	test('arrows are listed by id, so one can be taken away', () => {
 		expect(refinePrompt(request).user).toContain('Arrows (id: from→to): ar1: w1→s1');
 		expect(parseRefine('{"notes": [], "ops": [{"op": "remove", "ids": ["ar1"]}]}', request)).toEqual({ text: '', ops: [{ op: 'remove', ids: ['ar1'] }] });
+	});
+});
+
+describe('what a later passage is read against', () => {
+	const long = { now: '9qk90H98xJsDl9MtVJjuI', work: 'OhNaRZwTY4lHu0neRp9f2', arrow: 'hXMuhuK2hCI-ctC83mkYC', own: 'zzzVs7uoIQ8-GuC0ox8Uz' };
+	const table = { items: [
+		{ id: long.now, type: 'note', text: 'Now', x: 0, y: 0, w: 200, h: 200 },
+		{ id: long.work, type: 'note', text: 'Work', x: 300, y: 0, w: 200, h: 200 },
+		{ id: long.arrow, type: 'arrow', x: 0, y: 0, w: 1, h: 1, from: long.now, to: long.work },
+		{ id: long.own, type: 'text', text: 'ISO format.', x: 0, y: 300, w: 300, h: 40 }
+	], selected: [], spoken: [long.own] };
+	const request = cleanRefine({ text: 'ISO format.', correct: true, split: true, connect: true, items: [{ id: long.now, text: 'Now' }], commands: true, id: long.own, table, focus: long.now, words: ['Otso', 'otso', ' caseyagollan.com '], recent: [`"put the date on the now sticky": changed ${long.now} to "Now - 28 November 2026"`] })!;
+
+	test('the request keeps what came before, where the note is working, and the known words', () => {
+		expect(request.focus).toBe(long.now);
+		expect(request.words).toEqual(['Otso', 'caseyagollan.com']);
+		expect(request.recent).toHaveLength(1);
+		const { system, user } = refinePrompt(request);
+		expect(user).toContain('Earlier in this voice note');
+		expect(user).toContain('(adding here)');
+		expect(system).toContain('Words this speaker uses, spelled their way: Otso, caseyagollan.com');
+		expect(system).toContain('carries on from the command before it');
+	});
+
+	test('a model sees short ids, and its answer is read back into the canvas’s own', () => {
+		const brief = shortIds(request);
+		const said = refinePrompt(brief.request);
+		for (const id of Object.values(long)) expect(said.user).not.toContain(id);
+		expect(said.user).toContain('b1 note "Now"');
+		expect(said.user).toContain('changed b1 to');
+		expect(said.user).toContain('b3: b1→b2');
+		const answer = brief.back(parseRefine('{"notes":[],"follows":"b1","ops":[{"op":"edit","edits":[{"id":"b1","text":"Now - 2026-11-28"}]},{"op":"remove","ids":["b3"]},{"op":"add_note","text":"b2","style":"note","right_of":"b2","as":"new1"},{"op":"connect","links":[{"from":"b2","to":"new1"}]}]}', brief.request));
+		expect(answer.follows).toBe(long.now);
+		expect(answer.ops).toEqual([
+			{ op: 'edit', edits: [{ id: long.now, text: 'Now - 2026-11-28' }] },
+			{ op: 'remove', ids: [long.arrow] },
+			{ op: 'add_note', text: 'b2', style: 'note', right_of: long.work, as: 'new1' },
+			{ op: 'connect', links: [{ from: long.work, to: 'new1' }] }
+		] as never);
+	});
+
+	test('a reply cut off inside an id can’t be read, and so is asked for again', () => {
+		expect(readable('{\n "notes": [],\n "ops": [\n {"op":"connect","links":[{"from":"')).toBe(false);
+		expect(readable('{"notes":[],"ops":[]}')).toBe(true);
+	});
+
+	test('what was said and done is one line', () => {
+		expect(recentLine('Under play, add Otso.', [{ op: 'add_note', text: 'Otso', style: 'note', made: 'n1' }, { op: 'connect', links: [{ from: 'p1', to: 'n1' }] }] as never)).toBe('"Under play, add Otso.": added sticky n1 "Otso"; drew arrows p1→n1');
+		expect(recentLine('A thought.', [], { id: 't1', follows: 'p1' })).toBe('"A thought.": written down as note t1 under p1');
+		expect(recentLine('Mm.', [])).toBe('"Mm.": nothing done');
+	});
+});
+
+describe('known words', () => {
+	test('a small correction by hand teaches the word', () => {
+		expect(learnedWords('OTSO', 'Otso')).toEqual(['Otso']);
+		expect(learnedWords('kcgallin.com', 'caseyagollan.com')).toEqual(['caseyagollan.com']);
+		expect(learnedWords('Talk to pro pell about the grant', 'Talk to Propel about the grant')).toEqual(['Propel']);
+	});
+
+	test('ordinary words, rewrites, first words and words already known teach nothing', () => {
+		expect(learnedWords('book the rom', 'book the room')).toEqual([]);
+		expect(learnedWords('', 'Otso')).toEqual([]);
+		expect(learnedWords('one', 'Alpha Beta Gamma Delta')).toEqual([]);
+		expect(learnedWords('OTSO', 'Otso', ['otso'])).toEqual([]);
+	});
+
+	test('the list is short words, each once', () => {
+		expect(cleanWords(['Otso', 'otso', '', 7, '  Quill   Native '])).toEqual(['Otso', 'Quill Native']);
 	});
 });

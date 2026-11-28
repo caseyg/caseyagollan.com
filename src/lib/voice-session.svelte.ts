@@ -9,7 +9,7 @@
  * (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so Storybook and
  * the tests run the same session with scripted ones.
  */
-import { endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 import { VoiceListening, keepChoices, keptChoices } from './voice-listening.svelte';
 import type { VoiceSource } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
@@ -30,6 +30,8 @@ export interface VoiceOptions {
 const KEY = 'tables-voice';
 /** The calendar month's usage, kept in this browser: `{ month, usage }`. */
 const USAGE_KEY = 'tables-voice-usage';
+/** The known words, kept in this browser. */
+const WORDS_KEY = 'tables-voice-words';
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 export class VoiceNotes extends VoiceListening {
@@ -42,6 +44,8 @@ export class VoiceNotes extends VoiceListening {
 	/** What voice notes have used since this page opened, and this calendar month in this browser. */
 	usage = $state<VoiceUsage>(noUsage());
 	month = $state<VoiceUsage>(noUsage());
+	/** Words the speaker uses, spelled their way: told to the model with every passage. Kept in this browser. */
+	#words = $state<string[]>([]);
 	/** Finished blocks a model is still considering: corrected, or taken as a command. */
 	thinking = $state(0);
 	/** A head start: the question asked of a model when the speaker had probably finished, kept if they had. */
@@ -61,6 +65,10 @@ export class VoiceNotes extends VoiceListening {
 	#blank: string | undefined;
 	/** Stickies this voice note made or filled: part of its map, though they aren't text blocks. */
 	#made: string[] = [];
+	/** What was said and done lately in this voice note, a line each: what "it" and "the other direction" are read against. */
+	#recent: string[] = [];
+	/** Where the voice note is working: the item it keeps selected, so the next thing said has somewhere to go. */
+	#focus: string | undefined;
 	/** Blocks that were wholly a command, and so taken away. */
 	#gone = new Set<string>();
 
@@ -81,6 +89,7 @@ export class VoiceNotes extends VoiceListening {
 		this.#arrange = kept.arrange ?? this.#arrange;
 		this.#commands = kept.commands ?? this.#commands;
 		this.#meter = kept.meter ?? this.#meter;
+		try { this.#words = cleanWords(JSON.parse(options.storage?.getItem(WORDS_KEY) ?? '[]')); } catch { /* nothing kept */ }
 		try {
 			const spent = JSON.parse(options.storage?.getItem(USAGE_KEY) ?? 'null') as { month?: unknown; usage?: unknown } | null;
 			if (spent?.month === thisMonth()) this.month = readUsage(spent.usage);
@@ -96,6 +105,20 @@ export class VoiceNotes extends VoiceListening {
 	/** Whether the running cost shows beside the microphone. */
 	get meter() { return this.#meter; }
 	set meter(value: boolean) { this.#meter = value; this.#keep(); }
+
+	/** The known words, as the control lists them; setting them keeps them. */
+	get words() { return this.#words; }
+	set words(value: string[]) {
+		this.#words = cleanWords(value);
+		try { this.#options.storage?.setItem(WORDS_KEY, JSON.stringify(this.#words)); } catch { /* private window */ }
+	}
+
+	/** A hand edit of something on the table: a word it corrected is a word to know (`learnedWords`). Returns what was learnt. */
+	learn(before: string, after: string): string[] {
+		const learnt = learnedWords(before, after, this.#words);
+		if (learnt.length) this.words = [...learnt, ...this.#words];
+		return learnt;
+	}
 
 	/** The usage as the control shows it. */
 	get usageView() { return { lines: spendLines(this.usage), usd: usageUsd(this.usage), monthUsd: usageUsd(this.month), shown: this.#meter }; }
@@ -131,6 +154,8 @@ export class VoiceNotes extends VoiceListening {
 		this.#early = undefined;
 		this.#blank = undefined;
 		this.#made = [];
+		this.#recent = [];
+		this.#focus = undefined;
 		this.#note++;
 		this.#trace = Math.random().toString(36).slice(2, 10);
 		this.#began = Date.now();
@@ -182,6 +207,8 @@ export class VoiceNotes extends VoiceListening {
 		if (!this.#commands) return null;
 		const found = quickCommand(text, canvas.texts(200).filter((item) => item.id !== own), this.#session);
 		// Selecting follows every word; zooming waits for the passage to end, so the view moves once.
+		// A selection asked for aloud is the speaker pointing, even at what the voice note had selected itself.
+		if (found) this.#focus = undefined;
 		if (found) canvas.show(found.ids, settled && found.kind === 'focus');
 		return found;
 	}
@@ -275,9 +302,13 @@ export class VoiceNotes extends VoiceListening {
 			// The one thing selected is where the speaker is pointing: an empty sticky is waiting for these words, anything else is the topic they branch from.
 			const chosen = seen?.selected.filter((id) => id !== block.id) ?? [];
 			const pointed = chosen.length === 1 ? seen!.items.find((item) => item.id === chosen[0]) : undefined;
+			// A selection the voice note made itself only shows where it is working: the model is told, and decides. One made by hand is the speaker pointing.
+			const working = pointed && pointed.id === this.#focus ? pointed.id : undefined;
+			if (!working) this.#focus = undefined;
 			if (pointed && !pointed.text && (pointed.type === 'note' || pointed.type === 'geo')) took.blank = pointed.id;
-			else if (pointed && pointed.type !== 'arrow' && pointed.type !== 'frame') took.anchor = pointed.id;
-			const answer = await this.#options.refine({ text: block.text, correct: how.correct, ...(how.correct ? { split: true } : {}), connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}), trace: `${this.#trace}.${this.#passages}` });
+			else if (pointed && !working && pointed.type !== 'arrow' && pointed.type !== 'frame') took.anchor = pointed.id;
+			if (table && working) table.selected = table.selected.filter((id) => id !== working);
+			const answer = await this.#options.refine({ text: block.text, correct: how.correct, ...(how.correct ? { split: true } : {}), connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}), trace: `${this.#trace}.${this.#passages}`, ...(this.#recent.length ? { recent: this.#recent.slice(-RECENT_MAX) } : {}), ...(working ? { focus: working } : {}), ...(this.#words.length ? { words: this.#words } : {}) });
 			took.ms = Date.now() - began;
 			if (!answer) took.failed = 'no model';
 			if (answer?.usage) { const used = answer.usage; this.#spend((usage) => addText(usage, used)); }
@@ -305,6 +336,7 @@ export class VoiceNotes extends VoiceListening {
 			this.#gone.add(block.id);
 			this.#session = this.#session.filter((id) => id !== block.id);
 			if (this.#last?.id === block.id) this.#last = before;
+			this.#recent.push(recentLine(block.text, []));
 			this.did = { text: 'Nothing done' };
 			return { was: 'nothing: no note, and no command that could be done', text: '' };
 		}
@@ -330,6 +362,11 @@ export class VoiceNotes extends VoiceListening {
 			const follows = how.arrange && took.anchor && took.anchor !== block.id ? took.anchor : answer && answer.follows !== undefined ? answer.follows : before && !this.#gone.has(before.id) ? before.id : undefined;
 			if (how.arrange && took.anchor && follows === took.anchor) made.branch_of = 'the selection';
 			await canvas.settle(block.id, { follows, arrange: how.arrange, session: [...session, ...this.#made] });
+			if (!ops.length) {
+				this.#recent.push(recentLine(block.text, [], { id: block.id, follows: how.arrange ? follows : undefined }));
+				// The topic stays where the voice note is working; a note that began a new subject is the topic now.
+				await this.#work(canvas, how.arrange && follows ? follows : block.id);
+			}
 			// A ramble that held several things: a block for each, one under the other.
 			let above = block.id;
 			for (const words of rewritten ? answer?.more ?? [] : []) {
@@ -342,6 +379,7 @@ export class VoiceNotes extends VoiceListening {
 		}
 		if (!ops.length) return made;
 		const done = await canvas.run(ops);
+		this.#recent.push(recentLine(block.text, done));
 		made.ops_asked = ops.length;
 		made.ops_done = done.length;
 		// A sticky made with nothing in it waits for the next thing said; any sticky made is part of this note's map.
@@ -361,6 +399,9 @@ export class VoiceNotes extends VoiceListening {
 		}
 		this.did = { text: done.length ? describeOps(done) : 'That couldn’t be done here.' };
 		made.did = this.did.text;
+		// What a command made or changed last is where the voice note is working now.
+		const touched = done.flatMap((op) => (op.op === 'add_note' || op.op === 'add_shape' ? (op.made ? [op.made] : []) : op.op === 'edit' ? op.edits.map((edit) => edit.id) : [])).at(-1);
+		if (touched) await this.#work(canvas, touched);
 		return made;
 	}
 
@@ -378,7 +419,21 @@ export class VoiceNotes extends VoiceListening {
 		// The sticky is now the last thing said, for what follows to hang from.
 		if (this.#last?.id === block.id) this.#last = { id: sticky, text: words };
 		if (how.arrange) await canvas.map(sticky, [...this.#session, ...this.#made]);
+		this.#recent.push(recentLine(block.text, [{ op: 'edit', edits: [{ id: sticky, text: words }] }]));
+		await this.#work(canvas, sticky);
 		return true;
+	}
+
+	/**
+	 * Shows where the voice note is working by selecting it, so the speaker sees what the next thing
+	 * said will be about. A selection made by hand meanwhile is left alone: that is the speaker pointing.
+	 */
+	async #work(canvas: VoiceCanvas, id: string) {
+		if (!this.listening) return;
+		const chosen = (await canvas.read()).selected;
+		if (chosen.length && !(chosen.length === 1 && chosen[0] === this.#focus)) return;
+		this.#focus = id;
+		canvas.show([id], false);
 	}
 
 	/** Resolves once every finished block has been corrected and placed. */

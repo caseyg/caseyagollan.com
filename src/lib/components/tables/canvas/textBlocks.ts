@@ -40,6 +40,8 @@ export interface VoiceCanvas {
 	read(): Promise<{ items: VoiceItem[]; selected: string[] }>;
 	/** Carries out a spoken command, an operation at a time as the chat's are; resolves with those that were done. */
 	run(ops: VoiceOp[]): Promise<(VoiceOp & { made?: string })[]>;
+	/** Tells of each edit made by hand to something's words, once the editing ends: what it read before and after. Returns how to stop. */
+	edits(heard: (before: string, after: string) => void): () => void;
 }
 
 /** What these need of the table's editor module, which owns layout and the chat's operations. */
@@ -196,7 +198,8 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 		},
 		show(ids, zoom) {
 			const found = ids.map(long).filter((id) => editor.getShape(id));
-			if (!found.length) return;
+			// Words being typed by hand are not interrupted by a selection.
+			if (!found.length || editor.getEditingShapeId()) return;
 			editor.select(...found);
 			if (zoom) editor.zoomToSelection({ animation: { duration: 320 } });
 			else revealAll(editor, found);
@@ -219,6 +222,16 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 				} catch (error) { console.error('Voice command failed:', op.op, error); }
 			}
 			return done;
+		},
+		edits(heard) {
+			let was: { id: TLShapeId; text: string } | undefined;
+			return editor.sideEffects.registerAfterChangeHandler('instance_page_state', (prev, next) => {
+				if (prev.editingShapeId === next.editingShapeId) return;
+				const ended = was && editor.getShape(was.id);
+				if (was && ended) heard(was.text, plain(editor, ended));
+				const begun = next.editingShapeId ? editor.getShape(next.editingShapeId) : undefined;
+				was = begun ? { id: begun.id, text: plain(editor, begun) } : undefined;
+			});
 		}
 	};
 }

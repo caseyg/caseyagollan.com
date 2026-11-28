@@ -9,7 +9,7 @@
  * Refining: one small completion about a finished block (fix what was misheard, name the block
  * it follows), answered by whichever of the chat's providers can answer here.
  */
-import { VOICE_MODEL, parseRefine, refineLog, refinePrompt, type VoiceRefineAnswer, type VoiceRefineRequest } from '../voice-notes';
+import { VOICE_MODEL, VOICE_TERMS_MAX, cleanWords, parseRefine, readable, refineLog, refinePrompt, shortIds, type VoiceRefineAnswer, type VoiceRefineRequest } from '../voice-notes';
 import { CHAT_PROVIDERS } from '../chat-models';
 import { chatModels, type ChatModelEnv } from './chat/provider';
 
@@ -54,9 +54,19 @@ export async function voiceListen(request: Request, env: VoiceEnv, owner: () => 
 	const asked = Number(new URL(request.url).searchParams.get('rate'));
 	const rate = Number.isFinite(asked) && asked >= 8000 && asked <= 48000 ? Math.round(asked) : 16000;
 	const model = env.VOICE_MODEL || VOICE_MODEL;
+	// Known words are the model's key terms. Should it refuse them, it is asked again without: hearing comes before spelling.
+	const terms = cleanWords(new URL(request.url).searchParams.getAll('term')).slice(0, VOICE_TERMS_MAX);
+	const open = async (input: Record<string, string | string[]>) => {
+		const answer = await env.AI!.run(model, input, { websocket: true });
+		return answer instanceof Response && answer.status < 400 ? answer : undefined;
+	};
 	try {
-		const answer = await env.AI.run(model, listenOptions(model, rate), { websocket: true });
-		return answer instanceof Response ? answer : refuse(502, 'The speech model didn’t open.');
+		const options = listenOptions(model, rate);
+		const answer = (terms.length ? await open({ ...options, keyterm: terms }).catch((error) => {
+			console.error(JSON.stringify({ event: 'voice_terms_refused', model, error: String((error as Error)?.message ?? error).slice(0, 200) }));
+			return undefined;
+		}) : undefined) ?? (await open(options));
+		return answer ?? refuse(502, 'The speech model didn’t open.');
 	} catch (error) {
 		console.error(JSON.stringify({ event: 'voice_listen_failed', model, error: String((error as Error)?.message ?? error).slice(0, 200) }));
 		return refuse(502, 'The speech model didn’t open.');
@@ -82,23 +92,33 @@ export const canRefine = (env: VoiceEnv) => !!textModel(env);
 export async function refineSpeech(env: VoiceEnv, request: VoiceRefineRequest, signal?: AbortSignal): Promise<VoiceRefineAnswer | null> {
 	const found = textModel(env);
 	if (!found) return null;
-	const { system, user } = refinePrompt(request);
+	// The model is shown short ids (`b1`…) in place of the canvas's long random ones, and its answer is read back into them.
+	const brief = shortIds(request);
+	const { system, user } = refinePrompt(brief.request);
 	const began = Date.now();
-	const reply = await found.models.completeSimple(
-		found.model,
-		{ systemPrompt: system, messages: [{ role: 'user', content: user, timestamp: Date.now() }] },
-		// The passage comes back whole, so the answer is about as long as the passage; `low` keeps a thinking model brief.
-		{ maxTokens: 2000, reasoning: 'low', signal: signal ?? AbortSignal.timeout(20_000) }
-	);
-	if (reply.stopReason === 'error' || reply.stopReason === 'aborted') throw new Error(reply.errorMessage || 'The model stopped with an error');
-	const text = reply.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('');
+	const ask = async () => {
+		const reply = await found.models.completeSimple(
+			found.model,
+			{ systemPrompt: system, messages: [{ role: 'user', content: user, timestamp: Date.now() }] },
+			// The passage comes back whole, so the answer is about as long as the passage; `low` keeps a thinking model brief.
+			{ maxTokens: 2000, reasoning: 'low', signal: signal ?? AbortSignal.timeout(20_000) }
+		);
+		if (reply.stopReason === 'error' || reply.stopReason === 'aborted') throw new Error(reply.errorMessage || 'The model stopped with an error');
+		return reply;
+	};
+	const said = (one: Awaited<ReturnType<typeof ask>>) => one.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('');
+	let reply = await ask();
+	// An answer that can't be read (cut off at its limit, or not JSON) is asked for once more: a fast model's slip is rarely repeated.
+	const retried = !readable(said(reply));
+	if (retried) reply = await ask();
+	const text = said(reply);
 	const used = reply.usage as { input?: number; output?: number; cacheRead?: number; cost?: { total?: number } } | undefined;
 	const input = (used?.input ?? 0) + (used?.cacheRead ?? 0), output = used?.output ?? 0;
 	// pi-ai prices an answer from the provider's rates; where it has none, the model's own listed rates do.
 	const rates = found.model.cost as { input?: number; output?: number } | undefined;
 	const usd = used?.cost?.total ?? (input * (rates?.input ?? 0) + output * (rates?.output ?? 0)) / 1_000_000;
-	const answer = parseRefine(text, request);
+	const answer = brief.back(parseRefine(text, brief.request));
 	// One line per answer (`voice_refine`): what was heard, what came back, how long it took.
-	console.log(JSON.stringify({ event: 'voice_refine', ...refineLog(request, text, answer, { ms: Date.now() - began, model: `${found.model.provider}:${found.model.id}`, input, output }) }));
+	console.log(JSON.stringify({ event: 'voice_refine', ...refineLog(request, text, answer, { ms: Date.now() - began, model: `${found.model.provider}:${found.model.id}`, input, output }), ...(retried ? { retried: true } : {}) }));
 	return { ...answer, usage: { provider: found.model.provider, model: found.model.id, input, output, usd, speech: env.VOICE_MODEL || VOICE_MODEL } };
 }
