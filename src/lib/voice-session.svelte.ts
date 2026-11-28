@@ -7,7 +7,7 @@
  * arrow") and carries it out instead of writing it down. Sources (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so
  * Storybook and the tests run the same session with scripted ones.
  */
-import { addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 import { VoiceError, listen, type VoiceSource } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
 
@@ -163,6 +163,14 @@ export class VoiceNotes {
 		if (reason) this.notice = reason;
 		// What was being said when it stopped is kept as a block.
 		this.#heard({ type: 'break' });
+		// Once everything has settled, what this voice note added is selected, to be moved or removed as one.
+		const canvas = this.#options.canvas(), run = this.#run;
+		void this.#settling.then(() => {
+			const kept = this.#session.filter((id) => !this.#gone.has(id));
+			if (!canvas || run !== this.#run || !kept.length) return;
+			canvas.show(kept, false);
+			this.did = { text: `Added ${kept.length === 1 ? '1 note' : `${kept.length} notes`}` };
+		});
 	}
 
 	#rest() {
@@ -190,7 +198,10 @@ export class VoiceNotes {
 		this.#block = block;
 		const text = blockText(block);
 		if (text && event.type !== 'break') {
+			const fresh = !this.#writing;
 			this.#writing = canvas.write(this.#writing, text, this.#last?.id);
+			// Words still arriving are drawn faint: they are a draft until the pause settles them.
+			if (fresh) canvas.pending(this.#writing, true);
 			this.#quick(canvas, text, this.#writing, false);
 		}
 		// Probably finished: the model is asked now, and the answer is waiting if the pause confirms it.
@@ -200,6 +211,13 @@ export class VoiceNotes {
 		}
 		if (!done) return;
 		const id = this.#writing ?? canvas.write(undefined, text, this.#last?.id);
+		// "That's all": the voice note is over, and those words aren't part of it.
+		if (this.#commands && endsSession(text)) {
+			canvas.remove(id);
+			this.#writing = undefined;
+			this.#block = { settled: '', partial: '' };
+			return this.stop();
+		}
 		// All of it was "select…" or "focus on…", and something answered: done already, nothing to write down or ask.
 		const quick = this.#quick(canvas, text, id, true);
 		if (quick) {
@@ -261,13 +279,31 @@ export class VoiceNotes {
 			this.#session = this.#session.filter((id) => id !== block.id);
 			if (this.#last?.id === block.id) this.#last = before;
 		} else {
-			if ((how.correct || ops.length) && answer && answer.text !== block.text && canvas.rewrite(block.id, answer.text, block.text) && this.#last?.id === block.id) this.#last = { id: block.id, text: answer.text };
+			const rewritten = !!answer && (answer.text === block.text || ((how.correct || ops.length > 0) && canvas.rewrite(block.id, answer.text, block.text)));
+			if (rewritten && this.#last?.id === block.id) this.#last = { id: block.id, text: answer!.text };
 			// With no opinion from a model, a block follows the one spoken before it.
 			const follows = answer && answer.follows !== undefined ? answer.follows : before && !this.#gone.has(before.id) ? before.id : undefined;
 			await canvas.settle(block.id, { follows, arrange: how.arrange, session });
+			// A ramble that held several things: a block for each, one under the other.
+			let above = block.id;
+			for (const words of rewritten ? answer?.more ?? [] : []) {
+				const id = canvas.write(undefined, words, above);
+				this.#session.splice(this.#session.indexOf(above) + 1, 0, id);
+				if (this.#last?.id === above) this.#last = { id, text: words };
+				await canvas.settle(id, { follows: above, arrange: how.arrange, session: this.#session.filter((one) => !this.#gone.has(one)) });
+				above = id;
+			}
 		}
 		if (!ops.length) return;
 		const done = await canvas.run(ops);
+		// Blocks of this voice note that a command took away ("scratch that") are no longer part of it.
+		const left = new Map(canvas.texts(500).map((item) => [item.id, item.text]));
+		for (const id of this.#session) if (!left.has(id)) this.#gone.add(id);
+		this.#session = this.#session.filter((id) => !this.#gone.has(id));
+		if (this.#last && this.#gone.has(this.#last.id)) {
+			const id = this.#session.at(-1);
+			this.#last = id ? { id, text: left.get(id) ?? '' } : undefined;
+		}
 		this.did = { text: done.length ? describeOps(done) : 'That couldn’t be done here.' };
 	}
 

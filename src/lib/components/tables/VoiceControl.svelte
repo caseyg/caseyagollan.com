@@ -100,7 +100,7 @@
 		{#snippet trigger()}<MenuChevron split={false} />{/snippet}
 		<div class="choices">
 			<Switch checked={voice.correct} onCheckedChange={(on: boolean) => oncorrect?.(on)}>
-				<span class="choice">Correct the text<small>After each pause, a model fixes misheard words and punctuation.</small></span>
+				<span class="choice">Tidy into notes<small>After each pause, a model turns what you said into clean notes, one for each thought.</small></span>
 			</Switch>
 			<Switch checked={voice.arrange} onCheckedChange={(on: boolean) => onarrange?.(on)}>
 				<span class="choice">Lay out and connect<small>Each block is joined by an arrow to the one it follows, and the note is set out as a tree.</small></span>
@@ -130,7 +130,7 @@
 			</div>
 		{/if}
 		{#if voice.notice}<Notice tone="info">{voice.notice}</Notice>{/if}
-		<p class="hint">A pause starts a new block. Drop one text block on another to combine them; press Enter inside one to split it.</p>
+		<p class="hint">Just talk: a pause starts a new note. Say “actually, make that…” or “scratch that” to take something back, and “that’s all” to finish. Drop one text block on another to combine them; press Enter inside one to split it.</p>
 	</Popover>
 </span>
 

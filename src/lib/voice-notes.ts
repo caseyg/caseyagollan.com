@@ -170,6 +170,8 @@ export interface VoiceRefineAnswer {
 	follows?: string | null;
 	/** What the passage asked to have done. With these, `text` is what was said besides, which may be nothing. */
 	ops?: VoiceOp[];
+	/** Further notes the passage held, after `text`: a ramble that listed several things is a block for each. */
+	more?: string[];
 	/** What answering this used, added by the Worker. */
 	usage?: VoiceTextUsage;
 }
@@ -346,6 +348,11 @@ export function quickCommand(text: string, items: readonly { id: string; text: s
 	return { kind, ids: scored.filter((one) => one.score === best).map((one) => one.id).slice(0, 12) };
 }
 
+const ENDING = /^(?:(?:okay|ok|alright|and|so)[, ]+)*(?:that'?s|that is|that will be|that'll be)\s+(?:all|it|everything)(?:\s+for now)?[.!]*$/i;
+
+/** A passage that only says the speaker has finished ("that's all", "okay, that's it"): the voice note ends. */
+export const endsSession = (text: string) => ENDING.test(spoken_(text).replace(/[‘’]/g, "'"));
+
 /* What a voice note costs. */
 
 /** Workers AI's price for each speech model, in dollars a minute of audio sent over the socket. */
@@ -451,7 +458,7 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 	const besides = commands ? ' Leave out only the part that is a command (below) and keep everything said besides it, small talk included: of "okay cool so this is a new block can you connect these two" the text is "Okay, cool. So this is a new block." It is "" only when the whole passage is a command.' : '';
 	const fields = [
 		request.correct
-			? `"text": the passage with speech-to-text mistakes fixed: misheard or split words (judge by the context), punctuation, capitals, and filler (um, uh, a sentence started twice) taken out. Keep the speaker’s own words, order, language and meaning. Do not shorten, summarise, add or rephrase.${besides}`
+			? `"notes": the passage as a list of notes, one for each separate thought or item in it (a single thought stays one note; things listed one after another, to do, to get or to remember, are a note each: "i need to book the room and email the speakers" is ["Book the room.", "Email the speakers."]). In each, fix speech-to-text mistakes: misheard or split words (judge by the context), punctuation, capitals. Take out filler (um, uh, a sentence started twice) and talk about the talking itself ("okay so", "next thing", "let me think"). Keep the speaker’s own words, order, language and meaning. Do not summarise, add or rephrase.${besides.replace('It is ""', 'It is []')}`
 			: commands ? `"text": the passage exactly as given.${besides}` : '',
 		request.connect ? '"follows": the id of the one listed note this passage most directly continues, answers or elaborates, or null when it starts a new subject.' : '',
 		commands ? '"ops": the canvas operations a command in the passage asks for, in order; [] when there is no command.' : ''
@@ -476,6 +483,7 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 			`{"op":"align","ids":[id],"align"?:${TABLE_ALIGNS.join('|')},"distribute"?:horizontal|vertical}`,
 			'{"op":"frame","name":string,"ids":[id]}: a named area around items. {"op":"group","ids":[id]}. {"op":"remove","ids":[id]}: deletes items. {"op":"select","ids":[id]}.',
 			`Colors: ${TABLE_COLORS.join(', ')}.`,
+			'Taking something back is a command too. "Actually, make that Friday", "I meant X" or "no, call it Y" rewords the note spoken last (edit, with its whole new words). "Scratch that", "forget that", "never mind" or "remove the last one" removes it (remove).',
 			'What "this", "these", "that" and "them" mean: the selected items when any are selected; otherwise the notes spoken most recently, counting the passage’s own note only if its "text" is not "". "The last one" or "the previous one" is the note spoken before this passage. Things may also be named by their words ("the note about pricing").',
 			request.id ? `The passage’s own note is ${request.id}. If its "text" is "", that note is removed: do not use its id in ops, and reword an earlier note with "edit" if that is what was asked.` : ''
 		].filter(Boolean) : [])
@@ -526,15 +534,18 @@ function partOfSpeech(heard: string, kept: string): boolean {
 export function parseRefine(reply: string, request: VoiceRefineRequest): VoiceRefineAnswer {
 	const data = firstObject(reply);
 	const ops = request.commands && data ? cleanVoiceOps(data.ops, request.table) : [];
-	const corrected = spoken(data?.text);
+	// The passage comes back as notes, one a thought; an answer with plain `text` is one note.
+	const notes = Array.isArray(data?.notes) ? data.notes.map(spoken).filter(Boolean).slice(0, 12) : spoken(data?.text) ? [spoken(data?.text)] : [];
+	const answered = Array.isArray(data?.notes) || typeof data?.text === 'string';
+	const whole = notes.join(' ');
 	// With a command taken out, what is left is shorter than what was heard, and may be nothing at all.
-	const text = ops.length
-		? typeof data?.text === 'string' && (!corrected || partOfSpeech(request.text, corrected)) ? corrected : request.text
-		: request.correct && corrected && sameSpeech(request.text, corrected) ? corrected : request.text;
+	const trusted = ops.length ? answered && (!whole || partOfSpeech(request.text, whole)) : request.correct && !!whole && sameSpeech(request.text, whole);
+	const text = trusted ? notes[0] ?? '' : request.text;
+	const more = trusted && notes.length > 1 ? { more: notes.slice(1) } : {};
 	const done = ops.length ? { ops } : {};
 	// Nothing left to write down, yet the command speaks of the passage's own block: the block stays, as heard.
 	if (ops.length && !text && request.id && JSON.stringify(ops).includes(`"${request.id}"`)) return { text: request.text, ...done };
-	if (!request.connect || !data || !('follows' in data)) return { text, ...done };
+	if (!request.connect || !data || !('follows' in data)) return { text, ...more, ...done };
 	const follows = typeof data.follows === 'string' && request.items?.some((item) => item.id === data.follows) ? data.follows : null;
-	return { text, follows, ...done };
+	return { text, follows, ...more, ...done };
 }

@@ -9,6 +9,15 @@ export const SPOKEN = [
 	'the layout could follow the argument like a tree'
 ];
 
+/** A ramble: several things in one breath, one taken back, one changed, and the words that end it. */
+export const RAMBLE = [
+	'okay so for the workshop i need to book the room and um email the speakers and print the name tags',
+	'actually scratch the name tags',
+	'and the budget is due on thursday',
+	'actually make that friday',
+	'that\'s all'
+];
+
 /** A voice note with requests in it: two thoughts, then things asked of the table. */
 export const COMMANDS = [
 	'testing one two three',
@@ -56,6 +65,8 @@ function scriptedCommand(request: VoiceRefineRequest): { text: string; ops: Voic
 	const earlier = table.spoken.filter((id) => id !== request.id);
 	const words = (id: string | undefined) => table.items.find((item) => item.id === id)?.text ?? '';
 	const first = earlier[0], last = earlier[earlier.length - 1];
+	if (heard.includes('scratch') && last) return { text: '', ops: [{ op: 'remove', ids: [last] }] };
+	if (heard.includes('make that friday') && last) return { text: '', ops: [{ op: 'edit', edits: [{ id: last, text: words(last).replace(/thursday/i, 'Friday') }] }] };
 	if (heard.includes('connect these two') && last && request.id) return { text: 'Okay, cool. So this is a new block.', ops: [{ op: 'connect', links: [{ from: last, to: request.id }] }] };
 	if (heard.includes('into numbers') && first) return { text: '', ops: [{ op: 'edit', edits: [{ id: first, text: words(first).replace(/one,? two,? three/i, '1, 2, 3') }] }] };
 	if (heard.includes('draw a circle') && last) return { text: '', ops: [{ op: 'add_shape', shape: 'ellipse', text: 'Ideas', right_of: last }] };
@@ -71,7 +82,8 @@ export async function scriptedRefine(request: VoiceRefineRequest): Promise<Voice
 	const usage = { provider: 'story', model: 'stand-in', input: 600 + request.text.length, output: 40, usd: 0.00008 };
 	const command = scriptedCommand(request);
 	if (command) return { ...command, usage };
-	const tidy = request.text.replace(/\b(um|uh)\s+/g, '').replace(/^so\s+/, '');
+	if (request.correct && request.text.includes('book the room')) return { text: 'Book the room.', more: ['Email the speakers.', 'Print the name tags.'], usage };
+	const tidy = request.text.replace(/\b(um|uh)\s+/g, '').replace(/^(and|so)\s+/, '');
 	const text = request.correct ? `${tidy.charAt(0).toUpperCase()}${tidy.slice(1)}.`.replace('canvases where', 'canvases, where') : request.text;
 	const spoken = (request.items ?? []).filter((item) => SPOKEN.some((passage) => item.text.toLowerCase().includes(passage.toLowerCase().split(' ').slice(-3).join(' '))));
 	const follows = !request.connect ? undefined : request.text.includes('layout') ? spoken[0]?.id ?? null : spoken[spoken.length - 1]?.id ?? null;

@@ -47,7 +47,7 @@ Listening switches itself off after three minutes of hearing nothing.
 They are off the main path: they act on a block after it has been written, so text never waits for
 a model.
 
-- **Correct the text.** The finished block and the one before it go to a model, which returns the
+- **Tidy into notes** (was "Correct the text"). The finished block and the one before it go to a model, which returns the
   passage with misheard words, punctuation and filler fixed. The answer is only used if it is still
   the same passage (`sameSpeech`: about as long, mostly the same words), and only if the block still
   reads as it was heard, so an edit made meanwhile is never overwritten.
@@ -132,6 +132,22 @@ model's answer, and the change itself. What is done about each:
 A command can make something and use it in the same breath: a new note or shape may be given a
 name (`"as":"new1"`) that later operations of that command use as its id, which is how "add a
 sticky for work connected by an arrow" gets its arrow (`resolveRefs`).
+
+## Like Ramble
+
+Casey likes Todoist's Ramble, and the voice note follows its way of working where a canvas can:
+
+| Ramble | Here |
+| --- | --- |
+| Items appear as you talk, not a transcript | Words arrive faint, as a draft; at the pause they become clean notes, drawn plainly |
+| One ramble can hold several tasks | A passage that lists several things is a note for each (`notes` in the answer, `more` after the first) |
+| Filler is dropped | "Okay so", "um", "let me think" are taken out with "Tidy into notes" on |
+| "Actually, make that…", "scratch that" | The same words reword or remove the note spoken last (spoken commands) |
+| "That's all" ends it | The same (`endsSession`), or the microphone button |
+| A preview you confirm | What the voice note added is selected when it ends, to be moved or removed as one; undo steps back through it |
+
+Not taken up: Ramble holds everything in a preview and saves nothing until the end. Here notes
+land on the table as they are spoken, because seeing them there is the point of a canvas.
 
 ## What it costs
 

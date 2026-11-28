@@ -6,7 +6,7 @@
 	import { layoutOp } from '$lib/table-menus';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { COMMANDS, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
+	import { COMMANDS, RAMBLE, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCanvas', component: TableCanvas, tags: ['!autodocs'] });
 	const sample = Object.values(blocks);
@@ -27,6 +27,8 @@
 	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource()], refine: scriptedRefine });
 	// The same, with requests among the thoughts: an arrow, an edit, a shape and a colour, asked for aloud.
 	const commanding = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(COMMANDS)], refine: scriptedRefine });
+	// A ramble, as Todoist's Ramble takes one: several things at once, some taken back, ended by saying so.
+	const rambling = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(RAMBLE)], refine: scriptedRefine });
 	function onvoiceready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
@@ -97,6 +99,25 @@
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
 				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did, thinking: commanding.thinking > 0, usage: commanding.usageView }}
 				onvoice={commanding.toggle} onvoicecorrect={(on) => (commanding.correct = on)} onvoicearrange={(on) => (commanding.arrange = on)} onvoicecommands={(on) => (commanding.commands = on)} onvoicemeter={(on) => (commanding.meter = on)}
+			/>
+		</div>
+	</div>
+</Story>
+
+<!--
+	A ramble: "I need to book the room and email the speakers and print the name tags" becomes three notes;
+	"actually scratch the name tags" removes the last; "actually make that Friday" changes the one before;
+	"that's all" ends the voice note and selects what it added.
+-->
+<Story asChild name="Voice ramble">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onvoiceready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: rambling.status, level: rambling.level, notice: rambling.notice, correct: rambling.correct, arrange: rambling.arrange, commands: rambling.commands, did: rambling.did, thinking: rambling.thinking > 0, usage: rambling.usageView }}
+				onvoice={rambling.toggle} onvoicecorrect={(on) => (rambling.correct = on)} onvoicearrange={(on) => (rambling.arrange = on)} onvoicecommands={(on) => (rambling.commands = on)} onvoicemeter={(on) => (rambling.meter = on)}
 			/>
 		</div>
 	</div>
