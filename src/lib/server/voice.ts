@@ -9,7 +9,7 @@
  * Refining: one small completion about a finished block (fix what was misheard, name the block
  * it follows), answered by whichever of the chat's providers can answer here.
  */
-import { VOICE_MODEL, parseRefine, refinePrompt, type VoiceRefineAnswer, type VoiceRefineRequest } from '../voice-notes';
+import { VOICE_MODEL, parseRefine, refineLog, refinePrompt, type VoiceRefineAnswer, type VoiceRefineRequest } from '../voice-notes';
 import { CHAT_PROVIDERS } from '../chat-models';
 import { chatModels, type ChatModelEnv } from './chat/provider';
 
@@ -80,6 +80,7 @@ export async function refineSpeech(env: VoiceEnv, request: VoiceRefineRequest, s
 	const found = textModel(env);
 	if (!found) return null;
 	const { system, user } = refinePrompt(request);
+	const began = Date.now();
 	const reply = await found.models.completeSimple(
 		found.model,
 		{ systemPrompt: system, messages: [{ role: 'user', content: user, timestamp: Date.now() }] },
@@ -93,5 +94,8 @@ export async function refineSpeech(env: VoiceEnv, request: VoiceRefineRequest, s
 	// pi-ai prices an answer from the provider's rates; where it has none, the model's own listed rates do.
 	const rates = found.model.cost as { input?: number; output?: number } | undefined;
 	const usd = used?.cost?.total ?? (input * (rates?.input ?? 0) + output * (rates?.output ?? 0)) / 1_000_000;
-	return { ...parseRefine(text, request), usage: { provider: found.model.provider, model: found.model.id, input, output, usd, speech: env.VOICE_MODEL || VOICE_MODEL } };
+	const answer = parseRefine(text, request);
+	// One line per answer (`voice_refine`): what was heard, what came back, how long it took.
+	console.log(JSON.stringify({ event: 'voice_refine', ...refineLog(request, text, answer, { ms: Date.now() - began, model: `${found.model.provider}:${found.model.id}`, input, output }) }));
+	return { ...answer, usage: { provider: found.model.provider, model: found.model.id, input, output, usd, speech: env.VOICE_MODEL || VOICE_MODEL } };
 }

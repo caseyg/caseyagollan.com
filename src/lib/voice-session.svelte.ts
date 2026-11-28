@@ -9,7 +9,7 @@
  * (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so Storybook and
  * the tests run the same session with scripted ones.
  */
-import { endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 import { VoiceListening, keepChoices, keptChoices } from './voice-listening.svelte';
 import type { VoiceSource } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
@@ -21,6 +21,8 @@ export interface VoiceOptions {
 	sources: () => VoiceSource[];
 	/** Asks a model about a finished block; resolves `null` when none can be asked. */
 	refine?: (request: VoiceRefineRequest) => Promise<VoiceRefineAnswer | null>;
+	/** Takes a line for the log (when the note starts, each passage with its timings and what was made of it, when it ends). */
+	log?: (entry: VoiceLogEntry) => void;
 	/** Where the choices are remembered; left out, they last as long as the page. */
 	storage?: Pick<Storage, 'getItem' | 'setItem'>;
 }
@@ -43,10 +45,17 @@ export class VoiceNotes extends VoiceListening {
 	/** Finished blocks a model is still considering: corrected, or taken as a command. */
 	thinking = $state(0);
 	/** A head start: the question asked of a model when the speaker had probably finished, kept if they had. */
-	#early: { id: string; text: string; answer: Promise<VoiceRefineAnswer | null> } | undefined;
+	#early: { id: string; text: string; answer: Promise<VoiceRefineAnswer | null>; took: { ms: number; failed: string } } | undefined;
 	#clock: ReturnType<typeof setInterval> | undefined;
 	/** Which voice note this is, so one that has ended doesn't select its blocks during the next. */
 	#note = 0;
+	/** For the log: this voice note's name, when it began, its passages counted, and the times of the one being spoken. */
+	#trace = '';
+	#began = 0;
+	#passages = 0;
+	#spoke = 0;
+	#likely = 0;
+	#tally = { likely: 0, early: 0, notes: 0, commands: 0 };
 	#counted = 0;
 	/** Blocks that were wholly a command, and so taken away. */
 	#gone = new Set<string>();
@@ -117,13 +126,25 @@ export class VoiceNotes extends VoiceListening {
 		this.did = undefined;
 		this.#early = undefined;
 		this.#note++;
+		this.#trace = Math.random().toString(36).slice(2, 10);
+		this.#began = Date.now();
+		this.#passages = this.#spoke = this.#likely = 0;
+		this.#tally = { likely: 0, early: 0, notes: 0, commands: 0 };
 	}
+
+	/** A line for the log, named for this voice note and timed from its start. */
+	#log(kind: string, entry: VoiceLogEntry = {}) {
+		try { this.#options.log?.({ kind, note: this.#trace, at_ms: Date.now() - this.#began, ...entry }); } catch { /* the log is never worth an error */ }
+	}
+
+	protected odd(what: string) { this.#log('odd', { what }); }
 
 	async start() {
 		await super.start();
 		if (this.status !== 'listening') return;
 		// Time listened is counted every few seconds, to whichever source is listening.
 		clearInterval(this.#clock);
+		this.#log('start', { via: this.via, correct: this.#correct, arrange: this.#arrange, commands: this.#commands, page: typeof location === 'undefined' ? '' : location.pathname });
 		this.#counted = Date.now();
 		this.#clock = setInterval(() => this.#tick(), 5000);
 	}
@@ -133,12 +154,14 @@ export class VoiceNotes extends VoiceListening {
 		clearInterval(this.#clock);
 		if (this.status === 'listening') this.#tick();
 		this.#counted = 0;
+		const starting = this.status === 'starting';
 		// Switching off keeps what was being said as a block (`heard` is told of a last pause).
 		super.stop(reason);
 		// Once everything has settled, what this voice note added is selected, to be moved or removed as one.
 		const canvas = this.#options.canvas(), note = this.#note;
 		void this.#settling.then(() => {
 			const kept = this.#session.filter((id) => !this.#gone.has(id));
+			if (note === this.#note) this.#log('stop', { reason: reason || (starting ? 'switched off while starting' : 'switched off'), notice: this.notice, passages: this.#passages, kept: kept.length, likely: this.#tally.likely, early_used: this.#tally.early, notes: this.#tally.notes, commands: this.#tally.commands });
 			if (!canvas || note !== this.#note || this.listening || !kept.length) return;
 			canvas.show(kept, false);
 			this.did = { text: `Added ${kept.length === 1 ? '1 note' : `${kept.length} notes`}` };
@@ -167,21 +190,28 @@ export class VoiceNotes extends VoiceListening {
 			const fresh = !this.#writing;
 			this.#writing = canvas.write(this.#writing, text, this.#last?.id);
 			// Words still arriving are drawn faint: they are a draft until the pause settles them.
-			if (fresh) canvas.pending(this.#writing, true);
+			if (fresh) { canvas.pending(this.#writing, true); this.#passages++; this.#spoke = Date.now(); this.#likely = 0; }
 			this.#quick(canvas, text, this.#writing, false);
 		}
 		// Probably finished: the model is asked now, and the answer is waiting if the pause confirms it.
 		if (event.type === 'likely' && text && this.#writing && this.#early?.text !== text) {
 			const id = this.#writing, how = { correct: this.#correct, arrange: this.#arrange, commands: this.#commands, session: [...this.#session, id] };
-			this.#early = { id, text, answer: this.#ask(canvas, { id, text }, this.#last, how) };
+			const took = { ms: 0, failed: '' };
+			this.#likely = Date.now();
+			this.#tally.likely++;
+			this.#early = { id, text, took, answer: this.#ask(canvas, { id, text }, this.#last, how, took) };
 		}
 		if (!done) return;
 		const id = this.#writing ?? canvas.write(undefined, text, this.#last?.id);
+		// For the log: which passage this is, how long it was spoken for, and how long before the pause the model was asked.
+		const paused = Date.now();
+		const passage: VoiceLogEntry = { n: this.#passages, heard: text, spoke_ms: this.#spoke ? paused - this.#spoke : 0, ...(this.#likely ? { head_start_ms: paused - this.#likely } : {}), ...(event.type === 'break' && !this.listening ? { cut_off: true } : {}) };
 		// "That's all": the voice note is over, and those words aren't part of it.
 		if (this.#commands && endsSession(text)) {
 			canvas.remove(id);
 			this.#writing = undefined;
 			this.#block = { settled: '', partial: '' };
+			this.#log('passage', { ...passage, was: 'that’s all' });
 			return this.stop();
 		}
 		// All of it was "select…" or "focus on…", and something answered: done already, nothing to write down or ask.
@@ -191,6 +221,7 @@ export class VoiceNotes extends VoiceListening {
 			this.#writing = undefined;
 			this.#block = { settled: '', partial: '' };
 			this.did = { text: `${quick.kind === 'focus' ? 'Went to' : 'Selected'} ${quick.ids.length === 1 ? '1 block' : `${quick.ids.length} blocks`}` };
+			this.#log('passage', { ...passage, was: `${quick.kind}, without a model`, did: this.did.text });
 			return;
 		}
 		const before = this.#last;
@@ -200,16 +231,26 @@ export class VoiceNotes extends VoiceListening {
 		this.#block = { settled: '', partial: '' };
 		const how = { correct: this.#correct, arrange: this.#arrange, commands: this.#commands, session: [...this.#session] };
 		// The model is asked at once, not after the blocks before this one have settled; answers are still applied in the order spoken.
-		const early = this.#early?.id === id && this.#early.text === text ? this.#early.answer : undefined;
+		const early = this.#early?.id === id && this.#early.text === text ? this.#early : undefined;
 		this.#early = undefined;
-		const answer = early ?? this.#ask(canvas, { id, text }, before, how);
+		if (early) this.#tally.early++;
+		const took = early?.took ?? { ms: 0, failed: '' };
+		const answer = early?.answer ?? this.#ask(canvas, { id, text }, before, how, took);
 		if (this.#options.refine && (how.correct || how.commands || how.arrange)) {
 			this.thinking++;
 			canvas.pending(id, true);
 		}
 		this.#settling = this.#settling
 			.then(() => this.#finish(canvas, { id, text }, before, how, answer))
-			.catch((error) => console.error('Voice note block failed:', error))
+			.then((made) => {
+				if (String(made.was).includes('command')) this.#tally.commands++;
+				else this.#tally.notes += 1 + (typeof made.more === 'number' ? made.more : 0);
+				this.#log('passage', { ...passage, trace: `${this.#trace}.${passage.n}`, early: !!early, ask_ms: took.ms, ...(took.failed ? { ask_failed: took.failed } : {}), wait_ms: Date.now() - paused, ...made });
+			})
+			.catch((error) => {
+				console.error('Voice note block failed:', error);
+				this.#log('passage', { ...passage, was: 'failed', error: String((error as Error)?.message ?? error) });
+			})
 			.finally(() => {
 				canvas.pending(id, false);
 				if (this.#options.refine && (how.correct || how.commands || how.arrange)) this.thinking = Math.max(0, this.thinking - 1);
@@ -217,25 +258,32 @@ export class VoiceNotes extends VoiceListening {
 	}
 
 	/** Asks a model about a block: what it should read, what it follows, and whether part of it was a command. Never throws. */
-	async #ask(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }): Promise<VoiceRefineAnswer | null> {
+	async #ask(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, took: { ms: number; failed: string } = { ms: 0, failed: '' }): Promise<VoiceRefineAnswer | null> {
 		const session = how.session.filter((id) => !this.#gone.has(id));
 		const others = how.arrange ? canvas.texts().filter((item) => item.id !== block.id) : [];
 		if (!this.#options.refine || !(how.correct || how.commands || others.length)) return null;
+		const began = Date.now();
 		try {
 			const table = how.commands ? { ...(await canvas.read()), spoken: session } : undefined;
-			const answer = await this.#options.refine({ text: block.text, correct: how.correct, ...(how.correct ? { split: true } : {}), connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}) });
+			const answer = await this.#options.refine({ text: block.text, correct: how.correct, ...(how.correct ? { split: true } : {}), connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}), trace: `${this.#trace}.${this.#passages}` });
+			took.ms = Date.now() - began;
+			if (!answer) took.failed = 'no model';
 			if (answer?.usage) { const used = answer.usage; this.#spend((usage) => addText(usage, used)); }
 			if (!answer && how.correct) this.notice = 'No model is set up here to correct the text, so it stays as heard.';
 			return answer;
-		} catch {
+		} catch (error) {
+			took.ms = Date.now() - began;
+			took.failed = String((error as Error)?.message ?? error).slice(0, 200);
 			if (how.correct) this.notice = 'The text couldn’t be corrected just now, so it stays as heard.';
 			return null;
 		}
 	}
 
 	/** A finished block, once a model has answered: corrected, any command in it carried out, then set in its place. */
-	async #finish(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, asked: Promise<VoiceRefineAnswer | null>) {
+	async #finish(canvas: VoiceCanvas, block: { id: string; text: string }, before: { id: string; text: string } | undefined, how: { correct: boolean; arrange: boolean; commands: boolean; session: string[] }, asked: Promise<VoiceRefineAnswer | null>): Promise<VoiceLogEntry> {
 		const answer = await asked;
+		// What was made of the passage, for the log.
+		const made: VoiceLogEntry = { was: 'note, as heard', text: block.text };
 		const session = how.session.filter((id) => !this.#gone.has(id));
 		const ops = answer?.ops ?? [];
 		// A passage that was all command leaves no block; the block spoken before it is the last again.
@@ -244,9 +292,14 @@ export class VoiceNotes extends VoiceListening {
 			this.#gone.add(block.id);
 			this.#session = this.#session.filter((id) => id !== block.id);
 			if (this.#last?.id === block.id) this.#last = before;
+			made.was = 'command';
+			made.text = '';
 		} else {
 			const rewritten = !!answer && (answer.text === block.text || ((how.correct || ops.length > 0) && canvas.rewrite(block.id, answer.text, block.text)));
 			if (rewritten && this.#last?.id === block.id) this.#last = { id: block.id, text: answer!.text };
+			made.was = ops.length ? 'note and command' : !answer ? 'note, as heard (no answer)' : rewritten ? 'note' : 'note, as heard (the block had changed)';
+			if (rewritten) made.text = answer!.text;
+			if (rewritten && answer?.more?.length) made.more = answer.more.length;
 			// With no opinion from a model, a block follows the one spoken before it.
 			const follows = answer && answer.follows !== undefined ? answer.follows : before && !this.#gone.has(before.id) ? before.id : undefined;
 			await canvas.settle(block.id, { follows, arrange: how.arrange, session });
@@ -260,8 +313,10 @@ export class VoiceNotes extends VoiceListening {
 				above = id;
 			}
 		}
-		if (!ops.length) return;
+		if (!ops.length) return made;
 		const done = await canvas.run(ops);
+		made.ops_asked = ops.length;
+		made.ops_done = done.length;
 		// Blocks of this voice note that a command took away ("scratch that") are no longer part of it.
 		const left = new Map(canvas.texts(500).map((item) => [item.id, item.text]));
 		for (const id of this.#session) if (!left.has(id)) this.#gone.add(id);
@@ -271,6 +326,8 @@ export class VoiceNotes extends VoiceListening {
 			this.#last = id ? { id, text: left.get(id) ?? '' } : undefined;
 		}
 		this.did = { text: done.length ? describeOps(done) : 'That couldn’t be done here.' };
+		made.did = this.did.text;
+		return made;
 	}
 
 	/** Resolves once every finished block has been corrected and placed. */

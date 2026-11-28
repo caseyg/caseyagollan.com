@@ -20,7 +20,7 @@
 	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { browserSource, voiceRefiner, workerSource } from '$lib/voice-source';
+	import { browserSource, voiceLogger, voiceRefiner, workerSource } from '$lib/voice-source';
 	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
@@ -94,7 +94,7 @@
 	const refineVoice = voiceRefiner(() => session?.csrf ?? '');
 
 	// The owner's voice note: the Worker's speech model where there is one, the browser's dictation otherwise.
-	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(), browserSource()], refine: refineVoice, storage: typeof localStorage === 'undefined' ? undefined : localStorage });
+	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(), browserSource()], refine: refineVoice, log: voiceLogger(() => session?.csrf ?? ''), storage: typeof localStorage === 'undefined' ? undefined : localStorage });
 
 	// Casey's chat (SiteChat, in the root layout) follows them here: this page offers it the
 	// table, the table's own thread for when no chat is going, and the changes the assistant asks for.

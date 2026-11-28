@@ -28,7 +28,7 @@
 	// The same, with requests among the thoughts: an arrow, an edit, a shape and a colour, asked for aloud.
 	const commanding = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(COMMANDS)], refine: scriptedRefine });
 	// A ramble, as Todoist's Ramble takes one: several things at once, some taken back, ended by saying so.
-	const rambling = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(RAMBLE)], refine: scriptedRefine });
+	const rambling = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(RAMBLE)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
 	function onvoiceready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));

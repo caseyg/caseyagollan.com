@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
+import { cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
 import { listenOptions, voiceListen } from '../src/lib/server/voice';
 
 const doc = (...paragraphs: string[]): RichDoc => ({ type: 'doc', content: paragraphs.map((text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })) });
@@ -358,5 +358,36 @@ describe('the listening socket', () => {
 
 	test('a model that fails to open is a 502, not a crash', async () => {
 		expect((await voiceListen(socket(), { AI: { run: async () => { throw new Error('boom'); } } }, async () => true)).status).toBe(502);
+	});
+});
+
+describe('the log', () => {
+	test('what the browser sends is bounded and flat before it is written', () => {
+		expect(cleanVoiceLog(null)).toEqual([]);
+		expect(cleanVoiceLog({ events: [{ kind: 'passage', n: 2, heard: 'x'.repeat(900), ask_ms: 812.456, early: true, ops: ['a', 7], nested: { a: 1 }, 'Bad Key': 'x', event: 'spoofed' }, { n: 1 }, 'no'] })).toEqual([
+			{ kind: 'passage', n: 2, heard: `${'x'.repeat(400)}…`, ask_ms: 812.46, early: true, ops: ['a'] }
+		]);
+		expect(cleanVoiceLog({ events: Array.from({ length: 80 }, () => ({ kind: 'odd' })) })).toHaveLength(40);
+	});
+
+	test('an answer is logged with what was heard, what came back and how long it took', () => {
+		const request = { text: 'i need to book the room and um email the speakers', correct: true, split: true, connect: false, trace: 'abc123.2' };
+		const reply = '{"notes": ["I need to book the room.", "Email the speakers."]}';
+		expect(refineLog(request, reply, parseRefine(reply, request), { ms: 640, model: 'a:b', input: 900, output: 30 })).toEqual({
+			kind: 'refine', trace: 'abc123.2', ms: 640, model: 'a:b', tokens_in: 900, tokens_out: 30, asked: ['notes'], heard: request.text, text: 'I need to book the room.', more: ['Email the speakers.']
+		});
+		expect(cleanRefine({ ...request, trace: 'not a trace!' })!.trace).toBeUndefined();
+		expect(cleanRefine(request)!.trace).toBe('abc123.2');
+	});
+
+	test('a reply that was not taken is kept, since that is where a prompt goes wrong', () => {
+		const request = { text: 'book the room', correct: true, split: true, connect: false };
+		const reply = '{"notes": ["Arrange venue logistics with all the relevant stakeholders soon."]}';
+		const line = refineLog(request, reply, parseRefine(reply, request), { ms: 1, model: 'a:b', input: 1, output: 1 });
+		expect(line.not_taken).toBe(true);
+		expect(line.reply).toBe(reply);
+		expect(line.text).toBe('book the room');
+		const same = '{"notes": ["Book the room."]}';
+		expect(refineLog(request, same, parseRefine(same, request), { ms: 1, model: 'a:b', input: 1, output: 1 }).not_taken).toBeUndefined();
 	});
 });

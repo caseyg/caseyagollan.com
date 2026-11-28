@@ -26,6 +26,8 @@ export const VOICE_MODEL = '@cf/deepgram/flux';
 export const VOICE_LISTEN_PATH = '/api/tables/voice/listen';
 /** Where a finished block is sent to be corrected and placed. */
 export const VOICE_REFINE_PATH = '/api/tables/voice';
+/** Where the browser sends what it noticed about a voice note (timings, what was done), for the Worker's log. */
+export const VOICE_LOG_PATH = '/api/tables/voice/log';
 /** A pause this long ends a block when the transcriber doesn't mark pauses itself. */
 export const VOICE_PAUSE_MS = 1600;
 /** How wide a voice note's text block is; its height follows its words. */
@@ -142,6 +144,8 @@ export interface VoiceRefineRequest {
 	id?: string;
 	/** What is on the table, for a command to act on. */
 	table?: VoiceTable;
+	/** Which voice note and which passage of it this is (`k3x9a2bc.4`), so the Worker's log line and the browser's can be read together. */
+	trace?: string;
 }
 
 /** One thing on the table as a command is told of it. */
@@ -355,6 +359,59 @@ const ENDING = /^(?:(?:okay|ok|alright|and|so)[, ]+)*(?:that'?s|that is|that wil
 /** A passage that only says the speaker has finished ("that's all", "okay, that's it"): the voice note ends. */
 export const endsSession = (text: string) => ENDING.test(spoken_(text).replace(/[‘’]/g, "'"));
 
+/* The log: what is written down about a voice note so that one that went badly can be read back. */
+
+const TRACE = /^[\w.-]{1,40}$/;
+
+/** One line of the log: a few short named values. */
+export type VoiceLogEntry = Record<string, string | number | boolean | string[]>;
+
+const LOG_KEY = /^[a-z][a-z_]{0,23}$/;
+const logged = (value: string, most = 400) => (value.length > most ? `${value.slice(0, most)}…` : value);
+
+/** What the browser sent to be logged, as lines that are safe to write: known shapes, bounded sizes, nothing nested. */
+export function cleanVoiceLog(body: unknown): VoiceLogEntry[] {
+	const events = (body as { events?: unknown } | null)?.events;
+	if (!Array.isArray(events)) return [];
+	return events.slice(0, 40).flatMap((event) => {
+		if (!event || typeof event !== 'object' || Array.isArray(event)) return [];
+		const entry: VoiceLogEntry = {};
+		for (const [key, value] of Object.entries(event as Record<string, unknown>).slice(0, 32)) {
+			if (!LOG_KEY.test(key) || key === 'event') continue;
+			if (typeof value === 'string') entry[key] = logged(value);
+			else if (typeof value === 'number' && Number.isFinite(value)) entry[key] = Math.round(value * 100) / 100;
+			else if (typeof value === 'boolean') entry[key] = value;
+			else if (Array.isArray(value)) entry[key] = value.filter((one): one is string => typeof one === 'string').slice(0, 12).map((one) => logged(one, 160));
+		}
+		return typeof entry.kind === 'string' ? [entry] : [];
+	});
+}
+
+/**
+ * A model's answer about a passage, as a line of the log: what was heard, what came back, what was
+ * made of it, and how long it took. The model's own words are kept where they weren't taken (the
+ * text fell back to what was heard, or operations it asked for were refused), since that is where
+ * a prompt goes wrong. What is on the table is counted, not written.
+ */
+export function refineLog(request: VoiceRefineRequest, reply: string, answer: VoiceRefineAnswer, took: { ms: number; model: string; input: number; output: number }): VoiceLogEntry {
+	const raw = firstObject(reply);
+	const asked = Array.isArray(raw?.ops) ? raw.ops.length : 0, ops = answer.ops ?? [];
+	const fell = request.correct && answer.text === request.text && !ops.length && spoken(Array.isArray(raw?.notes) ? raw.notes.join(' ') : raw?.text) !== request.text;
+	return {
+		kind: 'refine',
+		...(request.trace ? { trace: request.trace } : {}),
+		ms: took.ms, model: took.model, tokens_in: took.input, tokens_out: took.output,
+		asked: [request.correct ? (request.split ? 'notes' : 'correct') : '', request.connect ? 'follows' : '', request.commands ? 'commands' : ''].filter(Boolean),
+		heard: logged(request.text),
+		text: logged(answer.text),
+		...(answer.more?.length ? { more: answer.more.slice(0, 12).map((one) => logged(one, 160)) } : {}),
+		...(answer.follows !== undefined ? { follows: String(answer.follows) } : {}),
+		...(request.commands ? { ops: ops.map((op) => logged(JSON.stringify(op), 160)).slice(0, 12), ops_asked: asked, on_table: request.table?.items.length ?? 0, selected: request.table?.selected.length ?? 0 } : {}),
+		...(request.items?.length ? { could_follow: request.items.length } : {}),
+		...(fell || asked > ops.length || !raw ? { not_taken: true, reply: logged(reply.trim(), 600) } : {})
+	};
+}
+
 /* What a voice note costs. */
 
 /** Workers AI's price for each speech model, in dollars a minute of audio sent over the socket. */
@@ -438,7 +495,7 @@ export function cleanRefine(body: unknown): VoiceRefineRequest | null {
 			return id && words ? [{ id, text: words }] : [];
 		})
 		.slice(-ITEMS_MAX);
-	return { text, correct: !!data.correct, ...(data.correct && data.split ? { split: true } : {}), connect: !!data.connect && items.length > 0, ...(spoken(data.before) ? { before: spoken(data.before).slice(-600) } : {}), ...(items.length ? { items } : {}), ...(table ? { commands: true, table, ...(idOf(data.id) ? { id: idOf(data.id) } : {}) } : {}) };
+	return { text, correct: !!data.correct, ...(data.correct && data.split ? { split: true } : {}), connect: !!data.connect && items.length > 0, ...(spoken(data.before) ? { before: spoken(data.before).slice(-600) } : {}), ...(items.length ? { items } : {}), ...(table ? { commands: true, table, ...(idOf(data.id) ? { id: idOf(data.id) } : {}) } : {}), ...(typeof data.trace === 'string' && TRACE.test(data.trace) ? { trace: data.trace } : {}) };
 }
 
 /** The table, a line per item, as a command is told of it. */

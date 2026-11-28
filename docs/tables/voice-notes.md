@@ -168,6 +168,40 @@ microphone.
 It is an estimate from listed prices, counted in the browser: another device's use is not in it,
 and the services' own bills are the record.
 
+## Reading what happened
+
+A voice note that went badly can be read back from the Worker's log (Workers observability, on
+for this Worker). Two kinds of line are written, both JSON:
+
+- `voice_refine`, by the Worker, once for every answer from the model (tables and the chat's
+  dictation alike): `heard`, the `text` and `more` notes it became, `ops`, how long the model took
+  (`ms`), the model and its tokens, and what was `asked` of it. Where the answer was not taken (the
+  text fell back to what was heard, or operations were refused) the line says `not_taken` and
+  keeps the model's own `reply`.
+- `voice_client`, sent by the browser to `POST /api/tables/voice/log` (`voiceLogger`), from a
+  table's voice note: `kind: "start"` (which source is listening and the three choices), a
+  `"passage"` for each pause, a `"stop"` with why it ended and counts, and `"odd"` for anything the
+  speech socket said that wasn't words, or how it closed.
+
+A `passage` line carries the timings that explain a slow or missed command:
+
+| Field | Means |
+| --- | --- |
+| `spoke_ms` | From the first word to the pause Flux called the end of the turn |
+| `head_start_ms` | How long before that pause the model was asked (the early signal); absent when there was none |
+| `early` | The early question was the one used (the words didn't change after it) |
+| `ask_ms` | The model's answer, as the browser saw it (compare `ms` on the `voice_refine` line with the same `trace`) |
+| `wait_ms` | From the pause to the change being on the table, queueing behind earlier passages included |
+| `was` | What it was taken as: a note, a command, both, "select"/"focus" without a model, "that's all" |
+
+`note` names one voice note on every line of it, and `trace` (`note.n`) joins a passage to its
+`voice_refine` line. The words spoken and the model's answers are in these lines, so the log holds
+what was dictated; what is on the table is only counted. The log is Casey's own Cloudflare
+account's and keeps lines for a few days.
+
+To read it: the telemetry query API (`POST /accounts/<id>/workers/observability/telemetry/query`,
+filter `$metadata.message` includes `voice_`), or the Worker's Logs tab in the dashboard.
+
 ## The same listening in the chat
 
 The chat's composer has the same microphone, for Casey (`ChatPromptInput`, so the chat's own page,
