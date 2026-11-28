@@ -9,7 +9,7 @@
  * (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so Storybook and
  * the tests run the same session with scripted ones.
  */
-import { RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { emptyHeading, RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 import { VoiceListening, keepChoices, keptChoices } from './voice-listening.svelte';
 import type { VoiceSource, VoiceWordsStore } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
@@ -66,6 +66,8 @@ export class VoiceNotes extends VoiceListening {
 	#counted = 0;
 	/** A sticky a command made with nothing in it: what is said next is written there. */
 	#blank: string | undefined;
+	/** When what is waiting is a heading made with no words: its `#`s, which the words keep. */
+	#heading = '';
 	/** Stickies this voice note made or filled: part of its map, though they aren't text blocks. */
 	#made: string[] = [];
 	/** What was said and done lately in this voice note, a line each: what "it" and "the other direction" are read against. */
@@ -415,7 +417,10 @@ export class VoiceNotes extends VoiceListening {
 		for (const op of done) {
 			if (op.op !== 'add_note' || !op.made) continue;
 			this.#made.push(op.made);
-			this.#blank = op.text ? this.#blank : op.made;
+			// A heading asked for with no words waits the same way, and keeps its level.
+			const level = op.style === 'text' ? emptyHeading(op.text) : null;
+			this.#blank = op.text && !level ? this.#blank : op.made;
+			if (this.#blank === op.made) this.#heading = level ?? '';
 		}
 		if (how.arrange && this.#made.length) await canvas.map(this.#made.at(-1)!, [...this.#session, ...this.#made, ...ops.flatMap((op) => (op.op === 'connect' ? op.links.map((link) => link.from) : []))]);
 		// Blocks of this voice note that a command took away ("scratch that") are no longer part of it.
@@ -436,9 +441,13 @@ export class VoiceNotes extends VoiceListening {
 
 	/** Writes a passage into an empty sticky that was waiting for it, in place of a block of its own. False when the sticky is gone or no longer empty. */
 	async #fill(canvas: VoiceCanvas, sticky: string, block: { id: string; text: string }, words: string, how: { arrange: boolean }): Promise<boolean> {
+		const level = this.#blank === sticky ? this.#heading : '';
 		this.#blank = undefined;
+		this.#heading = '';
 		const there = (await canvas.read()).items.find((item) => item.id === sticky);
-		if (!there || there.text) return false;
+		// Still as it was made: empty, or a heading holding only its stand-in word.
+		if (!there || (there.text && !(level && emptyHeading(there.text)))) return false;
+		if (level) words = `${level} ${words.split('\n')[0].replace(/[.]$/, '')}`;
 		const done = await canvas.run([{ op: 'edit', edits: [{ id: sticky, text: words }] }]);
 		if (!done.length) return false;
 		canvas.remove(block.id);

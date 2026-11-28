@@ -207,6 +207,12 @@ Names and terms the speaker uses, spelled their way, are kept by the site (`priv
 
 Correcting a word by hand on the table adds it (`learnedWords`): only a small correction teaches, and only words spelled as no ordinary word is (a capital, a digit, a dot or hyphen inside).
 
+## Markdown headings
+
+A text block can be a heading. Anything the chat or a voice note writes onto a table is read as Markdown where a line begins `#` (`markdownRich` in `src/lib/voice-notes.ts`): `# Title` becomes a first-level heading in the block's rich text, down to `######`, and every other line is a paragraph as before. Read back, a heading is told with its `#`s (`richMarkdown`), so rewording one keeps it a heading.
+
+Spoken: "add a heading called Roadmap" makes a text block holding `# Roadmap`; "a subheading" is `##`; "make that a heading" puts `# ` before a block's words. "Create a markdown heading" with no words makes `# Heading`, a stand-in that the next thing said replaces at the same level (`emptyHeading`), the way an empty sticky is filled.
+
 ## Reading what happened
 
 A voice note that went badly can be read back from the Worker's log (Workers observability, on

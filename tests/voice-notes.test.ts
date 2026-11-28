@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { cleanWords, learnedWords, recentLine, shortIds, readable, cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
+import { markdownRich, richMarkdown, emptyHeading, cleanWords, learnedWords, recentLine, shortIds, readable, cleanVoiceLog, refineLog, endsSession, resolveRefs, addText, formatUsd, noUsage, quickCommand, readUsage, spendLines, usageUsd, blockText, cleanRefine, cleanVoiceOps, describeOps, hear, joinSpoken, mergeRich, parseRefine, refinePrompt, richPlain, sameSpeech, sttEvents, trimRich, type RichDoc, type SpokenBlock, type VoiceEvent } from '../src/lib/voice-notes';
 import { listenOptions, voiceListen } from '../src/lib/server/voice';
 
 const doc = (...paragraphs: string[]): RichDoc => ({ type: 'doc', content: paragraphs.map((text) => (text ? { type: 'paragraph', content: [{ type: 'text', text }] } : { type: 'paragraph' })) });
@@ -509,5 +509,26 @@ describe('known words', () => {
 
 	test('the list is short words, each once', () => {
 		expect(cleanWords(['Otso', 'otso', '', 7, '  Quill   Native '])).toEqual(['Otso', 'Quill Native']);
+	});
+});
+
+describe('Markdown headings', () => {
+	test('a line that begins # is a heading, and reads back the same', () => {
+		const doc = markdownRich('# Roadmap\nThings to do\n## Later');
+		expect(doc.content).toEqual([
+			{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Roadmap' }] },
+			{ type: 'paragraph', content: [{ type: 'text', text: 'Things to do' }] },
+			{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Later' }] }
+		]);
+		expect(richMarkdown(doc)).toBe('# Roadmap\nThings to do\n## Later');
+		expect(richPlain(doc)).toBe('Roadmap\nThings to do\nLater');
+		expect(markdownRich('#hashtag and C# stay words').content?.[0].type).toBe('paragraph');
+	});
+
+	test('a heading asked for with no words is a stand-in that keeps its level', () => {
+		expect(emptyHeading('# Heading')).toBe('#');
+		expect(emptyHeading('##')).toBe('##');
+		expect(emptyHeading('# Roadmap')).toBeNull();
+		expect(cleanVoiceOps([{ op: 'add_note', text: '# Heading', style: 'text' }], { items: [], selected: [], spoken: [] })).toEqual([{ op: 'add_note', text: '# Heading', style: 'text' }]);
 	});
 });

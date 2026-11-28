@@ -34,6 +34,7 @@ import { GRID, onGrid, arrowCrossings, columnLayout, columnsLayout, gridLayout, 
 import { tagRef } from '$lib/tag-edits';
 import { SiteBlockShapeUtil, blockOf, blockProps, fitsToPost, openBlock, type SiteBlockShape } from './SiteBlockShapeUtil';
 import { installTextBlocks, voiceCanvas, type VoiceCanvas } from './textBlocks';
+import { markdownRich, richMarkdown, type RichDoc } from '$lib/voice-notes';
 
 /** The tools the table's toolbar offers, by tldraw tool id. */
 export type TableTool = 'select' | 'hand' | 'note' | 'text' | 'draw' | 'arrow' | 'eraser' | 'frame' | 'geo' | 'line' | 'highlight' | 'laser';
@@ -304,13 +305,18 @@ function itemOf(editor: Editor, shape: TLShape): TableItem {
 		return { ...base, ...parent, type: props.kind, title: props.title, url: props.url, ...(props.excerpt ? { text: props.excerpt.slice(0, 200) } : {}), ...(props.image ? { image: props.image } : {}) };
 	}
 	const rich = (shape.props as { richText?: Parameters<typeof renderPlaintextFromRichText>[1] }).richText;
-	const text = shape.type === 'frame' ? (shape.props as { name: string }).name : rich ? renderPlaintextFromRichText(editor, rich) : '';
+	// Headings are told with their `#`s, so whoever rewords one can keep it a heading.
+	const text = shape.type === 'frame' ? (shape.props as { name: string }).name : rich ? (hasHeading(rich) ? richMarkdown(rich as unknown as RichDoc) : renderPlaintextFromRichText(editor, rich)) : '';
 	const ends = shape.type === 'arrow' ? getArrowBindings(editor, shape as TLArrowShape) : undefined;
 	return {
 		...base, ...parent, type: shape.type, ...(text ? { text: text.slice(0, 400) } : {}),
 		...(ends?.start ? { from: ends.start.toId.replace(/^shape:/, '') } : {}), ...(ends?.end ? { to: ends.end.toId.replace(/^shape:/, '') } : {})
 	};
 }
+
+/** Words written by the chat or a voice note, as a document: a line that begins `#` is a heading (`markdownRich`). */
+const written = (text: string) => (/^\s*#{1,6}(\s|$)/m.test(text) ? (markdownRich(text) as unknown as ReturnType<typeof toRichText>) : toRichText(text));
+const hasHeading = (rich: unknown) => !!(rich as RichDoc | undefined)?.content?.some((node) => node.type === 'heading');
 
 /** A selected shape as the chat is told of it: enough to name it, not its whole text. */
 function selectionItem(editor: Editor, shape: TLShape): ChatSelectionItem {
@@ -491,7 +497,7 @@ function addNotes(editor: Editor, op: { notes: TableNote[]; layout?: TableLayout
 		for (const note of op.notes) {
 			if (note.blank) { cells.push(null); continue; }
 			const id = createShapeId();
-			const text = toRichText(String(note.text ?? '').slice(0, 2000));
+			const text = written(String(note.text ?? '').slice(0, 2000));
 			const color = note.color ? { color: note.color } : {};
 			if (note.style === 'text') editor.createShape({ id, type: 'text', x: 0, y: 0, props: { richText: text, autoSize: false, w: Math.max(160, Math.min(800, note.w ?? 360)), ...color } });
 			else editor.createShape({ id, type: 'note', x: 0, y: 0, props: { richText: text, ...color } });
@@ -892,7 +898,7 @@ function edit(editor: Editor, edits: Extract<TableOp, { op: 'edit' }>['edits']) 
 		const props: Record<string, unknown> = {};
 		if (text !== undefined) {
 			if (shape.type === 'frame') props.name = text.slice(0, 120);
-			else if ('richText' in shape.props) props.richText = toRichText(text.slice(0, 2000));
+			else if ('richText' in shape.props) props.richText = written(text.slice(0, 2000));
 		}
 		if (color && 'color' in shape.props) props.color = color;
 		return Object.keys(props).length ? [{ id: shape.id, type: shape.type, props } as TLShapePartial] : [];
@@ -932,7 +938,7 @@ async function performOp(editor: Editor, op: Parameters<TableApi['perform']>[0],
 		}
 		case 'add_note': {
 			const id = createShapeId();
-			const text = toRichText(op.text.slice(0, 2000));
+			const text = written(op.text.slice(0, 2000));
 			editor.markHistoryStoppingPoint('add note');
 			// Long text reads better as a wrapped text card than a sticky note, which shrinks its type to fit.
 			const color = op.color ? { color: op.color } : {};
