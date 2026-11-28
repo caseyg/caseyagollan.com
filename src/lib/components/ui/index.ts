@@ -1,3 +1,5 @@
+export { default as ActionMenu } from './ActionMenu.svelte';
+export type { ActionItem, ActionScope, ActionToggle } from './ActionMenu.svelte';
 export { default as Avatar } from './Avatar.svelte';
 export { default as Button } from './Button.svelte';
 export { default as BottomSheet } from './BottomSheet.svelte';

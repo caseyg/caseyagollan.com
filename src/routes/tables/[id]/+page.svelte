@@ -11,6 +11,8 @@
 	import { hashItem } from '$lib/table-search';
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
 	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
+	import { layoutOp, type LayoutScope } from '$lib/table-menus';
+	import type { TableTool } from '$lib/components/tables/canvas/TableEditor';
 	import { pagePieces, pickPieces } from '$lib/table-pieces';
 	import { PDF_PAGES_AT_ONCE, pdfName, pdfPageBlock, pdfPageSrc, pdfPages, renderSize, type PdfStore, type RenderedPage } from '$lib/table-render';
 	import { wikiHref } from '$lib/wiki/links';
@@ -295,6 +297,11 @@
 		return () => window.removeEventListener('pointerdown', close, true);
 	});
 
+	function layout(value: string, scope: LayoutScope) {
+		const op = layoutOp(value, scope, view.selection.map((item) => item.id));
+		if (op) void api?.perform(op);
+	}
+
 	async function publish(next: boolean) {
 		if (!session) return;
 		published = next;
@@ -359,7 +366,13 @@
 				onpublish={session.mode === 'pass' ? undefined : publish}
 				details={view.details}
 				ondetails={(shown) => api?.setDetails(shown)}
-				ontool={(tool) => api?.setTool(tool)}
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)}
+				geo={view.geo}
+				onmedia={(files) => void api?.addMedia(files)}
+				selection={view.selection}
+				onlayout={layout}
+				autoLayout={view.autoLayout}
+				onautolayout={(value) => api?.setAutoLayout(value)}
 				onundo={() => api?.undo()}
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}

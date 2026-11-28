@@ -15,3 +15,15 @@ export const Saving: Story = { args: { status: 'Saving…', tool: 'draw' } };
 export const SaveFailed: Story = { args: { status: 'Couldn’t save' } };
 /** Visitors can only fit the view; they pan and zoom on the canvas itself. */
 export const Visitor: Story = { args: { editable: false, status: undefined } };
+/**
+ * Layout sets the whole table out again: tidied, in rows and columns, following its arrows, or in
+ * groups. Its switch, Auto layout, keeps the table that way as things are added. More (the shapes
+ * button) holds the rest of tldraw's tools: areas, pictures, shapes, lines, the highlighter and the laser.
+ */
+export const WithLayout: Story = { args: { published: true, onpublish: () => {}, onlayout: () => {}, onautolayout: () => {}, onmedia: () => {} }, parameters: { docs: { story: { height: '560px' } } } };
+/** With things selected, Layout asks what to set out: the selection (the default) or the whole table. */
+export const LayoutOfSelection: Story = { args: { ...WithLayout.args, selection: [{ id: 'a', type: 'post' }, { id: 'b', type: 'note' }, { id: 'c', type: 'book' }], details: 'shown', ondetails: () => {} }, parameters: WithLayout.parameters };
+/** Auto layout on: the Layout button stays lit, and the layout being kept is checked. */
+export const AutoLayoutOn: Story = { args: { ...WithLayout.args, autoLayout: 'tree' }, parameters: WithLayout.parameters };
+/** A tool from More in hand: its icon takes the More button's place. */
+export const MoreToolInHand: Story = { args: { ...WithLayout.args, tool: 'geo', geo: 'ellipse' }, parameters: WithLayout.parameters };
