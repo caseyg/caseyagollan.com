@@ -64,7 +64,7 @@
 	<div class="dock"><BlockPicker {search} {recent} onadd={add} onclose={() => {}} onpin={() => {}} tab="recent" /></div>
 </Story>
 
-<!-- Kept open down the left of the page for a roundup: it opens on the week, and what is on the table is gray. -->
+<!-- Kept open down the right of the page for a roundup: it opens on the week, and what is on the table is gray. -->
 <Story asChild name="Sidebar" parameters={{ layout: 'fullscreen' }}>
 	<div class="page"><BlockPicker {search} {recent} pinned onadd={add} onclose={() => {}} onpin={() => {}} placed={[blocks.arenaImage.url + ' ' + blocks.arenaImage.image, blocks.repost.url]} /></div>
 </Story>

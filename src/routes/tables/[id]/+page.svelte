@@ -37,7 +37,7 @@
 	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 	let adding = $state(false);
 	/**
-	 * The Add menu kept open as a sidebar down the left of the table, which this browser remembers
+	 * The Add menu kept open as a sidebar down the right of the table, which this browser remembers
 	 * (`open` when it was showing, `closed` when it wasn't). A phone has no room for one.
 	 */
 	const PIN_KEY = 'tables-add-sidebar';
@@ -470,14 +470,14 @@
 		translate: -50% 0;
 	}
 
-	/* The Add menu kept open as a sidebar (a SidePanel down the left): the canvas starts beside it. */
+	/* The Add menu kept open as a sidebar (a SidePanel down the right): the canvas ends beside it. */
 	.stage {
 		--block-picker-width: 22rem;
 	}
 
 	@media (min-width: 900px) {
 		.stage.with-sidebar {
-			left: calc(var(--block-picker-width) + 2 * var(--nav-inset));
+			right: calc(var(--block-picker-width) + 2 * var(--nav-inset));
 		}
 	}
 
@@ -509,6 +509,11 @@
 	@media (min-width: 900px) {
 		:global(html[data-chat-dock='side']) .stage {
 			right: calc(var(--chat-dock-width) + 2 * var(--nav-inset));
+		}
+
+		/* Both open: the sidebar stands beside the chat, and the canvas ends beside the sidebar. */
+		:global(html[data-chat-dock='side']) .stage.with-sidebar {
+			right: calc(var(--chat-dock-width) + var(--block-picker-width) + 3 * var(--nav-inset));
 		}
 	}
 

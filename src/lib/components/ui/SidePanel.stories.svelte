@@ -89,17 +89,6 @@
 	{/snippet}
 </Story>
 
-<!-- Down the left side, leaving the right to another panel: the tables Add menu, kept open as a sidebar. -->
-<Story name="On the left" args={{ label: 'Add to table', compact: true, side: 'left' }}>
-	{#snippet template(args)}
-		{@render page()}
-		<SidePanel {...args} onclose={() => {}}>
-			{#snippet header()}<strong>Add to table</strong>{/snippet}
-			{#each lines as line (line)}<p>{line}</p>{/each}
-		</SidePanel>
-	{/snippet}
-</Story>
-
 <!-- On a phone it lies along the bottom, at most half the screen. -->
 <Story name="On a phone" parameters={{ viewport: { defaultViewport: 'mobile1' } }}>
 	{#snippet template(args)}

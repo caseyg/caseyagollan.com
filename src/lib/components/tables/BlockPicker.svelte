@@ -34,7 +34,7 @@
 		recent?: (since: Date) => Promise<FeedItem[]>;
 		/** Saved things like a block. With it, the block selected when the picker opened also offers what is like it. */
 		similar?: (block: Block) => Promise<Block[]>;
-		/** Kept open as a sidebar down the left of the page instead of a menu. */
+		/** Kept open as a sidebar down the right of the page instead of a menu. */
 		pinned?: boolean;
 		/** With it, the picker has a button that moves it between the menu and the sidebar. */
 		onpin?: (pinned: boolean) => void;
@@ -184,8 +184,8 @@
 {/snippet}
 
 {#if pinned}
-	<!-- Kept open down the left of the page, for work that goes back and forth with the table. -->
-	<SidePanel class="block-picker-panel" label="Add to table" compact side="left" {onclose}>
+	<!-- Kept open down the right of the page, beside the docked chat when that is open, for work that goes back and forth with the table. -->
+	<SidePanel class="block-picker-panel" label="Add to table" compact {onclose}>
 		{#snippet header()}<h2 class="heading">Add to table</h2>{/snippet}
 		{#snippet actions()}
 			{#if onpin}<Button variant="icon" size="sm" icon="sidebar" label="Back to a menu" pressed onclick={() => onpin(false)} />{/if}
