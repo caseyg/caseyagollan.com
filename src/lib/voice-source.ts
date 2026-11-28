@@ -10,7 +10,7 @@
  *
  * `listen` tries them in order and settles on the first that starts.
  */
-import { VOICE_LISTEN_PATH, VOICE_PAUSE_MS, VOICE_REFINE_PATH, sttEvents, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { VOICE_WORDS_PATH, VOICE_LISTEN_PATH, VOICE_TERMS_MAX, VOICE_LOG_PATH, VOICE_PAUSE_MS, VOICE_REFINE_PATH, sttEvents, type VoiceEvent, type VoiceLogEntry, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 
 export interface VoiceListener {
 	onevent(event: VoiceEvent): void;
@@ -18,6 +18,8 @@ export interface VoiceListener {
 	onlevel?(level: number): void;
 	/** The source stopped by itself (the connection dropped, permission was taken away). */
 	onend(reason?: string): void;
+	/** Something worth a line in the log: a message from the speech model that isn't words, or how its socket closed. */
+	onodd?(what: string): void;
 }
 
 export interface VoiceSource {
@@ -58,6 +60,9 @@ class VoiceTap extends AudioWorkletProcessor {
 registerProcessor('voice-tap', VoiceTap);
 `;
 
+/** Messages from the speech model that carry no words and mean nothing is wrong. */
+const EXPECTED = new Set(['Connected', 'Metadata', 'Update', 'StartOfTurn', 'TurnResumed', 'EagerEndOfTurn', 'EndOfTurn', 'Results', 'SpeechStarted', 'UtteranceEnd']);
+
 /** How loud a piece of audio is: its root mean square, scaled so ordinary speech reads around a half. */
 export function loudness(samples: Int16Array): number {
 	if (!samples.length) return 0;
@@ -66,7 +71,7 @@ export function loudness(samples: Int16Array): number {
 	return Math.min(1, Math.sqrt(sum / samples.length) * 6);
 }
 
-export function workerSource(path = VOICE_LISTEN_PATH): VoiceSource {
+export function workerSource(path = VOICE_LISTEN_PATH, words: () => string[] = () => []): VoiceSource {
 	return {
 		name: 'worker',
 		async start(listener) {
@@ -74,6 +79,8 @@ export function workerSource(path = VOICE_LISTEN_PATH): VoiceSource {
 			// The socket first: without a speech model behind it there is no reason to ask for the microphone.
 			const context = new AudioContext({ sampleRate: 16000 });
 			const address = new URL(`${path}?rate=${context.sampleRate}`, location.href);
+			// Known words go to the speech model as key terms, so a name is heard as it is spelled.
+			for (const word of words().slice(0, VOICE_TERMS_MAX)) address.searchParams.append('term', word);
 			address.protocol = address.protocol === 'https:' ? 'wss:' : 'ws:';
 			const socket = new WebSocket(address);
 			socket.binaryType = 'arraybuffer';
@@ -110,11 +117,17 @@ export function workerSource(path = VOICE_LISTEN_PATH): VoiceSource {
 				if (typeof message.data !== 'string') return;
 				let parsed: unknown;
 				try { parsed = JSON.parse(message.data); } catch { return; }
-				for (const event of sttEvents(parsed)) listener.onevent(event);
+				const events = sttEvents(parsed);
+				for (const event of events) listener.onevent(event);
+				// Anything that isn't words and isn't expected (an error from the model, say) is noted for the log.
+				const named = (parsed as { event?: unknown; type?: unknown } | null) ?? {};
+				const name = String(named.event ?? named.type ?? '');
+				if (!events.length && !EXPECTED.has(name)) listener.onodd?.(`speech model said: ${message.data.slice(0, 300)}`);
 			};
 			socket.onerror = null;
-			socket.onclose = () => {
+			socket.onclose = (closed) => {
 				if (stopped) return;
+				listener.onodd?.(`speech socket closed: ${closed.code} ${closed.reason}`.trim());
 				stop();
 				listener.onend('The connection to the speech model closed.');
 			};
@@ -205,6 +218,42 @@ export function voiceRefiner(csrf: () => string | Promise<string>, path = VOICE_
 		if (response.status === 503) return null;
 		if (!response.ok) throw new Error(`Voice refine answered ${response.status}`);
 		return (await response.json()) as VoiceRefineAnswer;
+	};
+}
+
+/** The owner's known words as the site keeps them (`/api/tables/voice/words`). Each resolves with the list, or `null` when it couldn't be reached or isn't theirs to read. */
+export interface VoiceWordsStore {
+	load(): Promise<string[] | null>;
+	change(add: string[], remove: string[]): Promise<string[] | null>;
+}
+
+export function voiceWords(csrf: () => string | Promise<string>, path = VOICE_WORDS_PATH): VoiceWordsStore {
+	const read = async (response: Response) => (response.ok ? ((await response.json()) as { words?: string[] }).words ?? [] : null);
+	return {
+		load: () => fetch(path, { credentials: 'same-origin' }).then(read).catch(() => null),
+		change: async (add, remove) => fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': await csrf() }, body: JSON.stringify({ add, remove }) }).then(read).catch(() => null)
+	};
+}
+
+/**
+ * Sends lines for the Worker's log (`POST /api/tables/voice/log`), a few at a time and without
+ * ever getting in the way: a line that can't be sent is dropped.
+ */
+export function voiceLogger(csrf: () => string | Promise<string>, path = VOICE_LOG_PATH) {
+	let waiting: VoiceLogEntry[] = [];
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const send = async () => {
+		timer = undefined;
+		const events = waiting;
+		waiting = [];
+		if (!events.length) return;
+		try {
+			await fetch(path, { method: 'POST', keepalive: true, credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': await csrf() }, body: JSON.stringify({ events }) });
+		} catch { /* the log is never worth an error */ }
+	};
+	return (entry: VoiceLogEntry) => {
+		waiting.push(entry);
+		timer ??= setTimeout(() => void send(), 1200);
 	};
 }
 

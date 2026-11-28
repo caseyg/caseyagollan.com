@@ -6,7 +6,7 @@
 	import { layoutOp } from '$lib/table-menus';
 	import type { TableApi, TableState, TableTool } from './canvas/TableEditor';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { COMMANDS, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
+	import { COMMANDS, MINDMAP, RAMBLE, scriptedRefine, scriptedSource } from '$lib/storybook/voice';
 
 	const { Story } = defineMeta({ title: 'Tables/TableCanvas', component: TableCanvas, tags: ['!autodocs'] });
 	const sample = Object.values(blocks);
@@ -27,6 +27,10 @@
 	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource()], refine: scriptedRefine });
 	// The same, with requests among the thoughts: an arrow, an edit, a shape and a colour, asked for aloud.
 	const commanding = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(COMMANDS)], refine: scriptedRefine });
+	// A ramble, as Todoist's Ramble takes one: several things at once, some taken back, ended by saying so.
+	const rambling = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(RAMBLE)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
+	const mapping = new VoiceNotes({ canvas: () => api?.voice, sources: () => [scriptedSource(MINDMAP)], refine: scriptedRefine, log: (entry) => console.debug('voice log', JSON.stringify(entry)) });
+	mapping.arrange = true;
 	function onvoiceready(ready: TableApi) {
 		api = ready;
 		ready.subscribe((state) => (view = state));
@@ -76,7 +80,7 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did }}
+				voice={{ status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange, commands: voice.commands, did: voice.did, thinking: voice.thinking > 0 }}
 				onvoice={voice.toggle} onvoicecorrect={(on) => (voice.correct = on)} onvoicearrange={(on) => (voice.arrange = on)} onvoicecommands={(on) => (voice.commands = on)}
 			/>
 		</div>
@@ -95,8 +99,46 @@
 			<TableToolbar
 				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
 				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
-				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did }}
-				onvoice={commanding.toggle} onvoicecorrect={(on) => (commanding.correct = on)} onvoicearrange={(on) => (commanding.arrange = on)} onvoicecommands={(on) => (commanding.commands = on)}
+				voice={{ status: commanding.status, level: commanding.level, notice: commanding.notice, correct: commanding.correct, arrange: commanding.arrange, commands: commanding.commands, did: commanding.did, thinking: commanding.thinking > 0, usage: commanding.usageView, words: commanding.words }}
+				onvoice={commanding.toggle} onvoicecorrect={(on) => (commanding.correct = on)} onvoicearrange={(on) => (commanding.arrange = on)} onvoicecommands={(on) => (commanding.commands = on)} onvoicemeter={(on) => (commanding.meter = on)} onvoicewords={(words) => (commanding.words = words)}
+			/>
+		</div>
+	</div>
+</Story>
+
+<!--
+	A ramble: "I need to book the room and email the speakers and print the name tags" becomes three notes;
+	"actually scratch the name tags" removes the last; "actually make that Friday" changes the one before;
+	"that's all" ends the voice note and selects what it added.
+-->
+<Story asChild name="Voice ramble">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onvoiceready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: rambling.status, level: rambling.level, notice: rambling.notice, correct: rambling.correct, arrange: rambling.arrange, commands: rambling.commands, did: rambling.did, thinking: rambling.thinking > 0, usage: rambling.usageView, words: rambling.words }}
+				onvoice={rambling.toggle} onvoicecorrect={(on) => (rambling.correct = on)} onvoicearrange={(on) => (rambling.arrange = on)} onvoicecommands={(on) => (rambling.commands = on)} onvoicemeter={(on) => (rambling.meter = on)} onvoicewords={(words) => (rambling.words = words)}
+			/>
+		</div>
+	</div>
+</Story>
+
+<!--
+	Thinking aloud as a mind map, with "Lay out and connect" on: "add a sticky" makes an empty one and
+	the next thing said is written in it; once "select planning the workshop" has chosen the topic,
+	what is said branches from it, side by side, not in a line.
+-->
+<Story asChild name="Voice mind map">
+	<div class="frame">
+		<TableCanvas document={null} editable onready={onvoiceready} />
+		<div class="dock">
+			<TableToolbar
+				editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved"
+				ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()}
+				voice={{ status: mapping.status, level: mapping.level, notice: mapping.notice, correct: mapping.correct, arrange: mapping.arrange, commands: mapping.commands, did: mapping.did, thinking: mapping.thinking > 0, usage: mapping.usageView, words: mapping.words }}
+				onvoice={mapping.toggle} onvoicecorrect={(on) => (mapping.correct = on)} onvoicearrange={(on) => (mapping.arrange = on)} onvoicecommands={(on) => (mapping.commands = on)} onvoicemeter={(on) => (mapping.meter = on)} onvoicewords={(words) => (mapping.words = words)}
 			/>
 		</div>
 	</div>

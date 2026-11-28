@@ -13,7 +13,7 @@ import { createShapeId, getArrowBindings, renderPlaintextFromRichText, startEdit
 import { BLOCK_SHAPE } from '$lib/tables';
 import type { TableOp } from '$lib/table-agent';
 import { GRID, freeSpot, onGrid, upToGrid, type Box } from '$lib/table-layout';
-import { VOICE_BLOCK_WIDTH, mergeRich, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
+import { VOICE_BLOCK_WIDTH, mergeRich, resolveRefs, trimRich, type RichDoc, type VoiceItem, type VoiceOp } from '$lib/voice-notes';
 
 /** What a voice note asks of the canvas. Ids are the short ones the chat uses, without `shape:`. */
 export interface VoiceCanvas {
@@ -30,10 +30,18 @@ export interface VoiceCanvas {
 	 * grew onto moves down.
 	 */
 	settle(id: string, how: { follows?: string | null; arrange: boolean; session: string[] }): Promise<void>;
+	/** Sets out everything tied by arrows to `id`, among `among`, as a mind map. */
+	map(id: string, among: string[]): Promise<void>;
+	/** A finished block drawn faint while a model considers it, and plainly again after. Not an edit: undo passes over it. */
+	pending(id: string, on: boolean): void;
+	/** Selects items at once, as "select the pricing note" is heard; `zoom` goes to them ("focus on…"), otherwise they are only brought into view. */
+	show(ids: string[], zoom: boolean): void;
 	/** What is on the table and what is selected, for a spoken command to act on. */
 	read(): Promise<{ items: VoiceItem[]; selected: string[] }>;
 	/** Carries out a spoken command, an operation at a time as the chat's are; resolves with those that were done. */
-	run(ops: VoiceOp[]): Promise<VoiceOp[]>;
+	run(ops: VoiceOp[]): Promise<(VoiceOp & { made?: string })[]>;
+	/** Tells of each edit made by hand to something's words, once the editing ends: what it read before and after. Returns how to stop. */
+	edits(heard: (before: string, after: string) => void): () => void;
 }
 
 /** What these need of the table's editor module, which owns layout and the chat's operations. */
@@ -166,9 +174,10 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 				return deps.pushAside(editor, shape.id);
 			}
 			if (parent) await deps.perform({ op: 'connect', links: [{ from: short(parent.id), to: id }] });
-			const tied = tiedTo(editor, shape.id, new Set(session.map(long)));
+			// What the block hangs from is part of its map, whether or not this voice note made it.
+			const tied = tiedTo(editor, shape.id, new Set([...session, ...(parent ? [short(parent.id)] : [])].map(long)));
 			if (tied.length > 1) {
-				await deps.perform({ op: 'arrange', layout: 'tree', direction: 'down', ids: tied.map(short) });
+				await deps.perform({ op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
 				return revealAll(editor, tied);
 			} else if (parent) {
 				// The first block said about something already on the table goes beside it.
@@ -177,16 +186,52 @@ export function voiceCanvas(editor: Editor, deps: TextBlockDeps): VoiceCanvas {
 			} else deps.pushAside(editor, shape.id);
 			reveal(editor, shape.id);
 		},
+		async map(id, among) {
+			if (!editor.getShape(long(id))) return;
+			const tied = tiedTo(editor, long(id), new Set(among.map(long)));
+			if (tied.length > 1) await deps.perform({ op: 'arrange', layout: 'mindmap', ids: tied.map(short) });
+			revealAll(editor, tied);
+		},
+		pending(id, on) {
+			const shape = text(id);
+			if (shape) editor.run(() => editor.updateShape({ id: shape.id, type: 'text', opacity: on ? 0.45 : 1 }), { history: 'ignore' });
+		},
+		show(ids, zoom) {
+			const found = ids.map(long).filter((id) => editor.getShape(id));
+			// Words being typed by hand are not interrupted by a selection.
+			if (!found.length || editor.getEditingShapeId()) return;
+			editor.select(...found);
+			if (zoom) editor.zoomToSelection({ animation: { duration: 320 } });
+			else revealAll(editor, found);
+		},
 		async read() {
 			const table = (await deps.perform({ op: 'read' })) as { items?: (VoiceItem & { title?: string })[]; selected?: string[] } | undefined;
 			return { items: (table?.items ?? []).filter((item) => !['draw', 'line', 'highlight'].includes(item.type)).map(({ id, type, title, text, x, y, w, h, from, to, parent }) => ({ id, type, ...(title || text ? { text: title || text } : {}), x, y, w, h, ...(from ? { from } : {}), ...(to ? { to } : {}), ...(parent ? { parent } : {}) })), selected: table?.selected ?? [] };
 		},
 		async run(ops) {
-			const done: VoiceOp[] = [];
+			const done: (VoiceOp & { made?: string })[] = [];
+			// What a command makes gets its id here; later operations that named it are told the id.
+			const made = new Map<string, string>();
 			for (const op of ops) {
-				try { await deps.perform(op); done.push(op); } catch (error) { console.error('Voice command failed:', op.op, error); }
+				try {
+					const { as: name, ...rest } = resolveRefs(op, made) as VoiceOp & { as?: string };
+					const result = (await deps.perform(rest as VoiceOp)) as { added?: { id?: string }[] } | undefined;
+					const added = result?.added?.[0]?.id;
+					if (name && added) made.set(name, added);
+					done.push(added ? { ...op, made: added } : op);
+				} catch (error) { console.error('Voice command failed:', op.op, error); }
 			}
 			return done;
+		},
+		edits(heard) {
+			let was: { id: TLShapeId; text: string } | undefined;
+			return editor.sideEffects.registerAfterChangeHandler('instance_page_state', (prev, next) => {
+				if (prev.editingShapeId === next.editingShapeId) return;
+				const ended = was && editor.getShape(was.id);
+				if (was && ended) heard(was.text, plain(editor, ended));
+				const begun = next.editingShapeId ? editor.getShape(next.editingShapeId) : undefined;
+				was = begun ? { id: begun.id, text: plain(editor, begun) } : undefined;
+			});
 		}
 	};
 }

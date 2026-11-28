@@ -51,6 +51,8 @@ export abstract class VoiceListening {
 	protected abstract begin(): void;
 	/** Something was heard. `stopping`: this is the pause that switching off makes of whatever was being said. */
 	protected abstract heard(event: VoiceEvent, stopping: boolean): void;
+	/** Something a source thought worth a line in a log (the speech model's socket closing, a message that isn't words). */
+	protected odd(_what: string): void {}
 
 	async start() {
 		if (this.listening) return;
@@ -66,6 +68,7 @@ export abstract class VoiceListening {
 					this.heard(event, false);
 				},
 				onlevel: (level) => { if (run === this.#run) this.level = level; },
+				onodd: (what) => { if (run === this.#run) this.odd(what); },
 				onend: (reason) => { if (run === this.#run) this.stop(reason); }
 			});
 			// Switched off while the microphone was being asked for.

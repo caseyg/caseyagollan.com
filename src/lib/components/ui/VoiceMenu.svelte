@@ -10,6 +10,7 @@
 </script>
 
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import MenuChevron from './MenuChevron.svelte';
 	import MicButton from './MicButton.svelte';
 	import Notice from './Notice.svelte';
@@ -35,9 +36,11 @@
 		onchoice?: (key: string, on: boolean) => void;
 		/** Whether the options are showing. */
 		open?: boolean;
+		/** More for the options' panel, under the choices (a table's usage list). */
+		children?: Snippet;
 	}
 
-	let { status = 'off', level = 0, label, optionsLabel = 'Voice options', choices = [], notice = '', hint = '', size = 'md', ontoggle, onchoice, open = $bindable(false) }: Props = $props();
+	let { status = 'off', level = 0, label, optionsLabel = 'Voice options', choices = [], notice = '', hint = '', size = 'md', ontoggle, onchoice, open = $bindable(false), children }: Props = $props();
 
 	// A reason listening stopped is shown where the choices are, without being asked for.
 	let told = '';
@@ -65,6 +68,7 @@
 				{/each}
 			</div>
 		{/if}
+		{@render children?.()}
 		{#if notice}<Notice tone="info">{notice}</Notice>{/if}
 		{#if hint}<p class="hint">{hint}</p>{/if}
 	</Popover>
@@ -89,6 +93,8 @@
 
 	:global(.voice-panel) {
 		width: min(20rem, calc(100vw - 2 * var(--space-4)));
+		max-height: min(34rem, calc(100dvh - 7rem));
+		overflow-y: auto;
 		padding: var(--space-2);
 	}
 
