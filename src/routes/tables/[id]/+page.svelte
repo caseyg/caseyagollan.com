@@ -10,6 +10,7 @@
 	import { useTablesCommands } from '$lib/tables-commands.svelte';
 	import { hashItem } from '$lib/table-search';
 	import { searchBlocks, withOwnerSources } from '$lib/table-sources';
+	import { recentFeed, similarBlocks } from '$lib/table-feed';
 	import { isLookupOp, lookupOp } from '$lib/table-page-ops';
 	import { pagePieces, pickPieces } from '$lib/table-pieces';
 	import { PDF_PAGES_AT_ONCE, pdfName, pdfPageBlock, pdfPageSrc, pdfPages, renderSize, type PdfStore, type RenderedPage } from '$lib/table-render';
@@ -38,6 +39,35 @@
 	let api = $state<TableApi>();
 	let view = $state<TableState>({ tool: 'select', canUndo: false, canRedo: false, empty: true, placed: [], selection: [], taggable: [] });
 	let adding = $state(false);
+	/**
+	 * The Add menu kept open as a sidebar down the right of the table, which this browser remembers
+	 * (`open` when it was showing, `closed` when it wasn't). A phone has no room for one.
+	 */
+	const PIN_KEY = 'tables-add-sidebar';
+	let pinnedWanted = $state(false);
+	let narrow = $state(false);
+	const pinned = $derived(pinnedWanted && !narrow);
+	// The week's feed: the site's posts, and for Casey what was saved to Are.na, Raindrop and Readwise.
+	const recent = $derived(recentFeed({ saves: session?.mode === 'owner' }));
+
+	function remember(showing = adding) {
+		try {
+			if (pinnedWanted) localStorage.setItem(PIN_KEY, showing ? 'open' : 'closed');
+			else localStorage.removeItem(PIN_KEY);
+		} catch {
+			// Without storage the sidebar just isn't remembered.
+		}
+	}
+
+	function pin(next: boolean) {
+		pinnedWanted = next;
+		remember();
+	}
+
+	function showAdding(next: boolean) {
+		adding = next;
+		remember();
+	}
 	/** The block that was selected when Add opened; the picker offers its page's pieces. */
 	let source = $state<Block>();
 	/** The tag panel: off, editing the selection's tags, or reviewing what is staged before it is saved. */
@@ -113,7 +143,7 @@
 		if (changing) {
 			stage(refs, { add: op.add, remove: op.remove }, Object.fromEntries(blocks.map((block) => [block.ref, block.title])));
 			tagging = 'review';
-			adding = false;
+			if (!pinned) adding = false;
 		}
 		const unread = refs.filter((ref) => !tagStore.known[ref] || tagStore.known[ref].error).length;
 		return {
@@ -226,6 +256,19 @@
 			}
 		})();
 
+		const phone = window.matchMedia('(max-width: 600px)');
+		const fit = () => (narrow = phone.matches);
+		fit();
+		phone.addEventListener('change', fit);
+		try {
+			const kept = localStorage.getItem(PIN_KEY);
+			pinnedWanted = kept !== null;
+			// The sidebar comes back as it was left.
+			if (kept === 'open' && !narrow) adding = true;
+		} catch {
+			// No storage: the menu, as before.
+		}
+
 		const warn = (event: BeforeUnloadEvent) => {
 			if (status === 'unsaved' || status === 'saving') event.preventDefault();
 		};
@@ -233,6 +276,7 @@
 		return () => {
 			window.removeEventListener('beforeunload', warn);
 			voice.stop();
+			phone.removeEventListener('change', fit);
 			// Leaving for another page (or another table): save what's waiting now.
 			if (pending !== undefined) void flush();
 		};
@@ -305,7 +349,8 @@
 
 	// Pressing anywhere outside the picker (and the toolbar that opens it) closes it.
 	$effect(() => {
-		if (!adding) return;
+		// The sidebar stays until it is closed.
+		if (!adding || pinned) return;
 		const close = (event: PointerEvent) => {
 			if (!(event.target as Element | null)?.closest('.dock--picker, .dock--toolbar')) adding = false;
 		};
@@ -356,7 +401,7 @@
 <PageHeader trail={[{ ...TABLES_CRUMB, href: listHref }, nameSegment]} title={name || 'Table'} />
 
 <!-- Casey's docked chat takes the right side or, folded on a phone, the bottom: the canvas ends beside or above it (see .stage). -->
-<main class="stage">
+<main class="stage" class:with-sidebar={editable && adding && pinned}>
 	{#if !session && !missing}
 		<!-- Sent with the page, so the table's outline is there from the first paint. -->
 		<TableWireframe {document} />
@@ -382,14 +427,17 @@
 				onredo={() => api?.redo()}
 				onfit={() => api?.zoomToFit()}
 				onadd={() => {
+					// With the sidebar open, Add with another block selected turns the sidebar to that block.
+					const turned = pinned && adding && !!view.selected && (!source || blockKey(view.selected) !== blockKey(source));
 					source = view.selected;
-					adding = !adding;
-					if (adding) tagging = null;
+					if (turned) return;
+					showAdding(!adding);
+					if (adding && !pinned) tagging = null;
 				}}
 				tags={editable && session.mode !== 'pass' ? { open: !!tagging, count: stagedCount() } : undefined}
 				ontags={() => {
 					tagging = tagging ? null : 'edit';
-					if (tagging) adding = false;
+					if (tagging && !pinned) adding = false;
 				}}
 				voice={editable && session.mode !== 'pass' ? { status: voice.status, level: voice.level, notice: voice.notice, correct: voice.correct, arrange: voice.arrange } : undefined}
 				onvoice={voice.toggle}
@@ -398,8 +446,21 @@
 			/>
 		</div>
 		{#if editable && adding}
-			<div class="dock dock--picker">
-				<BlockPicker search={session.mode === 'owner' ? ownerSearch : searchBlocks} owner={session.mode === 'owner'} placed={view.placed} {source} pieces={(block) => pagePieces(block, wikiHref)} onadd={(blocks) => api?.addBlocks(blocks, undefined, { near: source })} onclose={() => (adding = false)} />
+			<!-- One picker in two places: a menu over the table, or a sidebar the table makes room for. It keeps what it was showing when it moves. -->
+			<div class={pinned ? 'sidebar' : 'dock dock--picker'}>
+				<BlockPicker
+					search={session.mode === 'owner' ? ownerSearch : searchBlocks}
+					owner={session.mode === 'owner'}
+					placed={view.placed}
+					{source}
+					pieces={(block) => pagePieces(block, wikiHref)}
+					{recent}
+					similar={session.mode === 'owner' ? similarBlocks : undefined}
+					{pinned}
+					onpin={pin}
+					onadd={(blocks) => api?.addBlocks(blocks, undefined, { near: source, ...(blocks.length > 1 ? { columns: Math.min(blocks.length, 4) } : {}) })}
+					onclose={() => showAdding(false)}
+				/>
 			</div>
 		{/if}
 		{#if editable && tagging}
@@ -431,6 +492,17 @@
 		translate: -50% 0;
 	}
 
+	/* The Add menu kept open as a sidebar (a SidePanel down the right): the canvas ends beside it. */
+	.stage {
+		--block-picker-width: 22rem;
+	}
+
+	@media (min-width: 900px) {
+		.stage.with-sidebar {
+			right: calc(var(--block-picker-width) + 2 * var(--nav-inset));
+		}
+	}
+
 	.dock--picker {
 		top: calc(var(--nav-lane) + var(--space-4));
 		right: var(--space-4);
@@ -459,6 +531,11 @@
 	@media (min-width: 900px) {
 		:global(html[data-chat-dock='side']) .stage {
 			right: calc(var(--chat-dock-width) + 2 * var(--nav-inset));
+		}
+
+		/* Both open: the sidebar stands beside the chat, and the canvas ends beside the sidebar. */
+		:global(html[data-chat-dock='side']) .stage.with-sidebar {
+			right: calc(var(--chat-dock-width) + var(--block-picker-width) + 3 * var(--nav-inset));
 		}
 	}
 

@@ -1,12 +1,17 @@
 <script lang="ts">
-	import { blockKey, KIND_LABEL, linkBlock, type Block } from '$lib/tables';
+	import { untrack } from 'svelte';
+	import { blockKey, linkBlock, type Block } from '$lib/tables';
+	import { isPicture, type FeedItem } from '$lib/table-feed';
 	import { linkedBlock } from '$lib/table-sources';
 	import type { SourceFilter } from '$lib/table-sources';
 	import Button from '../ui/Button.svelte';
 	import SegmentedPill from '../ui/SegmentedPill.svelte';
 	import TextField from '../ui/TextField.svelte';
-	import BlockCard from './BlockCard.svelte';
-	import { BLOCK_DRAG_TYPE } from './TableCanvas.svelte';
+	import SidePanel from '../ui/SidePanel.svelte';
+	import BlockFeed from './BlockFeed.svelte';
+	import BlockList from './BlockList.svelte';
+
+	type Tab = 'page' | 'similar' | 'recent' | 'site';
 
 	interface Props {
 		/** Finds site content; resolves null when there is no search index. */
@@ -22,42 +27,80 @@
 		pieces?: (block: Block) => Promise<Block[]>;
 		/** The signed-in owner also gets a Raindrop filter for their bookmarks, which only they can see. */
 		owner?: boolean;
+		/**
+		 * Everything posted and saved since a time. With it the picker has a Recent list: a group for each
+		 * day, newest first, for a roundup of the week.
+		 */
+		recent?: (since: Date) => Promise<FeedItem[]>;
+		/** Saved things like a block. With it, the block selected when the picker opened also offers what is like it. */
+		similar?: (block: Block) => Promise<Block[]>;
+		/** Kept open as a sidebar down the right of the page instead of a menu. */
+		pinned?: boolean;
+		/** With it, the picker has a button that moves it between the menu and the sidebar. */
+		onpin?: (pinned: boolean) => void;
+		/** The list showing. It starts on Recent in the sidebar and on Search in the menu. */
+		tab?: Tab;
 		/** Starting query and filter, for stories. */
 		query?: string;
 		filter?: SourceFilter;
 	}
 
-	let { search, onadd, onclose, placed = [], source, pieces, owner = false, query = $bindable(''), filter = $bindable('all') }: Props = $props();
+	let { search, onadd, onclose, placed = [], source, pieces, owner = false, recent, similar, pinned = false, onpin, tab = $bindable(), query = $bindable(''), filter = $bindable('all') }: Props = $props();
 
 	const onTable = $derived(new Set(placed));
 	let found = $state<Block[]>([]);
 	const results = $derived(found.filter((block) => !onTable.has(blockKey(block))));
 
-	// The selected block's page, read once per block; the picker opens on it when it has pieces.
+	// Where the picker rests with nothing selected: the week's feed in the sidebar, search in the menu.
+	const home = $derived<Tab>(recent && pinned ? 'recent' : 'site');
+	const showing = $derived(tab ?? home);
+
+	// The selected block's page, read once per block, and what is like the block; the picker opens on
+	// its pieces when it has any, else on what is like it.
 	let parts = $state<Block[] | null>(null);
-	let tab = $state<'page' | 'site'>('site');
-	const sourceKey = $derived(source && pieces ? blockKey(source) : '');
+	let alike = $state<Block[] | null>(null);
+	const sourceKey = $derived(source ? blockKey(source) : '');
 	$effect(() => {
 		const key = sourceKey;
 		parts = null;
-		if (!key || !source || !pieces) return;
+		alike = null;
+		if (!key || !source || (!pieces && !similar)) {
+			// Nothing selected any more: back to the list the picker rests on.
+			if (untrack(() => tab === 'page' || tab === 'similar')) tab = undefined;
+			return;
+		}
 		let live = true;
-		tab = 'page';
-		pieces(source).then((next) => {
+		const from = source;
+		tab = pieces ? 'page' : 'similar';
+		const settle = () => {
 			if (!live) return;
-			parts = next;
-			if (!next.length) tab = 'site';
+			// Leave a list that turned out empty for the next one that has something.
+			if (tab === 'page' && parts?.length === 0) tab = similar && alike?.length !== 0 ? 'similar' : undefined;
+			if (tab === 'similar' && alike?.length === 0) tab = parts?.length ? 'page' : undefined;
+		};
+		void (pieces ? pieces(from).catch(() => []) : Promise.resolve([])).then((next) => {
+			if (live) parts = next;
+			settle();
+		});
+		void (similar ? similar(from).catch(() => []) : Promise.resolve([])).then((next) => {
+			if (live) alike = next;
+			settle();
 		});
 		return () => {
 			live = false;
 		};
 	});
 	const partsLeft = $derived((parts ?? []).filter((block) => !onTable.has(blockKey(block))));
-	const showPage = $derived(!!sourceKey && tab === 'page' && parts?.length !== 0);
-	const tabs = $derived([
-		{ label: 'This page', value: 'page', icon: '✂️' },
-		{ label: 'Search', value: 'site', icon: '🔎' }
-	]);
+	const tabs = $derived.by(() => {
+		const all = [
+			...(sourceKey && pieces && parts?.length !== 0 ? [{ label: 'This page', value: 'page', icon: '✂️' }] : []),
+			...(sourceKey && similar && alike?.length !== 0 ? [{ label: 'Similar', value: 'similar', icon: '🧲' }] : []),
+			...(recent ? [{ label: 'Recent', value: 'recent', icon: '🗓️' }] : []),
+			{ label: 'Search', value: 'site', icon: '🔎' }
+		];
+		// Four don't fit with their emoji, and words say more than emoji alone.
+		return all.length > 3 ? all.map(({ icon: _icon, ...tab }) => ({ ...tab, label: tab.value === 'page' ? 'Pieces' : tab.label })) : all;
+	});
 	let phase = $state<'idle' | 'loading' | 'done' | 'unavailable'>('idle');
 	let link = $state('');
 	let linkError = $state('');
@@ -87,12 +130,6 @@
 		return () => clearTimeout(timer);
 	});
 
-	function ondragstart(event: DragEvent, block: Block) {
-		event.dataTransfer?.setData(BLOCK_DRAG_TYPE, JSON.stringify(block));
-		event.dataTransfer?.setData('text/uri-list', new URL(block.url, location.origin).href);
-		if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
-	}
-
 	async function addLink(event: SubmitEvent) {
 		event.preventDefault();
 		if (!linkBlock(link, location.origin)) {
@@ -112,57 +149,61 @@
 	);
 </script>
 
-<section class="block-picker" aria-label="Add to table">
-	<header class="head">
-		<h2 class="heading">Add to table</h2>
-		{#if onclose}<Button variant="icon" size="sm" icon="close" label="Close" onclick={onclose} />{/if}
-	</header>
-
-	{#if sourceKey && parts?.length !== 0}
+{#snippet lists()}
+	{#if tabs.length > 1}
 		<div class="tabs">
-			<SegmentedPill segments={tabs} size="sm" label="Add from" value={tab} onValueChange={(value) => (tab = value as 'page' | 'site')} />
+			<SegmentedPill segments={tabs} size="sm" label="Add from" value={showing} onValueChange={(value) => (tab = value as Tab)} />
 		</div>
 	{/if}
 
-	{#if showPage}
+	{#if showing === 'page' && sourceKey}
 		<p class="hint">Pieces of <strong>{source?.title}</strong>. Drag onto the table, or click to add.</p>
-		<ul class="results" aria-busy={parts === null}>
-			{#each partsLeft as block (blockKey(block))}
-				<li>
-					<button class="result" type="button" draggable="true" ondragstart={(event) => ondragstart(event, block)} onclick={() => onadd([block])} title="Add this {KIND_LABEL[block.kind].toLowerCase()}">
-						<BlockCard {block} layout="row" />
-					</button>
-				</li>
-			{:else}
-				<li class="empty">{parts === null ? 'Reading the page…' : 'Every piece is on the table.'}</li>
-			{/each}
-		</ul>
+		<BlockList groups={[{ rows: partsLeft.map((block) => ({ block })) }]} {onadd} naming="kind" busy={parts === null} empty="Every piece is on the table." />
+		{#if parts === null}<p class="hint">Reading the page…</p>{/if}
+	{:else if showing === 'similar' && sourceKey}
+		<p class="hint">Saved things that {source && isPicture(source) ? 'look' : 'read'} like <strong>{source?.title}</strong>, nearest first.</p>
+		<BlockList groups={[{ rows: (alike ?? []).map((block) => ({ block, placed: onTable.has(blockKey(block)) })) }]} {onadd} busy={alike === null} empty="Nothing saved is like it." />
+		{#if alike === null}<p class="hint">Looking…</p>{/if}
+	{:else if showing === 'recent' && recent}
+		<BlockFeed load={recent} {onadd} {placed} />
 	{:else}
-	<div class="controls">
-		<TextField label={owner ? "Search posts, books, wiki, Are.na and Raindrop" : "Search posts, books, wiki and Are.na"} type="search" bind:value={query} placeholder="Search" autocomplete="off" />
-		<SegmentedPill segments={filters} size="sm" label="Show" compact={owner ? 'always' : false} value={filter} onValueChange={(value) => (filter = value as SourceFilter)} />
-	</div>
+		<div class="controls">
+			<TextField label={owner ? "Search posts, books, wiki, Are.na and Raindrop" : "Search posts, books, wiki and Are.na"} type="search" bind:value={query} placeholder="Search" autocomplete="off" />
+			<SegmentedPill segments={filters} size="sm" label="Show" compact={owner ? 'always' : false} value={filter} onValueChange={(value) => (filter = value as SourceFilter)} />
+		</div>
 
-	<p class="hint">Drag onto the table, or click to add.</p>
+		<p class="hint">Drag onto the table, or click to add.</p>
 
-	<ul class="results" aria-busy={phase === 'loading'}>
-		{#each results as block (blockKey(block))}
-			<li>
-				<button class="result" type="button" draggable="true" ondragstart={(event) => ondragstart(event, block)} onclick={() => onadd([block])} title="Add “{block.title}”">
-					<BlockCard {block} layout="row" />
-				</button>
-			</li>
-		{:else}
-			{#if phase !== 'loading'}<li class="empty">{emptyMessage}</li>{/if}
-		{/each}
-	</ul>
+		<BlockList groups={[{ rows: results.map((block) => ({ block })) }]} {onadd} busy={phase === 'loading'} empty={emptyMessage} />
 	{/if}
 
 	<form class="link" onsubmit={addLink}>
 		<TextField label="Add a link" type="url" inputmode="url" bind:value={link} placeholder="https://" hint={linkError || 'Or paste a link straight onto the table.'} />
 		<Button type="submit" variant="secondary" size="sm" disabled={!link.trim()}>Add link</Button>
 	</form>
-</section>
+{/snippet}
+
+{#if pinned}
+	<!-- Kept open down the right of the page, beside the docked chat when that is open, for work that goes back and forth with the table. -->
+	<SidePanel class="block-picker-panel" label="Add to table" compact {onclose}>
+		{#snippet header()}<h2 class="heading">Add to table</h2>{/snippet}
+		{#snippet actions()}
+			{#if onpin}<Button variant="icon" size="sm" icon="sidebar" label="Back to a menu" pressed onclick={() => onpin(false)} />{/if}
+		{/snippet}
+		<div class="pinned">{@render lists()}</div>
+	</SidePanel>
+{:else}
+	<section class="block-picker" aria-label="Add to table">
+		<header class="head">
+			<h2 class="heading">Add to table</h2>
+			<span class="head-actions">
+				{#if onpin}<span class="pin"><Button variant="icon" size="sm" icon="sidebar" label="Keep open as a sidebar" onclick={() => onpin(true)} /></span>{/if}
+				{#if onclose}<Button variant="icon" size="sm" icon="close" label="Close" onclick={onclose} />{/if}
+			</span>
+		</header>
+		{@render lists()}
+	</section>
+{/if}
 
 <style>
 	.block-picker {
@@ -194,8 +235,40 @@
 		font-weight: var(--fw-semibold);
 	}
 
+	.head-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	/* The sidebar: the lists fill the panel, and each scrolls inside it. */
+	.pinned {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		/* Day headings stay put over the panel's blurred ground. */
+		--block-list-ground: var(--bg-primary);
+	}
+
+	:global(.block-picker-panel) {
+		--side-panel-width: var(--block-picker-width, 22rem);
+	}
+
+	:global(.block-picker-panel .side-panel-body) {
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
 	.tabs {
 		margin-top: var(--space-2);
+	}
+
+	/* A phone has no room for a sidebar beside the table. */
+	@media (max-width: 600px) {
+		.pin {
+			display: none;
+		}
 	}
 
 	.hint strong {
@@ -213,46 +286,13 @@
 		font-size: var(--fs-xs);
 	}
 
-	.results {
-		flex: 1;
-		min-height: 6rem;
-		margin: var(--space-2) calc(-1 * var(--space-2)) 0;
-		padding: 0;
-		list-style: none;
-		overflow-y: auto;
-	}
 
-	.result {
-		display: block;
-		width: 100%;
-		padding: 0;
-		border: 0;
-		border-radius: var(--radius-sm);
-		background: transparent;
-		color: inherit;
-		font: inherit;
-		text-align: left;
-		cursor: grab;
-		transition: background var(--duration) var(--ease), scale 160ms var(--ease-out);
-	}
 
-	.result:active {
-		cursor: grabbing;
-		scale: 0.98;
-	}
 
-	@media (hover: hover) {
-		.result:hover {
-			background: var(--surface-2);
-		}
-	}
 
-	.empty {
-		padding: var(--space-3) var(--space-2);
-		color: var(--text-muted);
-	}
 
 	.link {
+		margin-top: var(--space-2);
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;

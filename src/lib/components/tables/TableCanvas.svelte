@@ -103,7 +103,8 @@
 			return;
 		}
 		const blocks = [parsed].flat().map(cleanBlock).filter((block): block is Block => block !== null);
-		api.addBlocks(blocks, { x: event.clientX, y: event.clientY });
+		// Several dragged over together are set out in rows, in the order they were listed.
+		api.addBlocks(blocks, { x: event.clientX, y: event.clientY }, { columns: Math.min(blocks.length, 4) });
 	}
 </script>
 

@@ -79,7 +79,7 @@ describe('the source cache is for the owner', () => {
 		let touched = 0;
 		const env = { SOURCES: { idFromName: () => { touched++; return 'id'; }, get: () => { touched++; return {}; } } };
 		const event = (method: string, path: string) => ({ request: new Request(`https://caseyagollan.com${path}`, { method }), url: new URL(`https://caseyagollan.com${path}`), platform: { env } }) as never;
-		for (const response of [await GET(event('GET', '/api/sources')), await GET(event('GET', '/api/sources?q=kettles')), await POST(event('POST', '/api/sources'))]) {
+		for (const response of [await GET(event('GET', '/api/sources')), await GET(event('GET', '/api/sources?q=kettles')), await GET(event('GET', '/api/sources?since=2026-11-01T00:00:00Z')), await GET(event('GET', '/api/sources?like=arena:1&words=kettle')), await POST(event('POST', '/api/sources'))]) {
 			expect(response.status).toBe(401);
 			expect(response.headers.get('cache-control')).toContain('no-store');
 			expect(await response.text()).not.toContain('kettle');

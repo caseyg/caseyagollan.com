@@ -49,6 +49,8 @@ export interface SourceHit {
 	openUrl?: string;
 	/** YYYY-MM-DD it was saved. */
 	date?: string;
+	/** ISO time it was saved, for lists in order of time. */
+	saved?: string;
 	site?: string;
 	author?: string;
 	/** The words around the match, or the summary when browsing. */
@@ -367,7 +369,7 @@ export class SourceIndex {
 		const excerpt = (row.snip ?? row.summary ?? '').replace(/\s+/g, ' ').trim();
 		return {
 			key: row.key, source: row.source, id: row.id, kind: row.kind, title: row.title, url: row.url, ...(row.open_url ? { openUrl: row.open_url } : {}),
-			...(row.created ? { date: row.created.slice(0, 10) } : {}), ...(row.site ? { site: row.site } : {}), ...(row.author ? { author: row.author } : {}),
+			...(row.created ? { date: row.created.slice(0, 10), saved: row.created } : {}), ...(row.site ? { site: row.site } : {}), ...(row.author ? { author: row.author } : {}),
 			...(excerpt ? { excerpt } : {}), ...(row.image ? { image: row.image } : {}), tags: owner ? json<string[]>(row.tags, []) : [], places: owner ? json<string[]>(row.places, []) : [],
 			private: !!row.private, ...(row.ref ? { ref: row.ref } : {}), highlights: row.highlight_count, length: row.length
 		};
