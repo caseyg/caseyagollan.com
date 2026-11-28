@@ -36,6 +36,44 @@
 		ready.subscribe((state) => (view = state));
 	}
 
+	// Markdown as it might be pasted from notes: headings, a list with a list inside it, and formatted text.
+	const MARKDOWN = `# Workshop plan
+
+A two-day workshop on **publishing your own site**. Notes from the [planning call](https://example.com/call).
+
+## Before
+
+- Send the invitation
+  - Ask what people *already* publish
+  - Share the reading list
+- Book the room
+
+## During
+
+Each morning starts with a short demo, then people work on their own sites.
+
+### Day one
+
+1. Set up a domain
+2. Write a first post
+
+### Day two
+
+- Add \`h-entry\` markup
+- Send a webmention
+
+## After
+
+- ~~Print handouts~~ Post the notes
+- Ask for feedback`;
+
+	async function onmarkdown(ready: TableApi) {
+		api = ready;
+		ready.subscribe((state) => (view = state));
+		await ready.addMarkdown(MARKDOWN, { x: 0, y: 0 });
+		ready.zoomToFit();
+	}
+
 	async function onareas(ready: TableApi) {
 		const ids = ready.addBlocks(sample.slice(0, 8), undefined, { columns: 4, select: false });
 		await ready.perform({ op: 'frame', name: 'Reading', ids: ids.slice(0, 4) });
@@ -144,7 +182,22 @@
 	</div>
 </Story>
 
+<!--
+	Markdown pasted on the table, or a .md file dropped on it, is set down as a tree: a text block per
+	heading and list item, an arrow to each from the heading or item it sits under. Paragraphs stay
+	together under their heading, and bold, italics, code and links are kept. Paste your own to try it.
+-->
+<Story asChild name="Markdown tree">
+	<div class="frame tall">
+		<TableCanvas document={null} editable onready={onmarkdown} />
+		<div class="dock">
+			<TableToolbar editable tool={view.tool} canUndo={view.canUndo} canRedo={view.canRedo} status="Saved" ontool={(tool, geo) => api?.setTool(tool as TableTool, geo)} selection={view.selection} onlayout={(value, scope) => { const op = layoutOp(value, scope, view.selection.map((item) => item.id)); if (op) void api?.perform(op); }} onundo={() => api?.undo()} onredo={() => api?.redo()} onfit={() => api?.zoomToFit()} />
+		</div>
+	</div>
+</Story>
+
 <style>
 	.frame { position: relative; width: 100%; height: 36rem; }
+	.frame.tall { height: 44rem; }
 	.dock { position: absolute; left: 50%; bottom: var(--space-4); translate: -50% 0; }
 </style>
