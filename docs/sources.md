@@ -26,6 +26,10 @@ Everything in the copy is private unless a plugin says otherwise (only Casey's o
 - A table or a post that uses a cached document gets a copy of its title, excerpt, address and picture (`sourceBlock`), with no key back into the copy. Publishing the table publishes exactly that.
 - Logs carry counts only, never titles or addresses.
 
+## The tables Add menu
+
+`/api/sources` also serves the tables Add menu, still for the owner only: `?since=<ISO time>` lists what was saved since then, newest first, as blocks with their times (the menu's Recent feed, `src/lib/table-feed.ts`), and `?like=<address>` answers what is like a block by the stored vectors. A block that is a picture is compared by its picture (`picture=<its address>`, embedded on the spot when the copy doesn't hold it); anything else by its words.
+
 ## Where it syncs
 
 Production syncs by itself (`SOURCES_SYNC=true` in `wrangler.jsonc`). A branch preview has its own empty copy and syncs only when the owner presses **Sync now** under Connections on `/account`, so previews don't spend the services' rate limits.

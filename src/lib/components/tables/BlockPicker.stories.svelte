@@ -1,6 +1,6 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { blocks } from '$lib/storybook/fixtures';
+	import { blocks, feedItems } from '$lib/storybook/fixtures';
 	import type { Block } from '$lib/tables';
 	import type { SourceFilter } from '$lib/table-sources';
 	import BlockPicker from './BlockPicker.svelte';
@@ -17,6 +17,10 @@
 	/** Stands in for reading a page: a picture, a social post and paragraphs. */
 	const pieces = async (): Promise<Block[]> => [blocks.image, blocks.socialPost, blocks.quote, { ...blocks.quote, url: '/wiki/aesthetic-crisis#:~:text=Second', excerpt: 'A second paragraph, long enough to be taken on its own and set out beside the first.' }];
 	const add = (added: Block[]) => console.log('add', added);
+	/** Stands in for the week's posts and saves. */
+	const recent = async (since: Date) => feedItems().filter((item) => Date.parse(item.at) >= since.getTime());
+	/** Stands in for likeness by the stored vectors. */
+	const similar = async (): Promise<Block[]> => [blocks.arenaImage, blocks.arenaLink, blocks.raindrop, blocks.arenaText];
 </script>
 
 <Story asChild name="Results">
@@ -55,6 +59,27 @@
 	<div class="dock"><BlockPicker search={unavailable} onadd={add} query="cage" /></div>
 </Story>
 
+<!-- With a feed, the menu has a Recent list, and a button that keeps the picker open as a sidebar. -->
+<Story asChild name="Recent, in the menu">
+	<div class="dock"><BlockPicker {search} {recent} onadd={add} onclose={() => {}} onpin={() => {}} tab="recent" /></div>
+</Story>
+
+<!-- Kept open down the right of the page for a roundup: it opens on the week, and what is on the table is gray. -->
+<Story asChild name="Sidebar" parameters={{ layout: 'fullscreen' }}>
+	<div class="page"><BlockPicker {search} {recent} pinned onadd={add} onclose={() => {}} onpin={() => {}} placed={[blocks.arenaImage.url + ' ' + blocks.arenaImage.image, blocks.repost.url]} /></div>
+</Story>
+
+<!-- Opened with a block selected, the owner gets its page's pieces and what is saved that is like it, beside the week and search. -->
+<Story asChild name="A block selected, every list">
+	<div class="dock"><BlockPicker {search} {pieces} {similar} {recent} source={blocks.wiki} onadd={add} onclose={() => {}} /></div>
+</Story>
+
+<!-- A picture finds what looks like it. It has no page to take pieces from, so the picker opens on Similar. -->
+<Story asChild name="Similar to a picture">
+	<div class="dock"><BlockPicker {search} pieces={async () => []} {similar} source={blocks.arenaImage} placed={[blocks.raindrop.url]} onadd={add} onclose={() => {}} /></div>
+</Story>
+
 <style>
+	.page { min-height: 100vh; }
 	.dock { width: 22rem; height: 36rem; }
 </style>
