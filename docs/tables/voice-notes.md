@@ -213,6 +213,19 @@ A text block can be a heading. Anything the chat or a voice note writes onto a t
 
 Spoken: "add a heading called Roadmap" makes a text block holding `# Roadmap`; "a subheading" is `##`; "make that a heading" puts `# ` before a block's words. "Create a markdown heading" with no words makes `# Heading`, a stand-in that the next thing said replaces at the same level (`emptyHeading`), the way an empty sticky is filled.
 
+## The Add drawer by voice
+
+With "Follow spoken commands" on, the Add drawer can be opened and used without a hand:
+
+- **"Show similar items"** (or "what's related to this", "find more like these") opens the drawer on Similar for what is selected. With nothing selected by hand, that is the note the voice note is working on, so a thought said aloud can be followed at once by "show similar". Similar is the owner's, as it is in the drawer.
+- **"Get context"** (or "show the pieces of this", "what's in this", "show its images") opens the drawer on the selected block's page in pieces: its pictures, quotes and paragraphs.
+- With the drawer showing, **"add the second one"**, **"add the first three"**, "add the first and the fourth", "add number two", "add the last two", "add all of them" (twelve at most), or **"add" and some words of a line's title** add from the list that is showing. While the voice note listens the lines are numbered, and a tap still adds one. "Add a sticky" and the like, and "add" with words no line answers to, are still commands for the table.
+- **"Close the drawer"** puts it away.
+
+None of this asks a model: `drawerCommand`, `listPick` and `pickListed` in `src/lib/voice-notes.ts` read the words, and the session (`VoiceNotes`, through the `drawer` it is handed) does what they say in turn, after what was said before has settled. A request made while the list is still loading waits for it. What was added goes beside the block the drawer was opened for, and the selection stays where it was, so the next "add…" and the next thought still belong to the same topic. The Recent feed isn't counted along.
+
+Try it in the story `tables-tablecanvas--voice-drawer`.
+
 ## Reading what happened
 
 A voice note that went badly can be read back from the Worker's log (Workers observability, on

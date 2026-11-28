@@ -9,12 +9,36 @@
  * (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so Storybook and
  * the tests run the same session with scripted ones.
  */
-import { emptyHeading, RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
+import { drawerCommand, listPick, pickListed, emptyHeading, RECENT_MAX, cleanWords, learnedWords, recentLine, endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type VoiceLogEntry, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
 import { VoiceListening, keepChoices, keptChoices } from './voice-listening.svelte';
 import type { VoiceSource, VoiceWordsStore } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
 
+/**
+ * The table's Add drawer, as a voice note uses it: opened on what is like the selection, and what
+ * it lists added by place or by name.
+ */
+export interface VoiceDrawer {
+	/**
+	 * Opens the drawer on what is like the selection (`similar`), or on the selected block's page in
+	 * pieces (`pieces`). False when nothing is selected that it could be asked of; a string says why
+	 * it can't be done here.
+	 */
+	show(list: 'similar' | 'pieces'): boolean | string;
+	/** Whether the drawer is showing. */
+	open(): boolean;
+	/** The titles of the lines that can be added, top to bottom, once the list has finished loading. */
+	listed(): Promise<string[]>;
+	/** The same as they stand now, or nothing while the list is loading. */
+	loaded(): string[] | undefined;
+	/** Adds the lines at these places in `listed`; answers how many were added. */
+	add(places: number[]): number;
+	close(): void;
+}
+
 export interface VoiceOptions {
+	/** The table's Add drawer; left out, "show similar items" is a note like any other. */
+	drawer?: () => VoiceDrawer | undefined;
 	/** The open table's canvas; undefined until it has loaded. */
 	canvas: () => VoiceCanvas | undefined;
 	/** The ways to listen, best first. */
@@ -235,13 +259,54 @@ export class VoiceNotes extends VoiceListening {
 	 * model: the selection follows the words while they arrive. Returns what was shown.
 	 */
 	#quick(canvas: VoiceCanvas, text: string, own: string | undefined, settled: boolean): QuickCommand | null {
-		if (!this.#commands) return null;
+		// "Show me similar things" is for the drawer, not a search for the word "similar".
+		if (!this.#commands || (this.#options.drawer?.() && drawerCommand(text))) return null;
 		const found = quickCommand(text, canvas.texts(200).filter((item) => item.id !== own), this.#session);
 		// Selecting follows every word; zooming waits for the passage to end, so the view moves once.
 		// A selection asked for aloud is the speaker pointing, even at what the voice note had selected itself.
 		if (found) this.#focus = undefined;
 		if (found) canvas.show(found.ids, settled && found.kind === 'focus');
 		return found;
+	}
+
+	/**
+	 * A passage meant for the Add drawer, as something to do once what was said before it has settled:
+	 * "show similar items" opens it on what is like the selection (the note just spoken, when nothing
+	 * else is selected), "get context" on the selected block's page in pieces, and with it showing "add the second one", "add the first three" or "add" and
+	 * a line's name adds from its list. `null` when the passage is none of these. Resolves to what was done.
+	 */
+	#drawer(canvas: VoiceCanvas, text: string): (() => Promise<string>) | null {
+		const drawer = this.#options.drawer?.();
+		if (!drawer) return null;
+		const what = drawerCommand(text);
+		if (what === 'similar' || what === 'pieces') {
+			return async () => {
+				let shown = drawer.show(what);
+				// Nothing selected: the last thing said is what to find the like of.
+				if (what === 'similar' && shown === false && this.#last && !this.#gone.has(this.#last.id)) {
+					this.#focus = this.#last.id;
+					canvas.show([this.#last.id], false);
+					shown = drawer.show(what);
+				}
+				if (typeof shown === 'string') return shown;
+				return what === 'similar' ? (shown ? 'Showing similar' : 'Select something to find the like of') : shown ? 'Showing its pieces' : 'Select a post, link or page to see its pieces';
+			};
+		}
+		if (!drawer.open()) return null;
+		if (what === 'close') return async () => (drawer.close(), 'Closed');
+		const pick = listPick(text);
+		if (!pick) return null;
+		// "Add" and words no line answers to, with the list there to see: not the drawer's, and a model may make more of it.
+		const there = 'name' in pick ? drawer.loaded() : undefined;
+		if (there && !pickListed(pick, there).length) return null;
+		return async () => {
+			const titles = await drawer.listed();
+			const places = pickListed(pick, titles);
+			const added = places.length ? drawer.add(places) : 0;
+			if (!added) return !titles.length ? 'Nothing listed to add' : 'name' in pick ? `Nothing listed is called “${pick.name.join(' ')}”` : `Only ${titles.length} listed`;
+			this.#recent.push(recentLine(text, []));
+			return added === 1 ? `Added “${titles[places[0]].slice(0, 40)}”` : `Added ${added}`;
+		};
 	}
 
 	protected heard(event: VoiceEvent) {
@@ -277,6 +342,19 @@ export class VoiceNotes extends VoiceListening {
 			this.#block = { settled: '', partial: '' };
 			this.#log('passage', { ...passage, was: 'that’s all' });
 			return this.stop();
+		}
+		// "Show similar items", and "add the second one" of what the drawer lists: the drawer's, done in turn, with no model.
+		const asked = this.#commands ? this.#drawer(canvas, text) : null;
+		if (asked) {
+			canvas.remove(id);
+			this.#writing = undefined;
+			this.#block = { settled: '', partial: '' };
+			this.#settling = this.#settling.then(asked).then((did) => {
+				this.did = { text: did };
+				this.#tally.commands++;
+				this.#log('passage', { ...passage, was: 'drawer, without a model', did });
+			}).catch((error) => this.#log('passage', { ...passage, was: 'failed', error: String((error as Error)?.message ?? error) }));
+			return;
 		}
 		// All of it was "select…" or "focus on…", and something answered: done already, nothing to write down or ask.
 		const quick = this.#quick(canvas, text, id, true);

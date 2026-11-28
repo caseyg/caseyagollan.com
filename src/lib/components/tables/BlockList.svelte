@@ -33,6 +33,8 @@
 		busy?: boolean;
 		/** Names a line's block in its tooltip: `title` for a thing with a name, `kind` for a piece of a page. */
 		naming?: 'title' | 'kind';
+		/** Numbers the lines that can be added, top to bottom, for adding by voice ("add the second one"). */
+		numbered?: boolean;
 		/** The keys (`blockKey`) of the selected lines. */
 		selected?: string[];
 		/** Ids of things on the table that blocks dragged from this list are linked from where they land. */
@@ -40,7 +42,7 @@
 		class?: string;
 	}
 
-	let { groups, onadd, empty, busy = false, naming = 'title', selected = $bindable([]), link, class: className = '' }: Props = $props();
+	let { groups, onadd, empty, busy = false, naming = 'title', numbered = false, selected = $bindable([]), link, class: className = '' }: Props = $props();
 
 	// Every line that can still be added, top to bottom: the order a range and a drag keep.
 	const open = $derived(groups.flatMap((group) => group.rows).filter((row) => !row.placed));
@@ -129,6 +131,7 @@
 									{ondragend}
 									onclick={(event) => onclick(event, row)}
 								>
+									{#if numbered && !row.placed}<span class="place" aria-hidden="true">{keys.indexOf(key) + 1}</span>{/if}
 									<BlockCard block={row.block} layout="row" />
 									{#if row.placed}<span class="note">On table</span>{:else if row.note}<span class="note">{row.note}</span>{/if}
 								</button>
@@ -242,6 +245,17 @@
 	.row.placed :global(.block-card) {
 		opacity: 0.4;
 		filter: grayscale(1);
+	}
+
+	/* A line's place in the list, for saying "add the second one". */
+	.place {
+		flex: none;
+		min-width: 1.25rem;
+		padding-left: var(--space-2);
+		color: var(--text-muted);
+		font-size: var(--fs-xs);
+		font-variant-numeric: tabular-nums;
+		text-align: right;
 	}
 
 	.note {
