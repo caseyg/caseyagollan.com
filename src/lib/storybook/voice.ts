@@ -18,6 +18,12 @@ export const RAMBLE = [
 	'that\'s all'
 ];
 
+/** What a chat story's dictation "hears": a message, then a follow-up. */
+export const ASKED = [
+	'so um which books about cooperatives are in the library',
+	'and put the ones from this year on a table'
+];
+
 /** A voice note with requests in it: two thoughts, then things asked of the table. */
 export const COMMANDS = [
 	'testing one two three',

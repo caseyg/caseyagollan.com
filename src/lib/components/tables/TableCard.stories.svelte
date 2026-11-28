@@ -54,6 +54,24 @@
 	/>
 </Story>
 
+<!-- As the owner sees it: the first place starts a new table. Gray, not blue: blue is the navigation's. -->
+<Story asChild name="Grid, with New table">
+	<TableGrid
+		tables={[
+			tableSummary,
+			{ ...tableSummary, id: 'b', name: 'Library of Babel, but small', count: 2, preview: [blocks.book, blocks.bookNoCover], published: false },
+			{ ...tableSummary, id: 'c', name: 'Untitled table', count: 0, preview: [] }
+		]}
+		href={(id) => `#${id}`}
+		onNew={() => {}}
+	/>
+</Story>
+
+<!-- The owner's first visit: only the place to start one. -->
+<Story asChild name="Grid, New table only">
+	<TableGrid tables={[]} href={(id) => `#${id}`} onNew={() => {}} />
+</Story>
+
 <Story asChild name="Grid, no tables">
 	<TableGrid tables={[]} href={(id) => `#${id}`} />
 </Story>

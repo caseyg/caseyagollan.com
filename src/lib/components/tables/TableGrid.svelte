@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { TableSummary } from '$lib/tables';
+	import NewTableCard from './NewTableCard.svelte';
 	import TableCard from './TableCard.svelte';
 
 	interface Props {
@@ -8,13 +9,18 @@
 		href: (id: string) => string;
 		/** Where each table's picture is, if it has one. */
 		thumbnail?: (table: TableSummary) => string | undefined;
+		/** For whoever can make tables: starts a new one, from the first place in the grid. */
+		onNew?: () => void;
+		/** While a new table is being made. */
+		creating?: boolean;
 	}
 
-	let { tables, href, thumbnail }: Props = $props();
+	let { tables, href, thumbnail, onNew, creating = false }: Props = $props();
 </script>
 
-{#if tables.length}
+{#if tables.length || onNew}
 	<ul class="table-grid">
+		{#if onNew}<li><NewTableCard onclick={onNew} busy={creating} /></li>{/if}
 		{#each tables as table (table.id)}
 			<li><TableCard {table} href={href(table.id)} thumbnail={thumbnail?.(table)} /></li>
 		{/each}

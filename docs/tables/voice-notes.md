@@ -146,6 +146,9 @@ Casey likes Todoist's Ramble, and the voice note follows its way of working wher
 | "That's all" ends it | The same (`endsSession`), or the microphone button |
 | A preview you confirm | What the voice note added is selected when it ends, to be moved or removed as one; undo steps back through it |
 
+Splitting into notes is asked for by the table alone (`split` in the request). The chat's dictation
+uses the same correction call without it, so a dictated message stays one text.
+
 Not taken up: Ramble holds everything in a preview and saves nothing until the end. Here notes
 land on the table as they are spoken, because seeing them there is the point of a canvas.
 
@@ -164,3 +167,34 @@ microphone.
 
 It is an estimate from listed prices, counted in the browser: another device's use is not in it,
 and the services' own bills are the record.
+
+## The same listening in the chat
+
+The chat's composer has the same microphone, for Casey (`ChatPromptInput`, so the chat's own page,
+the docked panel and the bottom sheet all have it). The parts are shared, not copied:
+
+| Part | Where | Shared with tables |
+| --- | --- | --- |
+| Microphone, sources, switching on and off, the three quiet minutes | `src/lib/voice-listening.svelte.ts` (`VoiceListening`) | The base of both `VoiceNotes` and `VoiceDictation` |
+| The socket to Flux and the browser fallback | `src/lib/voice-source.ts`, `/api/tables/voice/listen` | The same socket |
+| Correction | `voiceRefiner` in `voice-source.ts`, `POST /api/tables/voice` with `correct` alone | The same call, without the table |
+| The button and its menu of choices | `ui/MicButton`, `ui/VoiceMenu` | `tables/VoiceControl` is built on them, and puts its usage list in the menu (`children`) |
+| What the words do | `src/lib/voice-dictation.svelte.ts` (`VoiceDictation`) | The chat's own |
+
+What is heard is written into the message box as it arrives, after whatever the box already holds.
+At a pause (Flux's end of turn) the passage is corrected, if "Correct the text" is on, and then, if
+"Send when I pause" is on, the message is sent and listening carries on, so a conversation can be
+had by talking. Both are on by default and kept in `localStorage` under `chat-voice`. With sending
+off, passages gather in the box to be sent by hand.
+
+A few rules keep it from surprising:
+
+- Switching the microphone off keeps what was being said and never sends it.
+- Talking on while a passage is with the model holds the send: both passages go at the next pause,
+  the first one corrected in place.
+- A correction is only written where the box still reads as it was heard, so typing meanwhile wins.
+- A message sent by hand mid-sentence takes the rest of that sentence with it; it is not written
+  into the next message.
+- A message that didn't go (offline) stays in the box.
+
+Answers are not read aloud; the chat listens but does not speak.

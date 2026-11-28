@@ -4,11 +4,14 @@
  * in this browser, say what happens to a finished block: `correct` has a model fix what was
  * misheard, and `arrange` joins it by an arrow to the block it follows and sets the note out as
  * a tree. A third, `commands`, hears a request to change the table ("connect these two with an
- * arrow") and carries it out instead of writing it down. Sources (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so
- * Storybook and the tests run the same session with scripted ones.
+ * arrow") and carries it out instead of writing it down. Listening itself (the microphone, its
+ * sources, switching on and off) is `VoiceListening`, shared with the chat's dictation. Sources
+ * (`voice-source.ts`), the canvas (`VoiceCanvas`) and the model are handed in, so Storybook and
+ * the tests run the same session with scripted ones.
  */
 import { endsSession, addText, spendLines, usageUsd, blockText, describeOps, hear, quickCommand, type QuickCommand, noUsage, readUsage, type VoiceUsage, type SpokenBlock, type VoiceEvent, type VoiceRefineAnswer, type VoiceRefineRequest } from './voice-notes';
-import { VoiceError, listen, type VoiceSource } from './voice-source';
+import { VoiceListening, keepChoices, keptChoices } from './voice-listening.svelte';
+import type { VoiceSource } from './voice-source';
 import type { VoiceCanvas } from './components/tables/canvas/textBlocks';
 
 export interface VoiceOptions {
@@ -26,17 +29,8 @@ const KEY = 'tables-voice';
 /** The calendar month's usage, kept in this browser: `{ month, usage }`. */
 const USAGE_KEY = 'tables-voice-usage';
 const thisMonth = () => new Date().toISOString().slice(0, 7);
-/** Listening that hears nothing for this long switches itself off. */
-const IDLE_MS = 3 * 60_000;
 
-export class VoiceNotes {
-	status = $state<'off' | 'starting' | 'listening'>('off');
-	/** Why listening stopped or couldn't start, or that a model couldn't be asked. */
-	notice = $state('');
-	/** How loud the microphone is, 0 to 1. */
-	level = $state(0);
-	/** Which source is listening. */
-	via = $state('');
+export class VoiceNotes extends VoiceListening {
 	/** What the last spoken command did, in a few words; a new object each time, so saying the same twice shows twice. */
 	did = $state<{ text: string } | undefined>();
 	#correct = $state(true);
@@ -51,12 +45,13 @@ export class VoiceNotes {
 	/** A head start: the question asked of a model when the speaker had probably finished, kept if they had. */
 	#early: { id: string; text: string; answer: Promise<VoiceRefineAnswer | null> } | undefined;
 	#clock: ReturnType<typeof setInterval> | undefined;
+	/** Which voice note this is, so one that has ended doesn't select its blocks during the next. */
+	#note = 0;
 	#counted = 0;
 	/** Blocks that were wholly a command, and so taken away. */
 	#gone = new Set<string>();
 
 	#options: VoiceOptions;
-	#stop: (() => void) | undefined;
 	#block: SpokenBlock = { settled: '', partial: '' };
 	/** The block being written, the one before it, and every block of this note, by id. */
 	#writing: string | undefined;
@@ -64,23 +59,21 @@ export class VoiceNotes {
 	#session: string[] = [];
 	/** Finished blocks are placed one at a time, in the order they were spoken. */
 	#settling: Promise<void> = Promise.resolve();
-	#idle: ReturnType<typeof setTimeout> | undefined;
-	#run = 0;
 
 	constructor(options: VoiceOptions) {
+		super(options.sources);
 		this.#options = options;
+		const kept = keptChoices(options.storage, KEY);
+		this.#correct = kept.correct ?? this.#correct;
+		this.#arrange = kept.arrange ?? this.#arrange;
+		this.#commands = kept.commands ?? this.#commands;
+		this.#meter = kept.meter ?? this.#meter;
 		try {
-			const kept = JSON.parse(options.storage?.getItem(KEY) ?? 'null') as { correct?: unknown; arrange?: unknown; commands?: unknown; meter?: unknown } | null;
-			if (typeof kept?.correct === 'boolean') this.#correct = kept.correct;
-			if (typeof kept?.arrange === 'boolean') this.#arrange = kept.arrange;
-			if (typeof kept?.commands === 'boolean') this.#commands = kept.commands;
-			if (typeof kept?.meter === 'boolean') this.#meter = kept.meter;
 			const spent = JSON.parse(options.storage?.getItem(USAGE_KEY) ?? 'null') as { month?: unknown; usage?: unknown } | null;
 			if (spent?.month === thisMonth()) this.month = readUsage(spent.usage);
 		} catch { /* nothing kept */ }
 	}
 
-	get listening() { return this.status !== 'off'; }
 	get correct() { return this.#correct; }
 	set correct(value: boolean) { this.#correct = value; this.#keep(); }
 	get arrange() { return this.#arrange; }
@@ -113,69 +106,43 @@ export class VoiceNotes {
 	}
 
 	#keep() {
-		try { this.#options.storage?.setItem(KEY, JSON.stringify({ correct: this.#correct, arrange: this.#arrange, commands: this.#commands, meter: this.#meter })); } catch { /* private window */ }
+		keepChoices(this.#options.storage, KEY, { correct: this.#correct, arrange: this.#arrange, commands: this.#commands, meter: this.#meter });
 	}
 
-	toggle = () => (this.listening ? this.stop() : void this.start());
-
-	async start() {
-		if (this.listening) return;
-		const run = ++this.#run;
-		this.status = 'starting';
-		this.notice = '';
+	protected begin() {
 		this.#block = { settled: '', partial: '' };
 		this.#writing = this.#last = undefined;
 		this.#session = [];
 		this.#gone.clear();
 		this.did = undefined;
-		try {
-			const { name, stop } = await listen(this.#options.sources(), {
-				onevent: (event) => { if (run === this.#run) this.#heard(event); },
-				onlevel: (level) => { if (run === this.#run) this.level = level; },
-				onend: (reason) => { if (run === this.#run) this.stop(reason); }
-			});
-			// Switched off while the microphone was being asked for.
-			if (run !== this.#run) return stop();
-			this.#stop = stop;
-			this.via = name;
-			this.status = 'listening';
-			this.#counted = Date.now();
-			this.#clock = setInterval(() => this.#tick(), 5000);
-			this.#rest();
-		} catch (error) {
-			if (run !== this.#run) return;
-			this.status = 'off';
-			this.notice = error instanceof VoiceError ? error.message : 'Listening couldn’t be started.';
-		}
+		this.#early = undefined;
+		this.#note++;
+	}
+
+	async start() {
+		await super.start();
+		if (this.status !== 'listening') return;
+		// Time listened is counted every few seconds, to whichever source is listening.
+		clearInterval(this.#clock);
+		this.#counted = Date.now();
+		this.#clock = setInterval(() => this.#tick(), 5000);
 	}
 
 	stop(reason = '') {
 		if (!this.listening) return;
-		this.#run++;
-		clearTimeout(this.#idle);
 		clearInterval(this.#clock);
 		if (this.status === 'listening') this.#tick();
 		this.#counted = 0;
-		this.#stop?.();
-		this.#stop = undefined;
-		this.status = 'off';
-		this.level = 0;
-		if (reason) this.notice = reason;
-		// What was being said when it stopped is kept as a block.
-		this.#heard({ type: 'break' });
+		// Switching off keeps what was being said as a block (`heard` is told of a last pause).
+		super.stop(reason);
 		// Once everything has settled, what this voice note added is selected, to be moved or removed as one.
-		const canvas = this.#options.canvas(), run = this.#run;
+		const canvas = this.#options.canvas(), note = this.#note;
 		void this.#settling.then(() => {
 			const kept = this.#session.filter((id) => !this.#gone.has(id));
-			if (!canvas || run !== this.#run || !kept.length) return;
+			if (!canvas || note !== this.#note || this.listening || !kept.length) return;
 			canvas.show(kept, false);
 			this.did = { text: `Added ${kept.length === 1 ? '1 note' : `${kept.length} notes`}` };
 		});
-	}
-
-	#rest() {
-		clearTimeout(this.#idle);
-		this.#idle = setTimeout(() => this.stop('Switched off after three quiet minutes.'), IDLE_MS);
 	}
 
 	/**
@@ -190,10 +157,9 @@ export class VoiceNotes {
 		return found;
 	}
 
-	#heard(event: VoiceEvent) {
+	protected heard(event: VoiceEvent) {
 		const canvas = this.#options.canvas();
 		if (!canvas) return;
-		if (this.listening) this.#rest();
 		const { block, done } = hear(this.#block, event);
 		this.#block = block;
 		const text = blockText(block);
@@ -257,7 +223,7 @@ export class VoiceNotes {
 		if (!this.#options.refine || !(how.correct || how.commands || others.length)) return null;
 		try {
 			const table = how.commands ? { ...(await canvas.read()), spoken: session } : undefined;
-			const answer = await this.#options.refine({ text: block.text, correct: how.correct, connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}) });
+			const answer = await this.#options.refine({ text: block.text, correct: how.correct, ...(how.correct ? { split: true } : {}), connect: others.length > 0, ...(before ? { before: before.text } : {}), ...(others.length ? { items: others } : {}), ...(table ? { commands: true, id: block.id, table } : {}) });
 			if (answer?.usage) { const used = answer.usage; this.#spend((usage) => addText(usage, used)); }
 			if (!answer && how.correct) this.notice = 'No model is set up here to correct the text, so it stays as heard.';
 			return answer;

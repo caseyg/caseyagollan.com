@@ -32,11 +32,8 @@
 </script>
 
 <script lang="ts">
-	import Button from '../ui/Button.svelte';
-	import MenuChevron from '../ui/MenuChevron.svelte';
-	import Notice from '../ui/Notice.svelte';
-	import Popover from '../ui/Popover.svelte';
 	import Switch from '../ui/Switch.svelte';
+	import VoiceMenu, { type VoiceChoice } from '../ui/VoiceMenu.svelte';
 	import { formatUsd, type VoiceSpend } from '$lib/voice-notes';
 
 	interface Props {
@@ -53,15 +50,14 @@
 
 	let { voice, ontoggle, oncorrect, onarrange, oncommands, onmeter, open = $bindable(false) }: Props = $props();
 
-	const listening = $derived(voice.status !== 'off');
 	const label = $derived(voice.status === 'listening' ? 'Stop the voice note' : voice.status === 'starting' ? 'Starting the microphone…' : 'Voice note: talk, and your words become text blocks');
 
-	// A reason listening stopped is shown where the choices are, without being asked for.
-	let told = '';
-	$effect(() => {
-		if (voice.notice && voice.notice !== told) open = true;
-		told = voice.notice ?? '';
-	});
+	const choices = $derived<VoiceChoice[]>([
+		{ key: 'correct', label: 'Tidy into notes', detail: 'After each pause, a model turns what you said into clean notes, one for each thought.', checked: voice.correct },
+		{ key: 'arrange', label: 'Lay out and connect', detail: 'Each block is joined by an arrow to the one it follows, and the note is set out as a tree.', checked: voice.arrange },
+		...(voice.commands !== undefined ? [{ key: 'commands', label: 'Follow spoken commands', detail: '“Connect these two with an arrow”, “draw a circle next to that”, “make the last one red”: done, not written down.', checked: voice.commands }] : [])
+	]);
+	const choose = (key: string, on: boolean) => (key === 'correct' ? oncorrect : key === 'arrange' ? onarrange : oncommands)?.(on);
 
 	// What a command did stays a few seconds, then goes. It is shown in the top layer, over the
 	// microphone, because the toolbar clips what it holds.
@@ -89,28 +85,11 @@
 </script>
 
 <!--
-	The table toolbar's voice note: a microphone that is on or off, and beside it the things a
-	finished block can have done to it, out of the way until asked for.
+	The table toolbar's voice note: the shared microphone and its choices (`ui/VoiceMenu`), the
+	things a finished block can have done to it, and what a spoken command did.
 -->
-<span bind:this={root} class="voice" class:listening data-status={voice.status} style:--level={listening ? (voice.level ?? 0).toFixed(2) : 0}>
-	<Button variant="icon" icon="mic" {label} pressed={listening} class="voice-mic" onclick={ontoggle} />
-	<span bind:this={said} class="said" class:thinking={!did && voice.thinking} popover="manual" role="status">{bubble}</span>
-	{#if voice.usage?.shown}<span class="meter" title="What voice notes have used since this page opened, about">{formatUsd(voice.usage.usd)}</span>{/if}
-	<Popover label="Voice note options" hideTitle={false} align="end" bind:open triggerClass="voice-options" panelClass="voice-panel">
-		{#snippet trigger()}<MenuChevron split={false} />{/snippet}
-		<div class="choices">
-			<Switch checked={voice.correct} onCheckedChange={(on: boolean) => oncorrect?.(on)}>
-				<span class="choice">Tidy into notes<small>After each pause, a model turns what you said into clean notes, one for each thought.</small></span>
-			</Switch>
-			<Switch checked={voice.arrange} onCheckedChange={(on: boolean) => onarrange?.(on)}>
-				<span class="choice">Lay out and connect<small>Each block is joined by an arrow to the one it follows, and the note is set out as a tree.</small></span>
-			</Switch>
-			{#if voice.commands !== undefined}
-				<Switch checked={voice.commands} onCheckedChange={(on: boolean) => oncommands?.(on)}>
-					<span class="choice">Follow spoken commands<small>“Connect these two with an arrow”, “draw a circle next to that”, “make the last one red”: done, not written down.</small></span>
-				</Switch>
-			{/if}
-		</div>
+<span bind:this={root} class="voice">
+	<VoiceMenu status={voice.status} level={voice.level} {label} optionsLabel="Voice note options" {choices} notice={voice.notice} hint="Just talk: a pause starts a new note. Say “actually, make that…” or “scratch that” to take something back, and “that’s all” to finish. Drop one text block on another to combine them; press Enter inside one to split it." {ontoggle} onchoice={choose} bind:open>
 		{#if voice.usage}
 			{@const usage = voice.usage}
 			<div class="usage">
@@ -129,9 +108,9 @@
 				<small>Approximate, from each service’s listed prices.</small>
 			</div>
 		{/if}
-		{#if voice.notice}<Notice tone="info">{voice.notice}</Notice>{/if}
-		<p class="hint">Just talk: a pause starts a new note. Say “actually, make that…” or “scratch that” to take something back, and “that’s all” to finish. Drop one text block on another to combine them; press Enter inside one to split it.</p>
-	</Popover>
+	</VoiceMenu>
+	{#if voice.usage?.shown}<span class="meter" title="What voice notes have used since this page opened, about">{formatUsd(voice.usage.usd)}</span>{/if}
+	<span bind:this={said} class="said" class:thinking={!did && voice.thinking} popover="manual" role="status">{bubble}</span>
 </span>
 
 <style>
@@ -160,7 +139,13 @@
 
 	.said.thinking {
 		color: var(--text-muted);
-		animation: voice-wait 0.8s var(--ease) infinite alternate;
+		animation: voice-thinking 0.8s var(--ease) infinite alternate;
+	}
+
+	@keyframes voice-thinking {
+		to {
+			opacity: 0.5;
+		}
 	}
 
 	/* The running cost: small figures beside the microphone. */
@@ -181,8 +166,8 @@
 		font-size: var(--fs-sm);
 	}
 
-	.usage :global(.switch) {
-		align-items: start;
+	.usage .choice {
+		font-weight: var(--fw-medium);
 	}
 
 	.usage dl {
@@ -221,76 +206,7 @@
 		font-weight: var(--fw-regular);
 	}
 
-	/* Listening: the site's active blue, with a ring that swells as the microphone hears more. */
-	.voice.listening :global(.voice-mic) {
-		background: var(--accent);
-		color: var(--text-primary);
-		box-shadow: 0 0 0 calc(1px + var(--level) * 5px) rgb(255 255 255 / 0.28);
-		transition: box-shadow 120ms linear;
-	}
-
-	.voice[data-status='starting'] :global(.voice-mic) {
-		animation: voice-wait 1s var(--ease) infinite alternate;
-	}
-
-	@keyframes voice-wait {
-		to {
-			opacity: 0.5;
-		}
-	}
-
-	.voice :global(.voice-options) {
-		height: 2.25rem;
-		padding: 0 var(--space-1);
-	}
-
-	:global(.voice-panel) {
-		width: min(20rem, calc(100vw - 2 * var(--space-4)));
-		max-height: min(34rem, calc(100dvh - 7rem));
-		overflow-y: auto;
-		padding: var(--space-2);
-	}
-
-	.choices {
-		display: grid;
-		gap: var(--space-3);
-		padding: var(--space-2);
-		font-size: var(--fs-sm);
-	}
-
-	.choices :global(.switch) {
-		align-items: start;
-	}
-
-	.choice {
-		display: grid;
-		gap: 2px;
-		font-weight: var(--fw-medium);
-	}
-
-	.choice small,
-	.hint {
-		color: var(--text-muted);
-		font-size: var(--fs-xs);
-		font-weight: var(--fw-regular);
-		line-height: var(--lh-normal);
-	}
-
-	.hint {
-		margin: var(--space-2);
-	}
-
-	.voice :global(.notice),
-	:global(.voice-panel .notice) {
-		margin: var(--space-2);
-	}
-
 	@media (prefers-reduced-motion: reduce) {
-		.voice.listening :global(.voice-mic) {
-			transition: none;
-		}
-
-		.voice[data-status='starting'] :global(.voice-mic),
 		.said.thinking {
 			animation: none;
 		}

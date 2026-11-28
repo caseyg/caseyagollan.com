@@ -128,6 +128,8 @@ export interface VoiceRefineRequest {
 	text: string;
 	/** Fix what was misheard. */
 	correct: boolean;
+	/** With `correct`: a passage that holds several thoughts comes back as a note for each (a table). Left out, it stays one text (a chat message). */
+	split?: boolean;
 	/** Say which block on the table this one follows. */
 	connect: boolean;
 	/** The block spoken just before, for context. */
@@ -436,7 +438,7 @@ export function cleanRefine(body: unknown): VoiceRefineRequest | null {
 			return id && words ? [{ id, text: words }] : [];
 		})
 		.slice(-ITEMS_MAX);
-	return { text, correct: !!data.correct, connect: !!data.connect && items.length > 0, ...(spoken(data.before) ? { before: spoken(data.before).slice(-600) } : {}), ...(items.length ? { items } : {}), ...(table ? { commands: true, table, ...(idOf(data.id) ? { id: idOf(data.id) } : {}) } : {}) };
+	return { text, correct: !!data.correct, ...(data.correct && data.split ? { split: true } : {}), connect: !!data.connect && items.length > 0, ...(spoken(data.before) ? { before: spoken(data.before).slice(-600) } : {}), ...(items.length ? { items } : {}), ...(table ? { commands: true, table, ...(idOf(data.id) ? { id: idOf(data.id) } : {}) } : {}) };
 }
 
 /** The table, a line per item, as a command is told of it. */
@@ -457,7 +459,9 @@ export function refinePrompt(request: VoiceRefineRequest): { system: string; use
 	const commands = !!request.commands && !!request.table;
 	const besides = commands ? ' Leave out only the part that is a command (below) and keep everything said besides it, small talk included: of "okay cool so this is a new block can you connect these two" the text is "Okay, cool. So this is a new block." It is "" only when the whole passage is a command.' : '';
 	const fields = [
-		request.correct
+		request.correct && !request.split
+			? `"text": the passage with speech-to-text mistakes fixed: misheard or split words (judge by the context), punctuation, capitals, and filler (um, uh, a sentence started twice) taken out. Keep the speaker’s own words, order, language and meaning. Do not shorten, summarise, add or rephrase.${besides}`
+			: request.correct
 			? `"notes": the passage as a list of notes, one for each separate thought or item in it (a single thought stays one note; things listed one after another, to do, to get or to remember, are a note each: "i need to book the room and email the speakers" is ["Book the room.", "Email the speakers."]). In each, fix speech-to-text mistakes: misheard or split words (judge by the context), punctuation, capitals. Take out filler (um, uh, a sentence started twice) and talk about the talking itself ("okay so", "next thing", "let me think"). Keep the speaker’s own words, order, language and meaning. Do not summarise, add or rephrase.${besides.replace('It is ""', 'It is []')}`
 			: commands ? `"text": the passage exactly as given.${besides}` : '',
 		request.connect ? '"follows": the id of the one listed note this passage most directly continues, answers or elaborates, or null when it starts a new subject.' : '',
@@ -535,7 +539,9 @@ export function parseRefine(reply: string, request: VoiceRefineRequest): VoiceRe
 	const data = firstObject(reply);
 	const ops = request.commands && data ? cleanVoiceOps(data.ops, request.table) : [];
 	// The passage comes back as notes, one a thought; an answer with plain `text` is one note.
-	const notes = Array.isArray(data?.notes) ? data.notes.map(spoken).filter(Boolean).slice(0, 12) : spoken(data?.text) ? [spoken(data?.text)] : [];
+	const listed = Array.isArray(data?.notes) ? data.notes.map(spoken).filter(Boolean).slice(0, 12) : spoken(data?.text) ? [spoken(data?.text)] : [];
+	// Where one text was asked for (a chat message), notes answered anyway are that one text.
+	const notes = request.split || listed.length < 2 ? listed : [listed.join(' ')];
 	const answered = Array.isArray(data?.notes) || typeof data?.text === 'string';
 	const whole = notes.join(' ');
 	// With a command taken out, what is left is shorter than what was heard, and may be nothing at all.

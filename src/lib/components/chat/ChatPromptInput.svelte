@@ -1,12 +1,15 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { CHAT_MAX_MESSAGE, PROVIDER_LABELS, type ChatSendOptions, type ChatViewer } from '$lib/chat';
-	import { Avatar, Button } from '$lib/components/ui';
+	import { Avatar, Button, VoiceMenu, type VoiceChoice } from '$lib/components/ui';
 	import { Textarea } from '@ui-sdk/svelte/textarea';
 	import { TriggerMenu, TriggerMenuContent, TriggerMenuInput, TriggerMenuItem, TriggerMenuList, type TriggerDefinition, type TriggerMenuDataItem } from '@ui-sdk/svelte/trigger-menu';
 	import { matchSkills, type SkillSummary } from '$lib/chat-skills';
 	import { enabledSkills } from '$lib/chat-skills-client';
 	import type { ChatToolChoices } from '$lib/chat-tool-groups';
 	import type { ChatModelChoices } from '$lib/chat-models';
+	import { VoiceDictation, type DictationOptions } from '$lib/voice-dictation.svelte';
+	import { browserSource, ownerCsrf, voiceRefiner, workerSource } from '$lib/voice-source';
 	import ChatModelMenu from './ChatModelMenu.svelte';
 	import ChatToolsMenu from './ChatToolsMenu.svelte';
 
@@ -47,9 +50,15 @@
 		 * (only Casey has skills); pass a list for stories, or `[]` for none.
 		 */
 		skills?: SkillSummary[];
+		/**
+		 * Casey's microphone: talk, and the words are written into the box; a pause sends them (or
+		 * not: its menu says). `false` for no microphone. Stories pass scripted `sources` and `refine`
+		 * in place of the site's speech model and the model that corrects.
+		 */
+		voice?: false | Partial<Pick<DictationOptions, 'sources' | 'refine' | 'storage'>>;
 	}
 
-	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false, choices = null, onchoices, models = null, onmodel, skills }: Props = $props();
+	let { viewer, action = '', placeholder = 'Write a message', onsend, disabled = false, open = $bindable(false), value = $bindable(''), returnTo = '/chat', tools = [], compact = false, label = 'Message', queueing = false, choices = null, onchoices, models = null, onmodel, skills, voice }: Props = $props();
 
 	let sending = $state(false);
 	const tooLong = $derived(value.length > CHAT_MAX_MESSAGE);
@@ -61,13 +70,55 @@
 	let held = $state(false);
 	const queue = $derived(held || queueing);
 
+	let form: HTMLFormElement | undefined = $state();
+
+	/** Sends what the box holds, by Enter, Send or a pause in dictation; resolves whether it went. */
+	async function deliver(): Promise<boolean> {
+		if (!ready) return false;
+		// Without `onsend` the form posts, and the page that comes back has an empty box.
+		if (!onsend) return void form?.requestSubmit(), true;
+		sending = true;
+		try {
+			const went = await onsend(value.trim(), { queue });
+			if (went) value = '';
+			return went;
+		} finally {
+			sending = false;
+		}
+	}
+
 	async function submit(event: SubmitEvent) {
 		if (!onsend) return;
 		event.preventDefault();
-		if (!ready) return;
-		sending = true;
-		try { if (await onsend(value.trim(), { queue })) value = ''; } finally { sending = false; }
+		if (await deliver()) dictation?.cleared();
 	}
+
+	// Voice: the same listening as a table's voice note, written into this box. Only Casey's, since
+	// the speech model and the model that corrects are paid for.
+	// svelte-ignore state_referenced_locally
+	const dictation = viewer.owner && voice !== false
+		? new VoiceDictation({
+				sources: voice?.sources ?? (() => [workerSource(), browserSource()]),
+				refine: voice?.refine ?? voiceRefiner(ownerCsrf),
+				storage: voice?.storage ?? (typeof localStorage === 'undefined' ? undefined : localStorage),
+				read: () => value,
+				write: (text) => (value = text),
+				send: deliver
+			})
+		: undefined;
+	onDestroy(() => dictation?.stop());
+
+	const voiceLabel = $derived(dictation?.status === 'listening' ? 'Stop listening' : dictation?.status === 'starting' ? 'Starting the microphone…' : 'Talk: your words are written here');
+	const voiceChoices = $derived<VoiceChoice[]>(dictation ? [
+		{ key: 'send', label: 'Send when I pause', detail: 'Each pause sends what you said, and listening carries on. Off, the words wait in the box for you to send.', checked: dictation.send },
+		{ key: 'correct', label: 'Correct the text', detail: 'Before it goes, a model fixes misheard words and punctuation.', checked: dictation.correct }
+	] : []);
+	function voiceChoice(key: string, on: boolean) {
+		if (!dictation) return;
+		if (key === 'send') dictation.send = on;
+		else dictation.correct = on;
+	}
+	const hearing = $derived(dictation?.status === 'listening');
 
 	// Slash commands: a `/` typed as a word of its own, anywhere in the message, opens the skills that
 	// match at the caret (ui-sdk's Trigger Menu); choosing one writes its name in there.
@@ -105,14 +156,14 @@
 <svelte:window onkeydown={(event) => (held = modifier(event))} onkeyup={(event) => (held = modifier(event))} onblur={() => (held = false)} />
 
 <!-- The composer: one quiet line until it's used, then the box, who you are, and Send. Compact, it's only the box and Send. -->
-<form class="chat-prompt" class:open={open && !compact} class:compact method="POST" {action} onsubmit={submit}>
+<form bind:this={form} class="chat-prompt" class:open={open && !compact} class:compact method="POST" {action} onsubmit={submit}>
 	<div class="box" onkeydowncapture={keydown}>
 		{#if !compact}<Avatar src={viewer.photo} name={viewer.name} size="sm" />{/if}
 		{#if choices && onchoices && viewer.owner}<ChatToolsMenu {choices} onchange={onchoices} />{/if}
 		<TriggerMenu {triggers} bind:open={menu} autoHighlight>
 			<TriggerMenuInput onfocus={() => (open = true)} aria-label={placeholder || label}>
 				{#snippet render({ props })}
-					<Textarea {...props} class="input" name="text" bind:value {placeholder} rows={open && !compact ? 3 : 1} autoResize maxlength={CHAT_MAX_MESSAGE + 200} />
+					<Textarea {...props} class="input" name="text" bind:value placeholder={hearing ? 'Listening…' : placeholder} rows={open && !compact ? 3 : 1} autoResize maxlength={CHAT_MAX_MESSAGE + 200} />
 				{/snippet}
 			</TriggerMenuInput>
 			<TriggerMenuContent class="skill-menu" side="top" align="start" sideOffset={8} collisionPadding={8}>
@@ -130,7 +181,9 @@
 			</TriggerMenuContent>
 		</TriggerMenu>
 		{#if compact && tooLong}<span class="limit">{value.length} / {CHAT_MAX_MESSAGE}</span>{/if}
-		{#if models && onmodel && viewer.owner && (compact || !open)}<ChatModelMenu {models} onchange={onmodel} />{/if}
+		<!-- While listening the Model menu steps aside, so the words have the room on a phone. -->
+		{#if models && onmodel && viewer.owner && (compact || !open) && !hearing}<ChatModelMenu {models} onchange={onmodel} />{/if}
+		{#if dictation}<VoiceMenu size="sm" status={dictation.status} level={dictation.level} label={voiceLabel} choices={voiceChoices} notice={dictation.notice} hint="Words go after whatever the box already holds. Switching the microphone off never sends." ontoggle={dictation.toggle} onchoice={voiceChoice} />{/if}
 		{#if !open || compact}<Button class="send" variant={compact ? 'primary' : 'icon'} size="sm" icon={sendIcon} label={sendLabel} aria-label={sendLabel} type="submit" disabled={!ready} />{/if}
 	</div>
 	{#if open && !compact}

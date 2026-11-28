@@ -20,8 +20,7 @@
 	import { blockKey, isBlockKind, type Block, type TableSummary } from '$lib/tables';
 	import { offerTable } from '$lib/site-chat.svelte';
 	import { VoiceNotes } from '$lib/voice-session.svelte';
-	import { browserSource, workerSource } from '$lib/voice-source';
-	import { VOICE_REFINE_PATH, type VoiceRefineAnswer, type VoiceRefineRequest } from '$lib/voice-notes';
+	import { browserSource, voiceRefiner, workerSource } from '$lib/voice-source';
 	import type { TablePostAs } from '$lib/table-post';
 	import type { TableItem, TableOp, TableOpEvent, TableOpResult } from '$lib/table-agent';
 
@@ -92,12 +91,7 @@
 	 * A finished voice note block, asked of a model: corrected, and placed after the block it follows.
 	 * Nothing to ask (the demo, a Worker with no model) answers null and the block stays as heard.
 	 */
-	async function refineVoice(request: VoiceRefineRequest): Promise<VoiceRefineAnswer | null> {
-		const response = await fetch(VOICE_REFINE_PATH, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-csrf-token': session?.csrf ?? '' }, body: JSON.stringify(request) });
-		if ([401, 403, 503].includes(response.status)) return null;
-		if (!response.ok) throw new Error(`Voice note refine answered ${response.status}`);
-		return (await response.json()) as VoiceRefineAnswer;
-	}
+	const refineVoice = voiceRefiner(() => session?.csrf ?? '');
 
 	// The owner's voice note: the Worker's speech model where there is one, the browser's dictation otherwise.
 	const voice = new VoiceNotes({ canvas: () => api?.voice, sources: () => [workerSource(), browserSource()], refine: refineVoice, storage: typeof localStorage === 'undefined' ? undefined : localStorage });
