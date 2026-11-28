@@ -80,7 +80,7 @@ export async function voiceListen(request: Request, env: VoiceEnv, owner: () => 
 export const VOICE_FAST_MODEL = 'cerebras:qwen-3.8-27b';
 
 /** The model that answers: `VOICE_TEXT_MODEL` if it can answer here, else the fast one, else the chat's own, else any provider with a key. */
-function textModel(env: VoiceEnv) {
+export function fastTextModel(env: ChatModelEnv & Pick<VoiceEnv, 'VOICE_TEXT_MODEL'>) {
 	const chat = chatModels(env);
 	const keyed = (provider: string) => !!env[CHAT_PROVIDERS.find((one) => one.id === provider)?.secret ?? 'INFERENCE_COOP_API_KEY'];
 	const refs = [chat.resolve(env.VOICE_TEXT_MODEL), chat.resolve(VOICE_FAST_MODEL), chat.model, chat.resolve(chat.options[0]?.key)];
@@ -89,11 +89,11 @@ function textModel(env: VoiceEnv) {
 	return model ? { models: chat.models, model } : undefined;
 }
 
-export const canRefine = (env: VoiceEnv) => !!textModel(env);
+export const canRefine = (env: VoiceEnv) => !!fastTextModel(env);
 
 /** A finished block, corrected and placed by a model; `null` when no model can answer here. Throws when one fails. */
 export async function refineSpeech(env: VoiceEnv, request: VoiceRefineRequest, signal?: AbortSignal): Promise<VoiceRefineAnswer | null> {
-	const found = textModel(env);
+	const found = fastTextModel(env);
 	if (!found) return null;
 	// The model is shown short ids (`b1`…) in place of the canvas's long random ones, and its answer is read back into them.
 	const brief = shortIds(request);
